@@ -1,0 +1,82 @@
+# Agent Artifact Registry
+# This file tracks all artifacts and their dependencies
+
+artifact_types:
+  system_design:
+    producer: system-architecture-lead
+    consumers: [security, database-architect, backend-agent]
+    format: yaml
+    path: artifacts/system-design.yml
+    
+  security_requirements:
+    producer: security
+    consumers: [backend-agent, frontend-agent, database-architect]
+    format: yaml
+    path: artifacts/security-requirements.yml
+    
+  database_schema:
+    producer: database-architect
+    consumers: [backend-agent, testing-agent]
+    format: sql
+    path: artifacts/database-schema.sql
+    
+  api_contracts:
+    producer: backend-agent
+    consumers: [frontend-agent, external-api-integration-specialist, testing-agent]
+    format: openapi
+    path: artifacts/api-contracts.yml
+    
+  test_results:
+    producer: testing-agent
+    consumers: [error-agent, devops-agent]
+    format: json
+    path: artifacts/test-results.json
+    
+  error_reports:
+    producer: error-agent
+    consumers: ALL
+    format: markdown
+    path: artifacts/error-reports.md
+    
+  performance_metrics:
+    producer: performance-optimization-specialist
+    consumers: [devops-agent, system-architecture-lead]
+    format: json
+    path: artifacts/performance-metrics.json
+
+decision_rules:
+  security_agent:
+    if_vulnerability_found:
+      severity_critical: 
+        action: block_deployment
+        notify: [error-agent, devops-agent]
+      severity_high:
+        action: create_hotfix
+        notify: [backend-agent, testing-agent]
+      severity_medium:
+        action: add_to_backlog
+        notify: [system-architecture-lead]
+        
+  testing_agent:
+    if_coverage_below_80:
+      action: request_more_tests
+      notify: [backend-agent, frontend-agent]
+    if_tests_fail:
+      action: block_deployment
+      notify: [error-agent, responsible-agent]
+      
+  performance_agent:
+    if_response_time_above_200ms:
+      action: optimize_query
+      notify: [database-architect, backend-agent]
+    if_memory_usage_above_80:
+      action: scale_horizontally
+      notify: [devops-agent]
+      
+  error_agent:
+    if_critical_error:
+      action: halt_all_agents
+      execute: recovery_protocol
+    if_inconsistency_detected:
+      action: request_clarification
+      notify: [relevant-agents]

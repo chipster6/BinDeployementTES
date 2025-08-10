@@ -1,0 +1,31 @@
+{
+  "name": "waste-management-recovery-monitoring",
+  "version": "1.0.0",
+  "description": "Continuous monitoring system for waste management system recovery phase",
+  "main": "scripts/continuous-error-reporter.js",
+  "scripts": {
+    "start": "node scripts/continuous-error-reporter.js",
+    "monitor": "node scripts/continuous-error-reporter.js --daemon",
+    "validate-consistency": "node scripts/consistency-validator.js",
+    "validate-progress": "node scripts/recovery-progress-validator.js",
+    "monitor-recovery": "node scripts/monitor-recovery.js",
+    "watch-consistency": "node scripts/consistency-validator.js --watch",
+    "progress-continuous": "node scripts/recovery-progress-validator.js --continuous"
+  },
+  "dependencies": {
+    "js-yaml": "^4.1.0",
+    "chokidar": "^3.5.3"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.0"
+  },
+  "keywords": [
+    "monitoring",
+    "error-detection",
+    "recovery",
+    "waste-management",
+    "claude-code"
+  ],
+  "author": "Error Resilience Guardian Agent",
+  "license": "PROPRIETARY"
+}
