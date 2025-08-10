@@ -1,0 +1,2530 @@
+# ============================================================================
+# WASTE MANAGEMENT SYSTEM - API CONTRACTS SPECIFICATION
+# ============================================================================
+# Version: 1.0.0
+# Created by: Backend Development Agent
+# Date: 2025-08-10
+# OpenAPI Version: 3.1.0
+# Dependencies: system-design.yml, security-requirements.yml, database-schema.sql
+# ============================================================================
+
+openapi: 3.1.0
+info:
+  title: Waste Management System API
+  description: |
+    Comprehensive REST API for waste management operations including customer management,
+    route optimization, billing, and real-time tracking capabilities.
+    
+    ## Authentication
+    All endpoints require JWT authentication with role-based access control.
+    
+    ## Rate Limiting
+    - Anonymous users: 100 requests/hour
+    - Authenticated users: 1000 requests/hour
+    - API keys: 10,000+ requests/hour (tier-dependent)
+    
+    ## Error Handling
+    All errors follow RFC 7807 Problem Details format.
+    
+  version: 1.0.0
+  contact:
+    name: API Support
+    email: api-support@waste-mgmt.com
+    url: https://docs.waste-mgmt.com
+  license:
+    name: Proprietary
+    url: https://waste-mgmt.com/license
+  termsOfService: https://waste-mgmt.com/terms
+
+servers:
+  - url: https://api.waste-mgmt.com/v1
+    description: Production API
+  - url: https://staging-api.waste-mgmt.com/v1
+    description: Staging API
+  - url: http://localhost:3001/api/v1
+    description: Development API
+
+# ============================================================================
+# SECURITY SCHEMES
+# ============================================================================
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT access token obtained from authentication endpoint
+    
+    apiKey:
+      type: apiKey
+      in: header
+      name: X-API-Key
+      description: API key for external integrations
+
+  # ============================================================================
+  # REUSABLE SCHEMAS
+  # ============================================================================
+  schemas:
+    # Common schemas
+    UUID:
+      type: string
+      format: uuid
+      example: "550e8400-e29b-41d4-a716-446655440000"
+    
+    Timestamp:
+      type: string
+      format: date-time
+      example: "2025-08-10T12:00:00Z"
+    
+    Date:
+      type: string
+      format: date
+      example: "2025-08-10"
+    
+    PaginationMeta:
+      type: object
+      properties:
+        total:
+          type: integer
+          example: 150
+        page:
+          type: integer
+          example: 1
+        limit:
+          type: integer
+          example: 20
+        totalPages:
+          type: integer
+          example: 8
+        hasNext:
+          type: boolean
+          example: true
+        hasPrevious:
+          type: boolean
+          example: false
+    
+    ErrorResponse:
+      type: object
+      required:
+        - type
+        - title
+        - status
+      properties:
+        type:
+          type: string
+          format: uri
+          example: "https://docs.waste-mgmt.com/errors/validation-failed"
+        title:
+          type: string
+          example: "Validation Failed"
+        status:
+          type: integer
+          example: 400
+        detail:
+          type: string
+          example: "The request contains invalid or missing fields"
+        instance:
+          type: string
+          format: uri
+          example: "/customers"
+        errors:
+          type: array
+          items:
+            type: object
+            properties:
+              field:
+                type: string
+                example: "email"
+              message:
+                type: string
+                example: "Email address is required"
+              code:
+                type: string
+                example: "FIELD_REQUIRED"
+    
+    # Location/Geographic schemas
+    Location:
+      type: object
+      required:
+        - latitude
+        - longitude
+      properties:
+        latitude:
+          type: number
+          format: double
+          minimum: -90
+          maximum: 90
+          example: 40.7128
+        longitude:
+          type: number
+          format: double
+          minimum: -180
+          maximum: 180
+          example: -74.0060
+        address:
+          type: string
+          example: "123 Main St, New York, NY 10001"
+    
+    # Address schema
+    Address:
+      type: object
+      properties:
+        line1:
+          type: string
+          maxLength: 255
+          example: "123 Business Street"
+        line2:
+          type: string
+          maxLength: 255
+          example: "Suite 100"
+        city:
+          type: string
+          maxLength: 100
+          example: "New York"
+        state:
+          type: string
+          maxLength: 50
+          example: "NY"
+        postalCode:
+          type: string
+          maxLength: 20
+          example: "10001"
+        country:
+          type: string
+          maxLength: 2
+          example: "US"
+    
+    # ========================================================================
+    # USER AND AUTHENTICATION SCHEMAS
+    # ========================================================================
+    
+    UserRole:
+      type: string
+      enum: [super_admin, admin, dispatcher, office_staff, driver, customer, customer_staff]
+      example: "admin"
+    
+    UserStatus:
+      type: string
+      enum: [active, inactive, suspended, locked]
+      example: "active"
+    
+    LoginRequest:
+      type: object
+      required:
+        - email
+        - password
+      properties:
+        email:
+          type: string
+          format: email
+          example: "user@company.com"
+        password:
+          type: string
+          format: password
+          minLength: 8
+          example: "securePassword123!"
+        rememberMe:
+          type: boolean
+          default: false
+          example: false
+        mfaCode:
+          type: string
+          pattern: '^[0-9]{6}$'
+          example: "123456"
+    
+    LoginResponse:
+      type: object
+      properties:
+        accessToken:
+          type: string
+          example: "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9..."
+        refreshToken:
+          type: string
+          example: "RT_abc123def456..."
+        expiresIn:
+          type: integer
+          example: 900
+        user:
+          $ref: '#/components/schemas/User'
+        permissions:
+          type: array
+          items:
+            type: string
+          example: ["customers:read", "routes:create"]
+    
+    RefreshTokenRequest:
+      type: object
+      required:
+        - refreshToken
+      properties:
+        refreshToken:
+          type: string
+          example: "RT_abc123def456..."
+    
+    User:
+      type: object
+      properties:
+        id:
+          $ref: '#/components/schemas/UUID'
+        email:
+          type: string
+          format: email
+          example: "john.doe@company.com"
+        firstName:
+          type: string
+          maxLength: 100
+          example: "John"
+        lastName:
+          type: string
+          maxLength: 100
+          example: "Doe"
+        phone:
+          type: string
+          maxLength: 20
+          example: "+1-555-123-4567"
+        role:
+          $ref: '#/components/schemas/UserRole'
+        status:
+          $ref: '#/components/schemas/UserStatus'
+        mfaEnabled:
+          type: boolean
+          example: true
+        lastLoginAt:
+          $ref: '#/components/schemas/Timestamp'
+        createdAt:
+          $ref: '#/components/schemas/Timestamp'
+        updatedAt:
+          $ref: '#/components/schemas/Timestamp'
+    
+    CreateUserRequest:
+      type: object
+      required:
+        - email
+        - password
+        - firstName
+        - lastName
+        - role
+      properties:
+        email:
+          type: string
+          format: email
+          example: "new.user@company.com"
+        password:
+          type: string
+          format: password
+          minLength: 12
+          example: "SecurePassword123!"
+        firstName:
+          type: string
+          maxLength: 100
+          example: "Jane"
+        lastName:
+          type: string
+          maxLength: 100
+          example: "Smith"
+        phone:
+          type: string
+          maxLength: 20
+          example: "+1-555-987-6543"
+        role:
+          $ref: '#/components/schemas/UserRole'
+    
+    UpdateUserRequest:
+      type: object
+      properties:
+        firstName:
+          type: string
+          maxLength: 100
+        lastName:
+          type: string
+          maxLength: 100
+        phone:
+          type: string
+          maxLength: 20
+        status:
+          $ref: '#/components/schemas/UserStatus'
+    
+    # ========================================================================
+    # ORGANIZATION AND CUSTOMER SCHEMAS
+    # ========================================================================
+    
+    OrganizationType:
+      type: string
+      enum: [customer, vendor, partner]
+      example: "customer"
+    
+    Organization:
+      type: object
+      properties:
+        id:
+          $ref: '#/components/schemas/UUID'
+        name:
+          type: string
+          maxLength: 255
+          example: "ABC Manufacturing Corp"
+        legalName:
+          type: string
+          maxLength: 255
+          example: "ABC Manufacturing Corporation"
+        type:
+          $ref: '#/components/schemas/OrganizationType'
+        status:
+          type: string
+          enum: [active, inactive, suspended]
+          example: "active"
+        billingAddress:
+          $ref: '#/components/schemas/Address'
+        serviceAddress:
+          $ref: '#/components/schemas/Address'
+        serviceLocation:
+          $ref: '#/components/schemas/Location'
+        primaryContactId:
+          $ref: '#/components/schemas/UUID'
+        createdAt:
+          $ref: '#/components/schemas/Timestamp'
+        updatedAt:
+          $ref: '#/components/schemas/Timestamp'
+    
+    Customer:
+      type: object
+      properties:
+        id:
+          $ref: '#/components/schemas/UUID'
+        organizationId:
+          $ref: '#/components/schemas/UUID'
+        organization:
+          $ref: '#/components/schemas/Organization'
+        customerNumber:
+          type: string
+          maxLength: 50
+          example: "CUST-2025-001"
+        accountManagerId:
+          $ref: '#/components/schemas/UUID'
+        territory:
+          type: string
+          maxLength: 100
+          example: "Downtown District"
+        serviceFrequency:
+          type: string
+          enum: [weekly, bi_weekly, monthly, on_demand]
+          example: "weekly"
+        preferredServiceDay:
+          type: string
+          enum: [monday, tuesday, wednesday, thursday, friday, saturday, sunday]
+          example: "tuesday"
+        serviceInstructions:
+          type: string
+          example: "Use back entrance, bins located behind building"
+        creditLimit:
+          type: number
+          format: decimal
+          example: 5000.00
+        paymentTerms:
+          type: string
+          maxLength: 50
+          example: "net_30"
+        autoPayEnabled:
+          type: boolean
+          example: false
+        createdAt:
+          $ref: '#/components/schemas/Timestamp'
+        updatedAt:
+          $ref: '#/components/schemas/Timestamp'
+    
+    CreateCustomerRequest:
+      type: object
+      required:
+        - organization
+        - territory
+        - serviceFrequency
+      properties:
+        organization:
+          type: object
+          required:
+            - name
+            - billingAddress
+            - serviceAddress
+          properties:
+            name:
+              type: string
+              maxLength: 255
+            legalName:
+              type: string
+              maxLength: 255
+            billingAddress:
+              $ref: '#/components/schemas/Address'
+            serviceAddress:
+              $ref: '#/components/schemas/Address'
+            serviceLocation:
+              $ref: '#/components/schemas/Location'
+        accountManagerId:
+          $ref: '#/components/schemas/UUID'
+        territory:
+          type: string
+          maxLength: 100
+        serviceFrequency:
+          type: string
+          enum: [weekly, bi_weekly, monthly, on_demand]
+        preferredServiceDay:
+          type: string
+          enum: [monday, tuesday, wednesday, thursday, friday, saturday, sunday]
+        serviceInstructions:
+          type: string
+        creditLimit:
+          type: number
+          format: decimal
+        paymentTerms:
+          type: string
+          maxLength: 50
+        autoPayEnabled:
+          type: boolean
+    
+    # ========================================================================
+    # VEHICLE AND DRIVER SCHEMAS
+    # ========================================================================
+    
+    VehicleType:
+      type: string
+      enum: [truck, van, trailer, equipment]
+      example: "truck"
+    
+    VehicleStatus:
+      type: string
+      enum: [active, maintenance, out_of_service, retired]
+      example: "active"
+    
+    Vehicle:
+      type: object
+      properties:
+        id:
+          $ref: '#/components/schemas/UUID'
+        vehicleNumber:
+          type: string
+          maxLength: 50
+          example: "TRUCK-001"
+        make:
+          type: string
+          maxLength: 100
+          example: "Ford"
+        model:
+          type: string
+          maxLength: 100
+          example: "F-750"
+        year:
+          type: integer
+          minimum: 1900
+          maximum: 2050
+          example: 2023
+        vin:
+          type: string
+          maxLength: 17
+          example: "1FTRF1CT5KFC12345"
+        licensePlate:
+          type: string
+          maxLength: 20
+          example: "WM001NY"
+        vehicleType:
+          $ref: '#/components/schemas/VehicleType'
+        capacityCubicYards:
+          type: number
+          format: decimal
+          example: 20.0
+        capacityWeightLbs:
+          type: number
+          format: decimal
+          example: 40000.0
+        fuelType:
+          type: string
+          enum: [gasoline, diesel, electric, hybrid]
+          example: "diesel"
+        status:
+          $ref: '#/components/schemas/VehicleStatus'
+        gpsDeviceId:
+          type: string
+          maxLength: 100
+          example: "GPS-DEVICE-001"
+        samsaraVehicleId:
+          type: string
+          maxLength: 100
+          example: "212014918086180"
+        lastMaintenanceDate:
+          $ref: '#/components/schemas/Date'
+        nextMaintenanceDate:
+          $ref: '#/components/schemas/Date'
+        createdAt:
+          $ref: '#/components/schemas/Timestamp'
+        updatedAt:
+          $ref: '#/components/schemas/Timestamp'
+    
+    Driver:
+      type: object
+      properties:
+        id:
+          $ref: '#/components/schemas/UUID'
+        userId:
+          $ref: '#/components/schemas/UUID'
+        user:
+          $ref: '#/components/schemas/User'
+        driverNumber:
+          type: string
+          maxLength: 50
+          example: "DRV-001"
+        licenseClass:
+          type: string
+          maxLength: 10
+          example: "CDL-A"
+        licenseExpiryDate:
+          $ref: '#/components/schemas/Date'
+        cdlEndorsements:
+          type: string
+          maxLength: 50
+          example: "HazMat, Passenger"
+        hireDate:
+          $ref: '#/components/schemas/Date'
+        employmentStatus:
+          type: string
+          enum: [active, inactive, terminated]
+          example: "active"
+        createdAt:
+          $ref: '#/components/schemas/Timestamp'
+        updatedAt:
+          $ref: '#/components/schemas/Timestamp'
+    
+    # ========================================================================
+    # ROUTE AND SERVICE EVENT SCHEMAS
+    # ========================================================================
+    
+    RouteType:
+      type: string
+      enum: [residential, commercial, industrial, mixed]
+      example: "commercial"
+    
+    RouteStatus:
+      type: string
+      enum: [active, inactive, optimizing, archived]
+      example: "active"
+    
+    Route:
+      type: object
+      properties:
+        id:
+          $ref: '#/components/schemas/UUID'
+        routeNumber:
+          type: string
+          maxLength: 50
+          example: "RT-DOWNTOWN-001"
+        routeName:
+          type: string
+          maxLength: 255
+          example: "Downtown Commercial Route"
+        description:
+          type: string
+          example: "Daily pickup route covering downtown business district"
+        territory:
+          type: string
+          maxLength: 100
+          example: "Downtown District"
+        estimatedDurationMinutes:
+          type: integer
+          example: 480
+        estimatedDistanceMiles:
+          type: number
+          format: decimal
+          example: 45.5
+        serviceDay:
+          type: string
+          enum: [monday, tuesday, wednesday, thursday, friday, saturday, sunday]
+          example: "tuesday"
+        routeType:
+          $ref: '#/components/schemas/RouteType'
+        status:
+          $ref: '#/components/schemas/RouteStatus'
+        driverId:
+          $ref: '#/components/schemas/UUID'
+        vehicleId:
+          $ref: '#/components/schemas/UUID'
+        driver:
+          $ref: '#/components/schemas/Driver'
+        vehicle:
+          $ref: '#/components/schemas/Vehicle'
+        aiOptimized:
+          type: boolean
+          example: true
+        optimizationScore:
+          type: number
+          format: decimal
+          example: 87.5
+        lastOptimizedAt:
+          $ref: '#/components/schemas/Timestamp'
+        createdAt:
+          $ref: '#/components/schemas/Timestamp'
+        updatedAt:
+          $ref: '#/components/schemas/Timestamp'
+    
+    ServiceEventType:
+      type: string
+      enum: [pickup, delivery, maintenance, inspection, complaint]
+      example: "pickup"
+    
+    ServiceEventStatus:
+      type: string
+      enum: [scheduled, in_progress, completed, cancelled, rescheduled]
+      example: "scheduled"
+    
+    ServiceEvent:
+      type: object
+      properties:
+        id:
+          $ref: '#/components/schemas/UUID'
+        customerId:
+          $ref: '#/components/schemas/UUID'
+        routeId:
+          $ref: '#/components/schemas/UUID'
+        driverId:
+          $ref: '#/components/schemas/UUID'
+        vehicleId:
+          $ref: '#/components/schemas/UUID'
+        customer:
+          $ref: '#/components/schemas/Customer'
+        route:
+          $ref: '#/components/schemas/Route'
+        driver:
+          $ref: '#/components/schemas/Driver'
+        vehicle:
+          $ref: '#/components/schemas/Vehicle'
+        eventType:
+          $ref: '#/components/schemas/ServiceEventType'
+        eventStatus:
+          $ref: '#/components/schemas/ServiceEventStatus'
+        scheduledDate:
+          $ref: '#/components/schemas/Date'
+        scheduledTime:
+          type: string
+          format: time
+          example: "09:30:00"
+        actualStartTime:
+          $ref: '#/components/schemas/Timestamp'
+        actualEndTime:
+          $ref: '#/components/schemas/Timestamp'
+        serviceLocation:
+          $ref: '#/components/schemas/Location'
+        serviceAddress:
+          type: string
+          example: "123 Business Ave, New York, NY"
+        serviceInstructions:
+          type: string
+          example: "Use loading dock entrance"
+        notes:
+          type: string
+          example: "Completed successfully, customer satisfied"
+        photoUrls:
+          type: array
+          items:
+            type: string
+            format: uri
+          example: ["https://cdn.waste-mgmt.com/photos/service1.jpg"]
+        signatureUrl:
+          type: string
+          format: uri
+          example: "https://cdn.waste-mgmt.com/signatures/sign1.png"
+        weightCollectedLbs:
+          type: number
+          format: decimal
+          example: 1250.5
+        volumeCollectedCubicYards:
+          type: number
+          format: decimal
+          example: 8.5
+        createdAt:
+          $ref: '#/components/schemas/Timestamp'
+        updatedAt:
+          $ref: '#/components/schemas/Timestamp'
+    
+    CreateServiceEventRequest:
+      type: object
+      required:
+        - customerId
+        - eventType
+        - scheduledDate
+        - serviceLocation
+      properties:
+        customerId:
+          $ref: '#/components/schemas/UUID'
+        routeId:
+          $ref: '#/components/schemas/UUID'
+        eventType:
+          $ref: '#/components/schemas/ServiceEventType'
+        scheduledDate:
+          $ref: '#/components/schemas/Date'
+        scheduledTime:
+          type: string
+          format: time
+        serviceLocation:
+          $ref: '#/components/schemas/Location'
+        serviceAddress:
+          type: string
+        serviceInstructions:
+          type: string
+        notes:
+          type: string
+    
+    UpdateServiceEventRequest:
+      type: object
+      properties:
+        eventStatus:
+          $ref: '#/components/schemas/ServiceEventStatus'
+        actualStartTime:
+          $ref: '#/components/schemas/Timestamp'
+        actualEndTime:
+          $ref: '#/components/schemas/Timestamp'
+        notes:
+          type: string
+        photoUrls:
+          type: array
+          items:
+            type: string
+            format: uri
+        signatureUrl:
+          type: string
+          format: uri
+        weightCollectedLbs:
+          type: number
+          format: decimal
+        volumeCollectedCubicYards:
+          type: number
+          format: decimal
+    
+    # ========================================================================
+    # BILLING AND PAYMENT SCHEMAS
+    # ========================================================================
+    
+    InvoiceStatus:
+      type: string
+      enum: [draft, sent, paid, overdue, cancelled, refunded]
+      example: "sent"
+    
+    Invoice:
+      type: object
+      properties:
+        id:
+          $ref: '#/components/schemas/UUID'
+        customerId:
+          $ref: '#/components/schemas/UUID'
+        customer:
+          $ref: '#/components/schemas/Customer'
+        invoiceNumber:
+          type: string
+          maxLength: 100
+          example: "INV-2025-001234"
+        invoiceDate:
+          $ref: '#/components/schemas/Date'
+        dueDate:
+          $ref: '#/components/schemas/Date'
+        billingPeriodStart:
+          $ref: '#/components/schemas/Date'
+        billingPeriodEnd:
+          $ref: '#/components/schemas/Date'
+        status:
+          $ref: '#/components/schemas/InvoiceStatus'
+        subtotal:
+          type: number
+          format: decimal
+          example: 850.00
+        taxAmount:
+          type: number
+          format: decimal
+          example: 68.00
+        totalAmount:
+          type: number
+          format: decimal
+          example: 918.00
+        currency:
+          type: string
+          maxLength: 3
+          example: "USD"
+        paymentTerms:
+          type: string
+          maxLength: 50
+          example: "net_30"
+        notes:
+          type: string
+          example: "Thank you for your business"
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/InvoiceItem'
+        sentAt:
+          $ref: '#/components/schemas/Timestamp'
+        paidAt:
+          $ref: '#/components/schemas/Timestamp'
+        stripeInvoiceId:
+          type: string
+          maxLength: 255
+          example: "in_1234567890"
+        createdAt:
+          $ref: '#/components/schemas/Timestamp'
+        updatedAt:
+          $ref: '#/components/schemas/Timestamp'
+    
+    InvoiceItem:
+      type: object
+      properties:
+        id:
+          $ref: '#/components/schemas/UUID'
+        serviceEventId:
+          $ref: '#/components/schemas/UUID'
+        description:
+          type: string
+          example: "Weekly waste pickup service"
+        quantity:
+          type: number
+          format: decimal
+          example: 1.0
+        unitPrice:
+          type: number
+          format: decimal
+          example: 85.00
+        lineTotal:
+          type: number
+          format: decimal
+          example: 85.00
+        taxRate:
+          type: number
+          format: decimal
+          example: 0.0825
+        taxAmount:
+          type: number
+          format: decimal
+          example: 7.01
+    
+    PaymentMethod:
+      type: string
+      enum: [credit_card, ach, check, cash, wire_transfer]
+      example: "credit_card"
+    
+    PaymentStatus:
+      type: string
+      enum: [pending, processing, completed, failed, refunded, cancelled]
+      example: "completed"
+    
+    Payment:
+      type: object
+      properties:
+        id:
+          $ref: '#/components/schemas/UUID'
+        customerId:
+          $ref: '#/components/schemas/UUID'
+        invoiceId:
+          $ref: '#/components/schemas/UUID'
+        paymentMethod:
+          $ref: '#/components/schemas/PaymentMethod'
+        paymentStatus:
+          $ref: '#/components/schemas/PaymentStatus'
+        amount:
+          type: number
+          format: decimal
+          example: 918.00
+        currency:
+          type: string
+          maxLength: 3
+          example: "USD"
+        referenceNumber:
+          type: string
+          maxLength: 100
+          example: "PAY-2025-001234"
+        stripePaymentIntentId:
+          type: string
+          maxLength: 255
+          example: "pi_1234567890"
+        paymentDate:
+          $ref: '#/components/schemas/Date'
+        notes:
+          type: string
+          example: "Payment processed successfully"
+        createdAt:
+          $ref: '#/components/schemas/Timestamp'
+        updatedAt:
+          $ref: '#/components/schemas/Timestamp'
+    
+    # ========================================================================
+    # IOT AND TRACKING SCHEMAS
+    # ========================================================================
+    
+    GPSTrackingData:
+      type: object
+      properties:
+        id:
+          $ref: '#/components/schemas/UUID'
+        vehicleId:
+          $ref: '#/components/schemas/UUID'
+        driverId:
+          $ref: '#/components/schemas/UUID'
+        location:
+          $ref: '#/components/schemas/Location'
+        speedMph:
+          type: number
+          format: decimal
+          example: 35.5
+        headingDegrees:
+          type: integer
+          minimum: 0
+          maximum: 360
+          example: 180
+        altitudeFeet:
+          type: number
+          format: decimal
+          example: 145.2
+        accuracyMeters:
+          type: number
+          format: decimal
+          example: 3.5
+        timestamp:
+          $ref: '#/components/schemas/Timestamp'
+        deviceId:
+          type: string
+          maxLength: 100
+          example: "GPS-001"
+        batteryLevel:
+          type: integer
+          minimum: 0
+          maximum: 100
+          example: 85
+        signalStrength:
+          type: integer
+          example: -65
+    
+    SensorType:
+      type: string
+      enum: [fill_level, temperature, weight, tilt, battery, fuel]
+      example: "fill_level"
+    
+    SensorData:
+      type: object
+      properties:
+        id:
+          $ref: '#/components/schemas/UUID'
+        deviceId:
+          type: string
+          maxLength: 100
+          example: "SENSOR-BIN-001"
+        deviceType:
+          type: string
+          enum: [bin_sensor, vehicle_sensor, environmental_sensor]
+          example: "bin_sensor"
+        binId:
+          $ref: '#/components/schemas/UUID'
+        vehicleId:
+          $ref: '#/components/schemas/UUID'
+        sensorType:
+          $ref: '#/components/schemas/SensorType'
+        value:
+          type: number
+          format: decimal
+          example: 78.5
+        unit:
+          type: string
+          maxLength: 20
+          example: "percent"
+        timestamp:
+          $ref: '#/components/schemas/Timestamp'
+        batteryLevel:
+          type: integer
+          minimum: 0
+          maximum: 100
+          example: 92
+        signalStrength:
+          type: integer
+          example: -52
+        rawData:
+          type: object
+          additionalProperties: true
+          example: {"temperature": 22.5, "humidity": 65}
+    
+    # ========================================================================
+    # ANALYTICS AND REPORTING SCHEMAS
+    # ========================================================================
+    
+    DailyMetrics:
+      type: object
+      properties:
+        metricDate:
+          $ref: '#/components/schemas/Date'
+        totalPickups:
+          type: integer
+          example: 145
+        completedPickups:
+          type: integer
+          example: 142
+        cancelledPickups:
+          type: integer
+          example: 3
+        totalRevenue:
+          type: number
+          format: decimal
+          example: 12450.50
+        fuelConsumedGallons:
+          type: number
+          format: decimal
+          example: 285.7
+        milesDriven:
+          type: number
+          format: decimal
+          example: 1247.3
+        activeVehicles:
+          type: integer
+          example: 12
+        activeDrivers:
+          type: integer
+          example: 11
+        customerComplaints:
+          type: integer
+          example: 2
+    
+    RouteOptimizationResult:
+      type: object
+      properties:
+        id:
+          $ref: '#/components/schemas/UUID'
+        optimizationDate:
+          $ref: '#/components/schemas/Date'
+        routeId:
+          $ref: '#/components/schemas/UUID'
+        algorithmVersion:
+          type: string
+          example: "v2.1.0"
+        originalDistanceMiles:
+          type: number
+          format: decimal
+          example: 52.3
+        optimizedDistanceMiles:
+          type: number
+          format: decimal
+          example: 45.7
+        originalDurationMinutes:
+          type: integer
+          example: 520
+        optimizedDurationMinutes:
+          type: integer
+          example: 465
+        fuelSavingsEstimated:
+          type: number
+          format: decimal
+          example: 18.5
+        costSavingsEstimated:
+          type: number
+          format: decimal
+          example: 75.20
+        optimizationScore:
+          type: number
+          format: decimal
+          example: 87.5
+        applied:
+          type: boolean
+          example: true
+
+# ============================================================================
+# SECURITY REQUIREMENTS
+# ============================================================================
+security:
+  - bearerAuth: []
+
+# ============================================================================
+# API ENDPOINTS
+# ============================================================================
+paths:
+  # ========================================================================
+  # AUTHENTICATION ENDPOINTS
+  # ========================================================================
+  
+  /auth/login:
+    post:
+      tags:
+        - Authentication
+      summary: User login
+      description: Authenticate user credentials and return JWT tokens
+      operationId: login
+      security: [] # No auth required for login
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginResponse'
+          headers:
+            Set-Cookie:
+              description: HttpOnly refresh token cookie
+              schema:
+                type: string
+                example: "refreshToken=RT_abc123; HttpOnly; Secure; SameSite=Strict"
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Invalid credentials
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '423':
+          description: Account locked
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '429':
+          description: Too many login attempts
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  
+  /auth/refresh:
+    post:
+      tags:
+        - Authentication
+      summary: Refresh access token
+      description: Generate new access token using refresh token
+      operationId: refreshToken
+      security: [] # Uses refresh token in cookie or body
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RefreshTokenRequest'
+      responses:
+        '200':
+          description: Token refreshed successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginResponse'
+        '401':
+          description: Invalid or expired refresh token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  
+  /auth/logout:
+    post:
+      tags:
+        - Authentication
+      summary: User logout
+      description: Invalidate current session and tokens
+      operationId: logout
+      responses:
+        '204':
+          description: Logout successful
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  
+  /auth/me:
+    get:
+      tags:
+        - Authentication
+      summary: Get current user
+      description: Retrieve current authenticated user information
+      operationId: getCurrentUser
+      responses:
+        '200':
+          description: Current user information
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  
+  # ========================================================================
+  # USER MANAGEMENT ENDPOINTS
+  # ========================================================================
+  
+  /users:
+    get:
+      tags:
+        - Users
+      summary: List users
+      description: Retrieve paginated list of users with role-based filtering
+      operationId: getUsers
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+        - name: role
+          in: query
+          schema:
+            $ref: '#/components/schemas/UserRole'
+        - name: status
+          in: query
+          schema:
+            $ref: '#/components/schemas/UserStatus'
+        - name: search
+          in: query
+          schema:
+            type: string
+          description: Search by name or email
+      responses:
+        '200':
+          description: Users retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/User'
+                  meta:
+                    $ref: '#/components/schemas/PaginationMeta'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Insufficient permissions
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    
+    post:
+      tags:
+        - Users
+      summary: Create user
+      description: Create a new user account
+      operationId: createUser
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateUserRequest'
+      responses:
+        '201':
+          description: User created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Insufficient permissions
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: User already exists
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  
+  /users/{userId}:
+    get:
+      tags:
+        - Users
+      summary: Get user by ID
+      description: Retrieve specific user information
+      operationId: getUserById
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/UUID'
+      responses:
+        '200':
+          description: User retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Insufficient permissions
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: User not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    
+    put:
+      tags:
+        - Users
+      summary: Update user
+      description: Update user information
+      operationId: updateUser
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/UUID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateUserRequest'
+      responses:
+        '200':
+          description: User updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Insufficient permissions
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: User not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    
+    delete:
+      tags:
+        - Users
+      summary: Delete user
+      description: Soft delete a user (sets deleted_at timestamp)
+      operationId: deleteUser
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/UUID'
+      responses:
+        '204':
+          description: User deleted successfully
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Insufficient permissions
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: User not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  
+  # ========================================================================
+  # CUSTOMER MANAGEMENT ENDPOINTS
+  # ========================================================================
+  
+  /customers:
+    get:
+      tags:
+        - Customers
+      summary: List customers
+      description: Retrieve paginated list of customers with filtering options
+      operationId: getCustomers
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+        - name: territory
+          in: query
+          schema:
+            type: string
+        - name: serviceFrequency
+          in: query
+          schema:
+            type: string
+            enum: [weekly, bi_weekly, monthly, on_demand]
+        - name: search
+          in: query
+          schema:
+            type: string
+          description: Search by organization name or customer number
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [active, inactive, suspended]
+      responses:
+        '200':
+          description: Customers retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Customer'
+                  meta:
+                    $ref: '#/components/schemas/PaginationMeta'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Insufficient permissions
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    
+    post:
+      tags:
+        - Customers
+      summary: Create customer
+      description: Create a new customer with organization
+      operationId: createCustomer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateCustomerRequest'
+      responses:
+        '201':
+          description: Customer created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Customer'
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Insufficient permissions
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  
+  /customers/{customerId}:
+    get:
+      tags:
+        - Customers
+      summary: Get customer by ID
+      description: Retrieve specific customer information
+      operationId: getCustomerById
+      parameters:
+        - name: customerId
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/UUID'
+      responses:
+        '200':
+          description: Customer retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Customer'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Insufficient permissions
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Customer not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  
+  # ========================================================================
+  # ROUTE MANAGEMENT ENDPOINTS
+  # ========================================================================
+  
+  /routes:
+    get:
+      tags:
+        - Routes
+      summary: List routes
+      description: Retrieve paginated list of routes with filtering options
+      operationId: getRoutes
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+        - name: territory
+          in: query
+          schema:
+            type: string
+        - name: serviceDay
+          in: query
+          schema:
+            type: string
+            enum: [monday, tuesday, wednesday, thursday, friday, saturday, sunday]
+        - name: routeType
+          in: query
+          schema:
+            $ref: '#/components/schemas/RouteType'
+        - name: status
+          in: query
+          schema:
+            $ref: '#/components/schemas/RouteStatus'
+        - name: driverId
+          in: query
+          schema:
+            $ref: '#/components/schemas/UUID'
+      responses:
+        '200':
+          description: Routes retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Route'
+                  meta:
+                    $ref: '#/components/schemas/PaginationMeta'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Insufficient permissions
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  
+  /routes/{routeId}/optimize:
+    post:
+      tags:
+        - Routes
+      summary: Optimize route
+      description: Trigger AI-powered route optimization
+      operationId: optimizeRoute
+      parameters:
+        - name: routeId
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/UUID'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                applyOptimization:
+                  type: boolean
+                  default: false
+                  description: Whether to automatically apply the optimization
+                constraints:
+                  type: object
+                  properties:
+                    maxDurationMinutes:
+                      type: integer
+                    maxDistanceMiles:
+                      type: number
+                    prioritizeCustomers:
+                      type: array
+                      items:
+                        $ref: '#/components/schemas/UUID'
+      responses:
+        '200':
+          description: Route optimization completed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RouteOptimizationResult'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Insufficient permissions
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Route not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  
+  # ========================================================================
+  # SERVICE EVENT ENDPOINTS
+  # ========================================================================
+  
+  /service-events:
+    get:
+      tags:
+        - Service Events
+      summary: List service events
+      description: Retrieve paginated list of service events with filtering
+      operationId: getServiceEvents
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+        - name: customerId
+          in: query
+          schema:
+            $ref: '#/components/schemas/UUID'
+        - name: routeId
+          in: query
+          schema:
+            $ref: '#/components/schemas/UUID'
+        - name: driverId
+          in: query
+          schema:
+            $ref: '#/components/schemas/UUID'
+        - name: eventType
+          in: query
+          schema:
+            $ref: '#/components/schemas/ServiceEventType'
+        - name: eventStatus
+          in: query
+          schema:
+            $ref: '#/components/schemas/ServiceEventStatus'
+        - name: dateFrom
+          in: query
+          schema:
+            $ref: '#/components/schemas/Date'
+        - name: dateTo
+          in: query
+          schema:
+            $ref: '#/components/schemas/Date'
+      responses:
+        '200':
+          description: Service events retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/ServiceEvent'
+                  meta:
+                    $ref: '#/components/schemas/PaginationMeta'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    
+    post:
+      tags:
+        - Service Events
+      summary: Create service event
+      description: Schedule a new service event
+      operationId: createServiceEvent
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateServiceEventRequest'
+      responses:
+        '201':
+          description: Service event created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServiceEvent'
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Insufficient permissions
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  
+  /service-events/{eventId}:
+    get:
+      tags:
+        - Service Events
+      summary: Get service event by ID
+      description: Retrieve specific service event information
+      operationId: getServiceEventById
+      parameters:
+        - name: eventId
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/UUID'
+      responses:
+        '200':
+          description: Service event retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServiceEvent'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Insufficient permissions
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Service event not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    
+    put:
+      tags:
+        - Service Events
+      summary: Update service event
+      description: Update service event status and details
+      operationId: updateServiceEvent
+      parameters:
+        - name: eventId
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/UUID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateServiceEventRequest'
+      responses:
+        '200':
+          description: Service event updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServiceEvent'
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Insufficient permissions
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Service event not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  
+  # ========================================================================
+  # BILLING AND INVOICING ENDPOINTS
+  # ========================================================================
+  
+  /invoices:
+    get:
+      tags:
+        - Billing
+      summary: List invoices
+      description: Retrieve paginated list of invoices with filtering
+      operationId: getInvoices
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+        - name: customerId
+          in: query
+          schema:
+            $ref: '#/components/schemas/UUID'
+        - name: status
+          in: query
+          schema:
+            $ref: '#/components/schemas/InvoiceStatus'
+        - name: dueDateFrom
+          in: query
+          schema:
+            $ref: '#/components/schemas/Date'
+        - name: dueDateTo
+          in: query
+          schema:
+            $ref: '#/components/schemas/Date'
+      responses:
+        '200':
+          description: Invoices retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Invoice'
+                  meta:
+                    $ref: '#/components/schemas/PaginationMeta'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  
+  # ========================================================================
+  # VEHICLE AND DRIVER ENDPOINTS
+  # ========================================================================
+  
+  /vehicles:
+    get:
+      tags:
+        - Fleet
+      summary: List vehicles
+      description: Retrieve paginated list of vehicles
+      operationId: getVehicles
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+        - name: vehicleType
+          in: query
+          schema:
+            $ref: '#/components/schemas/VehicleType'
+        - name: status
+          in: query
+          schema:
+            $ref: '#/components/schemas/VehicleStatus'
+      responses:
+        '200':
+          description: Vehicles retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Vehicle'
+                  meta:
+                    $ref: '#/components/schemas/PaginationMeta'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  
+  /drivers:
+    get:
+      tags:
+        - Fleet
+      summary: List drivers
+      description: Retrieve paginated list of drivers
+      operationId: getDrivers
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+        - name: employmentStatus
+          in: query
+          schema:
+            type: string
+            enum: [active, inactive, terminated]
+      responses:
+        '200':
+          description: Drivers retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Driver'
+                  meta:
+                    $ref: '#/components/schemas/PaginationMeta'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  
+  # ========================================================================
+  # REAL-TIME TRACKING ENDPOINTS
+  # ========================================================================
+  
+  /tracking/vehicles/{vehicleId}/location:
+    get:
+      tags:
+        - Tracking
+      summary: Get current vehicle location
+      description: Get the latest GPS location for a specific vehicle
+      operationId: getVehicleLocation
+      parameters:
+        - name: vehicleId
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/UUID'
+      responses:
+        '200':
+          description: Vehicle location retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GPSTrackingData'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Vehicle not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  
+  /tracking/vehicles/{vehicleId}/history:
+    get:
+      tags:
+        - Tracking
+      summary: Get vehicle location history
+      description: Retrieve GPS tracking history for a vehicle
+      operationId: getVehicleLocationHistory
+      parameters:
+        - name: vehicleId
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/UUID'
+        - name: from
+          in: query
+          required: true
+          schema:
+            $ref: '#/components/schemas/Timestamp'
+        - name: to
+          in: query
+          required: true
+          schema:
+            $ref: '#/components/schemas/Timestamp'
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 1000
+            default: 100
+      responses:
+        '200':
+          description: Vehicle location history retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/GPSTrackingData'
+                  meta:
+                    type: object
+                    properties:
+                      total:
+                        type: integer
+                      from:
+                        $ref: '#/components/schemas/Timestamp'
+                      to:
+                        $ref: '#/components/schemas/Timestamp'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Vehicle not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  
+  # ========================================================================
+  # ANALYTICS AND REPORTING ENDPOINTS
+  # ========================================================================
+  
+  /analytics/daily-metrics:
+    get:
+      tags:
+        - Analytics
+      summary: Get daily metrics
+      description: Retrieve daily operational metrics
+      operationId: getDailyMetrics
+      parameters:
+        - name: date
+          in: query
+          schema:
+            $ref: '#/components/schemas/Date'
+          description: Specific date (defaults to today)
+        - name: days
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 365
+            default: 30
+          description: Number of days to retrieve
+      responses:
+        '200':
+          description: Daily metrics retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/DailyMetrics'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Insufficient permissions
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  
+  /analytics/routes/{routeId}/efficiency:
+    get:
+      tags:
+        - Analytics
+      summary: Get route efficiency metrics
+      description: Calculate efficiency metrics for a specific route
+      operationId: getRouteEfficiency
+      parameters:
+        - name: routeId
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/UUID'
+        - name: dateFrom
+          in: query
+          required: true
+          schema:
+            $ref: '#/components/schemas/Date'
+        - name: dateTo
+          in: query
+          required: true
+          schema:
+            $ref: '#/components/schemas/Date'
+      responses:
+        '200':
+          description: Route efficiency metrics retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  routeId:
+                    $ref: '#/components/schemas/UUID'
+                  totalEvents:
+                    type: integer
+                    example: 145
+                  completedEvents:
+                    type: integer
+                    example: 142
+                  completionRate:
+                    type: number
+                    format: decimal
+                    example: 97.93
+                  avgDurationMinutes:
+                    type: number
+                    format: decimal
+                    example: 28.5
+                  totalDistanceMiles:
+                    type: number
+                    format: decimal
+                    example: 45.7
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Route not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  
+  # ========================================================================
+  # UTILITY ENDPOINTS
+  # ========================================================================
+  
+  /health:
+    get:
+      tags:
+        - System
+      summary: Health check
+      description: API health status and dependencies
+      operationId: healthCheck
+      security: [] # No auth required for health check
+      responses:
+        '200':
+          description: API is healthy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "healthy"
+                  timestamp:
+                    $ref: '#/components/schemas/Timestamp'
+                  version:
+                    type: string
+                    example: "1.0.0"
+                  dependencies:
+                    type: object
+                    properties:
+                      database:
+                        type: string
+                        example: "healthy"
+                      redis:
+                        type: string
+                        example: "healthy"
+                      external_apis:
+                        type: object
+                        properties:
+                          stripe:
+                            type: string
+                            example: "healthy"
+                          samsara:
+                            type: string
+                            example: "healthy"
+        '503':
+          description: API is unhealthy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "unhealthy"
+                  timestamp:
+                    $ref: '#/components/schemas/Timestamp'
+                  errors:
+                    type: array
+                    items:
+                      type: string
+                    example: ["Database connection failed"]
+
+# ============================================================================
+# WEBHOOK ENDPOINTS FOR EXTERNAL INTEGRATIONS
+# ============================================================================
+
+  /webhooks/stripe:
+    post:
+      tags:
+        - Webhooks
+      summary: Stripe webhook handler
+      description: Process Stripe webhook events
+      operationId: handleStripeWebhook
+      security:
+        - apiKey: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+      responses:
+        '200':
+          description: Webhook processed successfully
+        '400':
+          description: Invalid webhook payload
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Invalid webhook signature
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /webhooks/samsara:
+    post:
+      tags:
+        - Webhooks
+      summary: Samsara webhook handler
+      description: Process Samsara webhook events
+      operationId: handleSamsaraWebhook
+      security:
+        - apiKey: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+      responses:
+        '200':
+          description: Webhook processed successfully
+        '400':
+          description: Invalid webhook payload
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Invalid webhook signature
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+# ============================================================================
+# TAGS FOR GROUPING ENDPOINTS
+# ============================================================================
+tags:
+  - name: Authentication
+    description: User authentication and session management
+  - name: Users
+    description: User account management
+  - name: Customers
+    description: Customer and organization management
+  - name: Fleet
+    description: Vehicle and driver management
+  - name: Routes
+    description: Route planning and optimization
+  - name: Service Events
+    description: Service event scheduling and tracking
+  - name: Billing
+    description: Invoicing and payment management
+  - name: Tracking
+    description: Real-time GPS and sensor tracking
+  - name: Analytics
+    description: Reporting and business intelligence
+  - name: Webhooks
+    description: External system webhook handlers
+  - name: System
+    description: System utilities and health checks
+
+# ============================================================================
+# ARTIFACT METADATA
+# ============================================================================
+x-metadata:
+  created_by: backend_development_agent
+  creation_date: '2025-08-10'
+  last_modified: '2025-08-10'
+  version: '1.0.0'
+  dependencies:
+    - artifacts/system-design.yml
+    - artifacts/security-requirements.yml
+    - artifacts/database-schema.sql
+  consumers:
+    - frontend_agent
+    - mobile_development_agent
+    - testing_agent
+    - documentation_agent
+  validation_status: complete
+  compliance_alignment:
+    - openapi_3_1_0
+    - rest_api_standards
+    - security_best_practices
+    - role_based_access_control
+    - gdpr_compliant_endpoints
