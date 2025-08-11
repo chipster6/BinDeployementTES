@@ -109,3 +109,21 @@ coverage/
 
 # Documentation build
 docs/build/
+
+# Project artifacts and reports (preserve locally, exclude from git)
+artifacts/
+SubagentReport/
+Review:Refactoringt.txt
+.claude/
+
+# Lock files (can cause version conflicts)
+package-lock.json
+**/package-lock.json
+
+# Third-party dependencies (should be in package.json)
+zen-mcp-server/
+
+# Temporary analysis files
+claude-code-workflow.md
+start-recovery-monitoring.sh
+GEMINI.md
