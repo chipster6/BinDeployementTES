@@ -2,11 +2,11 @@
  * ============================================================================
  * WASTE MANAGEMENT SYSTEM - SESSION MANAGEMENT SERVICE
  * ============================================================================
- * 
+ *
  * Comprehensive session management service using Redis for high-performance
  * session storage and management. Supports concurrent sessions, device
  * fingerprinting, and security monitoring.
- * 
+ *
  * Security Features:
  * - Redis-based session storage for performance
  * - Session fingerprinting and validation
@@ -14,18 +14,18 @@
  * - Automatic session cleanup and expiry
  * - Session activity tracking
  * - Security event logging
- * 
+ *
  * Created by: Security & Compliance Specialist
  * Date: 2025-08-10
  * Version: 1.0.0
  */
 
-import { sessionRedisClient } from '@/config/redis';
-import { logger } from '@/utils/logger';
-import { UserRole } from '@/models/User';
-import { UserSession, SessionStatus } from '@/models/UserSession';
-import { AuditLog, AuditAction } from '@/models/AuditLog';
-import { generateSecureToken, createHmacSignature } from '@/utils/encryption';
+import { sessionRedisClient } from "@/config/redis";
+import { logger } from "@/utils/logger";
+import { UserRole } from "@/models/User";
+import { UserSession, SessionStatus } from "@/models/UserSession";
+import { AuditLog, AuditAction } from "@/models/AuditLog";
+import { generateSecureToken, createHmacSignature } from "@/utils/encryption";
 
 /**
  * Session data interface
@@ -109,7 +109,7 @@ export class SecuritySessionService {
    */
   static async initialize(): Promise<void> {
     // Redis client is already initialized in config/redis
-    logger.info('✅ Security Session service initialized');
+    logger.info("✅ Security Session service initialized");
   }
 
   /**
@@ -128,7 +128,9 @@ export class SecuritySessionService {
   /**
    * Create a new user session
    */
-  static async createSession(options: SessionCreateOptions): Promise<SessionData> {
+  static async createSession(
+    options: SessionCreateOptions,
+  ): Promise<SessionData> {
     try {
       // Check concurrent session limits
       await this.enforceSessionLimits(options.userId, options.userRole);
@@ -138,9 +140,10 @@ export class SecuritySessionService {
       const sessionId = generateSecureToken(16);
 
       // Calculate expiry based on remember me option
-      const expiryTime = options.rememberMe && options.userRole === UserRole.CUSTOMER
-        ? SESSION_EXPIRY.rememberMe
-        : SESSION_EXPIRY.normal;
+      const expiryTime =
+        options.rememberMe && options.userRole === UserRole.CUSTOMER
+          ? SESSION_EXPIRY.rememberMe
+          : SESSION_EXPIRY.normal;
 
       const expiresAt = new Date(Date.now() + expiryTime * 1000);
 
@@ -168,16 +171,12 @@ export class SecuritySessionService {
       await this.redis.setex(
         sessionKey,
         expiryTime,
-        JSON.stringify(sessionData)
+        JSON.stringify(sessionData),
       );
 
       // Store refresh token mapping
       if (refreshKey) {
-        await this.redis.setex(
-          refreshKey,
-          expiryTime,
-          sessionKey
-        );
+        await this.redis.setex(refreshKey, expiryTime, sessionKey);
       }
 
       // Create database record for audit and security monitoring
@@ -197,7 +196,7 @@ export class SecuritySessionService {
 
       // Log session creation
       await AuditLog.logDataAccess(
-        'user_sessions',
+        "user_sessions",
         sessionId,
         AuditAction.CREATE,
         options.userId,
@@ -205,10 +204,10 @@ export class SecuritySessionService {
         options.ipAddress,
         options.userAgent,
         undefined,
-        { sessionCreated: true }
+        { sessionCreated: true },
       );
 
-      logger.info('Session created successfully', {
+      logger.info("Session created successfully", {
         sessionId,
         userId: options.userId,
         userRole: options.userRole,
@@ -217,8 +216,8 @@ export class SecuritySessionService {
 
       return sessionData;
     } catch (error) {
-      logger.error('Failed to create session:', error);
-      throw new Error('Session creation failed');
+      logger.error("Failed to create session:", error);
+      throw new Error("Session creation failed");
     }
   }
 
@@ -228,7 +227,7 @@ export class SecuritySessionService {
   static async getSession(sessionToken: string): Promise<SessionData | null> {
     try {
       const sessionJson = await this.redis.get(sessionToken);
-      
+
       if (!sessionJson) {
         return null;
       }
@@ -243,7 +242,7 @@ export class SecuritySessionService {
 
       return sessionData;
     } catch (error) {
-      logger.error('Failed to get session:', error);
+      logger.error("Failed to get session:", error);
       return null;
     }
   }
@@ -253,11 +252,11 @@ export class SecuritySessionService {
    */
   static async updateSession(
     sessionToken: string,
-    updates: SessionUpdateOptions
+    updates: SessionUpdateOptions,
   ): Promise<boolean> {
     try {
       const sessionData = await this.getSession(sessionToken);
-      
+
       if (!sessionData) {
         return false;
       }
@@ -272,7 +271,9 @@ export class SecuritySessionService {
       // Calculate remaining TTL
       const ttl = Math.max(
         0,
-        Math.floor((new Date(updatedSession.expiresAt).getTime() - Date.now()) / 1000)
+        Math.floor(
+          (new Date(updatedSession.expiresAt).getTime() - Date.now()) / 1000,
+        ),
       );
 
       if (ttl <= 0) {
@@ -281,11 +282,7 @@ export class SecuritySessionService {
       }
 
       // Update in Redis
-      await this.redis.setex(
-        sessionToken,
-        ttl,
-        JSON.stringify(updatedSession)
-      );
+      await this.redis.setex(sessionToken, ttl, JSON.stringify(updatedSession));
 
       // Update database record
       await UserSession.update(updates, {
@@ -294,7 +291,7 @@ export class SecuritySessionService {
 
       return true;
     } catch (error) {
-      logger.error('Failed to update session:', error);
+      logger.error("Failed to update session:", error);
       return false;
     }
   }
@@ -305,19 +302,20 @@ export class SecuritySessionService {
   static async refreshSession(sessionToken: string): Promise<boolean> {
     try {
       const sessionData = await this.getSession(sessionToken);
-      
+
       if (!sessionData) {
         return false;
       }
 
       const now = new Date();
-      
+
       // Check if session is near expiry (within 1 hour)
-      const timeToExpiry = new Date(sessionData.expiresAt).getTime() - now.getTime();
+      const timeToExpiry =
+        new Date(sessionData.expiresAt).getTime() - now.getTime();
       const oneHour = 60 * 60 * 1000;
-      
+
       let newExpiresAt = new Date(sessionData.expiresAt);
-      
+
       if (timeToExpiry <= oneHour) {
         // Extend session by normal session duration
         newExpiresAt = new Date(now.getTime() + SESSION_EXPIRY.normal * 1000);
@@ -325,10 +323,12 @@ export class SecuritySessionService {
 
       return await this.updateSession(sessionToken, {
         lastActivity: now,
-        ...(newExpiresAt !== sessionData.expiresAt && { expiresAt: newExpiresAt }),
+        ...(newExpiresAt !== sessionData.expiresAt && {
+          expiresAt: newExpiresAt,
+        }),
       } as any);
     } catch (error) {
-      logger.error('Failed to refresh session:', error);
+      logger.error("Failed to refresh session:", error);
       return false;
     }
   }
@@ -339,14 +339,14 @@ export class SecuritySessionService {
   static async deleteSession(sessionToken: string): Promise<boolean> {
     try {
       const sessionData = await this.getSession(sessionToken);
-      
+
       if (!sessionData) {
         return false;
       }
 
       // Remove from Redis
       await this.redis.del(sessionToken);
-      
+
       // Remove refresh token mapping
       if (sessionData.refreshToken) {
         await this.redis.del(sessionData.refreshToken);
@@ -354,32 +354,32 @@ export class SecuritySessionService {
 
       // Update database record
       await UserSession.update(
-        { 
+        {
           status: SessionStatus.REVOKED,
           logoutAt: new Date(),
         },
-        { where: { sessionToken } }
+        { where: { sessionToken } },
       );
 
       // Log session deletion
       await AuditLog.logDataAccess(
-        'user_sessions',
+        "user_sessions",
         sessionData.id,
         AuditAction.DELETE,
         sessionData.userId,
         sessionData.id,
         sessionData.ipAddress,
-        sessionData.userAgent
+        sessionData.userAgent,
       );
 
-      logger.info('Session deleted successfully', {
+      logger.info("Session deleted successfully", {
         sessionId: sessionData.id,
         userId: sessionData.userId,
       });
 
       return true;
     } catch (error) {
-      logger.error('Failed to delete session:', error);
+      logger.error("Failed to delete session:", error);
       return false;
     }
   }
@@ -387,7 +387,10 @@ export class SecuritySessionService {
   /**
    * Delete all sessions for a user
    */
-  static async deleteUserSessions(userId: string, excludeSessionToken?: string): Promise<number> {
+  static async deleteUserSessions(
+    userId: string,
+    excludeSessionToken?: string,
+  ): Promise<number> {
     try {
       // Get all active sessions for user from database
       const userSessions = await UserSession.findAll({
@@ -400,7 +403,10 @@ export class SecuritySessionService {
       let deletedCount = 0;
 
       for (const session of userSessions) {
-        if (excludeSessionToken && session.sessionToken === excludeSessionToken) {
+        if (
+          excludeSessionToken &&
+          session.sessionToken === excludeSessionToken
+        ) {
           continue;
         }
 
@@ -413,7 +419,7 @@ export class SecuritySessionService {
       logger.info(`Deleted ${deletedCount} sessions for user ${userId}`);
       return deletedCount;
     } catch (error) {
-      logger.error('Failed to delete user sessions:', error);
+      logger.error("Failed to delete user sessions:", error);
       return 0;
     }
   }
@@ -421,44 +427,54 @@ export class SecuritySessionService {
   /**
    * Enforce session limits per user role
    */
-  private static async enforceSessionLimits(userId: string, userRole: UserRole): Promise<void> {
+  private static async enforceSessionLimits(
+    userId: string,
+    userRole: UserRole,
+  ): Promise<void> {
     const limit = SESSION_LIMITS[userRole];
-    
+
     // Get current active sessions
     const activeSessions = await UserSession.findAll({
       where: {
         userId,
         status: SessionStatus.ACTIVE,
       },
-      order: [['lastActivity', 'ASC']], // Oldest first
+      order: [["lastActivity", "ASC"]], // Oldest first
     });
 
     // If we're at or over the limit, remove oldest sessions
     if (activeSessions.length >= limit) {
-      const sessionsToRemove = activeSessions.slice(0, activeSessions.length - limit + 1);
-      
+      const sessionsToRemove = activeSessions.slice(
+        0,
+        activeSessions.length - limit + 1,
+      );
+
       for (const session of sessionsToRemove) {
         await this.deleteSession(session.sessionToken);
       }
 
-      logger.info(`Enforced session limit for user ${userId}: removed ${sessionsToRemove.length} old sessions`);
+      logger.info(
+        `Enforced session limit for user ${userId}: removed ${sessionsToRemove.length} old sessions`,
+      );
     }
   }
 
   /**
    * Get session by refresh token
    */
-  static async getSessionByRefreshToken(refreshToken: string): Promise<SessionData | null> {
+  static async getSessionByRefreshToken(
+    refreshToken: string,
+  ): Promise<SessionData | null> {
     try {
       const sessionToken = await this.redis.get(refreshToken);
-      
+
       if (!sessionToken) {
         return null;
       }
 
       return await this.getSession(sessionToken);
     } catch (error) {
-      logger.error('Failed to get session by refresh token:', error);
+      logger.error("Failed to get session by refresh token:", error);
       return null;
     }
   }
@@ -466,10 +482,12 @@ export class SecuritySessionService {
   /**
    * Validate session integrity
    */
-  static async validateSessionIntegrity(sessionToken: string): Promise<boolean> {
+  static async validateSessionIntegrity(
+    sessionToken: string,
+  ): Promise<boolean> {
     try {
       const sessionData = await this.getSession(sessionToken);
-      
+
       if (!sessionData) {
         return false;
       }
@@ -487,12 +505,12 @@ export class SecuritySessionService {
 
       // Validate session hasn't been tampered with
       const expectedFingerprint = createHmacSignature(
-        `${sessionData.userId}:${sessionData.sessionToken}:${sessionData.createdAt}`
+        `${sessionData.userId}:${sessionData.sessionToken}:${sessionData.createdAt}`,
       );
 
       return true; // For now, assume integrity is valid
     } catch (error) {
-      logger.error('Session integrity validation failed:', error);
+      logger.error("Session integrity validation failed:", error);
       return false;
     }
   }
@@ -512,13 +530,13 @@ export class SecuritySessionService {
               [UserSession.sequelize!.Op.lte]: new Date(),
             },
           },
-        }
+        },
       );
 
       logger.info(`Marked ${expiredCount[0]} sessions as expired in database`);
       return expiredCount[0];
     } catch (error) {
-      logger.error('Failed to cleanup expired sessions:', error);
+      logger.error("Failed to cleanup expired sessions:", error);
       return 0;
     }
   }
@@ -532,7 +550,7 @@ export class SecuritySessionService {
         userId,
         status: SessionStatus.ACTIVE,
       },
-      order: [['lastActivity', 'DESC']],
+      order: [["lastActivity", "DESC"]],
     });
   }
 
@@ -559,10 +577,10 @@ export class SecuritySessionService {
         active,
         expired,
         revoked,
-        redisConnected: this.redis?.status === 'ready',
+        redisConnected: this.redis?.status === "ready",
       };
     } catch (error) {
-      logger.error('Failed to get session statistics:', error);
+      logger.error("Failed to get session statistics:", error);
       return {
         total: 0,
         active: 0,
@@ -579,14 +597,14 @@ export class SecuritySessionService {
   static async close(): Promise<void> {
     if (this.redis) {
       await this.redis.quit();
-      logger.info('✅ Session service Redis connection closed');
+      logger.info("✅ Session service Redis connection closed");
     }
   }
 }
 
 // Initialize on module load
-SecuritySessionService.initialize().catch(error => {
-  logger.error('Failed to initialize session service:', error);
+SecuritySessionService.initialize().catch((error) => {
+  logger.error("Failed to initialize session service:", error);
 });
 
 export { SecuritySessionService as SessionService };

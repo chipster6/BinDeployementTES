@@ -2,19 +2,19 @@
  * ============================================================================
  * WASTE MANAGEMENT SYSTEM - JOB QUEUE SERVICE
  * ============================================================================
- * 
+ *
  * Background job processing system using Bull queues with Redis.
  * Handles asynchronous tasks like emails, reports, and data processing.
- * 
+ *
  * Created by: Backend Development Agent
  * Date: 2025-08-10
  * Version: 1.0.0
  */
 
-import Bull, { Queue, Job, JobOptions } from 'bull';
-import { config } from '@/config';
-import { queueRedisClient } from '@/config/redis';
-import { logger, Timer } from '@/utils/logger';
+import Bull, { Queue, Job, JobOptions } from "bull";
+import { config } from "@/config";
+import { queueRedisClient } from "@/config/redis";
+import { logger, Timer } from "@/utils/logger";
 
 /**
  * Job types and their data interfaces
@@ -31,7 +31,7 @@ export interface ReportJobData {
   reportType: string;
   userId: string;
   parameters: any;
-  outputFormat: 'pdf' | 'csv' | 'xlsx';
+  outputFormat: "pdf" | "csv" | "xlsx";
 }
 
 export interface RouteOptimizationJobData {
@@ -43,13 +43,13 @@ export interface RouteOptimizationJobData {
 export interface DataSyncJobData {
   source: string;
   target: string;
-  syncType: 'full' | 'incremental';
+  syncType: "full" | "incremental";
   lastSyncTime?: string;
 }
 
 export interface NotificationJobData {
   userId: string;
-  type: 'email' | 'sms' | 'push';
+  type: "email" | "sms" | "push";
   title: string;
   message: string;
   data?: any;
@@ -67,22 +67,22 @@ class JobQueueManager {
    */
   async initialize(): Promise<void> {
     if (this.isInitialized) {
-      logger.warn('Job queue manager already initialized');
+      logger.warn("Job queue manager already initialized");
       return;
     }
 
     try {
-      logger.info('🔧 Initializing job queues...');
+      logger.info("🔧 Initializing job queues...");
 
       // Create queue configurations
       const queueConfigs = [
-        { name: 'email', concurrency: 5, priority: true },
-        { name: 'reports', concurrency: 2, priority: true },
-        { name: 'notifications', concurrency: 10, priority: true },
-        { name: 'route-optimization', concurrency: 1, priority: false },
-        { name: 'data-sync', concurrency: 3, priority: false },
-        { name: 'cleanup', concurrency: 1, priority: false },
-        { name: 'analytics', concurrency: 2, priority: false },
+        { name: "email", concurrency: 5, priority: true },
+        { name: "reports", concurrency: 2, priority: true },
+        { name: "notifications", concurrency: 10, priority: true },
+        { name: "route-optimization", concurrency: 1, priority: false },
+        { name: "data-sync", concurrency: 3, priority: false },
+        { name: "cleanup", concurrency: 1, priority: false },
+        { name: "analytics", concurrency: 2, priority: false },
       ];
 
       // Initialize each queue
@@ -103,10 +103,9 @@ class JobQueueManager {
       this.scheduleRecurringJobs();
 
       this.isInitialized = true;
-      logger.info('✅ Job queue manager initialized successfully');
-
+      logger.info("✅ Job queue manager initialized successfully");
     } catch (error) {
-      logger.error('❌ Failed to initialize job queue manager:', error);
+      logger.error("❌ Failed to initialize job queue manager:", error);
       throw error;
     }
   }
@@ -115,8 +114,8 @@ class JobQueueManager {
    * Create a new queue with configuration
    */
   private async createQueue(
-    name: string, 
-    options: { concurrency: number; priority: boolean }
+    name: string,
+    options: { concurrency: number; priority: boolean },
   ): Promise<Queue> {
     const queue = new Bull(name, {
       redis: {
@@ -129,7 +128,7 @@ class JobQueueManager {
         removeOnFail: 100, // Keep 100 failed jobs
         attempts: 3,
         backoff: {
-          type: 'exponential',
+          type: "exponential",
           delay: 2000,
         },
       },
@@ -149,7 +148,9 @@ class JobQueueManager {
     }
 
     this.queues.set(name, queue);
-    logger.info(`✅ Queue '${name}' created with concurrency ${options.concurrency}`);
+    logger.info(
+      `✅ Queue '${name}' created with concurrency ${options.concurrency}`,
+    );
 
     return queue;
   }
@@ -159,16 +160,16 @@ class JobQueueManager {
    */
   private setupGlobalEventHandlers(): void {
     this.queues.forEach((queue, name) => {
-      queue.on('completed', (job: Job, result: any) => {
+      queue.on("completed", (job: Job, result: any) => {
         logger.info(`Job completed in queue '${name}'`, {
           jobId: job.id,
           type: job.name,
           duration: Date.now() - job.processedOn!,
-          result: typeof result === 'object' ? JSON.stringify(result) : result,
+          result: typeof result === "object" ? JSON.stringify(result) : result,
         });
       });
 
-      queue.on('failed', (job: Job, error: Error) => {
+      queue.on("failed", (job: Job, error: Error) => {
         logger.error(`Job failed in queue '${name}'`, {
           jobId: job.id,
           type: job.name,
@@ -179,14 +180,14 @@ class JobQueueManager {
         });
       });
 
-      queue.on('stalled', (job: Job) => {
+      queue.on("stalled", (job: Job) => {
         logger.warn(`Job stalled in queue '${name}'`, {
           jobId: job.id,
           type: job.name,
         });
       });
 
-      queue.on('progress', (job: Job, progress: number) => {
+      queue.on("progress", (job: Job, progress: number) => {
         logger.debug(`Job progress in queue '${name}'`, {
           jobId: job.id,
           type: job.name,
@@ -201,19 +202,19 @@ class JobQueueManager {
    */
   private getJobProcessor(queueName: string): (job: Job) => Promise<any> {
     switch (queueName) {
-      case 'email':
+      case "email":
         return this.processEmailJob.bind(this);
-      case 'reports':
+      case "reports":
         return this.processReportJob.bind(this);
-      case 'notifications':
+      case "notifications":
         return this.processNotificationJob.bind(this);
-      case 'route-optimization':
+      case "route-optimization":
         return this.processRouteOptimizationJob.bind(this);
-      case 'data-sync':
+      case "data-sync":
         return this.processDataSyncJob.bind(this);
-      case 'cleanup':
+      case "cleanup":
         return this.processCleanupJob.bind(this);
-      case 'analytics':
+      case "analytics":
         return this.processAnalyticsJob.bind(this);
       default:
         return this.processDefaultJob.bind(this);
@@ -225,35 +226,43 @@ class JobQueueManager {
    */
   private setupJobProcessors(): void {
     // Job processors are already set up in createQueue method
-    logger.info('✅ Job processors configured');
+    logger.info("✅ Job processors configured");
   }
 
   /**
    * Schedule recurring jobs
    */
   private scheduleRecurringJobs(): void {
-    const cleanupQueue = this.queues.get('cleanup');
-    const analyticsQueue = this.queues.get('analytics');
+    const cleanupQueue = this.queues.get("cleanup");
+    const analyticsQueue = this.queues.get("analytics");
 
     if (cleanupQueue) {
       // Daily cleanup job at 2 AM
-      cleanupQueue.add('daily-cleanup', {}, {
-        repeat: { cron: '0 2 * * *' },
-        removeOnComplete: 10,
-        removeOnFail: 10,
-      });
+      cleanupQueue.add(
+        "daily-cleanup",
+        {},
+        {
+          repeat: { cron: "0 2 * * *" },
+          removeOnComplete: 10,
+          removeOnFail: 10,
+        },
+      );
     }
 
     if (analyticsQueue) {
       // Hourly analytics aggregation
-      analyticsQueue.add('hourly-analytics', {}, {
-        repeat: { cron: '0 * * * *' },
-        removeOnComplete: 24,
-        removeOnFail: 10,
-      });
+      analyticsQueue.add(
+        "hourly-analytics",
+        {},
+        {
+          repeat: { cron: "0 * * * *" },
+          removeOnComplete: 24,
+          removeOnFail: 10,
+        },
+      );
     }
 
-    logger.info('✅ Recurring jobs scheduled');
+    logger.info("✅ Recurring jobs scheduled");
   }
 
   /**
@@ -268,7 +277,7 @@ class JobQueueManager {
 
       // Validate email data
       if (!to || !subject || !template) {
-        throw new Error('Invalid email job data');
+        throw new Error("Invalid email job data");
       }
 
       job.progress(30);
@@ -287,7 +296,6 @@ class JobQueueManager {
         duration: `${duration}ms`,
         timestamp: new Date().toISOString(),
       };
-
     } catch (error) {
       timer.end({ error: error.message });
       throw error;
@@ -313,7 +321,10 @@ class JobQueueManager {
       job.progress(90);
 
       // Store report and get download URL
-      const reportUrl = await this.storeReport(formattedReport, `${reportType}_${Date.now()}.${outputFormat}`);
+      const reportUrl = await this.storeReport(
+        formattedReport,
+        `${reportType}_${Date.now()}.${outputFormat}`,
+      );
 
       job.progress(100);
 
@@ -326,7 +337,6 @@ class JobQueueManager {
         duration: `${duration}ms`,
         timestamp: new Date().toISOString(),
       };
-
     } catch (error) {
       timer.end({ error: error.message });
       throw error;
@@ -336,7 +346,9 @@ class JobQueueManager {
   /**
    * Notification job processor
    */
-  private async processNotificationJob(job: Job<NotificationJobData>): Promise<any> {
+  private async processNotificationJob(
+    job: Job<NotificationJobData>,
+  ): Promise<any> {
     const timer = new Timer(`Notification Job ${job.id}`);
     const { userId, type, title, message, data } = job.data;
 
@@ -345,14 +357,24 @@ class JobQueueManager {
 
       let result;
       switch (type) {
-        case 'email':
-          result = await this.sendEmailNotification(userId, title, message, data);
+        case "email":
+          result = await this.sendEmailNotification(
+            userId,
+            title,
+            message,
+            data,
+          );
           break;
-        case 'sms':
+        case "sms":
           result = await this.sendSMSNotification(userId, message, data);
           break;
-        case 'push':
-          result = await this.sendPushNotification(userId, title, message, data);
+        case "push":
+          result = await this.sendPushNotification(
+            userId,
+            title,
+            message,
+            data,
+          );
           break;
         default:
           throw new Error(`Unknown notification type: ${type}`);
@@ -369,7 +391,6 @@ class JobQueueManager {
         duration: `${duration}ms`,
         timestamp: new Date().toISOString(),
       };
-
     } catch (error) {
       timer.end({ error: error.message });
       throw error;
@@ -379,7 +400,9 @@ class JobQueueManager {
   /**
    * Route optimization job processor
    */
-  private async processRouteOptimizationJob(job: Job<RouteOptimizationJobData>): Promise<any> {
+  private async processRouteOptimizationJob(
+    job: Job<RouteOptimizationJobData>,
+  ): Promise<any> {
     const timer = new Timer(`Route Optimization Job ${job.id}`);
     const { routeId, constraints, preferences } = job.data;
 
@@ -391,7 +414,11 @@ class JobQueueManager {
       job.progress(30);
 
       // Run optimization algorithm
-      const optimizedRoute = await this.optimizeRoute(routeData, constraints, preferences);
+      const optimizedRoute = await this.optimizeRoute(
+        routeData,
+        constraints,
+        preferences,
+      );
       job.progress(80);
 
       // Save optimized route
@@ -410,7 +437,6 @@ class JobQueueManager {
         duration: `${duration}ms`,
         timestamp: new Date().toISOString(),
       };
-
     } catch (error) {
       timer.end({ error: error.message });
       throw error;
@@ -428,7 +454,12 @@ class JobQueueManager {
       job.progress(10);
 
       // Determine what data needs to be synced
-      const syncData = await this.determineSyncData(source, target, syncType, lastSyncTime);
+      const syncData = await this.determineSyncData(
+        source,
+        target,
+        syncType,
+        lastSyncTime,
+      );
       job.progress(30);
 
       // Perform the synchronization
@@ -449,7 +480,6 @@ class JobQueueManager {
         duration: `${duration}ms`,
         timestamp: new Date().toISOString(),
       };
-
     } catch (error) {
       timer.end({ error: error.message });
       throw error;
@@ -480,11 +510,10 @@ class JobQueueManager {
       const duration = timer.end();
       return {
         success: true,
-        tasksCompleted: ['logs', 'temp_files', 'old_jobs'],
+        tasksCompleted: ["logs", "temp_files", "old_jobs"],
         duration: `${duration}ms`,
         timestamp: new Date().toISOString(),
       };
-
     } catch (error) {
       timer.end({ error: error.message });
       throw error;
@@ -501,7 +530,7 @@ class JobQueueManager {
       job.progress(20);
 
       // Aggregate hourly metrics
-      await this.aggregateMetrics('hourly');
+      await this.aggregateMetrics("hourly");
       job.progress(60);
 
       // Update dashboard data
@@ -516,7 +545,6 @@ class JobQueueManager {
         duration: `${duration}ms`,
         timestamp: new Date().toISOString(),
       };
-
     } catch (error) {
       timer.end({ error: error.message });
       throw error;
@@ -534,7 +562,7 @@ class JobQueueManager {
 
     return {
       success: false,
-      message: 'No processor available for this job type',
+      message: "No processor available for this job type",
       timestamp: new Date().toISOString(),
     };
   }
@@ -546,7 +574,7 @@ class JobQueueManager {
     queueName: string,
     jobName: string,
     data: any,
-    options: JobOptions = {}
+    options: JobOptions = {},
   ): Promise<Job> {
     const queue = this.queues.get(queueName);
     if (!queue) {
@@ -578,14 +606,15 @@ class JobQueueManager {
       throw new Error(`Queue '${queueName}' not found`);
     }
 
-    const [waiting, active, completed, failed, delayed, paused] = await Promise.all([
-      queue.getWaiting(),
-      queue.getActive(),
-      queue.getCompleted(),
-      queue.getFailed(),
-      queue.getDelayed(),
-      queue.getPaused(),
-    ]);
+    const [waiting, active, completed, failed, delayed, paused] =
+      await Promise.all([
+        queue.getWaiting(),
+        queue.getActive(),
+        queue.getCompleted(),
+        queue.getFailed(),
+        queue.getDelayed(),
+        queue.getPaused(),
+      ]);
 
     return {
       name: queueName,
@@ -641,14 +670,17 @@ class JobQueueManager {
   /**
    * Clean up old jobs in a queue
    */
-  async cleanQueue(queueName: string, grace: number = 24 * 60 * 60 * 1000): Promise<void> {
+  async cleanQueue(
+    queueName: string,
+    grace: number = 24 * 60 * 60 * 1000,
+  ): Promise<void> {
     const queue = this.queues.get(queueName);
     if (!queue) {
       throw new Error(`Queue '${queueName}' not found`);
     }
 
-    await queue.clean(grace, 'completed');
-    await queue.clean(grace, 'failed');
+    await queue.clean(grace, "completed");
+    await queue.clean(grace, "failed");
     logger.info(`Queue '${queueName}' cleaned`);
   }
 
@@ -656,28 +688,36 @@ class JobQueueManager {
    * Close all queues gracefully
    */
   async close(): Promise<void> {
-    logger.info('🔄 Closing job queues...');
+    logger.info("🔄 Closing job queues...");
 
-    const closePromises = Array.from(this.queues.values()).map(queue => 
-      queue.close()
+    const closePromises = Array.from(this.queues.values()).map((queue) =>
+      queue.close(),
     );
 
     await Promise.allSettled(closePromises);
     this.queues.clear();
     this.isInitialized = false;
 
-    logger.info('✅ All job queues closed');
+    logger.info("✅ All job queues closed");
   }
 
   // Placeholder methods for actual implementations
-  private async sendEmail(to: string, subject: string, template: string, data: any): Promise<void> {
+  private async sendEmail(
+    to: string,
+    subject: string,
+    template: string,
+    data: any,
+  ): Promise<void> {
     // Implement actual email sending logic
-    logger.debug('Email sent (placeholder)', { to, subject, template });
+    logger.debug("Email sent (placeholder)", { to, subject, template });
   }
 
-  private async generateReport(reportType: string, parameters: any): Promise<any> {
+  private async generateReport(
+    reportType: string,
+    parameters: any,
+  ): Promise<any> {
     // Implement actual report generation logic
-    return { data: 'report_data', type: reportType };
+    return { data: "report_data", type: reportType };
   }
 
   private async formatReport(data: any, format: string): Promise<Buffer> {
@@ -690,19 +730,33 @@ class JobQueueManager {
     return `https://example.com/reports/${filename}`;
   }
 
-  private async sendEmailNotification(userId: string, title: string, message: string, data?: any): Promise<any> {
+  private async sendEmailNotification(
+    userId: string,
+    title: string,
+    message: string,
+    data?: any,
+  ): Promise<any> {
     // Implement email notification logic
-    return { sent: true, method: 'email' };
+    return { sent: true, method: "email" };
   }
 
-  private async sendSMSNotification(userId: string, message: string, data?: any): Promise<any> {
+  private async sendSMSNotification(
+    userId: string,
+    message: string,
+    data?: any,
+  ): Promise<any> {
     // Implement SMS notification logic
-    return { sent: true, method: 'sms' };
+    return { sent: true, method: "sms" };
   }
 
-  private async sendPushNotification(userId: string, title: string, message: string, data?: any): Promise<any> {
+  private async sendPushNotification(
+    userId: string,
+    title: string,
+    message: string,
+    data?: any,
+  ): Promise<any> {
     // Implement push notification logic
-    return { sent: true, method: 'push' };
+    return { sent: true, method: "push" };
   }
 
   private async loadRouteData(routeId: string): Promise<any> {
@@ -710,54 +764,74 @@ class JobQueueManager {
     return { totalDistance: 100, estimatedTime: 120 };
   }
 
-  private async optimizeRoute(routeData: any, constraints: any, preferences: any): Promise<any> {
+  private async optimizeRoute(
+    routeData: any,
+    constraints: any,
+    preferences: any,
+  ): Promise<any> {
     // Implement route optimization logic
     return { totalDistance: 85, estimatedTime: 100 };
   }
 
-  private async saveOptimizedRoute(routeId: string, optimizedRoute: any): Promise<void> {
+  private async saveOptimizedRoute(
+    routeId: string,
+    optimizedRoute: any,
+  ): Promise<void> {
     // Implement optimized route saving logic
-    logger.debug('Optimized route saved', { routeId });
+    logger.debug("Optimized route saved", { routeId });
   }
 
-  private async determineSyncData(source: string, target: string, syncType: string, lastSyncTime?: string): Promise<any> {
+  private async determineSyncData(
+    source: string,
+    target: string,
+    syncType: string,
+    lastSyncTime?: string,
+  ): Promise<any> {
     // Implement sync data determination logic
     return { items: [], count: 0 };
   }
 
-  private async performSync(source: string, target: string, syncData: any): Promise<any> {
+  private async performSync(
+    source: string,
+    target: string,
+    syncData: any,
+  ): Promise<any> {
     // Implement actual sync logic
     return { count: 0 };
   }
 
-  private async updateSyncTimestamp(source: string, target: string, timestamp: string): Promise<void> {
+  private async updateSyncTimestamp(
+    source: string,
+    target: string,
+    timestamp: string,
+  ): Promise<void> {
     // Implement sync timestamp update logic
-    logger.debug('Sync timestamp updated', { source, target, timestamp });
+    logger.debug("Sync timestamp updated", { source, target, timestamp });
   }
 
   private async cleanupOldLogs(): Promise<void> {
     // Implement log cleanup logic
-    logger.debug('Old logs cleaned up');
+    logger.debug("Old logs cleaned up");
   }
 
   private async cleanupTempFiles(): Promise<void> {
     // Implement temp file cleanup logic
-    logger.debug('Temp files cleaned up');
+    logger.debug("Temp files cleaned up");
   }
 
   private async cleanupOldJobs(): Promise<void> {
     // Implement old job cleanup logic
-    logger.debug('Old jobs cleaned up');
+    logger.debug("Old jobs cleaned up");
   }
 
   private async aggregateMetrics(period: string): Promise<void> {
     // Implement metrics aggregation logic
-    logger.debug('Metrics aggregated', { period });
+    logger.debug("Metrics aggregated", { period });
   }
 
   private async updateDashboardData(): Promise<void> {
     // Implement dashboard data update logic
-    logger.debug('Dashboard data updated');
+    logger.debug("Dashboard data updated");
   }
 }
 

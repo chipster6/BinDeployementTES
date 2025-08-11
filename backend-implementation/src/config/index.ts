@@ -2,28 +2,30 @@
  * ============================================================================
  * WASTE MANAGEMENT SYSTEM - CONFIGURATION
  * ============================================================================
- * 
+ *
  * Central configuration management for the entire application.
  * Loads and validates environment variables, provides type-safe config access.
- * 
+ *
  * Created by: Backend Development Agent
  * Date: 2025-08-10
  * Version: 1.0.0
  */
 
-import Joi from 'joi';
+import Joi from "joi";
 
 /**
  * Environment variable validation schema
  */
 const envSchema = Joi.object({
-  NODE_ENV: Joi.string().valid('development', 'production', 'test').default('development'),
+  NODE_ENV: Joi.string()
+    .valid("development", "production", "test")
+    .default("development"),
   PORT: Joi.number().default(3001),
-  API_VERSION: Joi.string().default('v1'),
-  APP_NAME: Joi.string().default('waste-management-api'),
-  
+  API_VERSION: Joi.string().default("v1"),
+  APP_NAME: Joi.string().default("waste-management-api"),
+
   // Database
-  DB_HOST: Joi.string().default('localhost'),
+  DB_HOST: Joi.string().default("localhost"),
   DB_PORT: Joi.number().default(5432),
   DB_NAME: Joi.string().required(),
   DB_USERNAME: Joi.string().required(),
@@ -35,19 +37,19 @@ const envSchema = Joi.object({
   DB_POOL_ACQUIRE: Joi.number().default(60000),
 
   // Redis
-  REDIS_HOST: Joi.string().default('localhost'),
+  REDIS_HOST: Joi.string().default("localhost"),
   REDIS_PORT: Joi.number().default(6379),
-  REDIS_PASSWORD: Joi.string().allow('').optional(),
+  REDIS_PASSWORD: Joi.string().allow("").optional(),
   REDIS_DB: Joi.number().default(0),
-  REDIS_KEY_PREFIX: Joi.string().default('waste_mgmt:'),
+  REDIS_KEY_PREFIX: Joi.string().default("waste_mgmt:"),
   REDIS_TTL_DEFAULT: Joi.number().default(3600),
 
   // JWT
   JWT_SECRET: Joi.string().min(32).required(),
   JWT_REFRESH_SECRET: Joi.string().min(32).required(),
-  JWT_EXPIRES_IN: Joi.string().default('15m'),
-  JWT_REFRESH_EXPIRES_IN: Joi.string().default('7d'),
-  JWT_ALGORITHM: Joi.string().default('HS256'),
+  JWT_EXPIRES_IN: Joi.string().default("15m"),
+  JWT_REFRESH_EXPIRES_IN: Joi.string().default("7d"),
+  JWT_ALGORITHM: Joi.string().default("HS256"),
 
   // Encryption
   ENCRYPTION_KEY: Joi.string().length(32).required(),
@@ -56,7 +58,7 @@ const envSchema = Joi.object({
   // Security
   SESSION_SECRET: Joi.string().min(32).required(),
   BCRYPT_ROUNDS: Joi.number().default(12),
-  MFA_ISSUER: Joi.string().default('Waste Management System'),
+  MFA_ISSUER: Joi.string().default("Waste Management System"),
   PASSWORD_RESET_TOKEN_EXPIRY: Joi.number().default(3600000),
   ACCOUNT_LOCKOUT_ATTEMPTS: Joi.number().default(5),
   ACCOUNT_LOCKOUT_TIME: Joi.number().default(1800000),
@@ -72,7 +74,7 @@ const envSchema = Joi.object({
   // AWS
   AWS_ACCESS_KEY_ID: Joi.string().optional(),
   AWS_SECRET_ACCESS_KEY: Joi.string().optional(),
-  AWS_REGION: Joi.string().default('us-east-1'),
+  AWS_REGION: Joi.string().default("us-east-1"),
   AWS_S3_BUCKET: Joi.string().optional(),
   AWS_S3_BUCKET_PHOTOS: Joi.string().optional(),
   AWS_S3_BUCKET_DOCUMENTS: Joi.string().optional(),
@@ -82,48 +84,50 @@ const envSchema = Joi.object({
   STRIPE_SECRET_KEY: Joi.string().optional(),
   STRIPE_WEBHOOK_SECRET: Joi.string().optional(),
   STRIPE_PUBLIC_KEY: Joi.string().optional(),
-  
+
   TWILIO_ACCOUNT_SID: Joi.string().optional(),
   TWILIO_AUTH_TOKEN: Joi.string().optional(),
   TWILIO_PHONE_NUMBER: Joi.string().optional(),
   TWILIO_MESSAGING_SERVICE_SID: Joi.string().optional(),
-  
+
   SENDGRID_API_KEY: Joi.string().optional(),
   SENDGRID_FROM_EMAIL: Joi.string().email().optional(),
-  SENDGRID_FROM_NAME: Joi.string().default('Waste Management System'),
-  
+  SENDGRID_FROM_NAME: Joi.string().default("Waste Management System"),
+
   SAMSARA_API_TOKEN: Joi.string().optional(),
-  SAMSARA_BASE_URL: Joi.string().default('https://api.samsara.com/v1'),
+  SAMSARA_BASE_URL: Joi.string().default("https://api.samsara.com/v1"),
   SAMSARA_WEBHOOK_SECRET: Joi.string().optional(),
-  
+
   AIRTABLE_API_KEY: Joi.string().optional(),
   AIRTABLE_BASE_ID: Joi.string().optional(),
-  
+
   MAPBOX_ACCESS_TOKEN: Joi.string().optional(),
-  MAPBOX_STYLE_URL: Joi.string().default('mapbox://styles/mapbox/streets-v11'),
+  MAPBOX_STYLE_URL: Joi.string().default("mapbox://styles/mapbox/streets-v11"),
 
   // Application Features
   ENABLE_SWAGGER_UI: Joi.boolean().default(true),
   ENABLE_API_DOCS: Joi.boolean().default(true),
   DEBUG_SQL: Joi.boolean().default(false),
   MOCK_EXTERNAL_SERVICES: Joi.boolean().default(false),
-  
+
   // Performance
   ENABLE_COMPRESSION: Joi.boolean().default(true),
   COMPRESSION_LEVEL: Joi.number().min(1).max(9).default(6),
-  REQUEST_SIZE_LIMIT: Joi.string().default('50mb'),
+  REQUEST_SIZE_LIMIT: Joi.string().default("50mb"),
   ENABLE_ETAG: Joi.boolean().default(true),
   ENABLE_CACHE_CONTROL: Joi.boolean().default(true),
 
   // Logging
-  LOG_LEVEL: Joi.string().valid('error', 'warn', 'info', 'http', 'verbose', 'debug', 'silly').default('info'),
-  LOG_FILE_MAX_SIZE: Joi.string().default('20m'),
-  LOG_FILE_MAX_FILES: Joi.string().default('14d'),
+  LOG_LEVEL: Joi.string()
+    .valid("error", "warn", "info", "http", "verbose", "debug", "silly")
+    .default("info"),
+  LOG_FILE_MAX_SIZE: Joi.string().default("20m"),
+  LOG_FILE_MAX_FILES: Joi.string().default("14d"),
   ENABLE_REQUEST_LOGGING: Joi.boolean().default(true),
   ENABLE_ERROR_TRACKING: Joi.boolean().default(true),
 
   // Background Jobs
-  QUEUE_REDIS_HOST: Joi.string().default('localhost'),
+  QUEUE_REDIS_HOST: Joi.string().default("localhost"),
   QUEUE_REDIS_PORT: Joi.number().default(6379),
   QUEUE_REDIS_DB: Joi.number().default(1),
   ENABLE_QUEUE_DASHBOARD: Joi.boolean().default(true),
@@ -131,7 +135,7 @@ const envSchema = Joi.object({
 
   // WebSocket
   WEBSOCKET_PORT: Joi.number().default(3002),
-  
+
   // Health Check
   HEALTH_CHECK_ENABLED: Joi.boolean().default(true),
   HEALTH_CHECK_DATABASE: Joi.boolean().default(true),
@@ -139,7 +143,9 @@ const envSchema = Joi.object({
   HEALTH_CHECK_EXTERNAL_APIS: Joi.boolean().default(true),
 
   // CORS
-  CORS_ORIGINS: Joi.string().default('http://localhost:3000,http://localhost:3001'),
+  CORS_ORIGINS: Joi.string().default(
+    "http://localhost:3000,http://localhost:3001",
+  ),
 
   // Notifications
   ENABLE_EMAIL_NOTIFICATIONS: Joi.boolean().default(true),
@@ -178,7 +184,7 @@ export const config = {
 
   server: {
     port: envVars.PORT,
-    host: '0.0.0.0',
+    host: "0.0.0.0",
   },
 
   port: envVars.PORT,
@@ -190,7 +196,7 @@ export const config = {
     username: envVars.DB_USERNAME,
     password: envVars.DB_PASSWORD,
     ssl: envVars.DB_SSL,
-    dialect: 'postgres' as const,
+    dialect: "postgres" as const,
     pool: {
       min: envVars.DB_POOL_MIN,
       max: envVars.DB_POOL_MAX,
@@ -220,8 +226,8 @@ export const config = {
     expiresIn: envVars.JWT_EXPIRES_IN,
     refreshExpiresIn: envVars.JWT_REFRESH_EXPIRES_IN,
     algorithm: envVars.JWT_ALGORITHM,
-    issuer: 'waste-management-api',
-    audience: 'waste-management-users',
+    issuer: "waste-management-api",
+    audience: "waste-management-users",
   },
 
   security: {
@@ -260,8 +266,8 @@ export const config = {
     maxRequests: envVars.RATE_LIMIT_MAX_REQUESTS,
     skipSuccessfulRequests: envVars.RATE_LIMIT_SKIP_SUCCESSFUL_REQUESTS,
     message: {
-      error: 'rate_limit_exceeded',
-      message: 'Too many requests, please try again later.',
+      error: "rate_limit_exceeded",
+      message: "Too many requests, please try again later.",
       retryAfter: Math.ceil(envVars.RATE_LIMIT_WINDOW_MS / 1000),
     },
   },
@@ -307,8 +313,8 @@ export const config = {
     apiKey: envVars.AIRTABLE_API_KEY,
     baseId: envVars.AIRTABLE_BASE_ID,
     tables: {
-      customers: 'Customers',
-      contracts: 'Service Agreements',
+      customers: "Customers",
+      contracts: "Service Agreements",
     },
   },
 
@@ -363,7 +369,9 @@ export const config = {
   },
 
   cors: {
-    origins: envVars.CORS_ORIGINS.split(',').map((origin: string) => origin.trim()),
+    origins: envVars.CORS_ORIGINS.split(",").map((origin: string) =>
+      origin.trim(),
+    ),
   },
 
   notifications: {
@@ -399,15 +407,24 @@ export const config = {
  * Validate required external service configurations based on features enabled
  */
 if (config.stripe.secretKey && !config.stripe.webhookSecret) {
-  throw new Error('STRIPE_WEBHOOK_SECRET is required when Stripe is configured');
+  throw new Error(
+    "STRIPE_WEBHOOK_SECRET is required when Stripe is configured",
+  );
 }
 
-if (config.notifications.sms.enabled && (!config.twilio.accountSid || !config.twilio.authToken)) {
-  throw new Error('Twilio configuration is required when SMS notifications are enabled');
+if (
+  config.notifications.sms.enabled &&
+  (!config.twilio.accountSid || !config.twilio.authToken)
+) {
+  throw new Error(
+    "Twilio configuration is required when SMS notifications are enabled",
+  );
 }
 
 if (config.notifications.email.enabled && !config.sendGrid.apiKey) {
-  throw new Error('SendGrid configuration is required when email notifications are enabled');
+  throw new Error(
+    "SendGrid configuration is required when email notifications are enabled",
+  );
 }
 
 // Export configuration type for TypeScript

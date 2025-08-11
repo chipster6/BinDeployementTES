@@ -2,20 +2,20 @@
  * ============================================================================
  * WASTE MANAGEMENT SYSTEM - AUTHENTICATION MIDDLEWARE
  * ============================================================================
- * 
+ *
  * JWT authentication and role-based authorization middleware.
  * Simplified implementation for immediate deployment readiness.
- * 
+ *
  * Updated by: Backend Recovery Agent
  * Date: 2025-08-10
  * Version: 1.1.0
  */
 
-import { Request, Response, NextFunction } from 'express';
-import jwt from 'jsonwebtoken';
-import { config } from '@/config';
-import { logger } from '@/utils/logger';
-import { User, UserModel, UserRole, UserStatus } from '@/models/User';
+import { Request, Response, NextFunction } from "express";
+import jwt from "jsonwebtoken";
+import { config } from "@/config";
+import { logger } from "@/utils/logger";
+import { User, UserModel, UserRole, UserStatus } from "@/models/User";
 
 /**
  * JWT payload interface
@@ -24,6 +24,7 @@ interface JWTPayload {
   id: string;
   email: string;
   role: UserRole;
+  sessionId?: string;
   iat?: number;
   exp?: number;
 }
@@ -32,7 +33,9 @@ interface JWTPayload {
  * Extended Request interface with user information
  */
 export interface AuthenticatedRequest extends Request {
-  user: UserModel;
+  user: UserModel & {
+    sessionId?: string;
+  };
 }
 
 /**
@@ -41,7 +44,7 @@ export interface AuthenticatedRequest extends Request {
 export class AuthenticationError extends Error {
   constructor(message: string) {
     super(message);
-    this.name = 'AuthenticationError';
+    this.name = "AuthenticationError";
   }
 }
 
@@ -51,7 +54,7 @@ export class AuthenticationError extends Error {
 export class AuthorizationError extends Error {
   constructor(message: string) {
     super(message);
-    this.name = 'AuthorizationError';
+    this.name = "AuthorizationError";
   }
 }
 
@@ -61,16 +64,16 @@ export class AuthorizationError extends Error {
 const extractToken = (req: Request): string | null => {
   // Check Authorization header
   const authHeader = req.headers.authorization;
-  if (authHeader && authHeader.startsWith('Bearer ')) {
+  if (authHeader && authHeader.startsWith("Bearer ")) {
     return authHeader.substring(7);
   }
-  
+
   // Check cookie
   const cookieToken = req.cookies?.token;
   if (cookieToken) {
     return cookieToken;
   }
-  
+
   return null;
 };
 
@@ -83,17 +86,17 @@ const verifyToken = (token: string): JWTPayload => {
       issuer: config.jwt.issuer,
       audience: config.jwt.audience,
     }) as JWTPayload;
-    
+
     return payload;
   } catch (error: any) {
-    if (error.name === 'TokenExpiredError') {
-      throw new AuthenticationError('Token expired');
-    } else if (error.name === 'JsonWebTokenError') {
-      throw new AuthenticationError('Invalid token');
-    } else if (error.name === 'NotBeforeError') {
-      throw new AuthenticationError('Token not yet valid');
+    if (error.name === "TokenExpiredError") {
+      throw new AuthenticationError("Token expired");
+    } else if (error.name === "JsonWebTokenError") {
+      throw new AuthenticationError("Invalid token");
+    } else if (error.name === "NotBeforeError") {
+      throw new AuthenticationError("Token not yet valid");
     } else {
-      throw new AuthenticationError('Token verification failed');
+      throw new AuthenticationError("Token verification failed");
     }
   }
 };
@@ -101,70 +104,78 @@ const verifyToken = (token: string): JWTPayload => {
 /**
  * Main authentication middleware
  */
-export const authenticateToken = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+export const authenticateToken = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> => {
   try {
     // Extract token from request
     const token = extractToken(req);
     if (!token) {
       res.status(401).json({
         success: false,
-        message: 'Access denied. No token provided.',
+        message: "Access denied. No token provided.",
       });
       return;
     }
-    
+
     // Verify JWT token
     const payload = verifyToken(token);
-    
+
     // Find user in database
     const user = await User.findByPk(payload.id);
     if (!user || user.deleted_at) {
       res.status(401).json({
         success: false,
-        message: 'Access denied. User not found.',
+        message: "Access denied. User not found.",
       });
       return;
     }
-    
+
     // Check if user account is active
     if (user.status !== UserStatus.ACTIVE) {
       res.status(403).json({
         success: false,
-        message: 'Access denied. Account is not active.',
+        message: "Access denied. Account is not active.",
       });
       return;
     }
-    
+
     // Check if account is locked
     if (user.isAccountLocked()) {
       res.status(423).json({
         success: false,
-        message: 'Access denied. Account is locked.',
+        message: "Access denied. Account is locked.",
       });
       return;
     }
-    
+
     // Add user information to request
-    (req as AuthenticatedRequest).user = user;
-    
+    const userWithSession = Object.assign(user, {} as { sessionId?: string });
+    if (payload.sessionId) {
+      userWithSession.sessionId = payload.sessionId;
+    }
+    (req as AuthenticatedRequest).user = userWithSession;
+
     // Log successful authentication (debug level to avoid spam)
-    logger.debug('User authenticated successfully', {
+    logger.debug("User authenticated successfully", {
       userId: user.id,
       email: user.email,
       role: user.role,
       ip: req.ip,
-      userAgent: req.headers['user-agent'],
+      userAgent: req.headers["user-agent"],
     });
-    
+
     next();
   } catch (error: any) {
-    logger.warn('Authentication failed', {
+    logger.warn("Authentication failed", {
       error: error.message,
       ip: req.ip,
-      userAgent: req.headers['user-agent'],
+      userAgent: req.headers["user-agent"],
       url: req.originalUrl,
     });
-    
+
     if (error instanceof AuthenticationError) {
       res.status(401).json({
         success: false,
@@ -172,10 +183,10 @@ export const authenticateToken = async (req: Request, res: Response, next: NextF
       });
       return;
     }
-    
+
     res.status(500).json({
       success: false,
-      message: 'Internal server error during authentication',
+      message: "Internal server error during authentication",
     });
   }
 };
@@ -183,24 +194,28 @@ export const authenticateToken = async (req: Request, res: Response, next: NextF
 /**
  * Optional authentication middleware (doesn't fail if no token)
  */
-export const optionalAuth = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+export const optionalAuth = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> => {
   try {
     const token = extractToken(req);
     if (!token) {
       return next();
     }
-    
+
     const payload = verifyToken(token);
     const user = await User.findByPk(payload.id);
-    
+
     if (user && user.status === UserStatus.ACTIVE && !user.isAccountLocked()) {
       (req as AuthenticatedRequest).user = user;
     }
-    
+
     next();
   } catch (error) {
     // Ignore authentication errors in optional auth
-    logger.debug('Optional authentication failed:', error);
+    logger.debug("Optional authentication failed:", error);
     next();
   }
 };
@@ -209,38 +224,42 @@ export const optionalAuth = async (req: Request, res: Response, next: NextFuncti
  * Role-based authorization middleware
  */
 export const requireRole = (...allowedRoles: UserRole[]) => {
-  return (req: AuthenticatedRequest, res: Response, next: NextFunction): void => {
+  return (
+    req: AuthenticatedRequest,
+    res: Response,
+    next: NextFunction,
+  ): void => {
     try {
       if (!req.user) {
         res.status(401).json({
           success: false,
-          message: 'Authentication required',
+          message: "Authentication required",
         });
         return;
       }
-      
+
       // Check if user has one of the allowed roles
       if (!allowedRoles.includes(req.user.role)) {
-        logger.warn('Authorization failed', {
+        logger.warn("Authorization failed", {
           userId: req.user.id,
           userRole: req.user.role,
           requiredRoles: allowedRoles,
           url: req.originalUrl,
         });
-        
+
         res.status(403).json({
           success: false,
-          message: `Access denied. Required roles: ${allowedRoles.join(', ')}`,
+          message: `Access denied. Required roles: ${allowedRoles.join(", ")}`,
         });
         return;
       }
-      
+
       next();
     } catch (error) {
-      logger.error('Authorization middleware error:', error);
+      logger.error("Authorization middleware error:", error);
       res.status(500).json({
         success: false,
-        message: 'Internal server error during authorization',
+        message: "Internal server error during authorization",
       });
     }
   };
@@ -249,45 +268,50 @@ export const requireRole = (...allowedRoles: UserRole[]) => {
 /**
  * Resource ownership validation middleware
  */
-export const requireOwnership = (resourceIdParam: string = 'id') => {
-  return (req: AuthenticatedRequest, res: Response, next: NextFunction): void => {
+export const requireOwnership = (resourceIdParam: string = "id") => {
+  return (
+    req: AuthenticatedRequest,
+    res: Response,
+    next: NextFunction,
+  ): void => {
     try {
       if (!req.user) {
         res.status(401).json({
           success: false,
-          message: 'Authentication required',
+          message: "Authentication required",
         });
         return;
       }
-      
+
       // Super admins can access any resource
       if (req.user.role === UserRole.SUPER_ADMIN) {
         return next();
       }
-      
-      const resourceId = req.params[resourceIdParam] || req.body[resourceIdParam];
-      
+
+      const resourceId =
+        req.params[resourceIdParam] || req.body[resourceIdParam];
+
       // For user resources, check if user owns the resource
       if (!resourceId || resourceId !== req.user.id) {
-        logger.warn('Unauthorized resource access attempt', {
+        logger.warn("Unauthorized resource access attempt", {
           userId: req.user.id,
           resourceId,
           url: req.originalUrl,
         });
-        
+
         res.status(403).json({
           success: false,
-          message: 'Access denied. You can only access your own resources.',
+          message: "Access denied. You can only access your own resources.",
         });
         return;
       }
-      
+
       next();
     } catch (error) {
-      logger.error('Ownership validation error:', error);
+      logger.error("Ownership validation error:", error);
       res.status(500).json({
         success: false,
-        message: 'Internal server error during ownership validation',
+        message: "Internal server error during ownership validation",
       });
     }
   };
@@ -297,39 +321,43 @@ export const requireOwnership = (resourceIdParam: string = 'id') => {
  * Permission-based authorization using the User model's canAccess method
  */
 export const requirePermission = (resource: string, action: string) => {
-  return (req: AuthenticatedRequest, res: Response, next: NextFunction): void => {
+  return (
+    req: AuthenticatedRequest,
+    res: Response,
+    next: NextFunction,
+  ): void => {
     try {
       if (!req.user) {
         res.status(401).json({
           success: false,
-          message: 'Authentication required',
+          message: "Authentication required",
         });
         return;
       }
-      
+
       // Check if user has the required permission
       if (!req.user.canAccess(resource, action)) {
-        logger.warn('Permission denied', {
+        logger.warn("Permission denied", {
           userId: req.user.id,
           userRole: req.user.role,
           resource,
           action,
           url: req.originalUrl,
         });
-        
+
         res.status(403).json({
           success: false,
           message: `Access denied. Required permission: ${resource}:${action}`,
         });
         return;
       }
-      
+
       next();
     } catch (error) {
-      logger.error('Permission validation error:', error);
+      logger.error("Permission validation error:", error);
       res.status(500).json({
         success: false,
-        message: 'Internal server error during permission validation',
+        message: "Internal server error during permission validation",
       });
     }
   };
@@ -347,7 +375,7 @@ export const staffOnly = requireRole(
   UserRole.SUPER_ADMIN,
   UserRole.ADMIN,
   UserRole.DISPATCHER,
-  UserRole.OFFICE_STAFF
+  UserRole.OFFICE_STAFF,
 );
 
 /**
@@ -358,7 +386,67 @@ export const driverOnly = requireRole(UserRole.DRIVER);
 /**
  * Customer-only middleware
  */
-export const customerOnly = requireRole(UserRole.CUSTOMER, UserRole.CUSTOMER_STAFF);
+export const customerOnly = requireRole(
+  UserRole.CUSTOMER,
+  UserRole.CUSTOMER_STAFF,
+);
+
+/**
+ * Generate JWT access token
+ */
+export function generateToken(payload: { id: string; email: string; role: UserRole; sessionId?: string }): string {
+  return jwt.sign(
+    {
+      id: payload.id,
+      email: payload.email,
+      role: payload.role,
+      sessionId: payload.sessionId,
+    },
+    config.jwt.secret,
+    {
+      expiresIn: config.jwt.expiresIn,
+      issuer: config.jwt.issuer,
+      audience: config.jwt.audience,
+    }
+  );
+}
+
+/**
+ * Generate JWT refresh token
+ */
+export function generateRefreshToken(payload: { id: string; sessionId?: string }): string {
+  return jwt.sign(
+    {
+      userId: payload.id,
+      sessionId: payload.sessionId,
+    },
+    config.jwt.refreshSecret,
+    {
+      expiresIn: config.jwt.refreshExpiresIn,
+      issuer: config.jwt.issuer,
+      audience: config.jwt.audience,
+    }
+  );
+}
+
+/**
+ * Verify refresh token and extract payload
+ */
+export function verifyRefreshToken(token: string): { userId: string; sessionId?: string } {
+  try {
+    const payload = jwt.verify(token, config.jwt.refreshSecret, {
+      issuer: config.jwt.issuer,
+      audience: config.jwt.audience,
+    }) as any;
+
+    return {
+      userId: payload.userId,
+      sessionId: payload.sessionId,
+    };
+  } catch (error) {
+    throw new AuthenticationError("Invalid refresh token");
+  }
+}
 
 // Re-export types and enums
 export { UserRole, UserStatus };

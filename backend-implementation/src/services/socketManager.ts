@@ -2,20 +2,20 @@
  * ============================================================================
  * WASTE MANAGEMENT SYSTEM - SOCKET MANAGER SERVICE
  * ============================================================================
- * 
+ *
  * WebSocket connection management for real-time features.
  * Handles client connections, room management, and message broadcasting.
- * 
+ *
  * Created by: Backend Development Agent
  * Date: 2025-08-10
  * Version: 1.0.0
  */
 
-import { Server as SocketIOServer, Socket } from 'socket.io';
-import jwt from 'jsonwebtoken';
-import { config } from '@/config';
-import { logger, logSecurityEvent } from '@/utils/logger';
-import { redisClient } from '@/config/redis';
+import { Server as SocketIOServer, Socket } from "socket.io";
+import jwt from "jsonwebtoken";
+import { config } from "@/config";
+import { logger, logSecurityEvent } from "@/utils/logger";
+import { redisClient } from "@/config/redis";
 
 /**
  * Socket connection interface
@@ -42,7 +42,7 @@ class SocketManager {
     this.io = io;
     this.setupMiddleware();
     this.setupEventHandlers();
-    logger.info('✅ Socket Manager initialized successfully');
+    logger.info("✅ Socket Manager initialized successfully");
   }
 
   /**
@@ -54,14 +54,16 @@ class SocketManager {
     // Authentication middleware
     this.io.use(async (socket: AuthenticatedSocket, next) => {
       try {
-        const token = socket.handshake.auth.token || socket.handshake.headers.authorization?.replace('Bearer ', '');
-        
+        const token =
+          socket.handshake.auth.token ||
+          socket.handshake.headers.authorization?.replace("Bearer ", "");
+
         if (!token) {
-          logger.warn('Socket connection attempted without token', {
+          logger.warn("Socket connection attempted without token", {
             socketId: socket.id,
             ip: socket.handshake.address,
           });
-          return next(new Error('Authentication token required'));
+          return next(new Error("Authentication token required"));
         }
 
         // Verify JWT token
@@ -72,7 +74,7 @@ class SocketManager {
 
         // Validate user still exists and is active (you would check database here)
         // For now, just log the authentication
-        logger.debug('Socket authenticated', {
+        logger.debug("Socket authenticated", {
           socketId: socket.id,
           userId: socket.userId,
           role: socket.userRole,
@@ -81,14 +83,14 @@ class SocketManager {
         next();
       } catch (error) {
         logSecurityEvent(
-          'socket_auth_failed',
+          "socket_auth_failed",
           { error: error.message },
           undefined,
           socket.handshake.address,
-          'medium'
+          "medium",
         );
-        
-        next(new Error('Invalid authentication token'));
+
+        next(new Error("Invalid authentication token"));
       }
     });
 
@@ -106,7 +108,7 @@ class SocketManager {
   private setupEventHandlers(): void {
     if (!this.io) return;
 
-    this.io.on('connection', (socket: AuthenticatedSocket) => {
+    this.io.on("connection", (socket: AuthenticatedSocket) => {
       this.handleConnection(socket);
     });
   }
@@ -116,8 +118,8 @@ class SocketManager {
    */
   private handleConnection(socket: AuthenticatedSocket): void {
     const { userId, userRole, sessionId } = socket;
-    
-    logger.info('Socket connected', {
+
+    logger.info("Socket connected", {
       socketId: socket.id,
       userId,
       role: userRole,
@@ -127,7 +129,7 @@ class SocketManager {
 
     // Store connection
     this.connectedClients.set(socket.id, socket);
-    
+
     // Track user's sockets
     if (userId) {
       if (!this.userSockets.has(userId)) {
@@ -150,13 +152,13 @@ class SocketManager {
     this.setupSocketEventHandlers(socket);
 
     // Handle disconnection
-    socket.on('disconnect', (reason) => {
+    socket.on("disconnect", (reason) => {
       this.handleDisconnection(socket, reason);
     });
 
     // Send welcome message
-    socket.emit('connected', {
-      message: 'Successfully connected to Waste Management System',
+    socket.emit("connected", {
+      message: "Successfully connected to Waste Management System",
       socketId: socket.id,
       timestamp: new Date().toISOString(),
     });
@@ -167,38 +169,38 @@ class SocketManager {
    */
   private setupSocketEventHandlers(socket: AuthenticatedSocket): void {
     // GPS location updates (for drivers)
-    socket.on('location_update', (data) => {
+    socket.on("location_update", (data) => {
       this.handleLocationUpdate(socket, data);
     });
 
     // Route progress updates
-    socket.on('route_progress', (data) => {
+    socket.on("route_progress", (data) => {
       this.handleRouteProgress(socket, data);
     });
 
     // Service event updates
-    socket.on('service_event', (data) => {
+    socket.on("service_event", (data) => {
       this.handleServiceEvent(socket, data);
     });
 
     // Join specific rooms (for real-time updates)
-    socket.on('join_room', (data) => {
+    socket.on("join_room", (data) => {
       this.handleJoinRoom(socket, data);
     });
 
     // Leave specific rooms
-    socket.on('leave_room', (data) => {
+    socket.on("leave_room", (data) => {
       this.handleLeaveRoom(socket, data);
     });
 
     // General message handling
-    socket.on('message', (data) => {
+    socket.on("message", (data) => {
       this.handleMessage(socket, data);
     });
 
     // Ping/Pong for connection health
-    socket.on('ping', () => {
-      socket.emit('pong', { timestamp: Date.now() });
+    socket.on("ping", () => {
+      socket.emit("pong", { timestamp: Date.now() });
     });
   }
 
@@ -207,16 +209,22 @@ class SocketManager {
    */
   private handleLocationUpdate(socket: AuthenticatedSocket, data: any): void {
     try {
-      const { vehicleId, latitude, longitude, timestamp, speed, heading } = data;
-      
+      const { vehicleId, latitude, longitude, timestamp, speed, heading } =
+        data;
+
       if (!vehicleId || !latitude || !longitude) {
-        socket.emit('error', { message: 'Invalid location data' });
+        socket.emit("error", { message: "Invalid location data" });
         return;
       }
 
       // Validate coordinates
-      if (latitude < -90 || latitude > 90 || longitude < -180 || longitude > 180) {
-        socket.emit('error', { message: 'Invalid GPS coordinates' });
+      if (
+        latitude < -90 ||
+        latitude > 90 ||
+        longitude < -180 ||
+        longitude > 180
+      ) {
+        socket.emit("error", { message: "Invalid GPS coordinates" });
         return;
       }
 
@@ -235,21 +243,24 @@ class SocketManager {
       this.storeLocationData(vehicleId, locationData);
 
       // Broadcast to subscribers (dispatchers, customers, etc.)
-      this.broadcastToRoom(`vehicle:${vehicleId}`, 'location_update', locationData);
-      
-      // Also broadcast to role-based rooms
-      this.broadcastToRoom('role:dispatcher', 'location_update', locationData);
-      this.broadcastToRoom('role:admin', 'location_update', locationData);
+      this.broadcastToRoom(
+        `vehicle:${vehicleId}`,
+        "location_update",
+        locationData,
+      );
 
-      logger.debug('Location update processed', {
+      // Also broadcast to role-based rooms
+      this.broadcastToRoom("role:dispatcher", "location_update", locationData);
+      this.broadcastToRoom("role:admin", "location_update", locationData);
+
+      logger.debug("Location update processed", {
         vehicleId,
         userId: socket.userId,
         coordinates: [latitude, longitude],
       });
-
     } catch (error) {
-      logger.error('Error handling location update:', error);
-      socket.emit('error', { message: 'Failed to process location update' });
+      logger.error("Error handling location update:", error);
+      socket.emit("error", { message: "Failed to process location update" });
     }
   }
 
@@ -259,7 +270,7 @@ class SocketManager {
   private handleRouteProgress(socket: AuthenticatedSocket, data: any): void {
     try {
       const { routeId, progress, currentStop, estimatedArrival } = data;
-      
+
       const progressData = {
         routeId,
         userId: socket.userId,
@@ -270,14 +281,13 @@ class SocketManager {
       };
 
       // Broadcast to route subscribers
-      this.broadcastToRoom(`route:${routeId}`, 'route_progress', progressData);
-      this.broadcastToRoom('role:dispatcher', 'route_progress', progressData);
+      this.broadcastToRoom(`route:${routeId}`, "route_progress", progressData);
+      this.broadcastToRoom("role:dispatcher", "route_progress", progressData);
 
-      logger.debug('Route progress updated', { routeId, progress });
-
+      logger.debug("Route progress updated", { routeId, progress });
     } catch (error) {
-      logger.error('Error handling route progress:', error);
-      socket.emit('error', { message: 'Failed to process route progress' });
+      logger.error("Error handling route progress:", error);
+      socket.emit("error", { message: "Failed to process route progress" });
     }
   }
 
@@ -287,7 +297,7 @@ class SocketManager {
   private handleServiceEvent(socket: AuthenticatedSocket, data: any): void {
     try {
       const { customerId, serviceType, status, notes } = data;
-      
+
       const eventData = {
         customerId,
         userId: socket.userId,
@@ -298,15 +308,22 @@ class SocketManager {
       };
 
       // Broadcast to customer and admin channels
-      this.broadcastToRoom(`customer:${customerId}`, 'service_event', eventData);
-      this.broadcastToRoom('role:admin', 'service_event', eventData);
-      this.broadcastToRoom('role:dispatcher', 'service_event', eventData);
+      this.broadcastToRoom(
+        `customer:${customerId}`,
+        "service_event",
+        eventData,
+      );
+      this.broadcastToRoom("role:admin", "service_event", eventData);
+      this.broadcastToRoom("role:dispatcher", "service_event", eventData);
 
-      logger.debug('Service event updated', { customerId, serviceType, status });
-
+      logger.debug("Service event updated", {
+        customerId,
+        serviceType,
+        status,
+      });
     } catch (error) {
-      logger.error('Error handling service event:', error);
-      socket.emit('error', { message: 'Failed to process service event' });
+      logger.error("Error handling service event:", error);
+      socket.emit("error", { message: "Failed to process service event" });
     }
   }
 
@@ -316,33 +333,32 @@ class SocketManager {
   private handleJoinRoom(socket: AuthenticatedSocket, data: any): void {
     try {
       const { room, reason } = data;
-      
+
       // Validate room access based on user role
       if (!this.validateRoomAccess(socket, room)) {
-        socket.emit('error', { message: 'Access denied to room' });
+        socket.emit("error", { message: "Access denied to room" });
         return;
       }
 
       socket.join(room);
-      
+
       // Track room subscription
       if (!this.roomSubscriptions.has(room)) {
         this.roomSubscriptions.set(room, new Set());
       }
       this.roomSubscriptions.get(room)!.add(socket.id);
 
-      socket.emit('joined_room', { room, timestamp: new Date().toISOString() });
-      
-      logger.debug('Socket joined room', {
+      socket.emit("joined_room", { room, timestamp: new Date().toISOString() });
+
+      logger.debug("Socket joined room", {
         socketId: socket.id,
         userId: socket.userId,
         room,
         reason,
       });
-
     } catch (error) {
-      logger.error('Error joining room:', error);
-      socket.emit('error', { message: 'Failed to join room' });
+      logger.error("Error joining room:", error);
+      socket.emit("error", { message: "Failed to join room" });
     }
   }
 
@@ -352,24 +368,23 @@ class SocketManager {
   private handleLeaveRoom(socket: AuthenticatedSocket, data: any): void {
     try {
       const { room } = data;
-      
+
       socket.leave(room);
-      
+
       // Remove from room subscription tracking
       if (this.roomSubscriptions.has(room)) {
         this.roomSubscriptions.get(room)!.delete(socket.id);
       }
 
-      socket.emit('left_room', { room, timestamp: new Date().toISOString() });
-      
-      logger.debug('Socket left room', {
+      socket.emit("left_room", { room, timestamp: new Date().toISOString() });
+
+      logger.debug("Socket left room", {
         socketId: socket.id,
         userId: socket.userId,
         room,
       });
-
     } catch (error) {
-      logger.error('Error leaving room:', error);
+      logger.error("Error leaving room:", error);
     }
   }
 
@@ -379,30 +394,32 @@ class SocketManager {
   private handleMessage(socket: AuthenticatedSocket, data: any): void {
     try {
       // Implement message handling logic based on your needs
-      logger.debug('Socket message received', {
+      logger.debug("Socket message received", {
         socketId: socket.id,
         userId: socket.userId,
         data,
       });
 
       // Echo back for now
-      socket.emit('message_received', {
-        message: 'Message received',
+      socket.emit("message_received", {
+        message: "Message received",
         timestamp: new Date().toISOString(),
       });
-
     } catch (error) {
-      logger.error('Error handling message:', error);
+      logger.error("Error handling message:", error);
     }
   }
 
   /**
    * Handle socket disconnection
    */
-  private handleDisconnection(socket: AuthenticatedSocket, reason: string): void {
+  private handleDisconnection(
+    socket: AuthenticatedSocket,
+    reason: string,
+  ): void {
     const { userId } = socket;
-    
-    logger.info('Socket disconnected', {
+
+    logger.info("Socket disconnected", {
       socketId: socket.id,
       userId,
       reason,
@@ -410,7 +427,7 @@ class SocketManager {
 
     // Clean up connection tracking
     this.connectedClients.delete(socket.id);
-    
+
     if (userId && this.userSockets.has(userId)) {
       this.userSockets.get(userId)!.delete(socket.id);
       if (this.userSockets.get(userId)!.size === 0) {
@@ -427,43 +444,49 @@ class SocketManager {
   /**
    * Store location data in Redis
    */
-  private async storeLocationData(vehicleId: string, locationData: any): Promise<void> {
+  private async storeLocationData(
+    vehicleId: string,
+    locationData: any,
+  ): Promise<void> {
     try {
       const key = `location:vehicle:${vehicleId}`;
-      await redisClient.set(key, JSON.stringify(locationData), 'EX', 300); // 5 minute expiry
+      await redisClient.set(key, JSON.stringify(locationData), "EX", 300); // 5 minute expiry
     } catch (error) {
-      logger.error('Failed to store location data in Redis:', error);
+      logger.error("Failed to store location data in Redis:", error);
     }
   }
 
   /**
    * Validate if user can access a specific room
    */
-  private validateRoomAccess(socket: AuthenticatedSocket, room: string): boolean {
+  private validateRoomAccess(
+    socket: AuthenticatedSocket,
+    room: string,
+  ): boolean {
     const { userId, userRole } = socket;
-    
+
     // Admin and dispatcher can access all rooms
-    if (userRole === 'admin' || userRole === 'dispatcher') {
+    if (userRole === "admin" || userRole === "dispatcher") {
       return true;
     }
-    
+
     // Users can access their own rooms
     if (room === `user:${userId}`) {
       return true;
     }
-    
+
     // Drivers can access their vehicle rooms
-    if (userRole === 'driver' && room.startsWith('vehicle:')) {
+    if (userRole === "driver" && room.startsWith("vehicle:")) {
       // You would validate if this driver is assigned to this vehicle
       return true;
     }
-    
+
     // Customers can access their own customer rooms
-    if (userRole === 'customer' && room.startsWith('customer:')) {
+    if (userRole === "customer" && room.startsWith("customer:")) {
       // You would validate if this user owns this customer account
       return true;
     }
-    
+
     return false;
   }
 
@@ -517,10 +540,12 @@ class SocketManager {
    */
   disconnectUser(userId: string, reason?: string): void {
     const socketIds = this.getUserConnections(userId);
-    socketIds.forEach(socketId => {
+    socketIds.forEach((socketId) => {
       const socket = this.connectedClients.get(socketId);
       if (socket) {
-        socket.emit('force_disconnect', { reason: reason || 'Disconnected by system' });
+        socket.emit("force_disconnect", {
+          reason: reason || "Disconnected by system",
+        });
         socket.disconnect(true);
       }
     });

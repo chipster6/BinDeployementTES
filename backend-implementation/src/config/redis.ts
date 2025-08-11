@@ -2,18 +2,18 @@
  * ============================================================================
  * WASTE MANAGEMENT SYSTEM - REDIS CONFIGURATION
  * ============================================================================
- * 
+ *
  * Redis client configuration for caching, sessions, and job queues.
  * Provides connection management, health checks, and utility functions.
- * 
+ *
  * Created by: Backend Development Agent
  * Date: 2025-08-10
  * Version: 1.0.0
  */
 
-import Redis, { RedisOptions } from 'ioredis';
-import { config } from '@/config';
-import { logger } from '@/utils/logger';
+import Redis, { RedisOptions } from "ioredis";
+import { config } from "@/config";
+import { logger } from "@/utils/logger";
 
 /**
  * Redis client configuration options
@@ -24,7 +24,6 @@ const redisOptions: RedisOptions = {
   password: config.redis.password,
   db: config.redis.db,
   keyPrefix: config.redis.keyPrefix,
-  retryDelayOnFailover: config.redis.retryDelayOnFailover,
   enableReadyCheck: config.redis.enableReadyCheck,
   maxRetriesPerRequest: config.redis.maxRetriesPerRequest,
   lazyConnect: config.redis.lazyConnect,
@@ -32,10 +31,9 @@ const redisOptions: RedisOptions = {
   family: 4, // 4 (IPv4) or 6 (IPv6)
   connectTimeout: 60000,
   commandTimeout: 5000,
-  retryDelayOnClusterDown: 300,
   enableOfflineQueue: false,
   readOnly: false,
-  
+
   // Retry strategy
   retryStrategy: (times: number) => {
     const delay = Math.min(times * 50, 2000);
@@ -45,7 +43,7 @@ const redisOptions: RedisOptions = {
 
   // Reconnect on error
   reconnectOnError: (err: Error) => {
-    const targetError = 'READONLY';
+    const targetError = "READONLY";
     return err.message.includes(targetError);
   },
 };
@@ -78,107 +76,115 @@ export const queueRedisClient = new Redis({
 /**
  * Redis event handlers
  */
-redisClient.on('connect', () => {
-  logger.info('✅ Redis client connected');
+redisClient.on("connect", () => {
+  logger.info("✅ Redis client connected");
 });
 
-redisClient.on('ready', () => {
-  logger.info('✅ Redis client ready');
+redisClient.on("ready", () => {
+  logger.info("✅ Redis client ready");
 });
 
-redisClient.on('error', (err: Error) => {
-  logger.error('❌ Redis client error:', {
+redisClient.on("error", (err: Error) => {
+  logger.error("❌ Redis client error:", {
     message: err.message,
-    stack: err.stack
+    stack: err.stack,
   });
 });
 
-redisClient.on('close', () => {
-  logger.info('📪 Redis connection closed');
+redisClient.on("close", () => {
+  logger.info("📪 Redis connection closed");
 });
 
-redisClient.on('reconnecting', () => {
-  logger.info('🔄 Redis client reconnecting...');
+redisClient.on("reconnecting", () => {
+  logger.info("🔄 Redis client reconnecting...");
 });
 
-redisClient.on('end', () => {
-  logger.info('🔚 Redis connection ended');
+redisClient.on("end", () => {
+  logger.info("🔚 Redis connection ended");
 });
 
 /**
  * Session Redis event handlers
  */
-sessionRedisClient.on('connect', () => {
-  logger.info('✅ Session Redis client connected');
+sessionRedisClient.on("connect", () => {
+  logger.info("✅ Session Redis client connected");
 });
 
-sessionRedisClient.on('error', (err: Error) => {
-  logger.error('❌ Session Redis client error:', err.message);
+sessionRedisClient.on("error", (err: Error) => {
+  logger.error("❌ Session Redis client error:", err.message);
 });
 
 /**
  * Queue Redis event handlers
  */
-queueRedisClient.on('connect', () => {
-  logger.info('✅ Queue Redis client connected');
+queueRedisClient.on("connect", () => {
+  logger.info("✅ Queue Redis client connected");
 });
 
-queueRedisClient.on('error', (err: Error) => {
-  logger.error('❌ Queue Redis client error:', err.message);
+queueRedisClient.on("error", (err: Error) => {
+  logger.error("❌ Queue Redis client error:", err.message);
 });
 
 /**
  * Redis health check
  */
 export const checkRedisHealth = async (): Promise<{
-  status: 'healthy' | 'unhealthy';
+  status: "healthy" | "unhealthy";
   details: Record<string, any>;
 }> => {
   try {
     const startTime = Date.now();
-    
+
     // Test main client
     const pong = await redisClient.ping();
     const responseTime = Date.now() - startTime;
-    
+
     // Get Redis info
     const info = await redisClient.info();
-    const memoryInfo = await redisClient.info('memory');
-    
+    const memoryInfo = await redisClient.info("memory");
+
     // Test set/get operation
     const testKey = `health_check:${Date.now()}`;
-    await redisClient.set(testKey, 'test', 'EX', 10);
+    await redisClient.set(testKey, "test", "EX", 10);
     const testValue = await redisClient.get(testKey);
     await redisClient.del(testKey);
-    
+
     // Test session client
     const sessionPong = await sessionRedisClient.ping();
-    
+
     // Test queue client
     const queuePong = await queueRedisClient.ping();
 
     return {
-      status: 'healthy',
+      status: "healthy",
       details: {
         responseTime: `${responseTime}ms`,
-        ping: pong === 'PONG' ? '✅' : '❌',
-        sessionPing: sessionPong === 'PONG' ? '✅' : '❌',
-        queuePing: queuePong === 'PONG' ? '✅' : '❌',
-        testOperation: testValue === 'test' ? '✅' : '❌',
+        ping: pong === "PONG" ? "✅" : "❌",
+        sessionPing: sessionPong === "PONG" ? "✅" : "❌",
+        queuePing: queuePong === "PONG" ? "✅" : "❌",
+        testOperation: testValue === "test" ? "✅" : "❌",
         host: config.redis.host,
         port: config.redis.port,
         db: config.redis.db,
         keyPrefix: config.redis.keyPrefix,
-        version: info.split('\n').find(line => line.startsWith('redis_version:'))?.split(':')[1]?.trim(),
-        memory: memoryInfo.split('\n').find(line => line.startsWith('used_memory_human:'))?.split(':')[1]?.trim(),
+        version: info
+          .split("\n")
+          .find((line) => line.startsWith("redis_version:"))
+          ?.split(":")[1]
+          ?.trim(),
+        memory: memoryInfo
+          .split("\n")
+          .find((line) => line.startsWith("used_memory_human:"))
+          ?.split(":")[1]
+          ?.trim(),
       },
     };
   } catch (error) {
-    logger.error('Redis health check failed:', error);
+    logger.error("Redis health check failed:", error);
     return {
-      status: 'unhealthy',
+      status: "unhealthy",
       details: {
-        error: error instanceof Error ? error.message : 'Unknown error',
+        error: error instanceof Error ? error.message : "Unknown error",
         host: config.redis.host,
         port: config.redis.port,
         db: config.redis.db,
@@ -192,22 +198,21 @@ export const checkRedisHealth = async (): Promise<{
  */
 export const initializeRedis = async (): Promise<void> => {
   try {
-    logger.info('🔗 Initializing Redis connections...');
-    
+    logger.info("🔗 Initializing Redis connections...");
+
     // Connect main client
     await redisClient.ping();
-    logger.info('✅ Main Redis client connected');
-    
+    logger.info("✅ Main Redis client connected");
+
     // Connect session client
     await sessionRedisClient.ping();
-    logger.info('✅ Session Redis client connected');
-    
+    logger.info("✅ Session Redis client connected");
+
     // Connect queue client
     await queueRedisClient.ping();
-    logger.info('✅ Queue Redis client connected');
-    
+    logger.info("✅ Queue Redis client connected");
   } catch (error) {
-    logger.error('❌ Failed to initialize Redis:', error);
+    logger.error("❌ Failed to initialize Redis:", error);
     throw error;
   }
 };
@@ -220,9 +225,9 @@ export class CacheService {
    * Set a value in cache with TTL
    */
   static async set(
-    key: string, 
-    value: any, 
-    ttl: number = config.redis.defaultTTL
+    key: string,
+    value: any,
+    ttl: number = config.redis.defaultTTL,
   ): Promise<void> {
     try {
       const serializedValue = JSON.stringify(value);
@@ -241,7 +246,7 @@ export class CacheService {
     try {
       const value = await redisClient.get(key);
       if (!value) return null;
-      
+
       const parsedValue = JSON.parse(value);
       logger.debug(`Cache GET: ${key} (found)`);
       return parsedValue;
@@ -257,7 +262,7 @@ export class CacheService {
   static async del(key: string): Promise<boolean> {
     try {
       const result = await redisClient.del(key);
-      logger.debug(`Cache DEL: ${key} (${result ? 'deleted' : 'not found'})`);
+      logger.debug(`Cache DEL: ${key} (${result ? "deleted" : "not found"})`);
       return result > 0;
     } catch (error) {
       logger.error(`Cache DEL failed for key ${key}:`, error);
@@ -337,9 +342,9 @@ export class CacheService {
   static async mget<T = any>(keys: string[]): Promise<(T | null)[]> {
     try {
       const values = await redisClient.mget(...keys);
-      return values.map(value => value ? JSON.parse(value) : null);
+      return values.map((value) => (value ? JSON.parse(value) : null));
     } catch (error) {
-      logger.error(`Cache MGET failed for keys ${keys.join(', ')}:`, error);
+      logger.error(`Cache MGET failed for keys ${keys.join(", ")}:`, error);
       return keys.map(() => null);
     }
   }
@@ -347,19 +352,22 @@ export class CacheService {
   /**
    * Set multiple key-value pairs
    */
-  static async mset(keyValues: Record<string, any>, ttl?: number): Promise<void> {
+  static async mset(
+    keyValues: Record<string, any>,
+    ttl?: number,
+  ): Promise<void> {
     try {
       const serializedKeyValues: string[] = [];
       Object.entries(keyValues).forEach(([key, value]) => {
         serializedKeyValues.push(key, JSON.stringify(value));
       });
-      
+
       await redisClient.mset(...serializedKeyValues);
-      
+
       // Set TTL for all keys if specified
       if (ttl) {
         const pipeline = redisClient.pipeline();
-        Object.keys(keyValues).forEach(key => {
+        Object.keys(keyValues).forEach((key) => {
           pipeline.expire(key, ttl);
         });
         await pipeline.exec();
@@ -377,7 +385,7 @@ export class CacheService {
     try {
       const keys = await redisClient.keys(pattern);
       if (keys.length === 0) return 0;
-      
+
       const result = await redisClient.del(...keys);
       logger.info(`Cache cleared ${result} keys matching pattern: ${pattern}`);
       return result;
@@ -403,10 +411,14 @@ export class CacheService {
   /**
    * Get items from a list
    */
-  static async lrange<T = any>(key: string, start: number = 0, stop: number = -1): Promise<T[]> {
+  static async lrange<T = any>(
+    key: string,
+    start: number = 0,
+    stop: number = -1,
+  ): Promise<T[]> {
     try {
       const values = await redisClient.lrange(key, start, stop);
-      return values.map(value => JSON.parse(value));
+      return values.map((value) => JSON.parse(value));
     } catch (error) {
       logger.error(`Cache LRANGE failed for key ${key}:`, error);
       return [];
@@ -418,7 +430,7 @@ export class CacheService {
    */
   static async sadd(key: string, ...values: any[]): Promise<number> {
     try {
-      const serializedValues = values.map(value => JSON.stringify(value));
+      const serializedValues = values.map((value) => JSON.stringify(value));
       return await redisClient.sadd(key, ...serializedValues);
     } catch (error) {
       logger.error(`Cache SADD failed for key ${key}:`, error);
@@ -432,7 +444,7 @@ export class CacheService {
   static async smembers<T = any>(key: string): Promise<T[]> {
     try {
       const values = await redisClient.smembers(key);
-      return values.map(value => JSON.parse(value));
+      return values.map((value) => JSON.parse(value));
     } catch (error) {
       logger.error(`Cache SMEMBERS failed for key ${key}:`, error);
       return [];
@@ -461,7 +473,11 @@ export class SessionService {
   /**
    * Set session data
    */
-  static async setSession(sessionId: string, data: any, ttl: number = 86400): Promise<void> {
+  static async setSession(
+    sessionId: string,
+    data: any,
+    ttl: number = 86400,
+  ): Promise<void> {
     try {
       const serializedData = JSON.stringify(data);
       await sessionRedisClient.setex(sessionId, ttl, serializedData);
@@ -479,7 +495,7 @@ export class SessionService {
     try {
       const data = await sessionRedisClient.get(sessionId);
       if (!data) return null;
-      
+
       return JSON.parse(data);
     } catch (error) {
       logger.error(`Session GET failed for ${sessionId}:`, error);
@@ -504,7 +520,10 @@ export class SessionService {
   /**
    * Refresh session expiry
    */
-  static async refreshSession(sessionId: string, ttl: number = 86400): Promise<boolean> {
+  static async refreshSession(
+    sessionId: string,
+    ttl: number = 86400,
+  ): Promise<boolean> {
     try {
       const result = await sessionRedisClient.expire(sessionId, ttl);
       return result === 1;
@@ -523,9 +542,9 @@ export class RateLimitService {
    * Check and increment rate limit counter
    */
   static async checkRateLimit(
-    identifier: string, 
-    maxRequests: number, 
-    windowMs: number
+    identifier: string,
+    maxRequests: number,
+    windowMs: number,
   ): Promise<{
     allowed: boolean;
     remaining: number;
@@ -536,16 +555,16 @@ export class RateLimitService {
       const now = Date.now();
       const windowStart = Math.floor(now / windowMs) * windowMs;
       const windowKey = `${key}:${windowStart}`;
-      
+
       const current = await redisClient.incr(windowKey);
-      
+
       if (current === 1) {
         await redisClient.expire(windowKey, Math.ceil(windowMs / 1000));
       }
-      
+
       const remaining = Math.max(0, maxRequests - current);
       const resetTime = windowStart + windowMs;
-      
+
       return {
         allowed: current <= maxRequests,
         remaining,
@@ -567,19 +586,19 @@ export class RateLimitService {
  * Close all Redis connections gracefully
  */
 export const closeRedisConnections = async (): Promise<void> => {
-  logger.info('🔄 Closing Redis connections...');
-  
+  logger.info("🔄 Closing Redis connections...");
+
   const closePromises = [
     redisClient.quit(),
     sessionRedisClient.quit(),
     queueRedisClient.quit(),
   ];
-  
+
   try {
     await Promise.allSettled(closePromises);
-    logger.info('✅ All Redis connections closed');
+    logger.info("✅ All Redis connections closed");
   } catch (error) {
-    logger.error('❌ Error closing Redis connections:', error);
+    logger.error("❌ Error closing Redis connections:", error);
   }
 };
 
