@@ -2,10 +2,10 @@
  * ============================================================================
  * DRIVER MODEL - DRIVER MANAGEMENT AND CREDENTIALS
  * ============================================================================
- * 
+ *
  * Implements driver-specific details extending users with license information,
  * employment status, and emergency contacts with encryption.
- * 
+ *
  * Created by: Database Architect Agent
  * Date: 2025-08-10
  * Version: 1.0.0
@@ -23,24 +23,24 @@ import {
   BelongsToSetAssociationMixin,
   HasManyGetAssociationsMixin,
   HasManyCreateAssociationMixin,
-} from 'sequelize';
-import { database } from '@/config/database';
+} from "sequelize";
+import { database } from "@/config/database";
 
 // Define employment status enum
 export enum EmploymentStatus {
-  ACTIVE = 'active',
-  INACTIVE = 'inactive',
-  TERMINATED = 'terminated',
+  ACTIVE = "active",
+  INACTIVE = "inactive",
+  TERMINATED = "terminated",
 }
 
 // Define license classes enum
 export enum LicenseClass {
-  CLASS_A = 'A',
-  CLASS_B = 'B',
-  CLASS_C = 'C',
-  CDL_A = 'CDL-A',
-  CDL_B = 'CDL-B',
-  CDL_C = 'CDL-C',
+  CLASS_A = "A",
+  CLASS_B = "B",
+  CLASS_C = "C",
+  CDL_A = "CDL-A",
+  CDL_B = "CDL-B",
+  CDL_C = "CDL-C",
 }
 
 /**
@@ -68,7 +68,10 @@ export interface DriverAttributes {
 }
 
 export interface DriverCreationAttributes
-  extends Omit<DriverAttributes, 'id' | 'createdAt' | 'updatedAt' | 'version' | 'employmentStatus'> {
+  extends Omit<
+    DriverAttributes,
+    "id" | "createdAt" | "updatedAt" | "version" | "employmentStatus"
+  > {
   id?: CreationOptional<string>;
   createdAt?: CreationOptional<Date>;
   updatedAt?: CreationOptional<Date>;
@@ -95,7 +98,10 @@ export interface EmergencyContact {
 /**
  * Driver model class
  */
-export class Driver extends Model<InferAttributes<Driver>, InferCreationAttributes<Driver>> {
+export class Driver extends Model<
+  InferAttributes<Driver>,
+  InferCreationAttributes<Driver>
+> {
   // Primary attributes
   declare id: CreationOptional<string>;
   declare userId: ForeignKey<string>;
@@ -107,15 +113,15 @@ export class Driver extends Model<InferAttributes<Driver>, InferCreationAttribut
   declare hireDate: Date | null;
   declare employmentStatus: CreationOptional<EmploymentStatus>;
   declare emergencyContactEncrypted: string | null;
-  
+
   // Timestamps
   declare createdAt: CreationOptional<Date>;
   declare updatedAt: CreationOptional<Date>;
-  
+
   // Foreign keys for audit trail
   declare createdBy: ForeignKey<string> | null;
   declare updatedBy: ForeignKey<string> | null;
-  
+
   // Audit fields
   declare version: CreationOptional<number>;
   declare deletedAt: Date | null;
@@ -169,13 +175,13 @@ export class Driver extends Model<InferAttributes<Driver>, InferCreationAttribut
   public getEmploymentStatusLabel(): string {
     switch (this.employmentStatus) {
       case EmploymentStatus.ACTIVE:
-        return 'Active';
+        return "Active";
       case EmploymentStatus.INACTIVE:
-        return 'Inactive';
+        return "Inactive";
       case EmploymentStatus.TERMINATED:
-        return 'Terminated';
+        return "Terminated";
       default:
-        return 'Unknown';
+        return "Unknown";
     }
   }
 
@@ -183,25 +189,25 @@ export class Driver extends Model<InferAttributes<Driver>, InferCreationAttribut
   public getLicenseClassLabel(): string {
     switch (this.licenseClass) {
       case LicenseClass.CLASS_A:
-        return 'Class A';
+        return "Class A";
       case LicenseClass.CLASS_B:
-        return 'Class B';
+        return "Class B";
       case LicenseClass.CLASS_C:
-        return 'Class C';
+        return "Class C";
       case LicenseClass.CDL_A:
-        return 'CDL Class A';
+        return "CDL Class A";
       case LicenseClass.CDL_B:
-        return 'CDL Class B';
+        return "CDL Class B";
       case LicenseClass.CDL_C:
-        return 'CDL Class C';
+        return "CDL Class C";
       default:
-        return 'Not Specified';
+        return "Not Specified";
     }
   }
 
   // Check if driver has CDL
   public hasCDL(): boolean {
-    return !!(this.licenseClass && this.licenseClass.startsWith('CDL'));
+    return !!(this.licenseClass && this.licenseClass.startsWith("CDL"));
   }
 
   // Check if license is expired
@@ -209,7 +215,7 @@ export class Driver extends Model<InferAttributes<Driver>, InferCreationAttribut
     if (!this.licenseExpiryDate) {
       return false;
     }
-    
+
     return this.licenseExpiryDate < new Date();
   }
 
@@ -218,11 +224,14 @@ export class Driver extends Model<InferAttributes<Driver>, InferCreationAttribut
     if (!this.licenseExpiryDate) {
       return false;
     }
-    
+
     const warningDate = new Date();
     warningDate.setDate(warningDate.getDate() + daysWarning);
-    
-    return this.licenseExpiryDate <= warningDate && this.licenseExpiryDate >= new Date();
+
+    return (
+      this.licenseExpiryDate <= warningDate &&
+      this.licenseExpiryDate >= new Date()
+    );
   }
 
   // Get days until license expiry
@@ -230,11 +239,11 @@ export class Driver extends Model<InferAttributes<Driver>, InferCreationAttribut
     if (!this.licenseExpiryDate) {
       return null;
     }
-    
+
     const today = new Date();
     const diffTime = this.licenseExpiryDate.getTime() - today.getTime();
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-    
+
     return diffDays;
   }
 
@@ -248,13 +257,19 @@ export class Driver extends Model<InferAttributes<Driver>, InferCreationAttribut
     if (!this.cdlEndorsements) {
       return [];
     }
-    
-    return this.cdlEndorsements.split(',').map(e => e.trim()).filter(e => e.length > 0);
+
+    return this.cdlEndorsements
+      .split(",")
+      .map((e) => e.trim())
+      .filter((e) => e.length > 0);
   }
 
   // Check if driver has emergency contact information
   public hasEmergencyContact(): boolean {
-    return !!(this.emergencyContactEncrypted && this.emergencyContactEncrypted.trim().length > 0);
+    return !!(
+      this.emergencyContactEncrypted &&
+      this.emergencyContactEncrypted.trim().length > 0
+    );
   }
 
   // Get years of employment
@@ -262,10 +277,12 @@ export class Driver extends Model<InferAttributes<Driver>, InferCreationAttribut
     if (!this.hireDate) {
       return null;
     }
-    
+
     const today = new Date();
-    const years = (today.getTime() - this.hireDate.getTime()) / (1000 * 60 * 60 * 24 * 365.25);
-    
+    const years =
+      (today.getTime() - this.hireDate.getTime()) /
+      (1000 * 60 * 60 * 24 * 365.25);
+
     return Math.floor(years);
   }
 
@@ -280,7 +297,9 @@ export class Driver extends Model<InferAttributes<Driver>, InferCreationAttribut
    */
 
   // Find driver by driver number
-  public static async findByDriverNumber(driverNumber: string): Promise<Driver | null> {
+  public static async findByDriverNumber(
+    driverNumber: string,
+  ): Promise<Driver | null> {
     return await Driver.findOne({
       where: {
         driverNumber,
@@ -306,12 +325,14 @@ export class Driver extends Model<InferAttributes<Driver>, InferCreationAttribut
         employmentStatus: EmploymentStatus.ACTIVE,
         deletedAt: null,
       },
-      order: [['driverNumber', 'ASC']],
+      order: [["driverNumber", "ASC"]],
     });
   }
 
   // Find drivers with expiring licenses
-  public static async findWithExpiringLicenses(daysWarning: number = 30): Promise<Driver[]> {
+  public static async findWithExpiringLicenses(
+    daysWarning: number = 30,
+  ): Promise<Driver[]> {
     const warningDate = new Date();
     warningDate.setDate(warningDate.getDate() + daysWarning);
 
@@ -323,7 +344,7 @@ export class Driver extends Model<InferAttributes<Driver>, InferCreationAttribut
         employmentStatus: EmploymentStatus.ACTIVE,
         deletedAt: null,
       },
-      order: [['licenseExpiryDate', 'ASC']],
+      order: [["licenseExpiryDate", "ASC"]],
     });
   }
 
@@ -339,19 +360,21 @@ export class Driver extends Model<InferAttributes<Driver>, InferCreationAttribut
         employmentStatus: EmploymentStatus.ACTIVE,
         deletedAt: null,
       },
-      order: [['licenseExpiryDate', 'ASC']],
+      order: [["licenseExpiryDate", "ASC"]],
     });
   }
 
   // Find drivers by license class
-  public static async findByLicenseClass(licenseClass: LicenseClass): Promise<Driver[]> {
+  public static async findByLicenseClass(
+    licenseClass: LicenseClass,
+  ): Promise<Driver[]> {
     return await Driver.findAll({
       where: {
         licenseClass,
         employmentStatus: EmploymentStatus.ACTIVE,
         deletedAt: null,
       },
-      order: [['driverNumber', 'ASC']],
+      order: [["driverNumber", "ASC"]],
     });
   }
 
@@ -360,18 +383,22 @@ export class Driver extends Model<InferAttributes<Driver>, InferCreationAttribut
     return await Driver.findAll({
       where: {
         licenseClass: {
-          [database.Sequelize.Op.in]: [LicenseClass.CDL_A, LicenseClass.CDL_B, LicenseClass.CDL_C],
+          [database.Sequelize.Op.in]: [
+            LicenseClass.CDL_A,
+            LicenseClass.CDL_B,
+            LicenseClass.CDL_C,
+          ],
         },
         employmentStatus: EmploymentStatus.ACTIVE,
         deletedAt: null,
       },
-      order: [['driverNumber', 'ASC']],
+      order: [["driverNumber", "ASC"]],
     });
   }
 
   // Generate next driver number
   public static async generateDriverNumber(): Promise<string> {
-    const prefix = 'DRV';
+    const prefix = "DRV";
 
     // Find the highest existing driver number
     const lastDriver = await Driver.findOne({
@@ -380,7 +407,7 @@ export class Driver extends Model<InferAttributes<Driver>, InferCreationAttribut
           [database.Sequelize.Op.like]: `${prefix}%`,
         },
       },
-      order: [['driverNumber', 'DESC']],
+      order: [["driverNumber", "DESC"]],
     });
 
     let nextNumber = 1;
@@ -393,12 +420,15 @@ export class Driver extends Model<InferAttributes<Driver>, InferCreationAttribut
     }
 
     // Format with leading zeros
-    const paddedNumber = nextNumber.toString().padStart(6, '0');
+    const paddedNumber = nextNumber.toString().padStart(6, "0");
     return `${prefix}-${paddedNumber}`;
   }
 
   // Check if driver number is already taken
-  public static async isDriverNumberTaken(driverNumber: string, excludeDriverId?: string): Promise<boolean> {
+  public static async isDriverNumberTaken(
+    driverNumber: string,
+    excludeDriverId?: string,
+  ): Promise<boolean> {
     const whereClause: any = {
       driverNumber,
       deletedAt: null,
@@ -416,24 +446,24 @@ export class Driver extends Model<InferAttributes<Driver>, InferCreationAttribut
   public static async getEmploymentStatistics(): Promise<any> {
     const stats = await Driver.findAll({
       attributes: [
-        'employmentStatus',
-        [database.fn('COUNT', database.col('id')), 'count'],
+        "employmentStatus",
+        [database.fn("COUNT", database.col("id")), "count"],
       ],
       where: { deletedAt: null },
-      group: ['employmentStatus'],
+      group: ["employmentStatus"],
       raw: true,
     });
 
     const licenseStats = await Driver.findAll({
       attributes: [
-        'licenseClass',
-        [database.fn('COUNT', database.col('id')), 'count'],
+        "licenseClass",
+        [database.fn("COUNT", database.col("id")), "count"],
       ],
-      where: { 
+      where: {
         deletedAt: null,
-        licenseClass: { [database.Sequelize.Op.ne]: null }
+        licenseClass: { [database.Sequelize.Op.ne]: null },
       },
-      group: ['licenseClass'],
+      group: ["licenseClass"],
       raw: true,
     });
 
@@ -444,7 +474,10 @@ export class Driver extends Model<InferAttributes<Driver>, InferCreationAttribut
   }
 
   // Get drivers hired in a date range
-  public static async findHiredInDateRange(startDate: Date, endDate: Date): Promise<Driver[]> {
+  public static async findHiredInDateRange(
+    startDate: Date,
+    endDate: Date,
+  ): Promise<Driver[]> {
     return await Driver.findAll({
       where: {
         hireDate: {
@@ -452,27 +485,31 @@ export class Driver extends Model<InferAttributes<Driver>, InferCreationAttribut
         },
         deletedAt: null,
       },
-      order: [['hireDate', 'ASC']],
+      order: [["hireDate", "ASC"]],
     });
   }
 
   // Find anniversary drivers (hired on this day in previous years)
-  public static async findAnniversaryDrivers(date: Date = new Date()): Promise<Driver[]> {
+  public static async findAnniversaryDrivers(
+    date: Date = new Date(),
+  ): Promise<Driver[]> {
     const month = date.getMonth() + 1;
     const day = date.getDate();
 
     return await Driver.findAll({
       where: database.where(
-        database.fn('EXTRACT', database.literal('MONTH FROM hire_date')), month
+        database.fn("EXTRACT", database.literal("MONTH FROM hire_date")),
+        month,
       ),
       where: database.where(
-        database.fn('EXTRACT', database.literal('DAY FROM hire_date')), day
+        database.fn("EXTRACT", database.literal("DAY FROM hire_date")),
+        day,
       ),
       where: {
         employmentStatus: EmploymentStatus.ACTIVE,
         deletedAt: null,
       },
-      order: [['hireDate', 'ASC']],
+      order: [["hireDate", "ASC"]],
     });
   }
 }
@@ -492,85 +529,85 @@ Driver.init(
       type: DataTypes.UUID,
       allowNull: false,
       unique: {
-        name: 'drivers_user_id_unique',
-        msg: 'User is already associated with a driver record',
+        name: "drivers_user_id_unique",
+        msg: "User is already associated with a driver record",
       },
-      field: 'user_id',
+      field: "user_id",
       references: {
-        model: 'users',
-        key: 'id',
+        model: "users",
+        key: "id",
       },
     },
     driverNumber: {
       type: DataTypes.STRING(50),
       allowNull: false,
       unique: {
-        name: 'drivers_driver_number_unique',
-        msg: 'Driver number is already in use',
+        name: "drivers_driver_number_unique",
+        msg: "Driver number is already in use",
       },
-      field: 'driver_number',
+      field: "driver_number",
       validate: {
         len: {
           args: [3, 50],
-          msg: 'Driver number must be between 3 and 50 characters',
+          msg: "Driver number must be between 3 and 50 characters",
         },
         notEmpty: {
-          msg: 'Driver number is required',
+          msg: "Driver number is required",
         },
       },
     },
     licenseNumberEncrypted: {
       type: DataTypes.TEXT,
       allowNull: true,
-      field: 'license_number_encrypted',
+      field: "license_number_encrypted",
     },
     licenseClass: {
       type: DataTypes.ENUM(...Object.values(LicenseClass)),
       allowNull: true,
-      field: 'license_class',
+      field: "license_class",
       validate: {
         isIn: {
           args: [Object.values(LicenseClass)],
-          msg: 'Invalid license class',
+          msg: "Invalid license class",
         },
       },
     },
     licenseExpiryDate: {
       type: DataTypes.DATEONLY,
       allowNull: true,
-      field: 'license_expiry_date',
+      field: "license_expiry_date",
       validate: {
         isDate: {
-          msg: 'License expiry date must be a valid date',
+          msg: "License expiry date must be a valid date",
         },
         isAfter: {
-          args: '1900-01-01',
-          msg: 'License expiry date must be after 1900',
+          args: "1900-01-01",
+          msg: "License expiry date must be after 1900",
         },
       },
     },
     cdlEndorsements: {
       type: DataTypes.STRING(50),
       allowNull: true,
-      field: 'cdl_endorsements',
+      field: "cdl_endorsements",
       validate: {
         len: {
           args: [0, 50],
-          msg: 'CDL endorsements must be less than 50 characters',
+          msg: "CDL endorsements must be less than 50 characters",
         },
       },
     },
     hireDate: {
       type: DataTypes.DATEONLY,
       allowNull: true,
-      field: 'hire_date',
+      field: "hire_date",
       validate: {
         isDate: {
-          msg: 'Hire date must be a valid date',
+          msg: "Hire date must be a valid date",
         },
         isAfter: {
-          args: '1900-01-01',
-          msg: 'Hire date must be after 1900',
+          args: "1900-01-01",
+          msg: "Hire date must be after 1900",
         },
       },
     },
@@ -578,35 +615,35 @@ Driver.init(
       type: DataTypes.ENUM(...Object.values(EmploymentStatus)),
       allowNull: false,
       defaultValue: EmploymentStatus.ACTIVE,
-      field: 'employment_status',
+      field: "employment_status",
       validate: {
         isIn: {
           args: [Object.values(EmploymentStatus)],
-          msg: 'Invalid employment status',
+          msg: "Invalid employment status",
         },
       },
     },
     emergencyContactEncrypted: {
       type: DataTypes.TEXT,
       allowNull: true,
-      field: 'emergency_contact_encrypted',
+      field: "emergency_contact_encrypted",
     },
     createdBy: {
       type: DataTypes.UUID,
       allowNull: true,
-      field: 'created_by',
+      field: "created_by",
       references: {
-        model: 'users',
-        key: 'id',
+        model: "users",
+        key: "id",
       },
     },
     updatedBy: {
       type: DataTypes.UUID,
       allowNull: true,
-      field: 'updated_by',
+      field: "updated_by",
       references: {
-        model: 'users',
-        key: 'id',
+        model: "users",
+        key: "id",
       },
     },
     version: {
@@ -616,70 +653,70 @@ Driver.init(
       validate: {
         min: {
           args: [1],
-          msg: 'Version must be at least 1',
+          msg: "Version must be at least 1",
         },
       },
     },
     deletedAt: {
       type: DataTypes.DATE,
       allowNull: true,
-      field: 'deleted_at',
+      field: "deleted_at",
     },
     deletedBy: {
       type: DataTypes.UUID,
       allowNull: true,
-      field: 'deleted_by',
+      field: "deleted_by",
       references: {
-        model: 'users',
-        key: 'id',
+        model: "users",
+        key: "id",
       },
     },
   },
   {
     sequelize: database,
-    tableName: 'drivers',
-    schema: 'core',
+    tableName: "drivers",
+    schema: "core",
     timestamps: true,
     paranoid: true,
-    createdAt: 'createdAt',
-    updatedAt: 'updatedAt',
-    deletedAt: 'deletedAt',
+    createdAt: "createdAt",
+    updatedAt: "updatedAt",
+    deletedAt: "deletedAt",
     underscored: true,
     indexes: [
       {
-        name: 'idx_drivers_driver_number',
-        fields: ['driver_number'],
+        name: "idx_drivers_driver_number",
+        fields: ["driver_number"],
         unique: true,
         where: { deleted_at: null },
       },
       {
-        name: 'idx_drivers_user_id',
-        fields: ['user_id'],
+        name: "idx_drivers_user_id",
+        fields: ["user_id"],
         unique: true,
         where: { deleted_at: null },
       },
       {
-        name: 'idx_drivers_employment_status',
-        fields: ['employment_status'],
+        name: "idx_drivers_employment_status",
+        fields: ["employment_status"],
         where: { deleted_at: null },
       },
       {
-        name: 'idx_drivers_license_class',
-        fields: ['license_class'],
+        name: "idx_drivers_license_class",
+        fields: ["license_class"],
       },
       {
-        name: 'idx_drivers_license_expiry_date',
-        fields: ['license_expiry_date'],
+        name: "idx_drivers_license_expiry_date",
+        fields: ["license_expiry_date"],
         where: { license_expiry_date: { [database.Sequelize.Op.ne]: null } },
       },
       {
-        name: 'idx_drivers_hire_date',
-        fields: ['hire_date'],
+        name: "idx_drivers_hire_date",
+        fields: ["hire_date"],
         where: { hire_date: { [database.Sequelize.Op.ne]: null } },
       },
       {
-        name: 'idx_drivers_cdl_endorsements',
-        fields: ['cdl_endorsements'],
+        name: "idx_drivers_cdl_endorsements",
+        fields: ["cdl_endorsements"],
         where: { cdl_endorsements: { [database.Sequelize.Op.ne]: null } },
       },
     ],
@@ -722,7 +759,11 @@ Driver.init(
       withCDL: {
         where: {
           licenseClass: {
-            [database.Sequelize.Op.in]: [LicenseClass.CDL_A, LicenseClass.CDL_B, LicenseClass.CDL_C],
+            [database.Sequelize.Op.in]: [
+              LicenseClass.CDL_A,
+              LicenseClass.CDL_B,
+              LicenseClass.CDL_C,
+            ],
           },
           deletedAt: null,
         },
@@ -751,7 +792,7 @@ Driver.init(
       withUser: {
         include: [
           {
-            association: 'user',
+            association: "user",
             required: true,
           },
         ],
@@ -759,13 +800,15 @@ Driver.init(
       recentHires: (days: number = 90) => ({
         where: {
           hireDate: {
-            [database.Sequelize.Op.gte]: new Date(Date.now() - days * 24 * 60 * 60 * 1000),
+            [database.Sequelize.Op.gte]: new Date(
+              Date.now() - days * 24 * 60 * 60 * 1000,
+            ),
           },
           deletedAt: null,
         },
       }),
     },
-  }
+  },
 );
 
 export default Driver;

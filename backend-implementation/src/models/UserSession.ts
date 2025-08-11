@@ -2,11 +2,11 @@
  * ============================================================================
  * WASTE MANAGEMENT SYSTEM - USER SESSION MODEL
  * ============================================================================
- * 
+ *
  * Sequelize model for user sessions with comprehensive security tracking.
  * Supports multiple concurrent sessions with device fingerprinting and
  * geographic location tracking for security monitoring.
- * 
+ *
  * Security Features:
  * - Session token management
  * - Device fingerprinting
@@ -15,7 +15,7 @@
  * - Session expiry and cleanup
  * - Risk scoring for anomaly detection
  * - MFA verification tracking
- * 
+ *
  * Created by: Security & Compliance Specialist
  * Date: 2025-08-10
  * Version: 1.0.0
@@ -30,19 +30,19 @@ import {
   ForeignKey,
   Association,
   BelongsToGetAssociationMixin,
-} from 'sequelize';
-import { sequelize } from '@/config/database';
-import { User } from './User';
-import crypto from 'crypto';
+} from "sequelize";
+import { sequelize } from "@/config/database";
+import { User } from "./User";
+import crypto from "crypto";
 
 /**
  * Session status enumeration
  */
 export enum SessionStatus {
-  ACTIVE = 'active',
-  EXPIRED = 'expired',
-  REVOKED = 'revoked',
-  SUSPICIOUS = 'suspicious',
+  ACTIVE = "active",
+  EXPIRED = "expired",
+  REVOKED = "revoked",
+  SUSPICIOUS = "suspicious",
 }
 
 /**
@@ -70,9 +70,11 @@ export interface UserSessionAttributes {
 /**
  * User session creation attributes
  */
-export interface UserSessionCreationAttributes extends Omit<UserSessionAttributes,
-  'id' | 'createdAt' | 'lastActivity' | 'status' | 'mfaVerified' | 'riskScore'
-> {
+export interface UserSessionCreationAttributes
+  extends Omit<
+    UserSessionAttributes,
+    "id" | "createdAt" | "lastActivity" | "status" | "mfaVerified" | "riskScore"
+  > {
   id?: string;
   status?: SessionStatus;
   lastActivity?: Date;
@@ -89,7 +91,7 @@ export class UserSession extends Model<
 > {
   // Model attributes
   declare id: CreationOptional<string>;
-  declare userId: ForeignKey<User['id']>;
+  declare userId: ForeignKey<User["id"]>;
   declare sessionToken: string;
   declare refreshToken: string | null;
   declare ipAddress: string | null;
@@ -118,14 +120,14 @@ export class UserSession extends Model<
    * Generate a secure session token
    */
   static generateSessionToken(): string {
-    return crypto.randomBytes(32).toString('hex');
+    return crypto.randomBytes(32).toString("hex");
   }
 
   /**
    * Generate a secure refresh token
    */
   static generateRefreshToken(): string {
-    return crypto.randomBytes(64).toString('hex');
+    return crypto.randomBytes(64).toString("hex");
   }
 
   /**
@@ -134,15 +136,15 @@ export class UserSession extends Model<
   static createDeviceFingerprint(
     userAgent?: string,
     acceptLanguage?: string,
-    acceptEncoding?: string
+    acceptEncoding?: string,
   ): string {
     const factors = [
-      userAgent || '',
-      acceptLanguage || '',
-      acceptEncoding || '',
-    ].join('|');
-    
-    return crypto.createHash('sha256').update(factors).digest('hex');
+      userAgent || "",
+      acceptLanguage || "",
+      acceptEncoding || "",
+    ].join("|");
+
+    return crypto.createHash("sha256").update(factors).digest("hex");
   }
 
   /**
@@ -193,7 +195,7 @@ export class UserSession extends Model<
     this.status = SessionStatus.SUSPICIOUS;
     this.riskScore = Math.min(this.riskScore + 25, 100);
     await this.save();
-    
+
     // TODO: Log security event
     console.warn(`Session marked suspicious: ${this.id}, Reason: ${reason}`);
   }
@@ -206,7 +208,7 @@ export class UserSession extends Model<
 
     // Geographic risk (different country/city from usual)
     // TODO: Implement based on user's typical locations
-    
+
     // Time-based risk (unusual login hours)
     const hour = new Date().getHours();
     if (hour < 6 || hour > 22) {
@@ -221,7 +223,7 @@ export class UserSession extends Model<
         id: { [sequelize.Sequelize.Op.ne]: this.id },
       },
     });
-    
+
     if (activeSessions > 3) {
       riskScore += 15;
     }
@@ -234,7 +236,7 @@ export class UserSession extends Model<
 
     this.riskScore = Math.min(riskScore, 100);
     await this.save();
-    
+
     return this.riskScore;
   }
 
@@ -242,7 +244,9 @@ export class UserSession extends Model<
    * Get session duration in minutes
    */
   getSessionDuration(): number {
-    return Math.floor((this.lastActivity.getTime() - this.createdAt.getTime()) / (1000 * 60));
+    return Math.floor(
+      (this.lastActivity.getTime() - this.createdAt.getTime()) / (1000 * 60),
+    );
   }
 
   /**
@@ -275,25 +279,25 @@ export class UserSession extends Model<
 
     // Basic user agent parsing (in production, use a proper library)
     const ua = this.userAgent.toLowerCase();
-    
-    let browser = 'unknown';
-    if (ua.includes('chrome')) browser = 'Chrome';
-    else if (ua.includes('firefox')) browser = 'Firefox';
-    else if (ua.includes('safari')) browser = 'Safari';
-    else if (ua.includes('edge')) browser = 'Edge';
 
-    let os = 'unknown';
-    if (ua.includes('windows')) os = 'Windows';
-    else if (ua.includes('macintosh')) os = 'macOS';
-    else if (ua.includes('linux')) os = 'Linux';
-    else if (ua.includes('android')) os = 'Android';
-    else if (ua.includes('ios')) os = 'iOS';
+    let browser = "unknown";
+    if (ua.includes("chrome")) browser = "Chrome";
+    else if (ua.includes("firefox")) browser = "Firefox";
+    else if (ua.includes("safari")) browser = "Safari";
+    else if (ua.includes("edge")) browser = "Edge";
 
-    let device = 'desktop';
-    if (ua.includes('mobile') || ua.includes('android') || ua.includes('ios')) {
-      device = 'mobile';
-    } else if (ua.includes('tablet')) {
-      device = 'tablet';
+    let os = "unknown";
+    if (ua.includes("windows")) os = "Windows";
+    else if (ua.includes("macintosh")) os = "macOS";
+    else if (ua.includes("linux")) os = "Linux";
+    else if (ua.includes("android")) os = "Android";
+    else if (ua.includes("ios")) os = "iOS";
+
+    let device = "desktop";
+    if (ua.includes("mobile") || ua.includes("android") || ua.includes("ios")) {
+      device = "mobile";
+    } else if (ua.includes("tablet")) {
+      device = "tablet";
     }
 
     return { browser, os, device };
@@ -304,11 +308,11 @@ export class UserSession extends Model<
    */
   toJSON(): Partial<UserSessionAttributes> {
     const attributes = { ...this.get() };
-    
+
     // Remove sensitive fields
     delete attributes.sessionToken;
     delete attributes.refreshToken;
-    
+
     return attributes;
   }
 }
@@ -316,235 +320,243 @@ export class UserSession extends Model<
 /**
  * Initialize UserSession model with Sequelize
  */
-UserSession.init({
-  id: {
-    type: DataTypes.UUID,
-    defaultValue: DataTypes.UUIDV4,
-    primaryKey: true,
-  },
-  userId: {
-    type: DataTypes.UUID,
-    allowNull: false,
-    field: 'user_id',
-    references: {
-      model: 'users',
-      key: 'id',
+UserSession.init(
+  {
+    id: {
+      type: DataTypes.UUID,
+      defaultValue: DataTypes.UUIDV4,
+      primaryKey: true,
     },
-    onDelete: 'CASCADE',
-    onUpdate: 'CASCADE',
-  },
-  sessionToken: {
-    type: DataTypes.STRING(255),
-    allowNull: false,
-    unique: true,
-    field: 'session_token',
-  },
-  refreshToken: {
-    type: DataTypes.STRING(255),
-    allowNull: true,
-    unique: true,
-    field: 'refresh_token',
-  },
-  ipAddress: {
-    type: DataTypes.INET,
-    allowNull: true,
-    field: 'ip_address',
-  },
-  userAgent: {
-    type: DataTypes.TEXT,
-    allowNull: true,
-    field: 'user_agent',
-  },
-  deviceFingerprint: {
-    type: DataTypes.STRING(255),
-    allowNull: true,
-    field: 'device_fingerprint',
-  },
-  locationCountry: {
-    type: DataTypes.STRING(2),
-    allowNull: true,
-    field: 'location_country',
-    validate: {
-      len: [2, 2],
+    userId: {
+      type: DataTypes.UUID,
+      allowNull: false,
+      field: "user_id",
+      references: {
+        model: "users",
+        key: "id",
+      },
+      onDelete: "CASCADE",
+      onUpdate: "CASCADE",
     },
-  },
-  locationCity: {
-    type: DataTypes.STRING(100),
-    allowNull: true,
-    field: 'location_city',
-    validate: {
-      len: [1, 100],
-    },
-  },
-  status: {
-    type: DataTypes.ENUM(...Object.values(SessionStatus)),
-    allowNull: false,
-    defaultValue: SessionStatus.ACTIVE,
-  },
-  createdAt: {
-    type: DataTypes.DATE,
-    allowNull: false,
-    defaultValue: DataTypes.NOW,
-    field: 'created_at',
-  },
-  lastActivity: {
-    type: DataTypes.DATE,
-    allowNull: false,
-    defaultValue: DataTypes.NOW,
-    field: 'last_activity',
-  },
-  expiresAt: {
-    type: DataTypes.DATE,
-    allowNull: false,
-    field: 'expires_at',
-  },
-  logoutAt: {
-    type: DataTypes.DATE,
-    allowNull: true,
-    field: 'logout_at',
-  },
-  mfaVerified: {
-    type: DataTypes.BOOLEAN,
-    allowNull: false,
-    defaultValue: false,
-    field: 'mfa_verified',
-  },
-  riskScore: {
-    type: DataTypes.INTEGER,
-    allowNull: false,
-    defaultValue: 0,
-    field: 'risk_score',
-    validate: {
-      min: 0,
-      max: 100,
-    },
-  },
-}, {
-  sequelize,
-  modelName: 'UserSession',
-  tableName: 'user_sessions',
-  schema: 'security',
-  timestamps: false, // We handle timestamps manually
-  
-  // Indexes for performance
-  indexes: [
-    {
-      fields: ['session_token'],
+    sessionToken: {
+      type: DataTypes.STRING(255),
+      allowNull: false,
       unique: true,
+      field: "session_token",
     },
-    {
-      fields: ['refresh_token'],
+    refreshToken: {
+      type: DataTypes.STRING(255),
+      allowNull: true,
       unique: true,
-      where: { refresh_token: { [sequelize.Sequelize.Op.ne]: null } },
+      field: "refresh_token",
     },
-    {
-      fields: ['user_id', 'status'],
+    ipAddress: {
+      type: DataTypes.INET,
+      allowNull: true,
+      field: "ip_address",
     },
-    {
-      fields: ['expires_at'],
+    userAgent: {
+      type: DataTypes.TEXT,
+      allowNull: true,
+      field: "user_agent",
     },
-    {
-      fields: ['last_activity'],
+    deviceFingerprint: {
+      type: DataTypes.STRING(255),
+      allowNull: true,
+      field: "device_fingerprint",
     },
-    {
-      fields: ['ip_address', 'created_at'],
+    locationCountry: {
+      type: DataTypes.STRING(2),
+      allowNull: true,
+      field: "location_country",
+      validate: {
+        len: [2, 2],
+      },
     },
-    {
-      fields: ['risk_score'],
-      where: { risk_score: { [sequelize.Sequelize.Op.gt]: 0 } },
+    locationCity: {
+      type: DataTypes.STRING(100),
+      allowNull: true,
+      field: "location_city",
+      validate: {
+        len: [1, 100],
+      },
     },
-  ],
-  
-  // Hooks for session management
-  hooks: {
-    beforeCreate: (session: UserSession) => {
-      // Generate tokens if not provided
-      if (!session.sessionToken) {
-        session.sessionToken = UserSession.generateSessionToken();
-      }
-      
-      // Set default expiry (8 hours as per security requirements)
-      if (!session.expiresAt) {
-        session.expiresAt = new Date(Date.now() + 8 * 60 * 60 * 1000);
-      }
+    status: {
+      type: DataTypes.ENUM(...Object.values(SessionStatus)),
+      allowNull: false,
+      defaultValue: SessionStatus.ACTIVE,
     },
-    
-    afterCreate: async (session: UserSession) => {
-      // Calculate initial risk score
-      await session.calculateRiskScore();
-      
-      // Log session creation
-      console.log(`Session created for user ${session.userId}: ${session.id}`);
+    createdAt: {
+      type: DataTypes.DATE,
+      allowNull: false,
+      defaultValue: DataTypes.NOW,
+      field: "created_at",
     },
-    
-    beforeUpdate: async (session: UserSession) => {
-      // Auto-expire sessions that are past expiry
-      if (session.expiresAt <= new Date() && session.status === SessionStatus.ACTIVE) {
-        session.status = SessionStatus.EXPIRED;
-      }
+    lastActivity: {
+      type: DataTypes.DATE,
+      allowNull: false,
+      defaultValue: DataTypes.NOW,
+      field: "last_activity",
+    },
+    expiresAt: {
+      type: DataTypes.DATE,
+      allowNull: false,
+      field: "expires_at",
+    },
+    logoutAt: {
+      type: DataTypes.DATE,
+      allowNull: true,
+      field: "logout_at",
+    },
+    mfaVerified: {
+      type: DataTypes.BOOLEAN,
+      allowNull: false,
+      defaultValue: false,
+      field: "mfa_verified",
+    },
+    riskScore: {
+      type: DataTypes.INTEGER,
+      allowNull: false,
+      defaultValue: 0,
+      field: "risk_score",
+      validate: {
+        min: 0,
+        max: 100,
+      },
     },
   },
-  
-  // Default scope excludes expired/revoked sessions
-  defaultScope: {
-    where: {
-      status: SessionStatus.ACTIVE,
+  {
+    sequelize,
+    modelName: "UserSession",
+    tableName: "user_sessions",
+    schema: "security",
+    timestamps: false, // We handle timestamps manually
+
+    // Indexes for performance
+    indexes: [
+      {
+        fields: ["session_token"],
+        unique: true,
+      },
+      {
+        fields: ["refresh_token"],
+        unique: true,
+        where: { refresh_token: { [sequelize.Sequelize.Op.ne]: null } },
+      },
+      {
+        fields: ["user_id", "status"],
+      },
+      {
+        fields: ["expires_at"],
+      },
+      {
+        fields: ["last_activity"],
+      },
+      {
+        fields: ["ip_address", "created_at"],
+      },
+      {
+        fields: ["risk_score"],
+        where: { risk_score: { [sequelize.Sequelize.Op.gt]: 0 } },
+      },
+    ],
+
+    // Hooks for session management
+    hooks: {
+      beforeCreate: (session: UserSession) => {
+        // Generate tokens if not provided
+        if (!session.sessionToken) {
+          session.sessionToken = UserSession.generateSessionToken();
+        }
+
+        // Set default expiry (8 hours as per security requirements)
+        if (!session.expiresAt) {
+          session.expiresAt = new Date(Date.now() + 8 * 60 * 60 * 1000);
+        }
+      },
+
+      afterCreate: async (session: UserSession) => {
+        // Calculate initial risk score
+        await session.calculateRiskScore();
+
+        // Log session creation
+        console.log(
+          `Session created for user ${session.userId}: ${session.id}`,
+        );
+      },
+
+      beforeUpdate: async (session: UserSession) => {
+        // Auto-expire sessions that are past expiry
+        if (
+          session.expiresAt <= new Date() &&
+          session.status === SessionStatus.ACTIVE
+        ) {
+          session.status = SessionStatus.EXPIRED;
+        }
+      },
     },
-  },
-  
-  // Additional scopes
-  scopes: {
-    withInactive: {
-      where: {},
-    },
-    active: {
+
+    // Default scope excludes expired/revoked sessions
+    defaultScope: {
       where: {
         status: SessionStatus.ACTIVE,
-        expiresAt: {
-          [sequelize.Sequelize.Op.gt]: new Date(),
+      },
+    },
+
+    // Additional scopes
+    scopes: {
+      withInactive: {
+        where: {},
+      },
+      active: {
+        where: {
+          status: SessionStatus.ACTIVE,
+          expiresAt: {
+            [sequelize.Sequelize.Op.gt]: new Date(),
+          },
         },
       },
-    },
-    expired: {
-      where: {
-        [sequelize.Sequelize.Op.or]: [
-          { status: SessionStatus.EXPIRED },
-          {
-            status: SessionStatus.ACTIVE,
-            expiresAt: {
-              [sequelize.Sequelize.Op.lte]: new Date(),
+      expired: {
+        where: {
+          [sequelize.Sequelize.Op.or]: [
+            { status: SessionStatus.EXPIRED },
+            {
+              status: SessionStatus.ACTIVE,
+              expiresAt: {
+                [sequelize.Sequelize.Op.lte]: new Date(),
+              },
             },
+          ],
+        },
+      },
+      suspicious: {
+        where: {
+          [sequelize.Sequelize.Op.or]: [
+            { status: SessionStatus.SUSPICIOUS },
+            { riskScore: { [sequelize.Sequelize.Op.gte]: 75 } },
+          ],
+        },
+      },
+      highRisk: {
+        where: {
+          riskScore: {
+            [sequelize.Sequelize.Op.gte]: 50,
           },
-        ],
-      },
-    },
-    suspicious: {
-      where: {
-        [sequelize.Sequelize.Op.or]: [
-          { status: SessionStatus.SUSPICIOUS },
-          { riskScore: { [sequelize.Sequelize.Op.gte]: 75 } },
-        ],
-      },
-    },
-    highRisk: {
-      where: {
-        riskScore: {
-          [sequelize.Sequelize.Op.gte]: 50,
         },
       },
     },
   },
-});
+);
 
 // Define associations
 UserSession.belongsTo(User, {
-  foreignKey: 'userId',
-  as: 'user',
+  foreignKey: "userId",
+  as: "user",
 });
 
 User.hasMany(UserSession, {
-  foreignKey: 'userId',
-  as: 'sessions',
+  foreignKey: "userId",
+  as: "sessions",
 });
 
 export default UserSession;

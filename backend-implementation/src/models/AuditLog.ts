@@ -2,18 +2,18 @@
  * ============================================================================
  * WASTE MANAGEMENT SYSTEM - AUDIT LOG MODEL
  * ============================================================================
- * 
+ *
  * Sequelize model for comprehensive audit logging to meet compliance
  * requirements including GDPR, PCI DSS, SOX, and HIPAA where applicable.
- * 
+ *
  * Features:
  * - Complete CRUD operation tracking
  * - Sensitive data access logging
- * - IP address and user agent tracking  
+ * - IP address and user agent tracking
  * - Before/after value comparison
  * - Compliance-focused data retention
  * - Tamper-proof audit trail
- * 
+ *
  * Created by: Security & Compliance Specialist
  * Date: 2025-08-10
  * Version: 1.0.0
@@ -28,36 +28,36 @@ import {
   ForeignKey,
   Association,
   BelongsToGetAssociationMixin,
-} from 'sequelize';
-import { sequelize } from '@/config/database';
-import { User } from './User';
-import { UserSession } from './UserSession';
-import crypto from 'crypto';
+} from "sequelize";
+import { sequelize } from "@/config/database";
+import { User } from "./User";
+import { UserSession } from "./UserSession";
+import crypto from "crypto";
 
 /**
  * Audit action enumeration
  */
 export enum AuditAction {
-  CREATE = 'CREATE',
-  READ = 'READ',
-  UPDATE = 'UPDATE',
-  DELETE = 'DELETE',
-  LOGIN = 'LOGIN',
-  LOGOUT = 'LOGOUT',
-  EXPORT = 'EXPORT',
-  IMPORT = 'IMPORT',
-  DOWNLOAD = 'DOWNLOAD',
-  ACCESS = 'ACCESS',
+  CREATE = "CREATE",
+  READ = "READ",
+  UPDATE = "UPDATE",
+  DELETE = "DELETE",
+  LOGIN = "LOGIN",
+  LOGOUT = "LOGOUT",
+  EXPORT = "EXPORT",
+  IMPORT = "IMPORT",
+  DOWNLOAD = "DOWNLOAD",
+  ACCESS = "ACCESS",
 }
 
 /**
  * Data sensitivity level enumeration
  */
 export enum SensitivityLevel {
-  PUBLIC = 'public',
-  INTERNAL = 'internal',
-  CONFIDENTIAL = 'confidential',
-  RESTRICTED = 'restricted',
+  PUBLIC = "public",
+  INTERNAL = "internal",
+  CONFIDENTIAL = "confidential",
+  RESTRICTED = "restricted",
 }
 
 /**
@@ -86,9 +86,11 @@ export interface AuditLogAttributes {
 /**
  * Audit log creation attributes
  */
-export interface AuditLogCreationAttributes extends Omit<AuditLogAttributes,
-  'id' | 'accessTimestamp' | 'checksum' | 'dataRetentionUntil'
-> {
+export interface AuditLogCreationAttributes
+  extends Omit<
+    AuditLogAttributes,
+    "id" | "accessTimestamp" | "checksum" | "dataRetentionUntil"
+  > {
   id?: string;
   accessTimestamp?: Date;
   dataRetentionUntil?: Date;
@@ -107,8 +109,8 @@ export class AuditLog extends Model<
   declare tableName: string;
   declare recordId: string;
   declare action: AuditAction;
-  declare userId: ForeignKey<User['id']> | null;
-  declare sessionId: ForeignKey<UserSession['id']> | null;
+  declare userId: ForeignKey<User["id"]> | null;
+  declare sessionId: ForeignKey<UserSession["id"]> | null;
   declare ipAddress: string | null;
   declare userAgent: string | null;
   declare sensitiveDataAccessed: boolean;
@@ -146,19 +148,24 @@ export class AuditLog extends Model<
     userAgent?: string,
     oldValues?: Record<string, any>,
     newValues?: Record<string, any>,
-    context?: Record<string, any>
+    context?: Record<string, any>,
   ): Promise<AuditLog> {
     // Determine if sensitive data was accessed
-    const sensitiveDataAccessed = AuditLog.containsSensitiveData(tableName, oldValues, newValues);
-    
+    const sensitiveDataAccessed = AuditLog.containsSensitiveData(
+      tableName,
+      oldValues,
+      newValues,
+    );
+
     // Determine sensitivity level
     const sensitivityLevel = AuditLog.getSensitivityLevel(tableName);
-    
+
     // Calculate changed fields for UPDATE operations
     let changedFields: string[] | null = null;
     if (action === AuditAction.UPDATE && oldValues && newValues) {
-      changedFields = Object.keys(newValues).filter(key => 
-        JSON.stringify(oldValues[key]) !== JSON.stringify(newValues[key])
+      changedFields = Object.keys(newValues).filter(
+        (key) =>
+          JSON.stringify(oldValues[key]) !== JSON.stringify(newValues[key]),
       );
     }
 
@@ -187,20 +194,33 @@ export class AuditLog extends Model<
   private static containsSensitiveData(
     tableName: string,
     oldValues?: Record<string, any>,
-    newValues?: Record<string, any>
+    newValues?: Record<string, any>,
   ): boolean {
     const sensitiveFields = {
-      users: ['password_hash', 'mfa_secret', 'phone'],
-      customers: ['tax_id_encrypted', 'bank_account_info_encrypted', 'credit_card_info_encrypted'],
-      drivers: ['ssn_encrypted', 'license_number_encrypted', 'emergency_contact_encrypted'],
-      payments: ['payment_token_encrypted', 'account_details_encrypted', 'routing_number_encrypted'],
-      organizations: ['tax_id_encrypted'],
+      users: ["password_hash", "mfa_secret", "phone"],
+      customers: [
+        "tax_id_encrypted",
+        "bank_account_info_encrypted",
+        "credit_card_info_encrypted",
+      ],
+      drivers: [
+        "ssn_encrypted",
+        "license_number_encrypted",
+        "emergency_contact_encrypted",
+      ],
+      payments: [
+        "payment_token_encrypted",
+        "account_details_encrypted",
+        "routing_number_encrypted",
+      ],
+      organizations: ["tax_id_encrypted"],
     };
 
-    const tableSensitiveFields = sensitiveFields[tableName as keyof typeof sensitiveFields] || [];
-    
+    const tableSensitiveFields =
+      sensitiveFields[tableName as keyof typeof sensitiveFields] || [];
+
     const allValues = { ...oldValues, ...newValues };
-    return tableSensitiveFields.some(field => field in allValues);
+    return tableSensitiveFields.some((field) => field in allValues);
   }
 
   /**
@@ -211,7 +231,7 @@ export class AuditLog extends Model<
       // Restricted (highest sensitivity)
       payments: SensitivityLevel.RESTRICTED,
       audit_logs: SensitivityLevel.RESTRICTED,
-      
+
       // Confidential
       users: SensitivityLevel.CONFIDENTIAL,
       customers: SensitivityLevel.CONFIDENTIAL,
@@ -219,7 +239,7 @@ export class AuditLog extends Model<
       organizations: SensitivityLevel.CONFIDENTIAL,
       invoices: SensitivityLevel.CONFIDENTIAL,
       user_sessions: SensitivityLevel.CONFIDENTIAL,
-      
+
       // Internal
       vehicles: SensitivityLevel.INTERNAL,
       routes: SensitivityLevel.INTERNAL,
@@ -227,12 +247,15 @@ export class AuditLog extends Model<
       bins: SensitivityLevel.INTERNAL,
       gps_tracking: SensitivityLevel.INTERNAL,
       sensor_data: SensitivityLevel.INTERNAL,
-      
+
       // Public (lowest sensitivity)
       system_config: SensitivityLevel.PUBLIC,
     };
 
-    return sensitivityMapping[tableName as keyof typeof sensitivityMapping] || SensitivityLevel.INTERNAL;
+    return (
+      sensitivityMapping[tableName as keyof typeof sensitivityMapping] ||
+      SensitivityLevel.INTERNAL
+    );
   }
 
   /**
@@ -253,9 +276,9 @@ export class AuditLog extends Model<
     };
 
     return crypto
-      .createHash('sha256')
+      .createHash("sha256")
       .update(JSON.stringify(data))
-      .digest('hex');
+      .digest("hex");
   }
 
   /**
@@ -277,11 +300,15 @@ export class AuditLog extends Model<
    * Get formatted change summary for reporting
    */
   getChangeSummary(): string {
-    if (this.action !== AuditAction.UPDATE || !this.changedFields || this.changedFields.length === 0) {
+    if (
+      this.action !== AuditAction.UPDATE ||
+      !this.changedFields ||
+      this.changedFields.length === 0
+    ) {
       return `${this.action} operation on ${this.tableName}`;
     }
 
-    return `Updated ${this.changedFields.join(', ')} on ${this.tableName}`;
+    return `Updated ${this.changedFields.join(", ")} on ${this.tableName}`;
   }
 
   /**
@@ -299,7 +326,7 @@ export class AuditLog extends Model<
       recordId: this.recordId,
       action: this.action,
       timestamp: this.accessTimestamp,
-      user: this.userId || 'system',
+      user: this.userId || "system",
       sensitiveData: this.sensitiveDataAccessed,
       changes: this.getChangeSummary(),
     };
@@ -315,24 +342,39 @@ export class AuditLog extends Model<
     const redactValue = (value: any, fieldName: string): any => {
       // List of fields to redact
       const redactedFields = [
-        'password', 'password_hash', 'token', 'secret', 'key',
-        'ssn', 'tax_id', 'credit_card', 'bank_account', 'routing_number'
+        "password",
+        "password_hash",
+        "token",
+        "secret",
+        "key",
+        "ssn",
+        "tax_id",
+        "credit_card",
+        "bank_account",
+        "routing_number",
       ];
-      
-      if (redactedFields.some(field => fieldName.toLowerCase().includes(field))) {
-        return '[REDACTED]';
+
+      if (
+        redactedFields.some((field) => fieldName.toLowerCase().includes(field))
+      ) {
+        return "[REDACTED]";
       }
-      
+
       return value;
     };
 
-    const redactObject = (obj?: Record<string, any>): Record<string, any> | undefined => {
+    const redactObject = (
+      obj?: Record<string, any>,
+    ): Record<string, any> | undefined => {
       if (!obj) return undefined;
-      
-      return Object.keys(obj).reduce((redacted, key) => {
-        redacted[key] = redactValue(obj[key], key);
-        return redacted;
-      }, {} as Record<string, any>);
+
+      return Object.keys(obj).reduce(
+        (redacted, key) => {
+          redacted[key] = redactValue(obj[key], key);
+          return redacted;
+        },
+        {} as Record<string, any>,
+      );
     };
 
     return {
@@ -346,12 +388,12 @@ export class AuditLog extends Model<
    */
   toJSON(): Partial<AuditLogAttributes> {
     const attributes = { ...this.get() };
-    
+
     // For non-admin users, redact sensitive values
     const { oldValues, newValues } = this.getRedactedValues();
     attributes.oldValues = oldValues;
     attributes.newValues = newValues;
-    
+
     return attributes;
   }
 }
@@ -359,262 +401,270 @@ export class AuditLog extends Model<
 /**
  * Initialize AuditLog model with Sequelize
  */
-AuditLog.init({
-  id: {
-    type: DataTypes.UUID,
-    defaultValue: DataTypes.UUIDV4,
-    primaryKey: true,
-  },
-  tableName: {
-    type: DataTypes.STRING(100),
-    allowNull: false,
-    field: 'table_name',
-  },
-  recordId: {
-    type: DataTypes.UUID,
-    allowNull: false,
-    field: 'record_id',
-  },
-  action: {
-    type: DataTypes.ENUM(...Object.values(AuditAction)),
-    allowNull: false,
-    validate: {
-      isIn: {
-        args: [Object.values(AuditAction)],
-        msg: 'Action must be a valid audit action',
+AuditLog.init(
+  {
+    id: {
+      type: DataTypes.UUID,
+      defaultValue: DataTypes.UUIDV4,
+      primaryKey: true,
+    },
+    tableName: {
+      type: DataTypes.STRING(100),
+      allowNull: false,
+      field: "table_name",
+    },
+    recordId: {
+      type: DataTypes.UUID,
+      allowNull: false,
+      field: "record_id",
+    },
+    action: {
+      type: DataTypes.ENUM(...Object.values(AuditAction)),
+      allowNull: false,
+      validate: {
+        isIn: {
+          args: [Object.values(AuditAction)],
+          msg: "Action must be a valid audit action",
+        },
       },
     },
-  },
-  userId: {
-    type: DataTypes.UUID,
-    allowNull: true,
-    field: 'user_id',
-    references: {
-      model: 'users',
-      key: 'id',
+    userId: {
+      type: DataTypes.UUID,
+      allowNull: true,
+      field: "user_id",
+      references: {
+        model: "users",
+        key: "id",
+      },
+    },
+    sessionId: {
+      type: DataTypes.UUID,
+      allowNull: true,
+      field: "session_id",
+      references: {
+        model: "user_sessions",
+        key: "id",
+      },
+    },
+    ipAddress: {
+      type: DataTypes.INET,
+      allowNull: true,
+      field: "ip_address",
+    },
+    userAgent: {
+      type: DataTypes.TEXT,
+      allowNull: true,
+      field: "user_agent",
+    },
+    sensitiveDataAccessed: {
+      type: DataTypes.BOOLEAN,
+      allowNull: false,
+      defaultValue: false,
+      field: "sensitive_data_accessed",
+    },
+    sensitivityLevel: {
+      type: DataTypes.ENUM(...Object.values(SensitivityLevel)),
+      allowNull: false,
+      defaultValue: SensitivityLevel.INTERNAL,
+      field: "sensitivity_level",
+    },
+    oldValues: {
+      type: DataTypes.JSONB,
+      allowNull: true,
+      field: "old_values",
+    },
+    newValues: {
+      type: DataTypes.JSONB,
+      allowNull: true,
+      field: "new_values",
+    },
+    changedFields: {
+      type: DataTypes.ARRAY(DataTypes.STRING),
+      allowNull: true,
+      field: "changed_fields",
+    },
+    accessTimestamp: {
+      type: DataTypes.DATE,
+      allowNull: false,
+      defaultValue: DataTypes.NOW,
+      field: "access_timestamp",
+    },
+    dataRetentionUntil: {
+      type: DataTypes.DATE,
+      allowNull: false,
+      defaultValue: () => new Date(Date.now() + 365 * 24 * 60 * 60 * 1000), // 1 year default
+      field: "data_retention_until",
+    },
+    checksum: {
+      type: DataTypes.STRING(64),
+      allowNull: false,
+    },
+    context: {
+      type: DataTypes.JSONB,
+      allowNull: true,
+      comment: "Additional context information about the operation",
     },
   },
-  sessionId: {
-    type: DataTypes.UUID,
-    allowNull: true,
-    field: 'session_id',
-    references: {
-      model: 'user_sessions',
-      key: 'id',
-    },
-  },
-  ipAddress: {
-    type: DataTypes.INET,
-    allowNull: true,
-    field: 'ip_address',
-  },
-  userAgent: {
-    type: DataTypes.TEXT,
-    allowNull: true,
-    field: 'user_agent',
-  },
-  sensitiveDataAccessed: {
-    type: DataTypes.BOOLEAN,
-    allowNull: false,
-    defaultValue: false,
-    field: 'sensitive_data_accessed',
-  },
-  sensitivityLevel: {
-    type: DataTypes.ENUM(...Object.values(SensitivityLevel)),
-    allowNull: false,
-    defaultValue: SensitivityLevel.INTERNAL,
-    field: 'sensitivity_level',
-  },
-  oldValues: {
-    type: DataTypes.JSONB,
-    allowNull: true,
-    field: 'old_values',
-  },
-  newValues: {
-    type: DataTypes.JSONB,
-    allowNull: true,
-    field: 'new_values',
-  },
-  changedFields: {
-    type: DataTypes.ARRAY(DataTypes.STRING),
-    allowNull: true,
-    field: 'changed_fields',
-  },
-  accessTimestamp: {
-    type: DataTypes.DATE,
-    allowNull: false,
-    defaultValue: DataTypes.NOW,
-    field: 'access_timestamp',
-  },
-  dataRetentionUntil: {
-    type: DataTypes.DATE,
-    allowNull: false,
-    defaultValue: () => new Date(Date.now() + 365 * 24 * 60 * 60 * 1000), // 1 year default
-    field: 'data_retention_until',
-  },
-  checksum: {
-    type: DataTypes.STRING(64),
-    allowNull: false,
-  },
-  context: {
-    type: DataTypes.JSONB,
-    allowNull: true,
-    comment: 'Additional context information about the operation',
-  },
-}, {
-  sequelize,
-  modelName: 'AuditLog',
-  tableName: 'data_access_logs',
-  schema: 'audit',
-  timestamps: false, // We handle timestamps manually
-  
-  // Indexes for performance and compliance reporting
-  indexes: [
-    {
-      fields: ['table_name', 'record_id'],
-    },
-    {
-      fields: ['user_id', 'access_timestamp'],
-    },
-    {
-      fields: ['sensitive_data_accessed', 'access_timestamp'],
-      where: { sensitive_data_accessed: true },
-    },
-    {
-      fields: ['action', 'access_timestamp'],
-    },
-    {
-      fields: ['sensitivity_level', 'access_timestamp'],
-    },
-    {
-      fields: ['data_retention_until'],
-    },
-    {
-      fields: ['ip_address', 'access_timestamp'],
-    },
-    {
-      // Compound index for compliance reporting
-      fields: ['table_name', 'action', 'access_timestamp'],
-    },
-  ],
-  
-  // Hooks for integrity and automation
-  hooks: {
-    beforeCreate: (auditLog: AuditLog) => {
-      // Generate integrity checksum
-      auditLog.checksum = auditLog.generateChecksum();
-      
-      // Set retention period based on sensitivity level
-      if (!auditLog.dataRetentionUntil) {
-        let retentionMonths = 12; // Default 1 year
-        
-        switch (auditLog.sensitivityLevel) {
-          case SensitivityLevel.RESTRICTED:
-            retentionMonths = 84; // 7 years for financial/PCI data
-            break;
-          case SensitivityLevel.CONFIDENTIAL:
-            retentionMonths = 36; // 3 years for personal data
-            break;
-          case SensitivityLevel.INTERNAL:
-            retentionMonths = 24; // 2 years for operational data
-            break;
-          case SensitivityLevel.PUBLIC:
-            retentionMonths = 12; // 1 year for public data
-            break;
+  {
+    sequelize,
+    modelName: "AuditLog",
+    tableName: "data_access_logs",
+    schema: "audit",
+    timestamps: false, // We handle timestamps manually
+
+    // Indexes for performance and compliance reporting
+    indexes: [
+      {
+        fields: ["table_name", "record_id"],
+      },
+      {
+        fields: ["user_id", "access_timestamp"],
+      },
+      {
+        fields: ["sensitive_data_accessed", "access_timestamp"],
+        where: { sensitive_data_accessed: true },
+      },
+      {
+        fields: ["action", "access_timestamp"],
+      },
+      {
+        fields: ["sensitivity_level", "access_timestamp"],
+      },
+      {
+        fields: ["data_retention_until"],
+      },
+      {
+        fields: ["ip_address", "access_timestamp"],
+      },
+      {
+        // Compound index for compliance reporting
+        fields: ["table_name", "action", "access_timestamp"],
+      },
+    ],
+
+    // Hooks for integrity and automation
+    hooks: {
+      beforeCreate: (auditLog: AuditLog) => {
+        // Generate integrity checksum
+        auditLog.checksum = auditLog.generateChecksum();
+
+        // Set retention period based on sensitivity level
+        if (!auditLog.dataRetentionUntil) {
+          let retentionMonths = 12; // Default 1 year
+
+          switch (auditLog.sensitivityLevel) {
+            case SensitivityLevel.RESTRICTED:
+              retentionMonths = 84; // 7 years for financial/PCI data
+              break;
+            case SensitivityLevel.CONFIDENTIAL:
+              retentionMonths = 36; // 3 years for personal data
+              break;
+            case SensitivityLevel.INTERNAL:
+              retentionMonths = 24; // 2 years for operational data
+              break;
+            case SensitivityLevel.PUBLIC:
+              retentionMonths = 12; // 1 year for public data
+              break;
+          }
+
+          auditLog.dataRetentionUntil = new Date(
+            Date.now() + retentionMonths * 30 * 24 * 60 * 60 * 1000,
+          );
         }
-        
-        auditLog.dataRetentionUntil = new Date(
-          Date.now() + retentionMonths * 30 * 24 * 60 * 60 * 1000
-        );
-      }
+      },
+
+      afterCreate: (auditLog: AuditLog) => {
+        // Log high-risk audit events
+        if (auditLog.sensitiveDataAccessed) {
+          console.warn(
+            `Sensitive data access logged: ${auditLog.tableName}:${auditLog.recordId} ` +
+              `by user ${auditLog.userId || "system"}`,
+          );
+        }
+      },
+
+      beforeUpdate: () => {
+        // Prevent modification of audit logs (immutable)
+        throw new Error("Audit logs are immutable and cannot be modified");
+      },
+
+      beforeDestroy: () => {
+        // Prevent deletion of audit logs (immutable)
+        throw new Error("Audit logs are immutable and cannot be deleted");
+      },
     },
-    
-    afterCreate: (auditLog: AuditLog) => {
-      // Log high-risk audit events
-      if (auditLog.sensitiveDataAccessed) {
-        console.warn(
-          `Sensitive data access logged: ${auditLog.tableName}:${auditLog.recordId} ` +
-          `by user ${auditLog.userId || 'system'}`
-        );
-      }
-    },
-    
-    beforeUpdate: () => {
-      // Prevent modification of audit logs (immutable)
-      throw new Error('Audit logs are immutable and cannot be modified');
-    },
-    
-    beforeDestroy: () => {
-      // Prevent deletion of audit logs (immutable)
-      throw new Error('Audit logs are immutable and cannot be deleted');
+
+    // Scopes for different types of audit queries
+    scopes: {
+      sensitiveData: {
+        where: {
+          sensitiveDataAccessed: true,
+        },
+      },
+      byUser: (userId: string) => ({
+        where: {
+          userId,
+        },
+      }),
+      byTable: (tableName: string) => ({
+        where: {
+          tableName,
+        },
+      }),
+      byAction: (action: AuditAction) => ({
+        where: {
+          action,
+        },
+      }),
+      recentActivity: (hours: number = 24) => ({
+        where: {
+          accessTimestamp: {
+            [sequelize.Sequelize.Op.gte]: new Date(
+              Date.now() - hours * 60 * 60 * 1000,
+            ),
+          },
+        },
+      }),
+      withinRetention: {
+        where: {
+          dataRetentionUntil: {
+            [sequelize.Sequelize.Op.gt]: new Date(),
+          },
+        },
+      },
+      expiredRetention: {
+        where: {
+          dataRetentionUntil: {
+            [sequelize.Sequelize.Op.lte]: new Date(),
+          },
+        },
+      },
+      highSensitivity: {
+        where: {
+          sensitivityLevel: [
+            SensitivityLevel.RESTRICTED,
+            SensitivityLevel.CONFIDENTIAL,
+          ],
+        },
+      },
     },
   },
-  
-  // Scopes for different types of audit queries
-  scopes: {
-    sensitiveData: {
-      where: {
-        sensitiveDataAccessed: true,
-      },
-    },
-    byUser: (userId: string) => ({
-      where: {
-        userId,
-      },
-    }),
-    byTable: (tableName: string) => ({
-      where: {
-        tableName,
-      },
-    }),
-    byAction: (action: AuditAction) => ({
-      where: {
-        action,
-      },
-    }),
-    recentActivity: (hours: number = 24) => ({
-      where: {
-        accessTimestamp: {
-          [sequelize.Sequelize.Op.gte]: new Date(Date.now() - hours * 60 * 60 * 1000),
-        },
-      },
-    }),
-    withinRetention: {
-      where: {
-        dataRetentionUntil: {
-          [sequelize.Sequelize.Op.gt]: new Date(),
-        },
-      },
-    },
-    expiredRetention: {
-      where: {
-        dataRetentionUntil: {
-          [sequelize.Sequelize.Op.lte]: new Date(),
-        },
-      },
-    },
-    highSensitivity: {
-      where: {
-        sensitivityLevel: [SensitivityLevel.RESTRICTED, SensitivityLevel.CONFIDENTIAL],
-      },
-    },
-  },
-});
+);
 
 // Define associations
 AuditLog.belongsTo(User, {
-  foreignKey: 'userId',
-  as: 'user',
+  foreignKey: "userId",
+  as: "user",
 });
 
 AuditLog.belongsTo(UserSession, {
-  foreignKey: 'sessionId',
-  as: 'session',
+  foreignKey: "sessionId",
+  as: "session",
 });
 
 User.hasMany(AuditLog, {
-  foreignKey: 'userId',
-  as: 'auditLogs',
+  foreignKey: "userId",
+  as: "auditLogs",
 });
 
 export default AuditLog;

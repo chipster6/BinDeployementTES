@@ -2,10 +2,10 @@
  * ============================================================================
  * VEHICLE MODEL - FLEET MANAGEMENT
  * ============================================================================
- * 
+ *
  * Implements vehicles/fleet management with capacity tracking,
  * maintenance scheduling, and GPS device integration.
- * 
+ *
  * Created by: Database Architect Agent
  * Date: 2025-08-10
  * Version: 1.0.0
@@ -23,31 +23,31 @@ import {
   BelongsToSetAssociationMixin,
   HasManyGetAssociationsMixin,
   HasManyCreateAssociationMixin,
-} from 'sequelize';
-import { database } from '@/config/database';
+} from "sequelize";
+import { database } from "@/config/database";
 
 // Define vehicle types enum
 export enum VehicleType {
-  TRUCK = 'truck',
-  VAN = 'van',
-  TRAILER = 'trailer',
-  EQUIPMENT = 'equipment',
+  TRUCK = "truck",
+  VAN = "van",
+  TRAILER = "trailer",
+  EQUIPMENT = "equipment",
 }
 
 // Define fuel types enum
 export enum FuelType {
-  GASOLINE = 'gasoline',
-  DIESEL = 'diesel',
-  ELECTRIC = 'electric',
-  HYBRID = 'hybrid',
+  GASOLINE = "gasoline",
+  DIESEL = "diesel",
+  ELECTRIC = "electric",
+  HYBRID = "hybrid",
 }
 
 // Define vehicle status enum
 export enum VehicleStatus {
-  ACTIVE = 'active',
-  MAINTENANCE = 'maintenance',
-  OUT_OF_SERVICE = 'out_of_service',
-  RETIRED = 'retired',
+  ACTIVE = "active",
+  MAINTENANCE = "maintenance",
+  OUT_OF_SERVICE = "out_of_service",
+  RETIRED = "retired",
 }
 
 /**
@@ -81,7 +81,10 @@ export interface VehicleAttributes {
 }
 
 export interface VehicleCreationAttributes
-  extends Omit<VehicleAttributes, 'id' | 'createdAt' | 'updatedAt' | 'version' | 'status'> {
+  extends Omit<
+    VehicleAttributes,
+    "id" | "createdAt" | "updatedAt" | "version" | "status"
+  > {
   id?: CreationOptional<string>;
   createdAt?: CreationOptional<Date>;
   updatedAt?: CreationOptional<Date>;
@@ -92,7 +95,10 @@ export interface VehicleCreationAttributes
 /**
  * Vehicle model class
  */
-export class Vehicle extends Model<InferAttributes<Vehicle>, InferCreationAttributes<Vehicle>> {
+export class Vehicle extends Model<
+  InferAttributes<Vehicle>,
+  InferCreationAttributes<Vehicle>
+> {
   // Primary attributes
   declare id: CreationOptional<string>;
   declare vehicleNumber: string;
@@ -110,15 +116,15 @@ export class Vehicle extends Model<InferAttributes<Vehicle>, InferCreationAttrib
   declare samsaraVehicleId: string | null;
   declare lastMaintenanceDate: Date | null;
   declare nextMaintenanceDate: Date | null;
-  
+
   // Timestamps
   declare createdAt: CreationOptional<Date>;
   declare updatedAt: CreationOptional<Date>;
-  
+
   // Foreign keys for audit trail
   declare createdBy: ForeignKey<string> | null;
   declare updatedBy: ForeignKey<string> | null;
-  
+
   // Audit fields
   declare version: CreationOptional<number>;
   declare deletedAt: Date | null;
@@ -175,31 +181,31 @@ export class Vehicle extends Model<InferAttributes<Vehicle>, InferCreationAttrib
   // Get full vehicle display name
   public getDisplayName(): string {
     const parts = [this.vehicleNumber];
-    
+
     if (this.make && this.model) {
       parts.push(`${this.make} ${this.model}`);
     }
-    
+
     if (this.year) {
       parts.push(`(${this.year})`);
     }
-    
-    return parts.join(' - ');
+
+    return parts.join(" - ");
   }
 
   // Get vehicle type label
   public getVehicleTypeLabel(): string {
     switch (this.vehicleType) {
       case VehicleType.TRUCK:
-        return 'Truck';
+        return "Truck";
       case VehicleType.VAN:
-        return 'Van';
+        return "Van";
       case VehicleType.TRAILER:
-        return 'Trailer';
+        return "Trailer";
       case VehicleType.EQUIPMENT:
-        return 'Equipment';
+        return "Equipment";
       default:
-        return 'Unknown';
+        return "Unknown";
     }
   }
 
@@ -207,15 +213,15 @@ export class Vehicle extends Model<InferAttributes<Vehicle>, InferCreationAttrib
   public getFuelTypeLabel(): string {
     switch (this.fuelType) {
       case FuelType.GASOLINE:
-        return 'Gasoline';
+        return "Gasoline";
       case FuelType.DIESEL:
-        return 'Diesel';
+        return "Diesel";
       case FuelType.ELECTRIC:
-        return 'Electric';
+        return "Electric";
       case FuelType.HYBRID:
-        return 'Hybrid';
+        return "Hybrid";
       default:
-        return 'Unknown';
+        return "Unknown";
     }
   }
 
@@ -223,15 +229,15 @@ export class Vehicle extends Model<InferAttributes<Vehicle>, InferCreationAttrib
   public getStatusLabel(): string {
     switch (this.status) {
       case VehicleStatus.ACTIVE:
-        return 'Active';
+        return "Active";
       case VehicleStatus.MAINTENANCE:
-        return 'In Maintenance';
+        return "In Maintenance";
       case VehicleStatus.OUT_OF_SERVICE:
-        return 'Out of Service';
+        return "Out of Service";
       case VehicleStatus.RETIRED:
-        return 'Retired';
+        return "Retired";
       default:
-        return 'Unknown';
+        return "Unknown";
     }
   }
 
@@ -240,11 +246,11 @@ export class Vehicle extends Model<InferAttributes<Vehicle>, InferCreationAttrib
     if (!this.nextMaintenanceDate) {
       return false;
     }
-    
+
     const today = new Date();
     const warningThreshold = new Date(today);
     warningThreshold.setDate(today.getDate() + 7); // 7 days warning
-    
+
     return this.nextMaintenanceDate <= warningThreshold;
   }
 
@@ -253,7 +259,7 @@ export class Vehicle extends Model<InferAttributes<Vehicle>, InferCreationAttrib
     if (!this.nextMaintenanceDate) {
       return false;
     }
-    
+
     return this.nextMaintenanceDate < new Date();
   }
 
@@ -262,11 +268,11 @@ export class Vehicle extends Model<InferAttributes<Vehicle>, InferCreationAttrib
     if (!this.nextMaintenanceDate) {
       return null;
     }
-    
+
     const today = new Date();
     const diffTime = this.nextMaintenanceDate.getTime() - today.getTime();
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-    
+
     return diffDays;
   }
 
@@ -283,16 +289,18 @@ export class Vehicle extends Model<InferAttributes<Vehicle>, InferCreationAttrib
   // Get vehicle capacity summary
   public getCapacitySummary(): string {
     const capacityParts = [];
-    
+
     if (this.capacityCubicYards) {
       capacityParts.push(`${this.capacityCubicYards} cu. yd.`);
     }
-    
+
     if (this.capacityWeightLbs) {
       capacityParts.push(`${this.capacityWeightLbs.toLocaleString()} lbs`);
     }
-    
-    return capacityParts.length > 0 ? capacityParts.join(', ') : 'Not specified';
+
+    return capacityParts.length > 0
+      ? capacityParts.join(", ")
+      : "Not specified";
   }
 
   // Check if vehicle has capacity information
@@ -305,7 +313,9 @@ export class Vehicle extends Model<InferAttributes<Vehicle>, InferCreationAttrib
    */
 
   // Find vehicle by vehicle number
-  public static async findByVehicleNumber(vehicleNumber: string): Promise<Vehicle | null> {
+  public static async findByVehicleNumber(
+    vehicleNumber: string,
+  ): Promise<Vehicle | null> {
     return await Vehicle.findOne({
       where: {
         vehicleNumber,
@@ -315,7 +325,9 @@ export class Vehicle extends Model<InferAttributes<Vehicle>, InferCreationAttrib
   }
 
   // Find vehicle by license plate
-  public static async findByLicensePlate(licensePlate: string): Promise<Vehicle | null> {
+  public static async findByLicensePlate(
+    licensePlate: string,
+  ): Promise<Vehicle | null> {
     return await Vehicle.findOne({
       where: {
         licensePlate: licensePlate.toUpperCase(),
@@ -335,14 +347,16 @@ export class Vehicle extends Model<InferAttributes<Vehicle>, InferCreationAttrib
   }
 
   // Find active vehicles by type
-  public static async findActiveByType(vehicleType: VehicleType): Promise<Vehicle[]> {
+  public static async findActiveByType(
+    vehicleType: VehicleType,
+  ): Promise<Vehicle[]> {
     return await Vehicle.findAll({
       where: {
         vehicleType,
         status: VehicleStatus.ACTIVE,
         deletedAt: null,
       },
-      order: [['vehicleNumber', 'ASC']],
+      order: [["vehicleNumber", "ASC"]],
     });
   }
 
@@ -357,11 +371,14 @@ export class Vehicle extends Model<InferAttributes<Vehicle>, InferCreationAttrib
           [database.Sequelize.Op.lte]: warningDate,
         },
         status: {
-          [database.Sequelize.Op.in]: [VehicleStatus.ACTIVE, VehicleStatus.MAINTENANCE],
+          [database.Sequelize.Op.in]: [
+            VehicleStatus.ACTIVE,
+            VehicleStatus.MAINTENANCE,
+          ],
         },
         deletedAt: null,
       },
-      order: [['nextMaintenanceDate', 'ASC']],
+      order: [["nextMaintenanceDate", "ASC"]],
     });
   }
 
@@ -379,7 +396,7 @@ export class Vehicle extends Model<InferAttributes<Vehicle>, InferCreationAttrib
         },
         deletedAt: null,
       },
-      order: [['nextMaintenanceDate', 'ASC']],
+      order: [["nextMaintenanceDate", "ASC"]],
     });
   }
 
@@ -393,29 +410,31 @@ export class Vehicle extends Model<InferAttributes<Vehicle>, InferCreationAttrib
         status: VehicleStatus.ACTIVE,
         deletedAt: null,
       },
-      order: [['vehicleNumber', 'ASC']],
+      order: [["vehicleNumber", "ASC"]],
     });
   }
 
   // Generate next vehicle number
-  public static async generateVehicleNumber(vehicleType: VehicleType): Promise<string> {
+  public static async generateVehicleNumber(
+    vehicleType: VehicleType,
+  ): Promise<string> {
     let prefix: string;
-    
+
     switch (vehicleType) {
       case VehicleType.TRUCK:
-        prefix = 'TRK';
+        prefix = "TRK";
         break;
       case VehicleType.VAN:
-        prefix = 'VAN';
+        prefix = "VAN";
         break;
       case VehicleType.TRAILER:
-        prefix = 'TRL';
+        prefix = "TRL";
         break;
       case VehicleType.EQUIPMENT:
-        prefix = 'EQP';
+        prefix = "EQP";
         break;
       default:
-        prefix = 'VEH';
+        prefix = "VEH";
     }
 
     // Find the highest existing vehicle number with this prefix
@@ -425,7 +444,7 @@ export class Vehicle extends Model<InferAttributes<Vehicle>, InferCreationAttrib
           [database.Sequelize.Op.like]: `${prefix}%`,
         },
       },
-      order: [['vehicleNumber', 'DESC']],
+      order: [["vehicleNumber", "DESC"]],
     });
 
     let nextNumber = 1;
@@ -438,12 +457,15 @@ export class Vehicle extends Model<InferAttributes<Vehicle>, InferCreationAttrib
     }
 
     // Format with leading zeros
-    const paddedNumber = nextNumber.toString().padStart(6, '0');
+    const paddedNumber = nextNumber.toString().padStart(6, "0");
     return `${prefix}-${paddedNumber}`;
   }
 
   // Check if vehicle number is already taken
-  public static async isVehicleNumberTaken(vehicleNumber: string, excludeVehicleId?: string): Promise<boolean> {
+  public static async isVehicleNumberTaken(
+    vehicleNumber: string,
+    excludeVehicleId?: string,
+  ): Promise<boolean> {
     const whereClause: any = {
       vehicleNumber,
       deletedAt: null,
@@ -458,7 +480,10 @@ export class Vehicle extends Model<InferAttributes<Vehicle>, InferCreationAttrib
   }
 
   // Check if license plate is already taken
-  public static async isLicensePlateTaken(licensePlate: string, excludeVehicleId?: string): Promise<boolean> {
+  public static async isLicensePlateTaken(
+    licensePlate: string,
+    excludeVehicleId?: string,
+  ): Promise<boolean> {
     const whereClause: any = {
       licensePlate: licensePlate.toUpperCase(),
       deletedAt: null,
@@ -473,7 +498,10 @@ export class Vehicle extends Model<InferAttributes<Vehicle>, InferCreationAttrib
   }
 
   // Check if VIN is already taken
-  public static async isVinTaken(vin: string, excludeVehicleId?: string): Promise<boolean> {
+  public static async isVinTaken(
+    vin: string,
+    excludeVehicleId?: string,
+  ): Promise<boolean> {
     const whereClause: any = {
       vin: vin.toUpperCase(),
       deletedAt: null,
@@ -493,36 +521,36 @@ export class Vehicle extends Model<InferAttributes<Vehicle>, InferCreationAttrib
       // Status distribution
       Vehicle.findAll({
         attributes: [
-          'status',
-          [database.fn('COUNT', database.col('id')), 'count'],
+          "status",
+          [database.fn("COUNT", database.col("id")), "count"],
         ],
         where: { deletedAt: null },
-        group: ['status'],
+        group: ["status"],
         raw: true,
       }),
-      
+
       // Type distribution
       Vehicle.findAll({
         attributes: [
-          'vehicleType',
-          [database.fn('COUNT', database.col('id')), 'count'],
+          "vehicleType",
+          [database.fn("COUNT", database.col("id")), "count"],
         ],
         where: { deletedAt: null },
-        group: ['vehicleType'],
+        group: ["vehicleType"],
         raw: true,
       }),
 
       // Fuel type distribution
       Vehicle.findAll({
         attributes: [
-          'fuelType',
-          [database.fn('COUNT', database.col('id')), 'count'],
+          "fuelType",
+          [database.fn("COUNT", database.col("id")), "count"],
         ],
-        where: { 
+        where: {
           deletedAt: null,
-          fuelType: { [database.Sequelize.Op.ne]: null }
+          fuelType: { [database.Sequelize.Op.ne]: null },
         },
-        group: ['fuelType'],
+        group: ["fuelType"],
         raw: true,
       }),
     ]);
@@ -550,17 +578,17 @@ Vehicle.init(
       type: DataTypes.STRING(50),
       allowNull: false,
       unique: {
-        name: 'vehicles_vehicle_number_unique',
-        msg: 'Vehicle number is already in use',
+        name: "vehicles_vehicle_number_unique",
+        msg: "Vehicle number is already in use",
       },
-      field: 'vehicle_number',
+      field: "vehicle_number",
       validate: {
         len: {
           args: [3, 50],
-          msg: 'Vehicle number must be between 3 and 50 characters',
+          msg: "Vehicle number must be between 3 and 50 characters",
         },
         notEmpty: {
-          msg: 'Vehicle number is required',
+          msg: "Vehicle number is required",
         },
       },
     },
@@ -570,7 +598,7 @@ Vehicle.init(
       validate: {
         len: {
           args: [1, 100],
-          msg: 'Make must be between 1 and 100 characters',
+          msg: "Make must be between 1 and 100 characters",
         },
       },
     },
@@ -580,7 +608,7 @@ Vehicle.init(
       validate: {
         len: {
           args: [1, 100],
-          msg: 'Model must be between 1 and 100 characters',
+          msg: "Model must be between 1 and 100 characters",
         },
       },
     },
@@ -590,11 +618,11 @@ Vehicle.init(
       validate: {
         min: {
           args: [1900],
-          msg: 'Year must be 1900 or later',
+          msg: "Year must be 1900 or later",
         },
         max: {
           args: [new Date().getFullYear() + 2],
-          msg: 'Year cannot be more than 2 years in the future',
+          msg: "Year cannot be more than 2 years in the future",
         },
       },
     },
@@ -602,21 +630,21 @@ Vehicle.init(
       type: DataTypes.STRING(17),
       allowNull: true,
       unique: {
-        name: 'vehicles_vin_unique',
-        msg: 'VIN is already registered',
+        name: "vehicles_vin_unique",
+        msg: "VIN is already registered",
       },
       validate: {
         len: {
           args: [17, 17],
-          msg: 'VIN must be exactly 17 characters',
+          msg: "VIN must be exactly 17 characters",
         },
       },
       set(value: string | null) {
         // Store VIN in uppercase if provided
         if (value) {
-          this.setDataValue('vin', value.toUpperCase());
+          this.setDataValue("vin", value.toUpperCase());
         } else {
-          this.setDataValue('vin', null);
+          this.setDataValue("vin", null);
         }
       },
     },
@@ -624,72 +652,72 @@ Vehicle.init(
       type: DataTypes.STRING(20),
       allowNull: true,
       unique: {
-        name: 'vehicles_license_plate_unique',
-        msg: 'License plate is already registered',
+        name: "vehicles_license_plate_unique",
+        msg: "License plate is already registered",
       },
-      field: 'license_plate',
+      field: "license_plate",
       validate: {
         len: {
           args: [1, 20],
-          msg: 'License plate must be between 1 and 20 characters',
+          msg: "License plate must be between 1 and 20 characters",
         },
       },
       set(value: string | null) {
         // Store license plate in uppercase if provided
         if (value) {
-          this.setDataValue('licensePlate', value.toUpperCase());
+          this.setDataValue("licensePlate", value.toUpperCase());
         } else {
-          this.setDataValue('licensePlate', null);
+          this.setDataValue("licensePlate", null);
         }
       },
     },
     vehicleType: {
       type: DataTypes.ENUM(...Object.values(VehicleType)),
       allowNull: false,
-      field: 'vehicle_type',
+      field: "vehicle_type",
       validate: {
         isIn: {
           args: [Object.values(VehicleType)],
-          msg: 'Invalid vehicle type',
+          msg: "Invalid vehicle type",
         },
       },
     },
     capacityCubicYards: {
       type: DataTypes.DECIMAL(8, 2),
       allowNull: true,
-      field: 'capacity_cubic_yards',
+      field: "capacity_cubic_yards",
       validate: {
         min: {
           args: [0],
-          msg: 'Capacity in cubic yards cannot be negative',
+          msg: "Capacity in cubic yards cannot be negative",
         },
         isDecimal: {
-          msg: 'Capacity must be a valid decimal number',
+          msg: "Capacity must be a valid decimal number",
         },
       },
     },
     capacityWeightLbs: {
       type: DataTypes.DECIMAL(10, 2),
       allowNull: true,
-      field: 'capacity_weight_lbs',
+      field: "capacity_weight_lbs",
       validate: {
         min: {
           args: [0],
-          msg: 'Capacity in pounds cannot be negative',
+          msg: "Capacity in pounds cannot be negative",
         },
         isDecimal: {
-          msg: 'Capacity must be a valid decimal number',
+          msg: "Capacity must be a valid decimal number",
         },
       },
     },
     fuelType: {
       type: DataTypes.ENUM(...Object.values(FuelType)),
       allowNull: true,
-      field: 'fuel_type',
+      field: "fuel_type",
       validate: {
         isIn: {
           args: [Object.values(FuelType)],
-          msg: 'Invalid fuel type',
+          msg: "Invalid fuel type",
         },
       },
     },
@@ -700,58 +728,58 @@ Vehicle.init(
       validate: {
         isIn: {
           args: [Object.values(VehicleStatus)],
-          msg: 'Invalid vehicle status',
+          msg: "Invalid vehicle status",
         },
       },
     },
     gpsDeviceId: {
       type: DataTypes.STRING(100),
       allowNull: true,
-      field: 'gps_device_id',
+      field: "gps_device_id",
       validate: {
         len: {
           args: [1, 100],
-          msg: 'GPS device ID must be between 1 and 100 characters',
+          msg: "GPS device ID must be between 1 and 100 characters",
         },
       },
     },
     samsaraVehicleId: {
       type: DataTypes.STRING(100),
       allowNull: true,
-      field: 'samsara_vehicle_id',
+      field: "samsara_vehicle_id",
       validate: {
         len: {
           args: [1, 100],
-          msg: 'Samsara vehicle ID must be between 1 and 100 characters',
+          msg: "Samsara vehicle ID must be between 1 and 100 characters",
         },
       },
     },
     lastMaintenanceDate: {
       type: DataTypes.DATEONLY,
       allowNull: true,
-      field: 'last_maintenance_date',
+      field: "last_maintenance_date",
     },
     nextMaintenanceDate: {
       type: DataTypes.DATEONLY,
       allowNull: true,
-      field: 'next_maintenance_date',
+      field: "next_maintenance_date",
     },
     createdBy: {
       type: DataTypes.UUID,
       allowNull: true,
-      field: 'created_by',
+      field: "created_by",
       references: {
-        model: 'users',
-        key: 'id',
+        model: "users",
+        key: "id",
       },
     },
     updatedBy: {
       type: DataTypes.UUID,
       allowNull: true,
-      field: 'updated_by',
+      field: "updated_by",
       references: {
-        model: 'users',
-        key: 'id',
+        model: "users",
+        key: "id",
       },
     },
     version: {
@@ -761,81 +789,84 @@ Vehicle.init(
       validate: {
         min: {
           args: [1],
-          msg: 'Version must be at least 1',
+          msg: "Version must be at least 1",
         },
       },
     },
     deletedAt: {
       type: DataTypes.DATE,
       allowNull: true,
-      field: 'deleted_at',
+      field: "deleted_at",
     },
     deletedBy: {
       type: DataTypes.UUID,
       allowNull: true,
-      field: 'deleted_by',
+      field: "deleted_by",
       references: {
-        model: 'users',
-        key: 'id',
+        model: "users",
+        key: "id",
       },
     },
   },
   {
     sequelize: database,
-    tableName: 'vehicles',
-    schema: 'core',
+    tableName: "vehicles",
+    schema: "core",
     timestamps: true,
     paranoid: true,
-    createdAt: 'createdAt',
-    updatedAt: 'updatedAt',
-    deletedAt: 'deletedAt',
+    createdAt: "createdAt",
+    updatedAt: "updatedAt",
+    deletedAt: "deletedAt",
     underscored: true,
     indexes: [
       {
-        name: 'idx_vehicles_vehicle_number',
-        fields: ['vehicle_number'],
+        name: "idx_vehicles_vehicle_number",
+        fields: ["vehicle_number"],
         unique: true,
         where: { deleted_at: null },
       },
       {
-        name: 'idx_vehicles_vin',
-        fields: ['vin'],
+        name: "idx_vehicles_vin",
+        fields: ["vin"],
         unique: true,
         where: { vin: { [database.Sequelize.Op.ne]: null }, deleted_at: null },
       },
       {
-        name: 'idx_vehicles_license_plate',
-        fields: ['license_plate'],
+        name: "idx_vehicles_license_plate",
+        fields: ["license_plate"],
         unique: true,
-        where: { license_plate: { [database.Sequelize.Op.ne]: null }, deleted_at: null },
+        where: {
+          license_plate: { [database.Sequelize.Op.ne]: null },
+          deleted_at: null,
+        },
       },
       {
-        name: 'idx_vehicles_type',
-        fields: ['vehicle_type'],
+        name: "idx_vehicles_type",
+        fields: ["vehicle_type"],
         where: { deleted_at: null },
       },
       {
-        name: 'idx_vehicles_status',
-        fields: ['status'],
+        name: "idx_vehicles_status",
+        fields: ["status"],
         where: { deleted_at: null },
       },
       {
-        name: 'idx_vehicles_fuel_type',
-        fields: ['fuel_type'],
+        name: "idx_vehicles_fuel_type",
+        fields: ["fuel_type"],
       },
       {
-        name: 'idx_vehicles_gps_device_id',
-        fields: ['gps_device_id'],
+        name: "idx_vehicles_gps_device_id",
+        fields: ["gps_device_id"],
         where: { gps_device_id: { [database.Sequelize.Op.ne]: null } },
       },
       {
-        name: 'idx_vehicles_samsara_vehicle_id',
-        fields: ['samsara_vehicle_id'],
+        name: "idx_vehicles_samsara_vehicle_id",
+        fields: ["samsara_vehicle_id"],
         where: { samsara_vehicle_id: { [database.Sequelize.Op.ne]: null } },
       },
       {
-        name: 'idx_vehicles_next_maintenance_date',
-        fields: ['next_maintenance_date'],
+        name: "idx_vehicles_next_maintenance_date",
+        fields: ["next_maintenance_date"],
         where: { next_maintenance_date: { [database.Sequelize.Op.ne]: null } },
       },
     ],
@@ -843,7 +874,9 @@ Vehicle.init(
       beforeValidate: async (vehicle: Vehicle) => {
         // Auto-generate vehicle number if not provided
         if (!vehicle.vehicleNumber) {
-          vehicle.vehicleNumber = await Vehicle.generateVehicleNumber(vehicle.vehicleType);
+          vehicle.vehicleNumber = await Vehicle.generateVehicleNumber(
+            vehicle.vehicleType,
+          );
         }
 
         // Normalize VIN and license plate to uppercase
@@ -857,9 +890,12 @@ Vehicle.init(
       beforeUpdate: (vehicle: Vehicle) => {
         // Increment version for optimistic locking
         vehicle.version = (vehicle.version || 1) + 1;
-        
+
         // Update maintenance dates if last maintenance date is updated
-        if (vehicle.changed('lastMaintenanceDate') && vehicle.lastMaintenanceDate) {
+        if (
+          vehicle.changed("lastMaintenanceDate") &&
+          vehicle.lastMaintenanceDate
+        ) {
           const nextMaintenance = new Date(vehicle.lastMaintenanceDate);
           nextMaintenance.setMonth(nextMaintenance.getMonth() + 6); // 6 months default interval
           vehicle.nextMaintenanceDate = nextMaintenance;
@@ -888,10 +924,15 @@ Vehicle.init(
       needingMaintenance: {
         where: {
           nextMaintenanceDate: {
-            [database.Sequelize.Op.lte]: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days
+            [database.Sequelize.Op.lte]: new Date(
+              Date.now() + 7 * 24 * 60 * 60 * 1000,
+            ), // 7 days
           },
           status: {
-            [database.Sequelize.Op.in]: [VehicleStatus.ACTIVE, VehicleStatus.MAINTENANCE],
+            [database.Sequelize.Op.in]: [
+              VehicleStatus.ACTIVE,
+              VehicleStatus.MAINTENANCE,
+            ],
           },
           deletedAt: null,
         },
@@ -919,7 +960,7 @@ Vehicle.init(
         },
       },
     },
-  }
+  },
 );
 
 export default Vehicle;

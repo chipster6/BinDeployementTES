@@ -2,10 +2,10 @@
  * ============================================================================
  * WASTE MANAGEMENT SYSTEM - BIN CONTROLLER
  * ============================================================================
- * 
+ *
  * Bin management controller with comprehensive CRUD operations, IoT integration,
  * fill level monitoring, and service scheduling functionality.
- * 
+ *
  * Features:
  * - Full bin CRUD operations with validation
  * - Fill level monitoring and alerts
@@ -13,19 +13,20 @@
  * - Service scheduling and optimization
  * - Customer assignment and management
  * - Analytics and reporting
- * 
+ *
  * Created by: Backend Recovery Agent
  * Date: 2025-08-10
  * Version: 1.0.0
  */
 
-import { Request, Response } from 'express';
-import { validationResult } from 'express-validator';
-import { logger } from '@/utils/logger';
-import { Bin, BinType, BinStatus, BinMaterial } from '@/models/Bin';
-import { Customer } from '@/models/Customer';
-import { User, UserRole } from '@/models/User';
-import { AuthenticatedRequest } from '@/middleware/auth';
+import { Request, Response } from "express";
+import { validationResult } from "express-validator";
+import { Op } from "sequelize";
+import { logger } from "@/utils/logger";
+import { Bin, BinType, BinStatus, BinMaterial } from "@/models/Bin";
+import { Customer } from "@/models/Customer";
+import { User, UserRole } from "@/models/User";
+import { AuthenticatedRequest } from "@/middleware/auth";
 
 /**
  * Bin Controller Class
@@ -33,18 +34,21 @@ import { AuthenticatedRequest } from '@/middleware/auth';
 export class BinController {
   /**
    * Get all bins with filtering and pagination
-   * 
+   *
    * @route GET /api/v1/bins
    * @access Private (Admin, Dispatcher, Office Staff, Driver)
    */
-  public static async getBins(req: AuthenticatedRequest, res: Response): Promise<void> {
+  public static async getBins(
+    req: AuthenticatedRequest,
+    res: Response,
+  ): Promise<void> {
     try {
       // Check validation results
       const errors = validationResult(req);
       if (!errors.isEmpty()) {
         res.status(400).json({
           success: false,
-          message: 'Validation failed',
+          message: "Validation failed",
           errors: errors.array(),
         });
         return;
@@ -53,17 +57,20 @@ export class BinController {
       const user = req.user;
 
       // Check permissions
-      if (!user.canAccess('bins', 'read')) {
+      if (!user.canAccess("bins", "read")) {
         res.status(403).json({
           success: false,
-          message: 'Insufficient permissions to view bins',
+          message: "Insufficient permissions to view bins",
         });
         return;
       }
 
       // Extract query parameters
       const page = Math.max(1, parseInt(req.query.page as string) || 1);
-      const limit = Math.min(100, Math.max(1, parseInt(req.query.limit as string) || 10));
+      const limit = Math.min(
+        100,
+        Math.max(1, parseInt(req.query.limit as string) || 10),
+      );
       const offset = (page - 1) * limit;
 
       // Filtering parameters
@@ -71,16 +78,18 @@ export class BinController {
       const binType = req.query.binType as BinType;
       const customerId = req.query.customerId as string;
       const search = req.query.search as string;
-      const gpsEnabled = req.query.gpsEnabled === 'true';
-      const sensorEnabled = req.query.sensorEnabled === 'true';
-      const needsService = req.query.needsService === 'true';
-      const overdue = req.query.overdue === 'true';
+      const gpsEnabled = req.query.gpsEnabled === "true";
+      const sensorEnabled = req.query.sensorEnabled === "true";
+      const needsService = req.query.needsService === "true";
+      const overdue = req.query.overdue === "true";
       const fillLevelMin = parseInt(req.query.fillLevelMin as string);
       const fillLevelMax = parseInt(req.query.fillLevelMax as string);
 
       // Sorting parameters
-      const sortBy = req.query.sortBy as string || 'created_at';
-      const sortOrder = (req.query.sortOrder as string || 'DESC').toUpperCase();
+      const sortBy = (req.query.sortBy as string) || "created_at";
+      const sortOrder = (
+        (req.query.sortOrder as string) || "DESC"
+      ).toUpperCase();
 
       // Build where clause
       const whereClause: any = {
@@ -96,30 +105,34 @@ export class BinController {
       // Fill level filtering
       if (!isNaN(fillLevelMin) || !isNaN(fillLevelMax)) {
         whereClause.fillLevelPercent = {};
-        if (!isNaN(fillLevelMin)) whereClause.fillLevelPercent[Bin.sequelize?.Op.gte || '$gte'] = fillLevelMin;
-        if (!isNaN(fillLevelMax)) whereClause.fillLevelPercent[Bin.sequelize?.Op.lte || '$lte'] = fillLevelMax;
+        if (!isNaN(fillLevelMin))
+          whereClause.fillLevelPercent[Op.gte] = fillLevelMin;
+        if (!isNaN(fillLevelMax))
+          whereClause.fillLevelPercent[Op.lte] = fillLevelMax;
       }
 
       // Service needs filtering
       if (needsService) {
         whereClause.fillLevelPercent = {
-          [Bin.sequelize?.Op.gte || '$gte']: 80,
+          [Op.gte]: 80,
         };
       }
 
       // Overdue filtering
       if (overdue) {
         whereClause.nextServiceDate = {
-          [Bin.sequelize?.Op.lt || '$lt']: new Date(),
+          [Op.lt]: new Date(),
         };
       }
 
       // Search functionality
       if (search) {
-        whereClause[Bin.sequelize?.Op.or || '$or'] = [
-          { binNumber: { [Bin.sequelize?.Op.iLike || '$iLike']: `%${search}%` } },
-          { size: { [Bin.sequelize?.Op.iLike || '$iLike']: `%${search}%` } },
-          { color: { [Bin.sequelize?.Op.iLike || '$iLike']: `%${search}%` } },
+        whereClause[Op.or] = [
+          {
+            binNumber: { [Op.iLike]: `%${search}%` },
+          },
+          { size: { [Op.iLike]: `%${search}%` } },
+          { color: { [Op.iLike]: `%${search}%` } },
         ];
       }
 
@@ -129,19 +142,19 @@ export class BinController {
         include: [
           {
             model: Customer,
-            as: 'customer',
-            attributes: ['id', 'customerNumber', 'organizationId'],
+            as: "customer",
+            attributes: ["id", "customerNumber", "organizationId"],
             include: [
               {
-                association: 'organization',
-                attributes: ['id', 'name', 'displayName'],
+                association: "organization",
+                attributes: ["id", "name", "displayName"],
               },
             ],
           },
           {
             model: User,
-            as: 'createdByUser',
-            attributes: ['id', 'firstName', 'lastName', 'email'],
+            as: "createdByUser",
+            attributes: ["id", "firstName", "lastName", "email"],
           },
         ],
         order: [[sortBy, sortOrder]],
@@ -150,7 +163,7 @@ export class BinController {
       });
 
       // Log access
-      logger.info('Bins retrieved', {
+      logger.info("Bins retrieved", {
         userId: user.id,
         totalBins,
         filters: { status, binType, customerId, search },
@@ -159,7 +172,7 @@ export class BinController {
 
       res.status(200).json({
         success: true,
-        message: 'Bins retrieved successfully',
+        message: "Bins retrieved successfully",
         data: {
           bins,
           pagination: {
@@ -177,37 +190,44 @@ export class BinController {
             sensorEnabled,
             needsService,
             overdue,
-            fillLevelRange: !isNaN(fillLevelMin) || !isNaN(fillLevelMax) ? {
-              min: fillLevelMin,
-              max: fillLevelMax,
-            } : null,
+            fillLevelRange:
+              !isNaN(fillLevelMin) || !isNaN(fillLevelMax)
+                ? {
+                    min: fillLevelMin,
+                    max: fillLevelMax,
+                  }
+                : null,
           },
         },
       });
     } catch (error: any) {
-      logger.error('Error retrieving bins:', error);
+      logger.error("Error retrieving bins:", error);
       res.status(500).json({
         success: false,
-        message: 'Internal server error while retrieving bins',
-        error: process.env.NODE_ENV === 'development' ? error.message : undefined,
+        message: "Internal server error while retrieving bins",
+        error:
+          process.env.NODE_ENV === "development" ? error.message : undefined,
       });
     }
   }
 
   /**
    * Create new bin
-   * 
+   *
    * @route POST /api/v1/bins
    * @access Private (Admin, Office Staff)
    */
-  public static async createBin(req: AuthenticatedRequest, res: Response): Promise<void> {
+  public static async createBin(
+    req: AuthenticatedRequest,
+    res: Response,
+  ): Promise<void> {
     try {
       // Check validation results
       const errors = validationResult(req);
       if (!errors.isEmpty()) {
         res.status(400).json({
           success: false,
-          message: 'Validation failed',
+          message: "Validation failed",
           errors: errors.array(),
         });
         return;
@@ -216,10 +236,10 @@ export class BinController {
       const user = req.user;
 
       // Check permissions
-      if (!user.canAccess('bins', 'create')) {
+      if (!user.canAccess("bins", "create")) {
         res.status(403).json({
           success: false,
-          message: 'Insufficient permissions to create bins',
+          message: "Insufficient permissions to create bins",
         });
         return;
       }
@@ -243,7 +263,7 @@ export class BinController {
       if (!customer) {
         res.status(400).json({
           success: false,
-          message: 'Customer not found',
+          message: "Customer not found",
         });
         return;
       }
@@ -254,7 +274,7 @@ export class BinController {
         if (existingBin) {
           res.status(400).json({
             success: false,
-            message: 'Bin number is already in use',
+            message: "Bin number is already in use",
           });
           return;
         }
@@ -262,7 +282,8 @@ export class BinController {
 
       // Create bin
       const bin = await Bin.create({
-        binNumber: binNumber || await Bin.generateBinNumber(binType, customerId),
+        binNumber:
+          binNumber || (await Bin.generateBinNumber(binType, customerId)),
         customerId,
         binType,
         size,
@@ -282,18 +303,18 @@ export class BinController {
         include: [
           {
             model: Customer,
-            as: 'customer',
-            include: [{ association: 'organization' }],
+            as: "customer",
+            include: [{ association: "organization" }],
           },
           {
             model: User,
-            as: 'createdByUser',
-            attributes: ['id', 'firstName', 'lastName'],
+            as: "createdByUser",
+            attributes: ["id", "firstName", "lastName"],
           },
         ],
       });
 
-      logger.info('Bin created successfully', {
+      logger.info("Bin created successfully", {
         binId: bin.id,
         binNumber: bin.binNumber,
         customerId,
@@ -303,18 +324,18 @@ export class BinController {
 
       res.status(201).json({
         success: true,
-        message: 'Bin created successfully',
+        message: "Bin created successfully",
         data: {
           bin: createdBin,
         },
       });
     } catch (error: any) {
-      logger.error('Error creating bin:', error);
-      
-      if (error.name === 'SequelizeValidationError') {
+      logger.error("Error creating bin:", error);
+
+      if (error.name === "SequelizeValidationError") {
         res.status(400).json({
           success: false,
-          message: 'Validation error',
+          message: "Validation error",
           errors: error.errors.map((e: any) => ({
             field: e.path,
             message: e.message,
@@ -323,38 +344,42 @@ export class BinController {
         return;
       }
 
-      if (error.name === 'SequelizeUniqueConstraintError') {
+      if (error.name === "SequelizeUniqueConstraintError") {
         res.status(409).json({
           success: false,
-          message: 'Bin number must be unique',
+          message: "Bin number must be unique",
         });
         return;
       }
 
       res.status(500).json({
         success: false,
-        message: 'Internal server error while creating bin',
-        error: process.env.NODE_ENV === 'development' ? error.message : undefined,
+        message: "Internal server error while creating bin",
+        error:
+          process.env.NODE_ENV === "development" ? error.message : undefined,
       });
     }
   }
 
   /**
    * Get bin by ID
-   * 
+   *
    * @route GET /api/v1/bins/:id
    * @access Private (Admin, Office Staff, Dispatcher, Driver, Customer owns)
    */
-  public static async getBinById(req: AuthenticatedRequest, res: Response): Promise<void> {
+  public static async getBinById(
+    req: AuthenticatedRequest,
+    res: Response,
+  ): Promise<void> {
     try {
       const user = req.user;
       const { id } = req.params;
 
       // Check permissions
-      if (!user.canAccess('bins', 'read')) {
+      if (!user.canAccess("bins", "read")) {
         res.status(403).json({
           success: false,
-          message: 'Insufficient permissions to view bin details',
+          message: "Insufficient permissions to view bin details",
         });
         return;
       }
@@ -363,18 +388,18 @@ export class BinController {
         include: [
           {
             model: Customer,
-            as: 'customer',
-            include: [{ association: 'organization' }],
+            as: "customer",
+            include: [{ association: "organization" }],
           },
           {
             model: User,
-            as: 'createdByUser',
-            attributes: ['id', 'firstName', 'lastName', 'email'],
+            as: "createdByUser",
+            attributes: ["id", "firstName", "lastName", "email"],
           },
           {
             model: User,
-            as: 'updatedByUser',
-            attributes: ['id', 'firstName', 'lastName', 'email'],
+            as: "updatedByUser",
+            attributes: ["id", "firstName", "lastName", "email"],
           },
         ],
       });
@@ -382,13 +407,16 @@ export class BinController {
       if (!bin) {
         res.status(404).json({
           success: false,
-          message: 'Bin not found',
+          message: "Bin not found",
         });
         return;
       }
 
       // Additional authorization for customer users
-      if (user.role === UserRole.CUSTOMER || user.role === UserRole.CUSTOMER_STAFF) {
+      if (
+        user.role === UserRole.CUSTOMER ||
+        user.role === UserRole.CUSTOMER_STAFF
+      ) {
         // TODO: Implement customer ownership validation
         // For now, allow all customer users to view bins
       }
@@ -416,7 +444,7 @@ export class BinController {
         },
       };
 
-      logger.info('Bin retrieved by ID', {
+      logger.info("Bin retrieved by ID", {
         binId: id,
         userId: user.id,
         binNumber: bin.binNumber,
@@ -424,35 +452,39 @@ export class BinController {
 
       res.status(200).json({
         success: true,
-        message: 'Bin retrieved successfully',
+        message: "Bin retrieved successfully",
         data: {
           bin: binData,
         },
       });
     } catch (error: any) {
-      logger.error('Error retrieving bin by ID:', error);
+      logger.error("Error retrieving bin by ID:", error);
       res.status(500).json({
         success: false,
-        message: 'Internal server error while retrieving bin',
-        error: process.env.NODE_ENV === 'development' ? error.message : undefined,
+        message: "Internal server error while retrieving bin",
+        error:
+          process.env.NODE_ENV === "development" ? error.message : undefined,
       });
     }
   }
 
   /**
    * Update bin information
-   * 
+   *
    * @route PUT /api/v1/bins/:id
    * @access Private (Admin, Office Staff)
    */
-  public static async updateBin(req: AuthenticatedRequest, res: Response): Promise<void> {
+  public static async updateBin(
+    req: AuthenticatedRequest,
+    res: Response,
+  ): Promise<void> {
     try {
       // Check validation results
       const errors = validationResult(req);
       if (!errors.isEmpty()) {
         res.status(400).json({
           success: false,
-          message: 'Validation failed',
+          message: "Validation failed",
           errors: errors.array(),
         });
         return;
@@ -462,10 +494,10 @@ export class BinController {
       const { id } = req.params;
 
       // Check permissions
-      if (!user.canAccess('bins', 'update')) {
+      if (!user.canAccess("bins", "update")) {
         res.status(403).json({
           success: false,
-          message: 'Insufficient permissions to update bins',
+          message: "Insufficient permissions to update bins",
         });
         return;
       }
@@ -474,7 +506,7 @@ export class BinController {
       if (!bin) {
         res.status(404).json({
           success: false,
-          message: 'Bin not found',
+          message: "Bin not found",
         });
         return;
       }
@@ -503,7 +535,7 @@ export class BinController {
         if (existingBin) {
           res.status(400).json({
             success: false,
-            message: 'Bin number is already in use',
+            message: "Bin number is already in use",
           });
           return;
         }
@@ -515,7 +547,7 @@ export class BinController {
         if (!customer) {
           res.status(400).json({
             success: false,
-            message: 'Customer not found',
+            message: "Customer not found",
           });
           return;
         }
@@ -554,18 +586,18 @@ export class BinController {
         include: [
           {
             model: Customer,
-            as: 'customer',
-            include: [{ association: 'organization' }],
+            as: "customer",
+            include: [{ association: "organization" }],
           },
           {
             model: User,
-            as: 'updatedByUser',
-            attributes: ['id', 'firstName', 'lastName'],
+            as: "updatedByUser",
+            attributes: ["id", "firstName", "lastName"],
           },
         ],
       });
 
-      logger.info('Bin updated successfully', {
+      logger.info("Bin updated successfully", {
         binId: bin.id,
         binNumber: bin.binNumber,
         updatedBy: user.id,
@@ -574,18 +606,18 @@ export class BinController {
 
       res.status(200).json({
         success: true,
-        message: 'Bin updated successfully',
+        message: "Bin updated successfully",
         data: {
           bin: updatedBin,
         },
       });
     } catch (error: any) {
-      logger.error('Error updating bin:', error);
-      
-      if (error.name === 'SequelizeValidationError') {
+      logger.error("Error updating bin:", error);
+
+      if (error.name === "SequelizeValidationError") {
         res.status(400).json({
           success: false,
-          message: 'Validation error',
+          message: "Validation error",
           errors: error.errors.map((e: any) => ({
             field: e.path,
             message: e.message,
@@ -596,28 +628,32 @@ export class BinController {
 
       res.status(500).json({
         success: false,
-        message: 'Internal server error while updating bin',
-        error: process.env.NODE_ENV === 'development' ? error.message : undefined,
+        message: "Internal server error while updating bin",
+        error:
+          process.env.NODE_ENV === "development" ? error.message : undefined,
       });
     }
   }
 
   /**
    * Delete bin (soft delete)
-   * 
+   *
    * @route DELETE /api/v1/bins/:id
    * @access Private (Admin only)
    */
-  public static async deleteBin(req: AuthenticatedRequest, res: Response): Promise<void> {
+  public static async deleteBin(
+    req: AuthenticatedRequest,
+    res: Response,
+  ): Promise<void> {
     try {
       const user = req.user;
       const { id } = req.params;
 
       // Check permissions (only admins can delete bins)
-      if (!user.canAccess('bins', 'delete')) {
+      if (!user.canAccess("bins", "delete")) {
         res.status(403).json({
           success: false,
-          message: 'Insufficient permissions to delete bins',
+          message: "Insufficient permissions to delete bins",
         });
         return;
       }
@@ -626,7 +662,7 @@ export class BinController {
       if (!bin) {
         res.status(404).json({
           success: false,
-          message: 'Bin not found',
+          message: "Bin not found",
         });
         return;
       }
@@ -637,7 +673,7 @@ export class BinController {
         deletedBy: user.id,
       });
 
-      logger.warn('Bin deleted', {
+      logger.warn("Bin deleted", {
         binId: bin.id,
         binNumber: bin.binNumber,
         deletedBy: user.id,
@@ -645,7 +681,7 @@ export class BinController {
 
       res.status(200).json({
         success: true,
-        message: 'Bin deleted successfully',
+        message: "Bin deleted successfully",
         data: {
           binId: bin.id,
           binNumber: bin.binNumber,
@@ -653,44 +689,51 @@ export class BinController {
         },
       });
     } catch (error: any) {
-      logger.error('Error deleting bin:', error);
+      logger.error("Error deleting bin:", error);
       res.status(500).json({
         success: false,
-        message: 'Internal server error while deleting bin',
-        error: process.env.NODE_ENV === 'development' ? error.message : undefined,
+        message: "Internal server error while deleting bin",
+        error:
+          process.env.NODE_ENV === "development" ? error.message : undefined,
       });
     }
   }
 
   /**
    * Get bins by customer
-   * 
+   *
    * @route GET /api/v1/bins/customer/:customerId
    * @access Private (Admin, Office Staff, Customer owns)
    */
-  public static async getBinsByCustomer(req: AuthenticatedRequest, res: Response): Promise<void> {
+  public static async getBinsByCustomer(
+    req: AuthenticatedRequest,
+    res: Response,
+  ): Promise<void> {
     try {
       const user = req.user;
       const { customerId } = req.params;
 
       // Check permissions
-      if (!user.canAccess('bins', 'read')) {
+      if (!user.canAccess("bins", "read")) {
         res.status(403).json({
           success: false,
-          message: 'Insufficient permissions to view customer bins',
+          message: "Insufficient permissions to view customer bins",
         });
         return;
       }
 
       // Additional authorization for customer users
-      if (user.role === UserRole.CUSTOMER || user.role === UserRole.CUSTOMER_STAFF) {
+      if (
+        user.role === UserRole.CUSTOMER ||
+        user.role === UserRole.CUSTOMER_STAFF
+      ) {
         // TODO: Validate that the user belongs to the customer organization
         // For now, allow access
       }
 
       const bins = await Bin.findByCustomer(customerId);
 
-      logger.info('Customer bins retrieved', {
+      logger.info("Customer bins retrieved", {
         customerId,
         userId: user.id,
         binCount: bins.length,
@@ -698,39 +741,44 @@ export class BinController {
 
       res.status(200).json({
         success: true,
-        message: 'Customer bins retrieved successfully',
+        message: "Customer bins retrieved successfully",
         data: {
           customerId,
           bins,
           totalBins: bins.length,
-          activeBins: bins.filter(bin => bin.status === BinStatus.ACTIVE).length,
-          smartBins: bins.filter(bin => bin.isSmartBin()).length,
+          activeBins: bins.filter((bin) => bin.status === BinStatus.ACTIVE)
+            .length,
+          smartBins: bins.filter((bin) => bin.isSmartBin()).length,
         },
       });
     } catch (error: any) {
-      logger.error('Error retrieving customer bins:', error);
+      logger.error("Error retrieving customer bins:", error);
       res.status(500).json({
         success: false,
-        message: 'Internal server error while retrieving customer bins',
-        error: process.env.NODE_ENV === 'development' ? error.message : undefined,
+        message: "Internal server error while retrieving customer bins",
+        error:
+          process.env.NODE_ENV === "development" ? error.message : undefined,
       });
     }
   }
 
   /**
    * Update bin fill level (typically called by IoT sensors)
-   * 
+   *
    * @route PUT /api/v1/bins/:id/fill-level
    * @access Private (Admin, Office Staff, System)
    */
-  public static async updateFillLevel(req: AuthenticatedRequest, res: Response): Promise<void> {
+  public static async updateFillLevel(
+    req: AuthenticatedRequest,
+    res: Response,
+  ): Promise<void> {
     try {
       // Check validation results
       const errors = validationResult(req);
       if (!errors.isEmpty()) {
         res.status(400).json({
           success: false,
-          message: 'Validation failed',
+          message: "Validation failed",
           errors: errors.array(),
         });
         return;
@@ -741,10 +789,10 @@ export class BinController {
       const { fillLevelPercent } = req.body;
 
       // Check permissions
-      if (!user.canAccess('bins', 'update')) {
+      if (!user.canAccess("bins", "update")) {
         res.status(403).json({
           success: false,
-          message: 'Insufficient permissions to update bin fill level',
+          message: "Insufficient permissions to update bin fill level",
         });
         return;
       }
@@ -753,13 +801,13 @@ export class BinController {
       if (!bin) {
         res.status(404).json({
           success: false,
-          message: 'Bin not found',
+          message: "Bin not found",
         });
         return;
       }
 
       const previousFillLevel = bin.fillLevelPercent;
-      
+
       // Update fill level
       await bin.update({
         fillLevelPercent,
@@ -770,7 +818,7 @@ export class BinController {
       const needsService = bin.needsService();
       const fillLevelStatus = bin.getFillLevelStatus();
 
-      logger.info('Bin fill level updated', {
+      logger.info("Bin fill level updated", {
         binId: bin.id,
         binNumber: bin.binNumber,
         previousFillLevel,
@@ -781,7 +829,7 @@ export class BinController {
 
       res.status(200).json({
         success: true,
-        message: 'Bin fill level updated successfully',
+        message: "Bin fill level updated successfully",
         data: {
           binId: bin.id,
           binNumber: bin.binNumber,
@@ -792,30 +840,34 @@ export class BinController {
         },
       });
     } catch (error: any) {
-      logger.error('Error updating bin fill level:', error);
+      logger.error("Error updating bin fill level:", error);
       res.status(500).json({
         success: false,
-        message: 'Internal server error while updating fill level',
-        error: process.env.NODE_ENV === 'development' ? error.message : undefined,
+        message: "Internal server error while updating fill level",
+        error:
+          process.env.NODE_ENV === "development" ? error.message : undefined,
       });
     }
   }
 
   /**
    * Get bin statistics and analytics
-   * 
+   *
    * @route GET /api/v1/bins/analytics/overview
    * @access Private (Admin, Office Staff, Dispatcher)
    */
-  public static async getBinAnalytics(req: AuthenticatedRequest, res: Response): Promise<void> {
+  public static async getBinAnalytics(
+    req: AuthenticatedRequest,
+    res: Response,
+  ): Promise<void> {
     try {
       const user = req.user;
 
       // Check permissions
-      if (!user.canAccess('analytics', 'read')) {
+      if (!user.canAccess("analytics", "read")) {
         res.status(403).json({
           success: false,
-          message: 'Insufficient permissions to view bin analytics',
+          message: "Insufficient permissions to view bin analytics",
         });
         return;
       }
@@ -830,18 +882,18 @@ export class BinController {
       ] = await Promise.all([
         Bin.getBinStatistics(),
         Bin.getFillLevelDistribution(),
-        Bin.findOverdue().then(bins => bins.length),
-        Bin.findSmartBins().then(bins => bins.length),
-        Bin.getBinsDueForReplacement().then(bins => bins.length),
+        Bin.findOverdue().then((bins) => bins.length),
+        Bin.findSmartBins().then((bins) => bins.length),
+        Bin.getBinsDueForReplacement().then((bins) => bins.length),
       ]);
 
-      logger.info('Bin analytics retrieved', {
+      logger.info("Bin analytics retrieved", {
         userId: user.id,
       });
 
       res.status(200).json({
         success: true,
-        message: 'Bin analytics retrieved successfully',
+        message: "Bin analytics retrieved successfully",
         data: {
           overview: binStats,
           fillLevelDistribution,
@@ -851,18 +903,20 @@ export class BinController {
           },
           smartBins: {
             total: smartBinCount,
-            percentage: binStats.smartBins?.totalBins ? 
-              Math.round((smartBinCount / binStats.smartBins.totalBins) * 100) : 0,
+            percentage: binStats.smartBins?.totalBins
+              ? Math.round((smartBinCount / binStats.smartBins.totalBins) * 100)
+              : 0,
           },
           lastUpdated: new Date().toISOString(),
         },
       });
     } catch (error: any) {
-      logger.error('Error retrieving bin analytics:', error);
+      logger.error("Error retrieving bin analytics:", error);
       res.status(500).json({
         success: false,
-        message: 'Internal server error while retrieving analytics',
-        error: process.env.NODE_ENV === 'development' ? error.message : undefined,
+        message: "Internal server error while retrieving analytics",
+        error:
+          process.env.NODE_ENV === "development" ? error.message : undefined,
       });
     }
   }

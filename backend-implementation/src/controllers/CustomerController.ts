@@ -2,22 +2,29 @@
  * ============================================================================
  * WASTE MANAGEMENT SYSTEM - CUSTOMER CONTROLLER
  * ============================================================================
- * 
+ *
  * Handles customer management operations including CRUD, service configuration,
  * billing management, and service scheduling with proper authorization.
- * 
+ *
  * Created by: Backend Recovery Agent
  * Date: 2025-08-10
  * Version: 1.0.0
  */
 
-import { Request, Response } from 'express';
-import { validationResult } from 'express-validator';
-import { Customer, CustomerModel, CustomerStatus, ServiceFrequency, PaymentTerms } from '@/models/Customer';
-import { Organization } from '@/models/Organization';
-import { UserModel } from '@/models/User';
-import { logger } from '@/utils/logger';
-import { withTransaction } from '@/config/database';
+import { Request, Response } from "express";
+import { validationResult } from "express-validator";
+import { Op } from "sequelize";
+import {
+  Customer,
+  CustomerModel,
+  CustomerStatus,
+  ServiceFrequency,
+  PaymentTerms,
+} from "@/models/Customer";
+import { Organization } from "@/models/Organization";
+import { UserModel } from "@/models/User";
+import { logger } from "@/utils/logger";
+import { withTransaction } from "@/config/database";
 
 /**
  * Customer query interface for filtering
@@ -30,7 +37,7 @@ interface CustomerQuery {
   search?: string;
   accountManager?: string;
   sortBy?: string;
-  sortOrder?: 'ASC' | 'DESC';
+  sortOrder?: "ASC" | "DESC";
 }
 
 /**
@@ -43,12 +50,12 @@ export class CustomerController {
   static async getCustomers(req: Request, res: Response): Promise<void> {
     try {
       const currentUser = (req as any).user as UserModel;
-      
+
       // Check permission
-      if (!currentUser.canAccess('customers', 'read')) {
+      if (!currentUser.canAccess("customers", "read")) {
         res.status(403).json({
           success: false,
-          message: 'Insufficient permissions to view customers',
+          message: "Insufficient permissions to view customers",
         });
         return;
       }
@@ -61,8 +68,8 @@ export class CustomerController {
         frequency,
         search,
         accountManager,
-        sortBy = 'created_at',
-        sortOrder = 'DESC'
+        sortBy = "created_at",
+        sortOrder = "DESC",
       } = req.query as any;
 
       const offset = (Number(page) - 1) * Number(limit);
@@ -88,18 +95,28 @@ export class CustomerController {
       const includeClause = [
         {
           model: Organization,
-          as: 'organization',
-          attributes: ['id', 'name', 'legal_name', 'type', 'status'],
+          as: "organization",
+          attributes: ["id", "name", "legal_name", "type", "status"],
         },
       ];
 
       // Search across customer and organization
       if (search) {
         const searchPattern = `%${search}%`;
-        whereClause[Customer.sequelize!.Op.or] = [
-          { customer_number: { [Customer.sequelize!.Op.iLike]: searchPattern } },
-          { '$organization.name$': { [Customer.sequelize!.Op.iLike]: searchPattern } },
-          { '$organization.legal_name$': { [Customer.sequelize!.Op.iLike]: searchPattern } },
+        whereClause[Op.or] = [
+          {
+            customer_number: { [Op.iLike]: searchPattern },
+          },
+          {
+            "$organization.name$": {
+              [Op.iLike]: searchPattern,
+            },
+          },
+          {
+            "$organization.legal_name$": {
+              [Op.iLike]: searchPattern,
+            },
+          },
         ];
       }
 
@@ -121,9 +138,11 @@ export class CustomerController {
       res.status(200).json({
         success: true,
         data: {
-          customers: customers.map(customer => ({
+          customers: customers.map((customer) => ({
             ...customer.toSafeJSON(),
-            organization: (customer as any).organization?.toSafeJSON?.() || (customer as any).organization,
+            organization:
+              (customer as any).organization?.toSafeJSON?.() ||
+              (customer as any).organization,
           })),
           pagination: {
             currentPage: Number(page),
@@ -136,10 +155,10 @@ export class CustomerController {
         },
       });
     } catch (error) {
-      logger.error('Get customers failed:', error);
+      logger.error("Get customers failed:", error);
       res.status(500).json({
         success: false,
-        message: 'Internal server error',
+        message: "Internal server error",
       });
     }
   }
@@ -153,10 +172,10 @@ export class CustomerController {
       const { id } = req.params;
 
       // Check permission
-      if (!currentUser.canAccess('customers', 'read')) {
+      if (!currentUser.canAccess("customers", "read")) {
         res.status(403).json({
           success: false,
-          message: 'Insufficient permissions to view customer',
+          message: "Insufficient permissions to view customer",
         });
         return;
       }
@@ -165,7 +184,7 @@ export class CustomerController {
         include: [
           {
             model: Organization,
-            as: 'organization',
+            as: "organization",
           },
         ],
       });
@@ -173,7 +192,7 @@ export class CustomerController {
       if (!customer || customer.deleted_at) {
         res.status(404).json({
           success: false,
-          message: 'Customer not found',
+          message: "Customer not found",
         });
         return;
       }
@@ -183,15 +202,17 @@ export class CustomerController {
         data: {
           customer: {
             ...customer.toSafeJSON(),
-            organization: (customer as any).organization?.toSafeJSON?.() || (customer as any).organization,
+            organization:
+              (customer as any).organization?.toSafeJSON?.() ||
+              (customer as any).organization,
           },
         },
       });
     } catch (error) {
-      logger.error('Get customer by ID failed:', error);
+      logger.error("Get customer by ID failed:", error);
       res.status(500).json({
         success: false,
-        message: 'Internal server error',
+        message: "Internal server error",
       });
     }
   }
@@ -204,10 +225,10 @@ export class CustomerController {
       const currentUser = (req as any).user as UserModel;
 
       // Check permission
-      if (!currentUser.canAccess('customers', 'create')) {
+      if (!currentUser.canAccess("customers", "create")) {
         res.status(403).json({
           success: false,
-          message: 'Insufficient permissions to create customers',
+          message: "Insufficient permissions to create customers",
         });
         return;
       }
@@ -217,7 +238,7 @@ export class CustomerController {
       if (!errors.isEmpty()) {
         res.status(400).json({
           success: false,
-          message: 'Validation failed',
+          message: "Validation failed",
           errors: errors.array(),
         });
         return;
@@ -238,10 +259,10 @@ export class CustomerController {
 
       // Verify organization exists
       const organization = await Organization.findByPk(organizationId);
-      if (!organization || organization.deleted_at) {
+      if (!organization || organization.deletedAt) {
         res.status(404).json({
           success: false,
-          message: 'Organization not found',
+          message: "Organization not found",
         });
         return;
       }
@@ -257,7 +278,7 @@ export class CustomerController {
       if (existingCustomer) {
         res.status(409).json({
           success: false,
-          message: 'Customer already exists for this organization',
+          message: "Customer already exists for this organization",
         });
         return;
       }
@@ -269,7 +290,9 @@ export class CustomerController {
           service_config: serviceConfig,
           billing_method: billingMethod,
           payment_terms: paymentTerms,
-          service_start_date: serviceStartDate ? new Date(serviceStartDate) : undefined,
+          service_start_date: serviceStartDate
+            ? new Date(serviceStartDate)
+            : undefined,
           rates,
           account_manager_id: accountManagerId,
           created_by: currentUser.id,
@@ -280,7 +303,7 @@ export class CustomerController {
       if (serviceEndDate) customer.service_end_date = new Date(serviceEndDate);
       if (primaryDriverId) customer.primary_driver_id = primaryDriverId;
       if (billingContactId) customer.billing_contact_id = billingContactId;
-      
+
       await customer.save();
 
       // Fetch customer with organization for response
@@ -288,12 +311,12 @@ export class CustomerController {
         include: [
           {
             model: Organization,
-            as: 'organization',
+            as: "organization",
           },
         ],
       });
 
-      logger.info('Customer created successfully', {
+      logger.info("Customer created successfully", {
         customerId: customer.id,
         customerNumber: customer.customer_number,
         organizationId: organizationId,
@@ -302,19 +325,21 @@ export class CustomerController {
 
       res.status(201).json({
         success: true,
-        message: 'Customer created successfully',
+        message: "Customer created successfully",
         data: {
           customer: {
             ...customerWithOrg!.toSafeJSON(),
-            organization: (customerWithOrg as any)?.organization?.toSafeJSON?.() || (customerWithOrg as any)?.organization,
+            organization:
+              (customerWithOrg as any)?.organization?.toSafeJSON?.() ||
+              (customerWithOrg as any)?.organization,
           },
         },
       });
     } catch (error) {
-      logger.error('Create customer failed:', error);
+      logger.error("Create customer failed:", error);
       res.status(500).json({
         success: false,
-        message: 'Internal server error',
+        message: "Internal server error",
       });
     }
   }
@@ -328,10 +353,10 @@ export class CustomerController {
       const { id } = req.params;
 
       // Check permission
-      if (!currentUser.canAccess('customers', 'update')) {
+      if (!currentUser.canAccess("customers", "update")) {
         res.status(403).json({
           success: false,
-          message: 'Insufficient permissions to update customer',
+          message: "Insufficient permissions to update customer",
         });
         return;
       }
@@ -341,7 +366,7 @@ export class CustomerController {
       if (!errors.isEmpty()) {
         res.status(400).json({
           success: false,
-          message: 'Validation failed',
+          message: "Validation failed",
           errors: errors.array(),
         });
         return;
@@ -351,7 +376,7 @@ export class CustomerController {
       if (!customer || customer.deleted_at) {
         res.status(404).json({
           success: false,
-          message: 'Customer not found',
+          message: "Customer not found",
         });
         return;
       }
@@ -375,21 +400,30 @@ export class CustomerController {
       if (billingMethod) customer.billing_method = billingMethod;
       if (paymentTerms) customer.payment_terms = paymentTerms;
       if (serviceStartDate !== undefined) {
-        customer.service_start_date = serviceStartDate ? new Date(serviceStartDate) : null;
+        customer.service_start_date = serviceStartDate
+          ? new Date(serviceStartDate)
+          : null;
       }
       if (serviceEndDate !== undefined) {
-        customer.service_end_date = serviceEndDate ? new Date(serviceEndDate) : null;
+        customer.service_end_date = serviceEndDate
+          ? new Date(serviceEndDate)
+          : null;
       }
-      if (accountManagerId !== undefined) customer.account_manager_id = accountManagerId;
-      if (primaryDriverId !== undefined) customer.primary_driver_id = primaryDriverId;
-      if (billingContactId !== undefined) customer.billing_contact_id = billingContactId;
+      if (accountManagerId !== undefined)
+        customer.account_manager_id = accountManagerId;
+      if (primaryDriverId !== undefined)
+        customer.primary_driver_id = primaryDriverId;
+      if (billingContactId !== undefined)
+        customer.billing_contact_id = billingContactId;
 
       // Update rates
       if (rates) {
         if (rates.base !== undefined) customer.base_rate = rates.base;
         if (rates.service !== undefined) customer.service_rate = rates.service;
-        if (rates.container !== undefined) customer.container_rate = rates.container;
-        if (rates.fuelSurcharge !== undefined) customer.fuel_surcharge = rates.fuelSurcharge;
+        if (rates.container !== undefined)
+          customer.container_rate = rates.container;
+        if (rates.fuelSurcharge !== undefined)
+          customer.fuel_surcharge = rates.fuelSurcharge;
       }
 
       customer.updated_by = currentUser.id;
@@ -400,12 +434,12 @@ export class CustomerController {
         include: [
           {
             model: Organization,
-            as: 'organization',
+            as: "organization",
           },
         ],
       });
 
-      logger.info('Customer updated successfully', {
+      logger.info("Customer updated successfully", {
         customerId: customer.id,
         customerNumber: customer.customer_number,
         updatedBy: currentUser.id,
@@ -413,19 +447,21 @@ export class CustomerController {
 
       res.status(200).json({
         success: true,
-        message: 'Customer updated successfully',
+        message: "Customer updated successfully",
         data: {
           customer: {
             ...updatedCustomer!.toSafeJSON(),
-            organization: (updatedCustomer as any)?.organization?.toSafeJSON?.() || (updatedCustomer as any)?.organization,
+            organization:
+              (updatedCustomer as any)?.organization?.toSafeJSON?.() ||
+              (updatedCustomer as any)?.organization,
           },
         },
       });
     } catch (error) {
-      logger.error('Update customer failed:', error);
+      logger.error("Update customer failed:", error);
       res.status(500).json({
         success: false,
-        message: 'Internal server error',
+        message: "Internal server error",
       });
     }
   }
@@ -439,10 +475,10 @@ export class CustomerController {
       const { id } = req.params;
 
       // Check permission
-      if (!currentUser.canAccess('customers', 'delete')) {
+      if (!currentUser.canAccess("customers", "delete")) {
         res.status(403).json({
           success: false,
-          message: 'Insufficient permissions to delete customer',
+          message: "Insufficient permissions to delete customer",
         });
         return;
       }
@@ -451,7 +487,7 @@ export class CustomerController {
       if (!customer || customer.deleted_at) {
         res.status(404).json({
           success: false,
-          message: 'Customer not found',
+          message: "Customer not found",
         });
         return;
       }
@@ -461,7 +497,7 @@ export class CustomerController {
       if (hasActiveServices) {
         res.status(400).json({
           success: false,
-          message: 'Cannot delete customer with active services',
+          message: "Cannot delete customer with active services",
         });
         return;
       }
@@ -470,7 +506,7 @@ export class CustomerController {
       customer.deleted_by = currentUser.id;
       await customer.destroy(); // This triggers soft delete due to paranoid: true
 
-      logger.info('Customer deleted successfully', {
+      logger.info("Customer deleted successfully", {
         customerId: customer.id,
         customerNumber: customer.customer_number,
         deletedBy: currentUser.id,
@@ -478,13 +514,13 @@ export class CustomerController {
 
       res.status(200).json({
         success: true,
-        message: 'Customer deleted successfully',
+        message: "Customer deleted successfully",
       });
     } catch (error) {
-      logger.error('Delete customer failed:', error);
+      logger.error("Delete customer failed:", error);
       res.status(500).json({
         success: false,
-        message: 'Internal server error',
+        message: "Internal server error",
       });
     }
   }
@@ -492,16 +528,19 @@ export class CustomerController {
   /**
    * Get customers by status
    */
-  static async getCustomersByStatus(req: Request, res: Response): Promise<void> {
+  static async getCustomersByStatus(
+    req: Request,
+    res: Response,
+  ): Promise<void> {
     try {
       const currentUser = (req as any).user as UserModel;
       const { status } = req.params;
 
       // Check permission
-      if (!currentUser.canAccess('customers', 'read')) {
+      if (!currentUser.canAccess("customers", "read")) {
         res.status(403).json({
           success: false,
-          message: 'Insufficient permissions to view customers',
+          message: "Insufficient permissions to view customers",
         });
         return;
       }
@@ -510,7 +549,7 @@ export class CustomerController {
       if (!Object.values(CustomerStatus).includes(status as CustomerStatus)) {
         res.status(400).json({
           success: false,
-          message: 'Invalid status specified',
+          message: "Invalid status specified",
         });
         return;
       }
@@ -520,16 +559,16 @@ export class CustomerController {
       res.status(200).json({
         success: true,
         data: {
-          customers: customers.map(customer => customer.toSafeJSON()),
+          customers: customers.map((customer) => customer.toSafeJSON()),
           status,
           count: customers.length,
         },
       });
     } catch (error) {
-      logger.error('Get customers by status failed:', error);
+      logger.error("Get customers by status failed:", error);
       res.status(500).json({
         success: false,
-        message: 'Internal server error',
+        message: "Internal server error",
       });
     }
   }
@@ -537,15 +576,18 @@ export class CustomerController {
   /**
    * Get customers due for service
    */
-  static async getCustomersDueForService(req: Request, res: Response): Promise<void> {
+  static async getCustomersDueForService(
+    req: Request,
+    res: Response,
+  ): Promise<void> {
     try {
       const currentUser = (req as any).user as UserModel;
 
       // Check permission
-      if (!currentUser.canAccess('service_events', 'read')) {
+      if (!currentUser.canAccess("service_events", "read")) {
         res.status(403).json({
           success: false,
-          message: 'Insufficient permissions to view service schedules',
+          message: "Insufficient permissions to view service schedules",
         });
         return;
       }
@@ -558,16 +600,16 @@ export class CustomerController {
       res.status(200).json({
         success: true,
         data: {
-          customers: customers.map(customer => customer.toSafeJSON()),
+          customers: customers.map((customer) => customer.toSafeJSON()),
           targetDate: targetDate.toISOString(),
           count: customers.length,
         },
       });
     } catch (error) {
-      logger.error('Get customers due for service failed:', error);
+      logger.error("Get customers due for service failed:", error);
       res.status(500).json({
         success: false,
-        message: 'Internal server error',
+        message: "Internal server error",
       });
     }
   }
@@ -575,44 +617,51 @@ export class CustomerController {
   /**
    * Get customers by service frequency
    */
-  static async getCustomersByFrequency(req: Request, res: Response): Promise<void> {
+  static async getCustomersByFrequency(
+    req: Request,
+    res: Response,
+  ): Promise<void> {
     try {
       const currentUser = (req as any).user as UserModel;
       const { frequency } = req.params;
 
       // Check permission
-      if (!currentUser.canAccess('customers', 'read')) {
+      if (!currentUser.canAccess("customers", "read")) {
         res.status(403).json({
           success: false,
-          message: 'Insufficient permissions to view customers',
+          message: "Insufficient permissions to view customers",
         });
         return;
       }
 
       // Validate frequency
-      if (!Object.values(ServiceFrequency).includes(frequency as ServiceFrequency)) {
+      if (
+        !Object.values(ServiceFrequency).includes(frequency as ServiceFrequency)
+      ) {
         res.status(400).json({
           success: false,
-          message: 'Invalid frequency specified',
+          message: "Invalid frequency specified",
         });
         return;
       }
 
-      const customers = await Customer.findByFrequency(frequency as ServiceFrequency);
+      const customers = await Customer.findByFrequency(
+        frequency as ServiceFrequency,
+      );
 
       res.status(200).json({
         success: true,
         data: {
-          customers: customers.map(customer => customer.toSafeJSON()),
+          customers: customers.map((customer) => customer.toSafeJSON()),
           frequency,
           count: customers.length,
         },
       });
     } catch (error) {
-      logger.error('Get customers by frequency failed:', error);
+      logger.error("Get customers by frequency failed:", error);
       res.status(500).json({
         success: false,
-        message: 'Internal server error',
+        message: "Internal server error",
       });
     }
   }
@@ -620,16 +669,19 @@ export class CustomerController {
   /**
    * Get customers by account manager
    */
-  static async getCustomersByAccountManager(req: Request, res: Response): Promise<void> {
+  static async getCustomersByAccountManager(
+    req: Request,
+    res: Response,
+  ): Promise<void> {
     try {
       const currentUser = (req as any).user as UserModel;
       const { managerId } = req.params;
 
       // Check permission
-      if (!currentUser.canAccess('customers', 'read')) {
+      if (!currentUser.canAccess("customers", "read")) {
         res.status(403).json({
           success: false,
-          message: 'Insufficient permissions to view customers',
+          message: "Insufficient permissions to view customers",
         });
         return;
       }
@@ -639,16 +691,16 @@ export class CustomerController {
       res.status(200).json({
         success: true,
         data: {
-          customers: customers.map(customer => customer.toSafeJSON()),
+          customers: customers.map((customer) => customer.toSafeJSON()),
           accountManagerId: managerId,
           count: customers.length,
         },
       });
     } catch (error) {
-      logger.error('Get customers by account manager failed:', error);
+      logger.error("Get customers by account manager failed:", error);
       res.status(500).json({
         success: false,
-        message: 'Internal server error',
+        message: "Internal server error",
       });
     }
   }
@@ -662,10 +714,11 @@ export class CustomerController {
       const { id } = req.params;
 
       // Check permission
-      if (!currentUser.canAccess('customers', 'update')) {
+      if (!currentUser.canAccess("customers", "update")) {
         res.status(403).json({
           success: false,
-          message: 'Insufficient permissions to update customer service configuration',
+          message:
+            "Insufficient permissions to update customer service configuration",
         });
         return;
       }
@@ -675,7 +728,7 @@ export class CustomerController {
       if (!errors.isEmpty()) {
         res.status(400).json({
           success: false,
-          message: 'Validation failed',
+          message: "Validation failed",
           errors: errors.array(),
         });
         return;
@@ -685,7 +738,7 @@ export class CustomerController {
       if (!customer || customer.deleted_at) {
         res.status(404).json({
           success: false,
-          message: 'Customer not found',
+          message: "Customer not found",
         });
         return;
       }
@@ -697,7 +750,7 @@ export class CustomerController {
       customer.updated_by = currentUser.id;
       await customer.save();
 
-      logger.info('Customer service configuration updated', {
+      logger.info("Customer service configuration updated", {
         customerId: customer.id,
         customerNumber: customer.customer_number,
         updatedBy: currentUser.id,
@@ -705,16 +758,16 @@ export class CustomerController {
 
       res.status(200).json({
         success: true,
-        message: 'Service configuration updated successfully',
+        message: "Service configuration updated successfully",
         data: {
           customer: customer.toSafeJSON(),
         },
       });
     } catch (error) {
-      logger.error('Update service config failed:', error);
+      logger.error("Update service config failed:", error);
       res.status(500).json({
         success: false,
-        message: 'Internal server error',
+        message: "Internal server error",
       });
     }
   }

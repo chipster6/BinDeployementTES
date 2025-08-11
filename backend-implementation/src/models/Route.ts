@@ -2,10 +2,10 @@
  * ============================================================================
  * ROUTE MODEL - ROUTE MANAGEMENT AND OPTIMIZATION
  * ============================================================================
- * 
+ *
  * Implements routes management with geographic data, AI optimization,
  * and driver/vehicle assignments for efficient waste collection.
- * 
+ *
  * Created by: Database Architect Agent
  * Date: 2025-08-10
  * Version: 1.0.0
@@ -23,34 +23,34 @@ import {
   BelongsToSetAssociationMixin,
   HasManyGetAssociationsMixin,
   HasManyCreateAssociationMixin,
-} from 'sequelize';
-import { database } from '@/config/database';
+} from "sequelize";
+import { database } from "@/config/database";
 
 // Define route types enum
 export enum RouteType {
-  RESIDENTIAL = 'residential',
-  COMMERCIAL = 'commercial',
-  INDUSTRIAL = 'industrial',
-  MIXED = 'mixed',
+  RESIDENTIAL = "residential",
+  COMMERCIAL = "commercial",
+  INDUSTRIAL = "industrial",
+  MIXED = "mixed",
 }
 
 // Define route status enum
 export enum RouteStatus {
-  ACTIVE = 'active',
-  INACTIVE = 'inactive',
-  OPTIMIZING = 'optimizing',
-  ARCHIVED = 'archived',
+  ACTIVE = "active",
+  INACTIVE = "inactive",
+  OPTIMIZING = "optimizing",
+  ARCHIVED = "archived",
 }
 
 // Define service days enum
 export enum ServiceDay {
-  MONDAY = 'monday',
-  TUESDAY = 'tuesday',
-  WEDNESDAY = 'wednesday',
-  THURSDAY = 'thursday',
-  FRIDAY = 'friday',
-  SATURDAY = 'saturday',
-  SUNDAY = 'sunday',
+  MONDAY = "monday",
+  TUESDAY = "tuesday",
+  WEDNESDAY = "wednesday",
+  THURSDAY = "thursday",
+  FRIDAY = "friday",
+  SATURDAY = "saturday",
+  SUNDAY = "sunday",
 }
 
 /**
@@ -85,7 +85,10 @@ export interface RouteAttributes {
 }
 
 export interface RouteCreationAttributes
-  extends Omit<RouteAttributes, 'id' | 'createdAt' | 'updatedAt' | 'version' | 'status' | 'aiOptimized'> {
+  extends Omit<
+    RouteAttributes,
+    "id" | "createdAt" | "updatedAt" | "version" | "status" | "aiOptimized"
+  > {
   id?: CreationOptional<string>;
   createdAt?: CreationOptional<Date>;
   updatedAt?: CreationOptional<Date>;
@@ -111,7 +114,10 @@ export interface RouteOptimizationResult {
 /**
  * Route model class
  */
-export class Route extends Model<InferAttributes<Route>, InferCreationAttributes<Route>> {
+export class Route extends Model<
+  InferAttributes<Route>,
+  InferCreationAttributes<Route>
+> {
   // Primary attributes
   declare id: CreationOptional<string>;
   declare routeNumber: string;
@@ -126,20 +132,20 @@ export class Route extends Model<InferAttributes<Route>, InferCreationAttributes
   declare driverId: ForeignKey<string> | null;
   declare vehicleId: ForeignKey<string> | null;
   declare routeGeometry: any; // PostGIS geometry
-  
+
   // Timestamps
   declare createdAt: CreationOptional<Date>;
   declare updatedAt: CreationOptional<Date>;
-  
+
   // Foreign keys for audit trail
   declare createdBy: ForeignKey<string> | null;
   declare updatedBy: ForeignKey<string> | null;
-  
+
   // AI optimization fields
   declare aiOptimized: CreationOptional<boolean>;
   declare optimizationScore: number | null;
   declare lastOptimizedAt: Date | null;
-  
+
   // Audit fields
   declare version: CreationOptional<number>;
   declare deletedAt: Date | null;
@@ -198,15 +204,15 @@ export class Route extends Model<InferAttributes<Route>, InferCreationAttributes
   public getStatusLabel(): string {
     switch (this.status) {
       case RouteStatus.ACTIVE:
-        return 'Active';
+        return "Active";
       case RouteStatus.INACTIVE:
-        return 'Inactive';
+        return "Inactive";
       case RouteStatus.OPTIMIZING:
-        return 'Optimizing';
+        return "Optimizing";
       case RouteStatus.ARCHIVED:
-        return 'Archived';
+        return "Archived";
       default:
-        return 'Unknown';
+        return "Unknown";
     }
   }
 
@@ -214,24 +220,24 @@ export class Route extends Model<InferAttributes<Route>, InferCreationAttributes
   public getRouteTypeLabel(): string {
     switch (this.routeType) {
       case RouteType.RESIDENTIAL:
-        return 'Residential';
+        return "Residential";
       case RouteType.COMMERCIAL:
-        return 'Commercial';
+        return "Commercial";
       case RouteType.INDUSTRIAL:
-        return 'Industrial';
+        return "Industrial";
       case RouteType.MIXED:
-        return 'Mixed';
+        return "Mixed";
       default:
-        return 'Not Specified';
+        return "Not Specified";
     }
   }
 
   // Get service day label
   public getServiceDayLabel(): string {
     if (!this.serviceDay) {
-      return 'Not Scheduled';
+      return "Not Scheduled";
     }
-    
+
     return this.serviceDay.charAt(0).toUpperCase() + this.serviceDay.slice(1);
   }
 
@@ -258,34 +264,34 @@ export class Route extends Model<InferAttributes<Route>, InferCreationAttributes
   // Get estimated duration in human readable format
   public getEstimatedDurationFormatted(): string {
     if (!this.estimatedDurationMinutes) {
-      return 'Not estimated';
+      return "Not estimated";
     }
-    
+
     const hours = Math.floor(this.estimatedDurationMinutes / 60);
     const minutes = this.estimatedDurationMinutes % 60;
-    
+
     if (hours > 0) {
       return `${hours}h ${minutes}m`;
     }
-    
+
     return `${minutes}m`;
   }
 
   // Get estimated distance formatted
   public getEstimatedDistanceFormatted(): string {
     if (!this.estimatedDistanceMiles) {
-      return 'Not estimated';
+      return "Not estimated";
     }
-    
+
     return `${this.estimatedDistanceMiles.toFixed(1)} miles`;
   }
 
   // Get optimization score formatted as percentage
   public getOptimizationScoreFormatted(): string {
     if (!this.optimizationScore) {
-      return 'Not optimized';
+      return "Not optimized";
     }
-    
+
     return `${this.optimizationScore.toFixed(1)}%`;
   }
 
@@ -294,10 +300,10 @@ export class Route extends Model<InferAttributes<Route>, InferCreationAttributes
     if (!this.lastOptimizedAt) {
       return true;
     }
-    
+
     const cutoffDate = new Date();
     cutoffDate.setDate(cutoffDate.getDate() - daysSinceLastOptimization);
-    
+
     return this.lastOptimizedAt < cutoffDate;
   }
 
@@ -306,11 +312,11 @@ export class Route extends Model<InferAttributes<Route>, InferCreationAttributes
     if (!this.lastOptimizedAt) {
       return null;
     }
-    
+
     const today = new Date();
     const diffTime = today.getTime() - this.lastOptimizedAt.getTime();
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-    
+
     return diffDays;
   }
 
@@ -319,10 +325,11 @@ export class Route extends Model<InferAttributes<Route>, InferCreationAttributes
     if (!this.estimatedDistanceMiles || !this.estimatedDurationMinutes) {
       return 0;
     }
-    
+
     // Simple efficiency calculation: miles per minute
-    const efficiency = this.estimatedDistanceMiles / (this.estimatedDurationMinutes / 60);
-    
+    const efficiency =
+      this.estimatedDistanceMiles / (this.estimatedDurationMinutes / 60);
+
     // Normalize to 0-100 scale (assuming 15 mph average is good)
     return Math.min(100, (efficiency / 15) * 100);
   }
@@ -337,7 +344,9 @@ export class Route extends Model<InferAttributes<Route>, InferCreationAttributes
    */
 
   // Find route by route number
-  public static async findByRouteNumber(routeNumber: string): Promise<Route | null> {
+  public static async findByRouteNumber(
+    routeNumber: string,
+  ): Promise<Route | null> {
     return await Route.findOne({
       where: {
         routeNumber,
@@ -353,19 +362,21 @@ export class Route extends Model<InferAttributes<Route>, InferCreationAttributes
         status: RouteStatus.ACTIVE,
         deletedAt: null,
       },
-      order: [['routeNumber', 'ASC']],
+      order: [["routeNumber", "ASC"]],
     });
   }
 
   // Find routes by service day
-  public static async findByServiceDay(serviceDay: ServiceDay): Promise<Route[]> {
+  public static async findByServiceDay(
+    serviceDay: ServiceDay,
+  ): Promise<Route[]> {
     return await Route.findAll({
       where: {
         serviceDay,
         status: RouteStatus.ACTIVE,
         deletedAt: null,
       },
-      order: [['routeNumber', 'ASC']],
+      order: [["routeNumber", "ASC"]],
     });
   }
 
@@ -376,7 +387,7 @@ export class Route extends Model<InferAttributes<Route>, InferCreationAttributes
         territory,
         deletedAt: null,
       },
-      order: [['routeNumber', 'ASC']],
+      order: [["routeNumber", "ASC"]],
     });
   }
 
@@ -388,7 +399,7 @@ export class Route extends Model<InferAttributes<Route>, InferCreationAttributes
         status: RouteStatus.ACTIVE,
         deletedAt: null,
       },
-      order: [['routeNumber', 'ASC']],
+      order: [["routeNumber", "ASC"]],
     });
   }
 
@@ -400,7 +411,7 @@ export class Route extends Model<InferAttributes<Route>, InferCreationAttributes
         status: RouteStatus.ACTIVE,
         deletedAt: null,
       },
-      order: [['routeNumber', 'ASC']],
+      order: [["routeNumber", "ASC"]],
     });
   }
 
@@ -408,19 +419,18 @@ export class Route extends Model<InferAttributes<Route>, InferCreationAttributes
   public static async findUnassigned(): Promise<Route[]> {
     return await Route.findAll({
       where: {
-        [database.Sequelize.Op.or]: [
-          { driverId: null },
-          { vehicleId: null },
-        ],
+        [database.Sequelize.Op.or]: [{ driverId: null }, { vehicleId: null }],
         status: RouteStatus.ACTIVE,
         deletedAt: null,
       },
-      order: [['routeNumber', 'ASC']],
+      order: [["routeNumber", "ASC"]],
     });
   }
 
   // Find routes needing optimization
-  public static async findNeedingOptimization(daysSinceLastOptimization: number = 30): Promise<Route[]> {
+  public static async findNeedingOptimization(
+    daysSinceLastOptimization: number = 30,
+  ): Promise<Route[]> {
     const cutoffDate = new Date();
     cutoffDate.setDate(cutoffDate.getDate() - daysSinceLastOptimization);
 
@@ -434,8 +444,15 @@ export class Route extends Model<InferAttributes<Route>, InferCreationAttributes
         deletedAt: null,
       },
       order: [
-        [database.fn('COALESCE', database.col('last_optimized_at'), database.literal("'1970-01-01'")), 'ASC'],
-        ['routeNumber', 'ASC'],
+        [
+          database.fn(
+            "COALESCE",
+            database.col("last_optimized_at"),
+            database.literal("'1970-01-01'"),
+          ),
+          "ASC",
+        ],
+        ["routeNumber", "ASC"],
       ],
     });
   }
@@ -448,13 +465,13 @@ export class Route extends Model<InferAttributes<Route>, InferCreationAttributes
         status: RouteStatus.ACTIVE,
         deletedAt: null,
       },
-      order: [['routeNumber', 'ASC']],
+      order: [["routeNumber", "ASC"]],
     });
   }
 
   // Generate next route number
   public static async generateRouteNumber(territory?: string): Promise<string> {
-    const prefix = territory ? territory.substring(0, 3).toUpperCase() : 'RTE';
+    const prefix = territory ? territory.substring(0, 3).toUpperCase() : "RTE";
 
     // Find the highest existing route number with this prefix
     const lastRoute = await Route.findOne({
@@ -463,7 +480,7 @@ export class Route extends Model<InferAttributes<Route>, InferCreationAttributes
           [database.Sequelize.Op.like]: `${prefix}%`,
         },
       },
-      order: [['routeNumber', 'DESC']],
+      order: [["routeNumber", "DESC"]],
     });
 
     let nextNumber = 1;
@@ -476,12 +493,15 @@ export class Route extends Model<InferAttributes<Route>, InferCreationAttributes
     }
 
     // Format with leading zeros
-    const paddedNumber = nextNumber.toString().padStart(6, '0');
+    const paddedNumber = nextNumber.toString().padStart(6, "0");
     return `${prefix}-${paddedNumber}`;
   }
 
   // Check if route number is already taken
-  public static async isRouteNumberTaken(routeNumber: string, excludeRouteId?: string): Promise<boolean> {
+  public static async isRouteNumberTaken(
+    routeNumber: string,
+    excludeRouteId?: string,
+  ): Promise<boolean> {
     const whereClause: any = {
       routeNumber,
       deletedAt: null,
@@ -499,27 +519,27 @@ export class Route extends Model<InferAttributes<Route>, InferCreationAttributes
   public static async findWithinRadius(
     latitude: number,
     longitude: number,
-    radiusKm: number
+    radiusKm: number,
   ): Promise<Route[]> {
     return await Route.findAll({
       where: database.where(
         database.fn(
-          'ST_DWithin',
-          database.col('route_geometry'),
-          database.fn('ST_GeogFromText', `POINT(${longitude} ${latitude})`),
-          radiusKm * 1000 // Convert km to meters
+          "ST_DWithin",
+          database.col("route_geometry"),
+          database.fn("ST_GeogFromText", `POINT(${longitude} ${latitude})`),
+          radiusKm * 1000, // Convert km to meters
         ),
-        true
+        true,
       ),
       attributes: [
-        '*',
+        "*",
         [
           database.fn(
-            'ST_Distance',
-            database.col('route_geometry'),
-            database.fn('ST_GeogFromText', `POINT(${longitude} ${latitude})`)
+            "ST_Distance",
+            database.col("route_geometry"),
+            database.fn("ST_GeogFromText", `POINT(${longitude} ${latitude})`),
           ),
-          'distance',
+          "distance",
         ],
       ],
       order: database.literal('"distance" ASC'),
@@ -532,39 +552,39 @@ export class Route extends Model<InferAttributes<Route>, InferCreationAttributes
       // Status distribution
       Route.findAll({
         attributes: [
-          'status',
-          [database.fn('COUNT', database.col('id')), 'count'],
+          "status",
+          [database.fn("COUNT", database.col("id")), "count"],
         ],
         where: { deletedAt: null },
-        group: ['status'],
+        group: ["status"],
         raw: true,
       }),
-      
+
       // Type distribution
       Route.findAll({
         attributes: [
-          'routeType',
-          [database.fn('COUNT', database.col('id')), 'count'],
+          "routeType",
+          [database.fn("COUNT", database.col("id")), "count"],
         ],
-        where: { 
+        where: {
           deletedAt: null,
-          routeType: { [database.Sequelize.Op.ne]: null }
+          routeType: { [database.Sequelize.Op.ne]: null },
         },
-        group: ['routeType'],
+        group: ["routeType"],
         raw: true,
       }),
 
       // Service day distribution
       Route.findAll({
         attributes: [
-          'serviceDay',
-          [database.fn('COUNT', database.col('id')), 'count'],
+          "serviceDay",
+          [database.fn("COUNT", database.col("id")), "count"],
         ],
-        where: { 
+        where: {
           deletedAt: null,
-          serviceDay: { [database.Sequelize.Op.ne]: null }
+          serviceDay: { [database.Sequelize.Op.ne]: null },
         },
-        group: ['serviceDay'],
+        group: ["serviceDay"],
         raw: true,
       }),
     ]);
@@ -572,11 +592,26 @@ export class Route extends Model<InferAttributes<Route>, InferCreationAttributes
     // Get optimization statistics
     const optimizationStats = await Route.findAll({
       attributes: [
-        [database.fn('COUNT', database.col('id')), 'totalRoutes'],
-        [database.fn('COUNT', database.literal('CASE WHEN ai_optimized = true THEN 1 END')), 'optimizedRoutes'],
-        [database.fn('AVG', database.col('optimization_score')), 'avgOptimizationScore'],
-        [database.fn('AVG', database.col('estimated_distance_miles')), 'avgDistance'],
-        [database.fn('AVG', database.col('estimated_duration_minutes')), 'avgDuration'],
+        [database.fn("COUNT", database.col("id")), "totalRoutes"],
+        [
+          database.fn(
+            "COUNT",
+            database.literal("CASE WHEN ai_optimized = true THEN 1 END"),
+          ),
+          "optimizedRoutes",
+        ],
+        [
+          database.fn("AVG", database.col("optimization_score")),
+          "avgOptimizationScore",
+        ],
+        [
+          database.fn("AVG", database.col("estimated_distance_miles")),
+          "avgDistance",
+        ],
+        [
+          database.fn("AVG", database.col("estimated_duration_minutes")),
+          "avgDuration",
+        ],
       ],
       where: { deletedAt: null },
       raw: true,
@@ -592,7 +627,9 @@ export class Route extends Model<InferAttributes<Route>, InferCreationAttributes
 
   // Get daily route schedule
   public static async getDailySchedule(date: Date): Promise<Route[]> {
-    const dayName = date.toLocaleDateString('en-US', { weekday: 'long' }).toLowerCase() as ServiceDay;
+    const dayName = date
+      .toLocaleDateString("en-US", { weekday: "long" })
+      .toLowerCase() as ServiceDay;
 
     return await Route.findAll({
       where: {
@@ -600,7 +637,7 @@ export class Route extends Model<InferAttributes<Route>, InferCreationAttributes
         status: RouteStatus.ACTIVE,
         deletedAt: null,
       },
-      order: [['routeNumber', 'ASC']],
+      order: [["routeNumber", "ASC"]],
     });
   }
 
@@ -608,18 +645,27 @@ export class Route extends Model<InferAttributes<Route>, InferCreationAttributes
   public static async getTerritoryStatistics(): Promise<any[]> {
     return await Route.findAll({
       attributes: [
-        'territory',
-        [database.fn('COUNT', database.col('id')), 'routeCount'],
-        [database.fn('AVG', database.col('estimated_distance_miles')), 'avgDistance'],
-        [database.fn('AVG', database.col('estimated_duration_minutes')), 'avgDuration'],
-        [database.fn('SUM', database.col('estimated_distance_miles')), 'totalDistance'],
+        "territory",
+        [database.fn("COUNT", database.col("id")), "routeCount"],
+        [
+          database.fn("AVG", database.col("estimated_distance_miles")),
+          "avgDistance",
+        ],
+        [
+          database.fn("AVG", database.col("estimated_duration_minutes")),
+          "avgDuration",
+        ],
+        [
+          database.fn("SUM", database.col("estimated_distance_miles")),
+          "totalDistance",
+        ],
       ],
       where: {
         deletedAt: null,
         territory: { [database.Sequelize.Op.ne]: null },
       },
-      group: ['territory'],
-      order: [['territory', 'ASC']],
+      group: ["territory"],
+      order: [["territory", "ASC"]],
     });
   }
 }
@@ -639,31 +685,31 @@ Route.init(
       type: DataTypes.STRING(50),
       allowNull: false,
       unique: {
-        name: 'routes_route_number_unique',
-        msg: 'Route number is already in use',
+        name: "routes_route_number_unique",
+        msg: "Route number is already in use",
       },
-      field: 'route_number',
+      field: "route_number",
       validate: {
         len: {
           args: [3, 50],
-          msg: 'Route number must be between 3 and 50 characters',
+          msg: "Route number must be between 3 and 50 characters",
         },
         notEmpty: {
-          msg: 'Route number is required',
+          msg: "Route number is required",
         },
       },
     },
     routeName: {
       type: DataTypes.STRING(255),
       allowNull: false,
-      field: 'route_name',
+      field: "route_name",
       validate: {
         len: {
           args: [1, 255],
-          msg: 'Route name must be between 1 and 255 characters',
+          msg: "Route name must be between 1 and 255 characters",
         },
         notEmpty: {
-          msg: 'Route name is required',
+          msg: "Route name is required",
         },
       },
     },
@@ -673,7 +719,7 @@ Route.init(
       validate: {
         len: {
           args: [0, 2000],
-          msg: 'Description must be less than 2000 characters',
+          msg: "Description must be less than 2000 characters",
         },
       },
     },
@@ -683,62 +729,62 @@ Route.init(
       validate: {
         len: {
           args: [1, 100],
-          msg: 'Territory must be between 1 and 100 characters',
+          msg: "Territory must be between 1 and 100 characters",
         },
       },
     },
     estimatedDurationMinutes: {
       type: DataTypes.INTEGER,
       allowNull: true,
-      field: 'estimated_duration_minutes',
+      field: "estimated_duration_minutes",
       validate: {
         min: {
           args: [1],
-          msg: 'Estimated duration must be at least 1 minute',
+          msg: "Estimated duration must be at least 1 minute",
         },
         max: {
           args: [1440], // 24 hours
-          msg: 'Estimated duration cannot exceed 24 hours',
+          msg: "Estimated duration cannot exceed 24 hours",
         },
       },
     },
     estimatedDistanceMiles: {
       type: DataTypes.DECIMAL(8, 2),
       allowNull: true,
-      field: 'estimated_distance_miles',
+      field: "estimated_distance_miles",
       validate: {
         min: {
           args: [0],
-          msg: 'Estimated distance cannot be negative',
+          msg: "Estimated distance cannot be negative",
         },
         max: {
           args: [999999.99],
-          msg: 'Estimated distance is too large',
+          msg: "Estimated distance is too large",
         },
         isDecimal: {
-          msg: 'Estimated distance must be a valid decimal number',
+          msg: "Estimated distance must be a valid decimal number",
         },
       },
     },
     serviceDay: {
       type: DataTypes.ENUM(...Object.values(ServiceDay)),
       allowNull: true,
-      field: 'service_day',
+      field: "service_day",
       validate: {
         isIn: {
           args: [Object.values(ServiceDay)],
-          msg: 'Invalid service day',
+          msg: "Invalid service day",
         },
       },
     },
     routeType: {
       type: DataTypes.ENUM(...Object.values(RouteType)),
       allowNull: true,
-      field: 'route_type',
+      field: "route_type",
       validate: {
         isIn: {
           args: [Object.values(RouteType)],
-          msg: 'Invalid route type',
+          msg: "Invalid route type",
         },
       },
     },
@@ -749,78 +795,78 @@ Route.init(
       validate: {
         isIn: {
           args: [Object.values(RouteStatus)],
-          msg: 'Invalid route status',
+          msg: "Invalid route status",
         },
       },
     },
     driverId: {
       type: DataTypes.UUID,
       allowNull: true,
-      field: 'driver_id',
+      field: "driver_id",
       references: {
-        model: 'drivers',
-        key: 'id',
+        model: "drivers",
+        key: "id",
       },
     },
     vehicleId: {
       type: DataTypes.UUID,
       allowNull: true,
-      field: 'vehicle_id',
+      field: "vehicle_id",
       references: {
-        model: 'vehicles',
-        key: 'id',
+        model: "vehicles",
+        key: "id",
       },
     },
     routeGeometry: {
-      type: DataTypes.GEOMETRY('LINESTRING', 4326),
+      type: DataTypes.GEOMETRY("LINESTRING", 4326),
       allowNull: true,
-      field: 'route_geometry',
+      field: "route_geometry",
     },
     aiOptimized: {
       type: DataTypes.BOOLEAN,
       allowNull: false,
       defaultValue: false,
-      field: 'ai_optimized',
+      field: "ai_optimized",
     },
     optimizationScore: {
       type: DataTypes.DECIMAL(5, 2),
       allowNull: true,
-      field: 'optimization_score',
+      field: "optimization_score",
       validate: {
         min: {
           args: [0],
-          msg: 'Optimization score cannot be negative',
+          msg: "Optimization score cannot be negative",
         },
         max: {
           args: [100],
-          msg: 'Optimization score cannot exceed 100',
+          msg: "Optimization score cannot exceed 100",
         },
         isDecimal: {
-          msg: 'Optimization score must be a valid decimal number',
+          msg: "Optimization score must be a valid decimal number",
         },
       },
     },
     lastOptimizedAt: {
       type: DataTypes.DATE,
       allowNull: true,
-      field: 'last_optimized_at',
+      field: "last_optimized_at",
     },
     createdBy: {
       type: DataTypes.UUID,
       allowNull: true,
-      field: 'created_by',
+      field: "created_by",
       references: {
-        model: 'users',
-        key: 'id',
+        model: "users",
+        key: "id",
       },
     },
     updatedBy: {
       type: DataTypes.UUID,
       allowNull: true,
-      field: 'updated_by',
+      field: "updated_by",
       references: {
-        model: 'users',
-        key: 'id',
+        model: "users",
+        key: "id",
       },
     },
     version: {
@@ -830,83 +876,83 @@ Route.init(
       validate: {
         min: {
           args: [1],
-          msg: 'Version must be at least 1',
+          msg: "Version must be at least 1",
         },
       },
     },
     deletedAt: {
       type: DataTypes.DATE,
       allowNull: true,
-      field: 'deleted_at',
+      field: "deleted_at",
     },
     deletedBy: {
       type: DataTypes.UUID,
       allowNull: true,
-      field: 'deleted_by',
+      field: "deleted_by",
       references: {
-        model: 'users',
-        key: 'id',
+        model: "users",
+        key: "id",
       },
     },
   },
   {
     sequelize: database,
-    tableName: 'routes',
-    schema: 'core',
+    tableName: "routes",
+    schema: "core",
     timestamps: true,
     paranoid: true,
-    createdAt: 'createdAt',
-    updatedAt: 'updatedAt',
-    deletedAt: 'deletedAt',
+    createdAt: "createdAt",
+    updatedAt: "updatedAt",
+    deletedAt: "deletedAt",
     underscored: true,
     indexes: [
       {
-        name: 'idx_routes_route_number',
-        fields: ['route_number'],
+        name: "idx_routes_route_number",
+        fields: ["route_number"],
         unique: true,
         where: { deleted_at: null },
       },
       {
-        name: 'idx_routes_territory',
-        fields: ['territory'],
+        name: "idx_routes_territory",
+        fields: ["territory"],
         where: { deleted_at: null },
       },
       {
-        name: 'idx_routes_driver_id',
-        fields: ['driver_id'],
+        name: "idx_routes_driver_id",
+        fields: ["driver_id"],
         where: { deleted_at: null },
       },
       {
-        name: 'idx_routes_vehicle_id',
-        fields: ['vehicle_id'],
+        name: "idx_routes_vehicle_id",
+        fields: ["vehicle_id"],
         where: { deleted_at: null },
       },
       {
-        name: 'idx_routes_service_day',
-        fields: ['service_day'],
+        name: "idx_routes_service_day",
+        fields: ["service_day"],
       },
       {
-        name: 'idx_routes_route_type',
-        fields: ['route_type'],
+        name: "idx_routes_route_type",
+        fields: ["route_type"],
       },
       {
-        name: 'idx_routes_status',
-        fields: ['status'],
+        name: "idx_routes_status",
+        fields: ["status"],
         where: { deleted_at: null },
       },
       {
-        name: 'idx_routes_ai_optimized',
-        fields: ['ai_optimized'],
+        name: "idx_routes_ai_optimized",
+        fields: ["ai_optimized"],
       },
       {
-        name: 'idx_routes_last_optimized_at',
-        fields: ['last_optimized_at'],
+        name: "idx_routes_last_optimized_at",
+        fields: ["last_optimized_at"],
         where: { last_optimized_at: { [database.Sequelize.Op.ne]: null } },
       },
       {
-        name: 'idx_routes_geometry',
-        fields: [database.fn('ST_GeogFromWKB', database.col('route_geometry'))],
-        using: 'GIST',
+        name: "idx_routes_geometry",
+        fields: [database.fn("ST_GeogFromWKB", database.col("route_geometry"))],
+        using: "GIST",
         where: { route_geometry: { [database.Sequelize.Op.ne]: null } },
       },
     ],
@@ -914,7 +960,9 @@ Route.init(
       beforeValidate: async (route: Route) => {
         // Auto-generate route number if not provided
         if (!route.routeNumber) {
-          route.routeNumber = await Route.generateRouteNumber(route.territory || undefined);
+          route.routeNumber = await Route.generateRouteNumber(
+            route.territory || undefined,
+          );
         }
 
         // Normalize territory to uppercase
@@ -925,9 +973,9 @@ Route.init(
       beforeUpdate: (route: Route) => {
         // Increment version for optimistic locking
         route.version = (route.version || 1) + 1;
-        
+
         // Update optimization timestamp if optimization score changed
-        if (route.changed('optimizationScore') && route.optimizationScore) {
+        if (route.changed("optimizationScore") && route.optimizationScore) {
           route.lastOptimizedAt = new Date();
           route.aiOptimized = true;
         }
@@ -981,10 +1029,7 @@ Route.init(
       },
       unassigned: {
         where: {
-          [database.Sequelize.Op.or]: [
-            { driverId: null },
-            { vehicleId: null },
-          ],
+          [database.Sequelize.Op.or]: [{ driverId: null }, { vehicleId: null }],
           status: RouteStatus.ACTIVE,
           deletedAt: null,
         },
@@ -999,7 +1044,13 @@ Route.init(
         where: {
           [database.Sequelize.Op.or]: [
             { lastOptimizedAt: null },
-            { lastOptimizedAt: { [database.Sequelize.Op.lt]: new Date(Date.now() - days * 24 * 60 * 60 * 1000) } },
+            {
+              lastOptimizedAt: {
+                [database.Sequelize.Op.lt]: new Date(
+                  Date.now() - days * 24 * 60 * 60 * 1000,
+                ),
+              },
+            },
           ],
           status: RouteStatus.ACTIVE,
           deletedAt: null,
@@ -1012,7 +1063,7 @@ Route.init(
         },
       },
     },
-  }
+  },
 );
 
 export default Route;

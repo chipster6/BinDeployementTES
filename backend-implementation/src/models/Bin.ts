@@ -2,10 +2,10 @@
  * ============================================================================
  * BIN MODEL - CONTAINER AND BIN MANAGEMENT
  * ============================================================================
- * 
+ *
  * Implements bins/containers management with IoT sensor data,
  * GPS tracking, fill level monitoring, and service scheduling.
- * 
+ *
  * Created by: Database Architect Agent
  * Date: 2025-08-10
  * Version: 1.0.0
@@ -23,31 +23,31 @@ import {
   BelongsToSetAssociationMixin,
   HasManyGetAssociationsMixin,
   HasManyCreateAssociationMixin,
-} from 'sequelize';
-import { database } from '@/config/database';
+} from "sequelize";
+import { database } from "@/config/database";
 
 // Define bin types enum
 export enum BinType {
-  DUMPSTER = 'dumpster',
-  ROLL_OFF = 'roll_off',
-  COMPACTOR = 'compactor',
-  RECYCLING = 'recycling',
-  ORGANIC = 'organic',
+  DUMPSTER = "dumpster",
+  ROLL_OFF = "roll_off",
+  COMPACTOR = "compactor",
+  RECYCLING = "recycling",
+  ORGANIC = "organic",
 }
 
 // Define bin status enum
 export enum BinStatus {
-  ACTIVE = 'active',
-  MAINTENANCE = 'maintenance',
-  RETIRED = 'retired',
-  LOST = 'lost',
+  ACTIVE = "active",
+  MAINTENANCE = "maintenance",
+  RETIRED = "retired",
+  LOST = "lost",
 }
 
 // Define bin materials enum
 export enum BinMaterial {
-  STEEL = 'steel',
-  PLASTIC = 'plastic',
-  FIBERGLASS = 'fiberglass',
+  STEEL = "steel",
+  PLASTIC = "plastic",
+  FIBERGLASS = "fiberglass",
 }
 
 /**
@@ -81,7 +81,16 @@ export interface BinAttributes {
 }
 
 export interface BinCreationAttributes
-  extends Omit<BinAttributes, 'id' | 'createdAt' | 'updatedAt' | 'version' | 'status' | 'gpsEnabled' | 'sensorEnabled'> {
+  extends Omit<
+    BinAttributes,
+    | "id"
+    | "createdAt"
+    | "updatedAt"
+    | "version"
+    | "status"
+    | "gpsEnabled"
+    | "sensorEnabled"
+  > {
   id?: CreationOptional<string>;
   createdAt?: CreationOptional<Date>;
   updatedAt?: CreationOptional<Date>;
@@ -94,7 +103,10 @@ export interface BinCreationAttributes
 /**
  * Bin model class
  */
-export class Bin extends Model<InferAttributes<Bin>, InferCreationAttributes<Bin>> {
+export class Bin extends Model<
+  InferAttributes<Bin>,
+  InferCreationAttributes<Bin>
+> {
   // Primary attributes
   declare id: CreationOptional<string>;
   declare binNumber: string;
@@ -112,15 +124,15 @@ export class Bin extends Model<InferAttributes<Bin>, InferCreationAttributes<Bin
   declare gpsEnabled: CreationOptional<boolean>;
   declare sensorEnabled: CreationOptional<boolean>;
   declare fillLevelPercent: number | null;
-  
+
   // Timestamps
   declare createdAt: CreationOptional<Date>;
   declare updatedAt: CreationOptional<Date>;
-  
+
   // Foreign keys for audit trail
   declare createdBy: ForeignKey<string> | null;
   declare updatedBy: ForeignKey<string> | null;
-  
+
   // Audit fields
   declare version: CreationOptional<number>;
   declare deletedAt: Date | null;
@@ -176,17 +188,17 @@ export class Bin extends Model<InferAttributes<Bin>, InferCreationAttributes<Bin
   public getBinTypeLabel(): string {
     switch (this.binType) {
       case BinType.DUMPSTER:
-        return 'Dumpster';
+        return "Dumpster";
       case BinType.ROLL_OFF:
-        return 'Roll-off Container';
+        return "Roll-off Container";
       case BinType.COMPACTOR:
-        return 'Compactor';
+        return "Compactor";
       case BinType.RECYCLING:
-        return 'Recycling Bin';
+        return "Recycling Bin";
       case BinType.ORGANIC:
-        return 'Organic Waste Bin';
+        return "Organic Waste Bin";
       default:
-        return 'Unknown';
+        return "Unknown";
     }
   }
 
@@ -194,15 +206,15 @@ export class Bin extends Model<InferAttributes<Bin>, InferCreationAttributes<Bin
   public getStatusLabel(): string {
     switch (this.status) {
       case BinStatus.ACTIVE:
-        return 'Active';
+        return "Active";
       case BinStatus.MAINTENANCE:
-        return 'In Maintenance';
+        return "In Maintenance";
       case BinStatus.RETIRED:
-        return 'Retired';
+        return "Retired";
       case BinStatus.LOST:
-        return 'Lost';
+        return "Lost";
       default:
-        return 'Unknown';
+        return "Unknown";
     }
   }
 
@@ -210,22 +222,22 @@ export class Bin extends Model<InferAttributes<Bin>, InferCreationAttributes<Bin
   public getMaterialLabel(): string {
     switch (this.material) {
       case BinMaterial.STEEL:
-        return 'Steel';
+        return "Steel";
       case BinMaterial.PLASTIC:
-        return 'Plastic';
+        return "Plastic";
       case BinMaterial.FIBERGLASS:
-        return 'Fiberglass';
+        return "Fiberglass";
       default:
-        return 'Not specified';
+        return "Not specified";
     }
   }
 
   // Get capacity formatted
   public getCapacityFormatted(): string {
     if (!this.capacityCubicYards) {
-      return 'Not specified';
+      return "Not specified";
     }
-    
+
     return `${this.capacityCubicYards} cubic yards`;
   }
 
@@ -247,36 +259,36 @@ export class Bin extends Model<InferAttributes<Bin>, InferCreationAttributes<Bin
   // Get fill level status
   public getFillLevelStatus(): string {
     if (this.fillLevelPercent === null || this.fillLevelPercent === undefined) {
-      return 'Unknown';
+      return "Unknown";
     }
-    
+
     if (this.fillLevelPercent >= 90) {
-      return 'Critical - Needs immediate pickup';
+      return "Critical - Needs immediate pickup";
     } else if (this.fillLevelPercent >= 75) {
-      return 'High - Schedule pickup soon';
+      return "High - Schedule pickup soon";
     } else if (this.fillLevelPercent >= 50) {
-      return 'Medium - Monitor closely';
+      return "Medium - Monitor closely";
     } else if (this.fillLevelPercent >= 25) {
-      return 'Low - Adequate space';
+      return "Low - Adequate space";
     } else {
-      return 'Empty - Good condition';
+      return "Empty - Good condition";
     }
   }
 
   // Get fill level color code for UI
   public getFillLevelColorCode(): string {
     if (this.fillLevelPercent === null || this.fillLevelPercent === undefined) {
-      return 'gray';
+      return "gray";
     }
-    
+
     if (this.fillLevelPercent >= 90) {
-      return 'red';
+      return "red";
     } else if (this.fillLevelPercent >= 75) {
-      return 'orange';
+      return "orange";
     } else if (this.fillLevelPercent >= 50) {
-      return 'yellow';
+      return "yellow";
     } else {
-      return 'green';
+      return "green";
     }
   }
 
@@ -285,7 +297,7 @@ export class Bin extends Model<InferAttributes<Bin>, InferCreationAttributes<Bin
     if (this.fillLevelPercent === null || this.fillLevelPercent === undefined) {
       return false;
     }
-    
+
     return this.fillLevelPercent >= threshold;
   }
 
@@ -294,7 +306,7 @@ export class Bin extends Model<InferAttributes<Bin>, InferCreationAttributes<Bin
     if (!this.nextServiceDate) {
       return false;
     }
-    
+
     return this.nextServiceDate < new Date();
   }
 
@@ -303,11 +315,11 @@ export class Bin extends Model<InferAttributes<Bin>, InferCreationAttributes<Bin
     if (!this.nextServiceDate) {
       return null;
     }
-    
+
     const today = new Date();
     const diffTime = this.nextServiceDate.getTime() - today.getTime();
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-    
+
     return diffDays;
   }
 
@@ -316,27 +328,27 @@ export class Bin extends Model<InferAttributes<Bin>, InferCreationAttributes<Bin
     if (!this.lastServiceDate) {
       return null;
     }
-    
+
     const today = new Date();
     const diffTime = today.getTime() - this.lastServiceDate.getTime();
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-    
+
     return diffDays;
   }
 
   // Get bin identifier for display
   public getDisplayIdentifier(): string {
     const parts = [this.binNumber];
-    
+
     if (this.size) {
       parts.push(`(${this.size})`);
     }
-    
+
     if (this.binType) {
       parts.push(this.getBinTypeLabel());
     }
-    
-    return parts.join(' - ');
+
+    return parts.join(" - ");
   }
 
   // Check if bin has location coordinates
@@ -349,11 +361,11 @@ export class Bin extends Model<InferAttributes<Bin>, InferCreationAttributes<Bin
     if (!this.installationDate) {
       return null;
     }
-    
+
     const today = new Date();
     const ageMs = today.getTime() - this.installationDate.getTime();
     const ageMonths = Math.floor(ageMs / (1000 * 60 * 60 * 24 * 30.44)); // Average days per month
-    
+
     return ageMonths;
   }
 
@@ -363,8 +375,8 @@ export class Bin extends Model<InferAttributes<Bin>, InferCreationAttributes<Bin
     if (ageMonths === null) {
       return false;
     }
-    
-    return ageMonths >= (yearsThreshold * 12);
+
+    return ageMonths >= yearsThreshold * 12;
   }
 
   /**
@@ -388,7 +400,7 @@ export class Bin extends Model<InferAttributes<Bin>, InferCreationAttributes<Bin
         customerId,
         deletedAt: null,
       },
-      order: [['binNumber', 'ASC']],
+      order: [["binNumber", "ASC"]],
     });
   }
 
@@ -400,7 +412,7 @@ export class Bin extends Model<InferAttributes<Bin>, InferCreationAttributes<Bin
         status: BinStatus.ACTIVE,
         deletedAt: null,
       },
-      order: [['binNumber', 'ASC']],
+      order: [["binNumber", "ASC"]],
     });
   }
 
@@ -412,12 +424,14 @@ export class Bin extends Model<InferAttributes<Bin>, InferCreationAttributes<Bin
         status: BinStatus.ACTIVE,
         deletedAt: null,
       },
-      order: [['binNumber', 'ASC']],
+      order: [["binNumber", "ASC"]],
     });
   }
 
   // Find bins requiring service based on fill level
-  public static async findRequiringService(fillThreshold: number = 80): Promise<Bin[]> {
+  public static async findRequiringService(
+    fillThreshold: number = 80,
+  ): Promise<Bin[]> {
     return await Bin.findAll({
       where: {
         fillLevelPercent: {
@@ -426,7 +440,7 @@ export class Bin extends Model<InferAttributes<Bin>, InferCreationAttributes<Bin
         status: BinStatus.ACTIVE,
         deletedAt: null,
       },
-      order: [['fillLevelPercent', 'DESC']],
+      order: [["fillLevelPercent", "DESC"]],
     });
   }
 
@@ -442,7 +456,7 @@ export class Bin extends Model<InferAttributes<Bin>, InferCreationAttributes<Bin
         status: BinStatus.ACTIVE,
         deletedAt: null,
       },
-      order: [['nextServiceDate', 'ASC']],
+      order: [["nextServiceDate", "ASC"]],
     });
   }
 
@@ -457,7 +471,7 @@ export class Bin extends Model<InferAttributes<Bin>, InferCreationAttributes<Bin
         status: BinStatus.ACTIVE,
         deletedAt: null,
       },
-      order: [['binNumber', 'ASC']],
+      order: [["binNumber", "ASC"]],
     });
   }
 
@@ -465,27 +479,27 @@ export class Bin extends Model<InferAttributes<Bin>, InferCreationAttributes<Bin
   public static async findWithinRadius(
     latitude: number,
     longitude: number,
-    radiusKm: number
+    radiusKm: number,
   ): Promise<Bin[]> {
     return await Bin.findAll({
       where: database.where(
         database.fn(
-          'ST_DWithin',
-          database.col('location'),
-          database.fn('ST_GeogFromText', `POINT(${longitude} ${latitude})`),
-          radiusKm * 1000 // Convert km to meters
+          "ST_DWithin",
+          database.col("location"),
+          database.fn("ST_GeogFromText", `POINT(${longitude} ${latitude})`),
+          radiusKm * 1000, // Convert km to meters
         ),
-        true
+        true,
       ),
       attributes: [
-        '*',
+        "*",
         [
           database.fn(
-            'ST_Distance',
-            database.col('location'),
-            database.fn('ST_GeogFromText', `POINT(${longitude} ${latitude})`)
+            "ST_Distance",
+            database.col("location"),
+            database.fn("ST_GeogFromText", `POINT(${longitude} ${latitude})`),
           ),
-          'distance',
+          "distance",
         ],
       ],
       order: database.literal('"distance" ASC'),
@@ -493,27 +507,30 @@ export class Bin extends Model<InferAttributes<Bin>, InferCreationAttributes<Bin
   }
 
   // Generate next bin number
-  public static async generateBinNumber(binType: BinType, customerId?: string): Promise<string> {
+  public static async generateBinNumber(
+    binType: BinType,
+    customerId?: string,
+  ): Promise<string> {
     let prefix: string;
-    
+
     switch (binType) {
       case BinType.DUMPSTER:
-        prefix = 'DMP';
+        prefix = "DMP";
         break;
       case BinType.ROLL_OFF:
-        prefix = 'ROL';
+        prefix = "ROL";
         break;
       case BinType.COMPACTOR:
-        prefix = 'CMP';
+        prefix = "CMP";
         break;
       case BinType.RECYCLING:
-        prefix = 'REC';
+        prefix = "REC";
         break;
       case BinType.ORGANIC:
-        prefix = 'ORG';
+        prefix = "ORG";
         break;
       default:
-        prefix = 'BIN';
+        prefix = "BIN";
     }
 
     // Find the highest existing bin number with this prefix
@@ -523,7 +540,7 @@ export class Bin extends Model<InferAttributes<Bin>, InferCreationAttributes<Bin
           [database.Sequelize.Op.like]: `${prefix}%`,
         },
       },
-      order: [['binNumber', 'DESC']],
+      order: [["binNumber", "DESC"]],
     });
 
     let nextNumber = 1;
@@ -536,12 +553,15 @@ export class Bin extends Model<InferAttributes<Bin>, InferCreationAttributes<Bin
     }
 
     // Format with leading zeros
-    const paddedNumber = nextNumber.toString().padStart(6, '0');
+    const paddedNumber = nextNumber.toString().padStart(6, "0");
     return `${prefix}-${paddedNumber}`;
   }
 
   // Check if bin number is already taken
-  public static async isBinNumberTaken(binNumber: string, excludeBinId?: string): Promise<boolean> {
+  public static async isBinNumberTaken(
+    binNumber: string,
+    excludeBinId?: string,
+  ): Promise<boolean> {
     const whereClause: any = {
       binNumber,
       deletedAt: null,
@@ -561,36 +581,36 @@ export class Bin extends Model<InferAttributes<Bin>, InferCreationAttributes<Bin
       // Status distribution
       Bin.findAll({
         attributes: [
-          'status',
-          [database.fn('COUNT', database.col('id')), 'count'],
+          "status",
+          [database.fn("COUNT", database.col("id")), "count"],
         ],
         where: { deletedAt: null },
-        group: ['status'],
+        group: ["status"],
         raw: true,
       }),
-      
+
       // Type distribution
       Bin.findAll({
         attributes: [
-          'binType',
-          [database.fn('COUNT', database.col('id')), 'count'],
+          "binType",
+          [database.fn("COUNT", database.col("id")), "count"],
         ],
         where: { deletedAt: null },
-        group: ['binType'],
+        group: ["binType"],
         raw: true,
       }),
 
       // Material distribution
       Bin.findAll({
         attributes: [
-          'material',
-          [database.fn('COUNT', database.col('id')), 'count'],
+          "material",
+          [database.fn("COUNT", database.col("id")), "count"],
         ],
-        where: { 
+        where: {
           deletedAt: null,
-          material: { [database.Sequelize.Op.ne]: null }
+          material: { [database.Sequelize.Op.ne]: null },
         },
-        group: ['material'],
+        group: ["material"],
         raw: true,
       }),
     ]);
@@ -598,11 +618,34 @@ export class Bin extends Model<InferAttributes<Bin>, InferCreationAttributes<Bin
     // Get smart bin statistics
     const smartBinStats = await Bin.findAll({
       attributes: [
-        [database.fn('COUNT', database.col('id')), 'totalBins'],
-        [database.fn('COUNT', database.literal('CASE WHEN gps_enabled = true THEN 1 END')), 'gpsEnabledBins'],
-        [database.fn('COUNT', database.literal('CASE WHEN sensor_enabled = true THEN 1 END')), 'sensorEnabledBins'],
-        [database.fn('COUNT', database.literal('CASE WHEN gps_enabled = true OR sensor_enabled = true THEN 1 END')), 'smartBins'],
-        [database.fn('AVG', database.col('fill_level_percent')), 'avgFillLevel'],
+        [database.fn("COUNT", database.col("id")), "totalBins"],
+        [
+          database.fn(
+            "COUNT",
+            database.literal("CASE WHEN gps_enabled = true THEN 1 END"),
+          ),
+          "gpsEnabledBins",
+        ],
+        [
+          database.fn(
+            "COUNT",
+            database.literal("CASE WHEN sensor_enabled = true THEN 1 END"),
+          ),
+          "sensorEnabledBins",
+        ],
+        [
+          database.fn(
+            "COUNT",
+            database.literal(
+              "CASE WHEN gps_enabled = true OR sensor_enabled = true THEN 1 END",
+            ),
+          ),
+          "smartBins",
+        ],
+        [
+          database.fn("AVG", database.col("fill_level_percent")),
+          "avgFillLevel",
+        ],
       ],
       where: { deletedAt: null },
       raw: true,
@@ -630,18 +673,19 @@ export class Bin extends Model<InferAttributes<Bin>, InferCreationAttributes<Bin
               ELSE 'Empty (0-24%)'
             END
           `),
-          'fillLevelRange'
+          "fillLevelRange",
         ],
-        [database.fn('COUNT', database.col('id')), 'count'],
+        [database.fn("COUNT", database.col("id")), "count"],
       ],
       where: {
         fillLevelPercent: { [database.Sequelize.Op.ne]: null },
         status: BinStatus.ACTIVE,
         deletedAt: null,
       },
-      group: [database.literal('fillLevelRange')],
+      group: [database.literal("fillLevelRange")],
       order: [
-        [database.literal(`
+        [
+          database.literal(`
           CASE 
             WHEN fill_level_percent >= 90 THEN 1
             WHEN fill_level_percent >= 75 THEN 2
@@ -649,14 +693,18 @@ export class Bin extends Model<InferAttributes<Bin>, InferCreationAttributes<Bin
             WHEN fill_level_percent >= 25 THEN 4
             ELSE 5
           END
-        `), 'ASC']
+        `),
+          "ASC",
+        ],
       ],
       raw: true,
     });
   }
 
   // Get bins due for replacement
-  public static async getBinsDueForReplacement(yearsThreshold: number = 5): Promise<Bin[]> {
+  public static async getBinsDueForReplacement(
+    yearsThreshold: number = 5,
+  ): Promise<Bin[]> {
     const cutoffDate = new Date();
     cutoffDate.setFullYear(cutoffDate.getFullYear() - yearsThreshold);
 
@@ -668,7 +716,7 @@ export class Bin extends Model<InferAttributes<Bin>, InferCreationAttributes<Bin
         status: BinStatus.ACTIVE,
         deletedAt: null,
       },
-      order: [['installationDate', 'ASC']],
+      order: [["installationDate", "ASC"]],
     });
   }
 }
@@ -688,37 +736,37 @@ Bin.init(
       type: DataTypes.STRING(50),
       allowNull: false,
       unique: {
-        name: 'bins_bin_number_unique',
-        msg: 'Bin number is already in use',
+        name: "bins_bin_number_unique",
+        msg: "Bin number is already in use",
       },
-      field: 'bin_number',
+      field: "bin_number",
       validate: {
         len: {
           args: [3, 50],
-          msg: 'Bin number must be between 3 and 50 characters',
+          msg: "Bin number must be between 3 and 50 characters",
         },
         notEmpty: {
-          msg: 'Bin number is required',
+          msg: "Bin number is required",
         },
       },
     },
     customerId: {
       type: DataTypes.UUID,
       allowNull: false,
-      field: 'customer_id',
+      field: "customer_id",
       references: {
-        model: 'customers',
-        key: 'id',
+        model: "customers",
+        key: "id",
       },
     },
     binType: {
       type: DataTypes.ENUM(...Object.values(BinType)),
       allowNull: false,
-      field: 'bin_type',
+      field: "bin_type",
       validate: {
         isIn: {
           args: [Object.values(BinType)],
-          msg: 'Invalid bin type',
+          msg: "Invalid bin type",
         },
       },
     },
@@ -728,24 +776,24 @@ Bin.init(
       validate: {
         len: {
           args: [1, 20],
-          msg: 'Size must be between 1 and 20 characters',
+          msg: "Size must be between 1 and 20 characters",
         },
         notEmpty: {
-          msg: 'Size is required',
+          msg: "Size is required",
         },
       },
     },
     capacityCubicYards: {
       type: DataTypes.DECIMAL(8, 2),
       allowNull: true,
-      field: 'capacity_cubic_yards',
+      field: "capacity_cubic_yards",
       validate: {
         min: {
           args: [0],
-          msg: 'Capacity cannot be negative',
+          msg: "Capacity cannot be negative",
         },
         isDecimal: {
-          msg: 'Capacity must be a valid decimal number',
+          msg: "Capacity must be a valid decimal number",
         },
       },
     },
@@ -755,7 +803,7 @@ Bin.init(
       validate: {
         isIn: {
           args: [Object.values(BinMaterial)],
-          msg: 'Invalid bin material',
+          msg: "Invalid bin material",
         },
       },
     },
@@ -765,7 +813,7 @@ Bin.init(
       validate: {
         len: {
           args: [1, 20],
-          msg: 'Color must be between 1 and 20 characters',
+          msg: "Color must be between 1 and 20 characters",
         },
       },
     },
@@ -776,45 +824,47 @@ Bin.init(
       validate: {
         isIn: {
           args: [Object.values(BinStatus)],
-          msg: 'Invalid bin status',
+          msg: "Invalid bin status",
         },
       },
     },
     location: {
-      type: DataTypes.GEOMETRY('POINT', 4326),
+      type: DataTypes.GEOMETRY("POINT", 4326),
       allowNull: true,
     },
     installationDate: {
       type: DataTypes.DATEONLY,
       allowNull: true,
-      field: 'installation_date',
+      field: "installation_date",
       validate: {
         isDate: {
-          msg: 'Installation date must be a valid date',
+          msg: "Installation date must be a valid date",
         },
       },
     },
     lastServiceDate: {
       type: DataTypes.DATEONLY,
       allowNull: true,
-      field: 'last_service_date',
+      field: "last_service_date",
       validate: {
         isDate: {
-          msg: 'Last service date must be a valid date',
+          msg: "Last service date must be a valid date",
         },
       },
     },
     nextServiceDate: {
       type: DataTypes.DATEONLY,
       allowNull: true,
-      field: 'next_service_date',
+      field: "next_service_date",
       validate: {
         isDate: {
-          msg: 'Next service date must be a valid date',
+          msg: "Next service date must be a valid date",
         },
         isAfterLastService(value: Date | null) {
           if (value && this.lastServiceDate && value <= this.lastServiceDate) {
-            throw new Error('Next service date must be after last service date');
+            throw new Error(
+              "Next service date must be after last service date",
+            );
           }
         },
       },
@@ -823,48 +873,48 @@ Bin.init(
       type: DataTypes.BOOLEAN,
       allowNull: false,
       defaultValue: false,
-      field: 'gps_enabled',
+      field: "gps_enabled",
     },
     sensorEnabled: {
       type: DataTypes.BOOLEAN,
       allowNull: false,
       defaultValue: false,
-      field: 'sensor_enabled',
+      field: "sensor_enabled",
     },
     fillLevelPercent: {
       type: DataTypes.INTEGER,
       allowNull: true,
-      field: 'fill_level_percent',
+      field: "fill_level_percent",
       validate: {
         min: {
           args: [0],
-          msg: 'Fill level percentage cannot be negative',
+          msg: "Fill level percentage cannot be negative",
         },
         max: {
           args: [100],
-          msg: 'Fill level percentage cannot exceed 100',
+          msg: "Fill level percentage cannot exceed 100",
         },
         isInt: {
-          msg: 'Fill level percentage must be an integer',
+          msg: "Fill level percentage must be an integer",
         },
       },
     },
     createdBy: {
       type: DataTypes.UUID,
       allowNull: true,
-      field: 'created_by',
+      field: "created_by",
       references: {
-        model: 'users',
-        key: 'id',
+        model: "users",
+        key: "id",
       },
     },
     updatedBy: {
       type: DataTypes.UUID,
       allowNull: true,
-      field: 'updated_by',
+      field: "updated_by",
       references: {
-        model: 'users',
-        key: 'id',
+        model: "users",
+        key: "id",
       },
     },
     version: {
@@ -874,79 +924,79 @@ Bin.init(
       validate: {
         min: {
           args: [1],
-          msg: 'Version must be at least 1',
+          msg: "Version must be at least 1",
         },
       },
     },
     deletedAt: {
       type: DataTypes.DATE,
       allowNull: true,
-      field: 'deleted_at',
+      field: "deleted_at",
     },
     deletedBy: {
       type: DataTypes.UUID,
       allowNull: true,
-      field: 'deleted_by',
+      field: "deleted_by",
       references: {
-        model: 'users',
-        key: 'id',
+        model: "users",
+        key: "id",
       },
     },
   },
   {
     sequelize: database,
-    tableName: 'bins',
-    schema: 'core',
+    tableName: "bins",
+    schema: "core",
     timestamps: true,
     paranoid: true,
-    createdAt: 'createdAt',
-    updatedAt: 'updatedAt',
-    deletedAt: 'deletedAt',
+    createdAt: "createdAt",
+    updatedAt: "updatedAt",
+    deletedAt: "deletedAt",
     underscored: true,
     indexes: [
       {
-        name: 'idx_bins_bin_number',
-        fields: ['bin_number'],
+        name: "idx_bins_bin_number",
+        fields: ["bin_number"],
         unique: true,
         where: { deleted_at: null },
       },
       {
-        name: 'idx_bins_customer_id',
-        fields: ['customer_id'],
+        name: "idx_bins_customer_id",
+        fields: ["customer_id"],
         where: { deleted_at: null },
       },
       {
-        name: 'idx_bins_bin_type',
-        fields: ['bin_type'],
+        name: "idx_bins_bin_type",
+        fields: ["bin_type"],
       },
       {
-        name: 'idx_bins_status',
-        fields: ['status'],
+        name: "idx_bins_status",
+        fields: ["status"],
         where: { deleted_at: null },
       },
       {
-        name: 'idx_bins_location',
-        fields: [database.fn('ST_GeogFromWKB', database.col('location'))],
-        using: 'GIST',
+        name: "idx_bins_location",
+        fields: [database.fn("ST_GeogFromWKB", database.col("location"))],
+        using: "GIST",
         where: { location: { [database.Sequelize.Op.ne]: null } },
       },
       {
-        name: 'idx_bins_fill_level',
-        fields: ['fill_level_percent'],
+        name: "idx_bins_fill_level",
+        fields: ["fill_level_percent"],
         where: { fill_level_percent: { [database.Sequelize.Op.ne]: null } },
       },
       {
-        name: 'idx_bins_next_service_date',
-        fields: ['next_service_date'],
+        name: "idx_bins_next_service_date",
+        fields: ["next_service_date"],
         where: { next_service_date: { [database.Sequelize.Op.ne]: null } },
       },
       {
-        name: 'idx_bins_smart_features',
-        fields: ['gps_enabled', 'sensor_enabled'],
+        name: "idx_bins_smart_features",
+        fields: ["gps_enabled", "sensor_enabled"],
       },
       {
-        name: 'idx_bins_installation_date',
-        fields: ['installation_date'],
+        name: "idx_bins_installation_date",
+        fields: ["installation_date"],
         where: { installation_date: { [database.Sequelize.Op.ne]: null } },
       },
     ],
@@ -954,7 +1004,10 @@ Bin.init(
       beforeValidate: async (bin: Bin) => {
         // Auto-generate bin number if not provided
         if (!bin.binNumber) {
-          bin.binNumber = await Bin.generateBinNumber(bin.binType, bin.customerId);
+          bin.binNumber = await Bin.generateBinNumber(
+            bin.binType,
+            bin.customerId,
+          );
         }
 
         // Normalize size and color
@@ -968,9 +1021,9 @@ Bin.init(
       beforeUpdate: (bin: Bin) => {
         // Increment version for optimistic locking
         bin.version = (bin.version || 1) + 1;
-        
+
         // Update next service date if last service date changed
-        if (bin.changed('lastServiceDate') && bin.lastServiceDate) {
+        if (bin.changed("lastServiceDate") && bin.lastServiceDate) {
           const nextService = new Date(bin.lastServiceDate);
           // Default to 30 days interval
           nextService.setDate(nextService.getDate() + 30);
@@ -1063,14 +1116,16 @@ Bin.init(
       dueForReplacement: (years: number = 5) => ({
         where: {
           installationDate: {
-            [database.Sequelize.Op.lt]: new Date(Date.now() - years * 365 * 24 * 60 * 60 * 1000),
+            [database.Sequelize.Op.lt]: new Date(
+              Date.now() - years * 365 * 24 * 60 * 60 * 1000,
+            ),
           },
           status: BinStatus.ACTIVE,
           deletedAt: null,
         },
       }),
     },
-  }
+  },
 );
 
 export default Bin;

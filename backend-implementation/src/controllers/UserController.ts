@@ -2,20 +2,21 @@
  * ============================================================================
  * WASTE MANAGEMENT SYSTEM - USER CONTROLLER
  * ============================================================================
- * 
+ *
  * Handles user management operations including CRUD, role management,
  * and administrative functions with proper authorization checks.
- * 
+ *
  * Created by: Backend Recovery Agent
  * Date: 2025-08-10
  * Version: 1.0.0
  */
 
-import { Request, Response } from 'express';
-import { validationResult } from 'express-validator';
-import { User, UserModel, UserRole, UserStatus } from '@/models/User';
-import { logger } from '@/utils/logger';
-import { withTransaction } from '@/config/database';
+import { Request, Response } from "express";
+import { Op } from "sequelize";
+import { validationResult } from "express-validator";
+import { User, UserModel, UserRole, UserStatus } from "@/models/User";
+import { logger } from "@/utils/logger";
+import { withTransaction } from "@/config/database";
 
 /**
  * User query interface for filtering
@@ -27,7 +28,7 @@ interface UserQuery {
   status?: UserStatus;
   search?: string;
   sortBy?: string;
-  sortOrder?: 'ASC' | 'DESC';
+  sortOrder?: "ASC" | "DESC";
 }
 
 /**
@@ -40,12 +41,12 @@ export class UserController {
   static async getUsers(req: Request, res: Response): Promise<void> {
     try {
       const currentUser = (req as any).user as UserModel;
-      
+
       // Check permission
-      if (!currentUser.canAccess('users', 'read')) {
+      if (!currentUser.canAccess("users", "read")) {
         res.status(403).json({
           success: false,
-          message: 'Insufficient permissions to view users',
+          message: "Insufficient permissions to view users",
         });
         return;
       }
@@ -57,8 +58,8 @@ export class UserController {
         role,
         status,
         search,
-        sortBy = 'created_at',
-        sortOrder = 'DESC'
+        sortBy = "created_at",
+        sortOrder = "DESC",
       } = req.query as any;
 
       const offset = (Number(page) - 1) * Number(limit);
@@ -78,10 +79,10 @@ export class UserController {
 
       if (search) {
         const searchPattern = `%${search}%`;
-        whereClause[User.sequelize!.Op.or] = [
-          { first_name: { [User.sequelize!.Op.iLike]: searchPattern } },
-          { last_name: { [User.sequelize!.Op.iLike]: searchPattern } },
-          { email: { [User.sequelize!.Op.iLike]: searchPattern } },
+        whereClause[Op.or] = [
+          { first_name: { [Op.iLike]: searchPattern } },
+          { last_name: { [Op.iLike]: searchPattern } },
+          { email: { [Op.iLike]: searchPattern } },
         ];
       }
 
@@ -91,7 +92,7 @@ export class UserController {
         limit: Number(limit),
         offset,
         order: [[sortBy, sortOrder]],
-        attributes: { exclude: ['password_hash', 'mfa_secret'] },
+        attributes: { exclude: ["password_hash", "mfa_secret"] },
       });
 
       // Calculate pagination info
@@ -102,7 +103,7 @@ export class UserController {
       res.status(200).json({
         success: true,
         data: {
-          users: users.map(user => user.toSafeJSON()),
+          users: users.map((user) => user.toSafeJSON()),
           pagination: {
             currentPage: Number(page),
             totalPages,
@@ -114,10 +115,10 @@ export class UserController {
         },
       });
     } catch (error) {
-      logger.error('Get users failed:', error);
+      logger.error("Get users failed:", error);
       res.status(500).json({
         success: false,
-        message: 'Internal server error',
+        message: "Internal server error",
       });
     }
   }
@@ -131,22 +132,22 @@ export class UserController {
       const { id } = req.params;
 
       // Check permission (users can view their own profile)
-      if (id !== currentUser.id && !currentUser.canAccess('users', 'read')) {
+      if (id !== currentUser.id && !currentUser.canAccess("users", "read")) {
         res.status(403).json({
           success: false,
-          message: 'Insufficient permissions to view user',
+          message: "Insufficient permissions to view user",
         });
         return;
       }
 
       const user = await User.findByPk(id, {
-        attributes: { exclude: ['password_hash', 'mfa_secret'] },
+        attributes: { exclude: ["password_hash", "mfa_secret"] },
       });
 
       if (!user || user.deleted_at) {
         res.status(404).json({
           success: false,
-          message: 'User not found',
+          message: "User not found",
         });
         return;
       }
@@ -158,10 +159,10 @@ export class UserController {
         },
       });
     } catch (error) {
-      logger.error('Get user by ID failed:', error);
+      logger.error("Get user by ID failed:", error);
       res.status(500).json({
         success: false,
-        message: 'Internal server error',
+        message: "Internal server error",
       });
     }
   }
@@ -174,10 +175,10 @@ export class UserController {
       const currentUser = (req as any).user as UserModel;
 
       // Check permission
-      if (!currentUser.canAccess('users', 'create')) {
+      if (!currentUser.canAccess("users", "create")) {
         res.status(403).json({
           success: false,
-          message: 'Insufficient permissions to create users',
+          message: "Insufficient permissions to create users",
         });
         return;
       }
@@ -187,7 +188,7 @@ export class UserController {
       if (!errors.isEmpty()) {
         res.status(400).json({
           success: false,
-          message: 'Validation failed',
+          message: "Validation failed",
           errors: errors.array(),
         });
         return;
@@ -200,7 +201,7 @@ export class UserController {
         lastName,
         phone,
         role,
-        status = UserStatus.ACTIVE
+        status = UserStatus.ACTIVE,
       } = req.body;
 
       // Check if user already exists
@@ -208,16 +209,19 @@ export class UserController {
       if (existingUser) {
         res.status(409).json({
           success: false,
-          message: 'User already exists with this email',
+          message: "User already exists with this email",
         });
         return;
       }
 
       // Role validation - non-super admins can't create super admins
-      if (role === UserRole.SUPER_ADMIN && currentUser.role !== UserRole.SUPER_ADMIN) {
+      if (
+        role === UserRole.SUPER_ADMIN &&
+        currentUser.role !== UserRole.SUPER_ADMIN
+      ) {
         res.status(403).json({
           success: false,
-          message: 'Cannot create super admin user',
+          message: "Cannot create super admin user",
         });
         return;
       }
@@ -241,7 +245,7 @@ export class UserController {
         await user.save();
       }
 
-      logger.info('User created successfully', {
+      logger.info("User created successfully", {
         createdUserId: user.id,
         email: user.email,
         role: user.role,
@@ -250,16 +254,16 @@ export class UserController {
 
       res.status(201).json({
         success: true,
-        message: 'User created successfully',
+        message: "User created successfully",
         data: {
           user: user.toSafeJSON(),
         },
       });
     } catch (error) {
-      logger.error('Create user failed:', error);
+      logger.error("Create user failed:", error);
       res.status(500).json({
         success: false,
-        message: 'Internal server error',
+        message: "Internal server error",
       });
     }
   }
@@ -273,13 +277,13 @@ export class UserController {
       const { id } = req.params;
 
       // Check permission (users can update their own profile with limited fields)
-      const canUpdateAny = currentUser.canAccess('users', 'update');
+      const canUpdateAny = currentUser.canAccess("users", "update");
       const isOwnProfile = id === currentUser.id;
 
       if (!canUpdateAny && !isOwnProfile) {
         res.status(403).json({
           success: false,
-          message: 'Insufficient permissions to update user',
+          message: "Insufficient permissions to update user",
         });
         return;
       }
@@ -289,7 +293,7 @@ export class UserController {
       if (!errors.isEmpty()) {
         res.status(400).json({
           success: false,
-          message: 'Validation failed',
+          message: "Validation failed",
           errors: errors.array(),
         });
         return;
@@ -299,18 +303,12 @@ export class UserController {
       if (!user || user.deleted_at) {
         res.status(404).json({
           success: false,
-          message: 'User not found',
+          message: "User not found",
         });
         return;
       }
 
-      const {
-        firstName,
-        lastName,
-        phone,
-        role,
-        status
-      } = req.body;
+      const { firstName, lastName, phone, role, status } = req.body;
 
       // Update basic profile fields (allowed for own profile)
       if (firstName !== undefined) user.first_name = firstName;
@@ -321,20 +319,26 @@ export class UserController {
       if (canUpdateAny && !isOwnProfile) {
         if (role !== undefined) {
           // Role validation - non-super admins can't assign super admin role
-          if (role === UserRole.SUPER_ADMIN && currentUser.role !== UserRole.SUPER_ADMIN) {
+          if (
+            role === UserRole.SUPER_ADMIN &&
+            currentUser.role !== UserRole.SUPER_ADMIN
+          ) {
             res.status(403).json({
               success: false,
-              message: 'Cannot assign super admin role',
+              message: "Cannot assign super admin role",
             });
             return;
           }
 
           // Prevent removing super admin role (must be done by another super admin)
-          if (user.role === UserRole.SUPER_ADMIN && role !== UserRole.SUPER_ADMIN 
-              && currentUser.role !== UserRole.SUPER_ADMIN) {
+          if (
+            user.role === UserRole.SUPER_ADMIN &&
+            role !== UserRole.SUPER_ADMIN &&
+            currentUser.role !== UserRole.SUPER_ADMIN
+          ) {
             res.status(403).json({
               success: false,
-              message: 'Cannot remove super admin role',
+              message: "Cannot remove super admin role",
             });
             return;
           }
@@ -350,7 +354,7 @@ export class UserController {
       user.updated_by = currentUser.id;
       await user.save();
 
-      logger.info('User updated successfully', {
+      logger.info("User updated successfully", {
         updatedUserId: user.id,
         email: user.email,
         updatedBy: currentUser.id,
@@ -358,16 +362,16 @@ export class UserController {
 
       res.status(200).json({
         success: true,
-        message: 'User updated successfully',
+        message: "User updated successfully",
         data: {
           user: user.toSafeJSON(),
         },
       });
     } catch (error) {
-      logger.error('Update user failed:', error);
+      logger.error("Update user failed:", error);
       res.status(500).json({
         success: false,
-        message: 'Internal server error',
+        message: "Internal server error",
       });
     }
   }
@@ -381,10 +385,10 @@ export class UserController {
       const { id } = req.params;
 
       // Check permission
-      if (!currentUser.canAccess('users', 'delete')) {
+      if (!currentUser.canAccess("users", "delete")) {
         res.status(403).json({
           success: false,
-          message: 'Insufficient permissions to delete users',
+          message: "Insufficient permissions to delete users",
         });
         return;
       }
@@ -393,7 +397,7 @@ export class UserController {
       if (id === currentUser.id) {
         res.status(400).json({
           success: false,
-          message: 'Cannot delete your own account',
+          message: "Cannot delete your own account",
         });
         return;
       }
@@ -402,16 +406,19 @@ export class UserController {
       if (!user || user.deleted_at) {
         res.status(404).json({
           success: false,
-          message: 'User not found',
+          message: "User not found",
         });
         return;
       }
 
       // Prevent deleting super admins (unless current user is also super admin)
-      if (user.role === UserRole.SUPER_ADMIN && currentUser.role !== UserRole.SUPER_ADMIN) {
+      if (
+        user.role === UserRole.SUPER_ADMIN &&
+        currentUser.role !== UserRole.SUPER_ADMIN
+      ) {
         res.status(403).json({
           success: false,
-          message: 'Cannot delete super admin user',
+          message: "Cannot delete super admin user",
         });
         return;
       }
@@ -420,7 +427,7 @@ export class UserController {
       user.deleted_by = currentUser.id;
       await user.destroy(); // This triggers soft delete due to paranoid: true
 
-      logger.info('User deleted successfully', {
+      logger.info("User deleted successfully", {
         deletedUserId: user.id,
         email: user.email,
         deletedBy: currentUser.id,
@@ -428,13 +435,13 @@ export class UserController {
 
       res.status(200).json({
         success: true,
-        message: 'User deleted successfully',
+        message: "User deleted successfully",
       });
     } catch (error) {
-      logger.error('Delete user failed:', error);
+      logger.error("Delete user failed:", error);
       res.status(500).json({
         success: false,
-        message: 'Internal server error',
+        message: "Internal server error",
       });
     }
   }
@@ -448,10 +455,10 @@ export class UserController {
       const { role } = req.params;
 
       // Check permission
-      if (!currentUser.canAccess('users', 'read')) {
+      if (!currentUser.canAccess("users", "read")) {
         res.status(403).json({
           success: false,
-          message: 'Insufficient permissions to view users',
+          message: "Insufficient permissions to view users",
         });
         return;
       }
@@ -460,7 +467,7 @@ export class UserController {
       if (!Object.values(UserRole).includes(role as UserRole)) {
         res.status(400).json({
           success: false,
-          message: 'Invalid role specified',
+          message: "Invalid role specified",
         });
         return;
       }
@@ -470,16 +477,16 @@ export class UserController {
       res.status(200).json({
         success: true,
         data: {
-          users: users.map(user => user.toSafeJSON()),
+          users: users.map((user) => user.toSafeJSON()),
           role,
           count: users.length,
         },
       });
     } catch (error) {
-      logger.error('Get users by role failed:', error);
+      logger.error("Get users by role failed:", error);
       res.status(500).json({
         success: false,
-        message: 'Internal server error',
+        message: "Internal server error",
       });
     }
   }
@@ -493,10 +500,10 @@ export class UserController {
       const { id } = req.params;
 
       // Check permission
-      if (!currentUser.canAccess('users', 'update')) {
+      if (!currentUser.canAccess("users", "update")) {
         res.status(403).json({
           success: false,
-          message: 'Insufficient permissions to reset passwords',
+          message: "Insufficient permissions to reset passwords",
         });
         return;
       }
@@ -506,7 +513,7 @@ export class UserController {
       if (!errors.isEmpty()) {
         res.status(400).json({
           success: false,
-          message: 'Validation failed',
+          message: "Validation failed",
           errors: errors.array(),
         });
         return;
@@ -518,16 +525,19 @@ export class UserController {
       if (!user || user.deleted_at) {
         res.status(404).json({
           success: false,
-          message: 'User not found',
+          message: "User not found",
         });
         return;
       }
 
       // Prevent resetting super admin password (unless current user is also super admin)
-      if (user.role === UserRole.SUPER_ADMIN && currentUser.role !== UserRole.SUPER_ADMIN) {
+      if (
+        user.role === UserRole.SUPER_ADMIN &&
+        currentUser.role !== UserRole.SUPER_ADMIN
+      ) {
         res.status(403).json({
           success: false,
-          message: 'Cannot reset super admin password',
+          message: "Cannot reset super admin password",
         });
         return;
       }
@@ -537,7 +547,7 @@ export class UserController {
       user.updated_by = currentUser.id;
       await user.save();
 
-      logger.info('User password reset', {
+      logger.info("User password reset", {
         userId: user.id,
         email: user.email,
         resetBy: currentUser.id,
@@ -545,13 +555,13 @@ export class UserController {
 
       res.status(200).json({
         success: true,
-        message: 'Password reset successfully',
+        message: "Password reset successfully",
       });
     } catch (error) {
-      logger.error('Reset user password failed:', error);
+      logger.error("Reset user password failed:", error);
       res.status(500).json({
         success: false,
-        message: 'Internal server error',
+        message: "Internal server error",
       });
     }
   }
@@ -566,10 +576,10 @@ export class UserController {
       const { action } = req.body; // 'lock' or 'unlock'
 
       // Check permission
-      if (!currentUser.canAccess('users', 'update')) {
+      if (!currentUser.canAccess("users", "update")) {
         res.status(403).json({
           success: false,
-          message: 'Insufficient permissions to lock/unlock users',
+          message: "Insufficient permissions to lock/unlock users",
         });
         return;
       }
@@ -578,7 +588,7 @@ export class UserController {
       if (id === currentUser.id) {
         res.status(400).json({
           success: false,
-          message: 'Cannot lock your own account',
+          message: "Cannot lock your own account",
         });
         return;
       }
@@ -587,30 +597,33 @@ export class UserController {
       if (!user || user.deleted_at) {
         res.status(404).json({
           success: false,
-          message: 'User not found',
+          message: "User not found",
         });
         return;
       }
 
       // Prevent locking super admins (unless current user is also super admin)
-      if (user.role === UserRole.SUPER_ADMIN && currentUser.role !== UserRole.SUPER_ADMIN) {
+      if (
+        user.role === UserRole.SUPER_ADMIN &&
+        currentUser.role !== UserRole.SUPER_ADMIN
+      ) {
         res.status(403).json({
           success: false,
-          message: 'Cannot lock super admin user',
+          message: "Cannot lock super admin user",
         });
         return;
       }
 
-      if (action === 'lock') {
+      if (action === "lock") {
         await user.lockAccount();
-        logger.info('User account locked', {
+        logger.info("User account locked", {
           userId: user.id,
           email: user.email,
           lockedBy: currentUser.id,
         });
-      } else if (action === 'unlock') {
+      } else if (action === "unlock") {
         await user.unlockAccount();
-        logger.info('User account unlocked', {
+        logger.info("User account unlocked", {
           userId: user.id,
           email: user.email,
           unlockedBy: currentUser.id,
@@ -631,10 +644,10 @@ export class UserController {
         },
       });
     } catch (error) {
-      logger.error('Toggle user lock failed:', error);
+      logger.error("Toggle user lock failed:", error);
       res.status(500).json({
         success: false,
-        message: 'Internal server error',
+        message: "Internal server error",
       });
     }
   }

@@ -2,25 +2,25 @@
  * ============================================================================
  * WASTE MANAGEMENT SYSTEM - HEALTH CHECK UTILITY
  * ============================================================================
- * 
+ *
  * Comprehensive health check system for monitoring application health.
  * Checks database, Redis, external services, and system resources.
- * 
+ *
  * Created by: Backend Development Agent
  * Date: 2025-08-10
  * Version: 1.0.0
  */
 
-import { Request, Response } from 'express';
-import { config } from '@/config';
-import { checkDatabaseHealth } from '@/config/database';
-import { checkRedisHealth } from '@/config/redis';
-import { logger, Timer } from '@/utils/logger';
+import { Request, Response } from "express";
+import { config } from "@/config";
+import { checkDatabaseHealth } from "@/config/database";
+import { checkRedisHealth } from "@/config/redis";
+import { logger, Timer } from "@/utils/logger";
 
 /**
  * Health check status types
  */
-type HealthStatus = 'healthy' | 'degraded' | 'unhealthy';
+type HealthStatus = "healthy" | "degraded" | "unhealthy";
 
 /**
  * Health check result interface
@@ -33,17 +33,17 @@ interface HealthCheckResult {
   environment: string;
   checks: {
     database?: {
-      status: 'healthy' | 'unhealthy';
+      status: "healthy" | "unhealthy";
       responseTime?: string;
       details?: any;
     };
     redis?: {
-      status: 'healthy' | 'unhealthy';
+      status: "healthy" | "unhealthy";
       responseTime?: string;
       details?: any;
     };
     memory?: {
-      status: 'healthy' | 'degraded';
+      status: "healthy" | "degraded";
       details: {
         used: string;
         free: string;
@@ -52,16 +52,19 @@ interface HealthCheckResult {
       };
     };
     disk?: {
-      status: 'healthy' | 'degraded';
+      status: "healthy" | "degraded";
       details: any;
     };
     externalServices?: {
-      status: 'healthy' | 'degraded' | 'unhealthy';
-      services: Record<string, {
-        status: 'healthy' | 'unhealthy';
-        responseTime?: string;
-        error?: string;
-      }>;
+      status: "healthy" | "degraded" | "unhealthy";
+      services: Record<
+        string,
+        {
+          status: "healthy" | "unhealthy";
+          responseTime?: string;
+          error?: string;
+        }
+      >;
     };
   };
   dependencies: string[];
@@ -75,19 +78,19 @@ interface HealthCheckResult {
 /**
  * Memory usage checker
  */
-const checkMemoryUsage = (): HealthCheckResult['checks']['memory'] => {
+const checkMemoryUsage = (): HealthCheckResult["checks"]["memory"] => {
   const memoryUsage = process.memoryUsage();
-  const totalMemory = require('os').totalmem();
-  const freeMemory = require('os').freemem();
+  const totalMemory = require("os").totalmem();
+  const freeMemory = require("os").freemem();
   const usedMemory = totalMemory - freeMemory;
   const memoryPercentage = (usedMemory / totalMemory) * 100;
-  
+
   const formatBytes = (bytes: number): string => {
     return `${(bytes / 1024 / 1024 / 1024).toFixed(2)} GB`;
   };
-  
-  const status = memoryPercentage > 90 ? 'degraded' : 'healthy';
-  
+
+  const status = memoryPercentage > 90 ? "degraded" : "healthy";
+
   return {
     status,
     details: {
@@ -102,28 +105,30 @@ const checkMemoryUsage = (): HealthCheckResult['checks']['memory'] => {
 /**
  * Disk usage checker
  */
-const checkDiskUsage = async (): Promise<HealthCheckResult['checks']['disk']> => {
+const checkDiskUsage = async (): Promise<
+  HealthCheckResult["checks"]["disk"]
+> => {
   try {
-    const fs = require('fs').promises;
-    const stats = await fs.statvfs || fs.statfs;
-    
+    const fs = require("fs").promises;
+    const stats = (await fs.statvfs) || fs.statfs;
+
     if (!stats) {
       return {
-        status: 'healthy',
-        details: { message: 'Disk check not available on this platform' },
+        status: "healthy",
+        details: { message: "Disk check not available on this platform" },
       };
     }
-    
+
     // For now, just return healthy status
     // In a real implementation, you would check actual disk usage
     return {
-      status: 'healthy',
-      details: { message: 'Disk space monitoring not implemented' },
+      status: "healthy",
+      details: { message: "Disk space monitoring not implemented" },
     };
   } catch (error) {
     return {
-      status: 'healthy',
-      details: { message: 'Disk check not available', error: error.message },
+      status: "healthy",
+      details: { message: "Disk check not available", error: (error as Error).message },
     };
   }
 };
@@ -131,121 +136,135 @@ const checkDiskUsage = async (): Promise<HealthCheckResult['checks']['disk']> =>
 /**
  * External services health checker
  */
-const checkExternalServices = async (): Promise<HealthCheckResult['checks']['externalServices']> => {
+const checkExternalServices = async (): Promise<
+  HealthCheckResult["checks"]["externalServices"]
+> => {
   if (!config.healthCheck.checkExternalApis) {
     return {
-      status: 'healthy',
+      status: "healthy",
       services: {},
     };
   }
-  
+
   const services: Record<string, any> = {};
-  const axios = require('axios');
-  
+  const axios = require("axios");
+
   // Check Stripe API (if configured)
   if (config.stripe.secretKey) {
-    const timer = new Timer('Stripe API Health Check');
+    const timer = new Timer("Stripe API Health Check");
     try {
-      const response = await axios.get('https://api.stripe.com/v1/charges', {
+      const response = await axios.get("https://api.stripe.com/v1/charges", {
         timeout: 5000,
         headers: {
-          'Authorization': `Bearer ${config.stripe.secretKey}`,
+          Authorization: `Bearer ${config.stripe.secretKey}`,
         },
         validateStatus: (status: number) => status === 401 || status === 200, // 401 is expected for basic check
       });
-      
+
       services.stripe = {
-        status: 'healthy',
+        status: "healthy",
         responseTime: `${timer.getDuration()}ms`,
       };
     } catch (error) {
       services.stripe = {
-        status: 'unhealthy',
+        status: "unhealthy",
         responseTime: `${timer.getDuration()}ms`,
-        error: error.message,
+        error: (error as Error).message,
       };
     }
   }
-  
+
   // Check Samsara API (if configured)
   if (config.samsara.apiToken) {
-    const timer = new Timer('Samsara API Health Check');
+    const timer = new Timer("Samsara API Health Check");
     try {
-      const response = await axios.get(`${config.samsara.baseUrl}/fleet/vehicles`, {
-        timeout: 5000,
-        headers: {
-          'Authorization': `Bearer ${config.samsara.apiToken}`,
+      const response = await axios.get(
+        `${config.samsara.baseUrl}/fleet/vehicles`,
+        {
+          timeout: 5000,
+          headers: {
+            Authorization: `Bearer ${config.samsara.apiToken}`,
+          },
+          validateStatus: (status: number) => status < 500, // Allow 4xx responses
         },
-        validateStatus: (status: number) => status < 500, // Allow 4xx responses
-      });
-      
+      );
+
       services.samsara = {
-        status: 'healthy',
+        status: "healthy",
         responseTime: `${timer.getDuration()}ms`,
       };
     } catch (error) {
       services.samsara = {
-        status: 'unhealthy',
+        status: "unhealthy",
         responseTime: `${timer.getDuration()}ms`,
-        error: error.message,
+        error: (error as Error).message,
       };
     }
   }
-  
+
   // Check SendGrid API (if configured)
   if (config.sendGrid.apiKey) {
-    const timer = new Timer('SendGrid API Health Check');
+    const timer = new Timer("SendGrid API Health Check");
     try {
-      const response = await axios.get('https://api.sendgrid.com/v3/user/profile', {
-        timeout: 5000,
-        headers: {
-          'Authorization': `Bearer ${config.sendGrid.apiKey}`,
+      const response = await axios.get(
+        "https://api.sendgrid.com/v3/user/profile",
+        {
+          timeout: 5000,
+          headers: {
+            Authorization: `Bearer ${config.sendGrid.apiKey}`,
+          },
         },
-      });
-      
+      );
+
       services.sendgrid = {
-        status: 'healthy',
+        status: "healthy",
         responseTime: `${timer.getDuration()}ms`,
       };
     } catch (error) {
       services.sendgrid = {
-        status: 'unhealthy',
+        status: "unhealthy",
         responseTime: `${timer.getDuration()}ms`,
-        error: error.message,
+        error: (error as Error).message,
       };
     }
   }
-  
+
   // Check Mapbox API (if configured)
   if (config.mapbox.accessToken) {
-    const timer = new Timer('Mapbox API Health Check');
+    const timer = new Timer("Mapbox API Health Check");
     try {
-      const response = await axios.get(`https://api.mapbox.com/geocoding/v5/mapbox.places/test.json?access_token=${config.mapbox.accessToken}&limit=1`, {
-        timeout: 5000,
-      });
-      
+      const response = await axios.get(
+        `https://api.mapbox.com/geocoding/v5/mapbox.places/test.json?access_token=${config.mapbox.accessToken}&limit=1`,
+        {
+          timeout: 5000,
+        },
+      );
+
       services.mapbox = {
-        status: 'healthy',
+        status: "healthy",
         responseTime: `${timer.getDuration()}ms`,
       };
     } catch (error) {
       services.mapbox = {
-        status: 'unhealthy',
+        status: "unhealthy",
         responseTime: `${timer.getDuration()}ms`,
-        error: error.message,
+        error: (error as Error).message,
       };
     }
   }
-  
+
   // Determine overall external services status
-  const serviceStatuses = Object.values(services).map(s => s.status);
-  const unhealthyCount = serviceStatuses.filter(s => s === 'unhealthy').length;
-  
-  let overallStatus: 'healthy' | 'degraded' | 'unhealthy' = 'healthy';
+  const serviceStatuses = Object.values(services).map((s) => s.status);
+  const unhealthyCount = serviceStatuses.filter(
+    (s) => s === "unhealthy",
+  ).length;
+
+  let overallStatus: "healthy" | "degraded" | "unhealthy" = "healthy";
   if (unhealthyCount > 0) {
-    overallStatus = unhealthyCount === serviceStatuses.length ? 'unhealthy' : 'degraded';
+    overallStatus =
+      unhealthyCount === serviceStatuses.length ? "unhealthy" : "degraded";
   }
-  
+
   return {
     status: overallStatus,
     services,
@@ -257,11 +276,11 @@ const checkExternalServices = async (): Promise<HealthCheckResult['checks']['ext
  */
 const performHealthCheck = async (): Promise<HealthCheckResult> => {
   const startTime = Date.now();
-  const checks: HealthCheckResult['checks'] = {};
-  
+  const checks: HealthCheckResult["checks"] = {};
+
   // Check database
   if (config.healthCheck.checkDatabase) {
-    const timer = new Timer('Database Health Check');
+    const timer = new Timer("Database Health Check");
     const dbHealth = await checkDatabaseHealth();
     checks.database = {
       status: dbHealth.status,
@@ -269,10 +288,10 @@ const performHealthCheck = async (): Promise<HealthCheckResult> => {
       details: dbHealth.details,
     };
   }
-  
+
   // Check Redis
   if (config.healthCheck.checkRedis) {
-    const timer = new Timer('Redis Health Check');
+    const timer = new Timer("Redis Health Check");
     const redisHealth = await checkRedisHealth();
     checks.redis = {
       status: redisHealth.status,
@@ -280,49 +299,51 @@ const performHealthCheck = async (): Promise<HealthCheckResult> => {
       details: redisHealth.details,
     };
   }
-  
+
   // Check memory usage
-  checks.memory = checkMemoryUsage();
-  
+  checks.memory = checkMemoryUsage() || undefined;
+
   // Check disk usage
-  checks.disk = await checkDiskUsage();
-  
+  checks.disk = (await checkDiskUsage()) || undefined;
+
   // Check external services
-  checks.externalServices = await checkExternalServices();
-  
+  checks.externalServices = (await checkExternalServices()) || undefined;
+
   // Determine overall health status
-  const checkStatuses = Object.values(checks).map(check => check?.status).filter(Boolean);
-  const unhealthyCount = checkStatuses.filter(s => s === 'unhealthy').length;
-  const degradedCount = checkStatuses.filter(s => s === 'degraded').length;
-  
-  let overallStatus: HealthStatus = 'healthy';
+  const checkStatuses = Object.values(checks)
+    .map((check) => check?.status)
+    .filter(Boolean);
+  const unhealthyCount = checkStatuses.filter((s) => s === "unhealthy").length;
+  const degradedCount = checkStatuses.filter((s) => s === "degraded").length;
+
+  let overallStatus: HealthStatus = "healthy";
   if (unhealthyCount > 0) {
-    overallStatus = 'unhealthy';
+    overallStatus = "unhealthy";
   } else if (degradedCount > 0) {
-    overallStatus = 'degraded';
+    overallStatus = "degraded";
   }
-  
+
   const totalTime = Date.now() - startTime;
-  
+
   return {
     status: overallStatus,
     timestamp: new Date().toISOString(),
     uptime: Math.floor(process.uptime()),
-    version: config.app.version || '1.0.0',
+    version: config.app.version || "1.0.0",
     environment: config.app.nodeEnv,
     checks,
     dependencies: [
-      'postgresql',
-      'redis',
-      ...(config.stripe.secretKey ? ['stripe'] : []),
-      ...(config.samsara.apiToken ? ['samsara'] : []),
-      ...(config.sendGrid.apiKey ? ['sendgrid'] : []),
-      ...(config.mapbox.accessToken ? ['mapbox'] : []),
+      "postgresql",
+      "redis",
+      ...(config.stripe.secretKey ? ["stripe"] : []),
+      ...(config.samsara.apiToken ? ["samsara"] : []),
+      ...(config.sendGrid.apiKey ? ["sendgrid"] : []),
+      ...(config.mapbox.accessToken ? ["mapbox"] : []),
     ],
     buildInfo: {
       nodeVersion: process.version,
-      buildTime: process.env.BUILD_TIME,
-      gitCommit: process.env.GIT_COMMIT,
+      buildTime: process.env.BUILD_TIME || undefined,
+      gitCommit: process.env.GIT_COMMIT || undefined,
     },
   };
 };
@@ -334,43 +355,43 @@ export const healthCheck = async (req: Request, res: Response) => {
   try {
     if (!config.healthCheck.enabled) {
       return res.status(200).json({
-        status: 'healthy',
-        message: 'Health checks disabled',
+        status: "healthy",
+        message: "Health checks disabled",
         timestamp: new Date().toISOString(),
       });
     }
-    
+
     const healthResult = await performHealthCheck();
-    
+
     // Set appropriate status code
     let statusCode = 200;
-    if (healthResult.status === 'degraded') {
+    if (healthResult.status === "degraded") {
       statusCode = 200; // Still operational
-    } else if (healthResult.status === 'unhealthy') {
+    } else if (healthResult.status === "unhealthy") {
       statusCode = 503; // Service unavailable
     }
-    
+
     // Add cache headers
-    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
-    res.setHeader('Pragma', 'no-cache');
-    res.setHeader('Expires', '0');
-    
+    res.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
+    res.setHeader("Pragma", "no-cache");
+    res.setHeader("Expires", "0");
+
     // Log health check result if status is not healthy
-    if (healthResult.status !== 'healthy') {
-      logger.warn('Health check status not healthy', {
+    if (healthResult.status !== "healthy") {
+      logger.warn("Health check status not healthy", {
         status: healthResult.status,
         checks: healthResult.checks,
       });
     }
-    
+
     res.status(statusCode).json(healthResult);
   } catch (error) {
-    logger.error('Health check failed:', error);
-    
+    logger.error("Health check failed:", error);
+
     res.status(500).json({
-      status: 'unhealthy',
-      error: 'Health check failed',
-      message: error instanceof Error ? error.message : 'Unknown error',
+      status: "unhealthy",
+      error: "Health check failed",
+      message: error instanceof Error ? error.message : "Unknown error",
       timestamp: new Date().toISOString(),
     });
   }
@@ -383,14 +404,14 @@ export const readinessCheck = async (req: Request, res: Response) => {
   try {
     // Simple check - just verify we can respond
     res.status(200).json({
-      status: 'ready',
+      status: "ready",
       timestamp: new Date().toISOString(),
       uptime: Math.floor(process.uptime()),
     });
   } catch (error) {
     res.status(503).json({
-      status: 'not_ready',
-      error: error instanceof Error ? error.message : 'Unknown error',
+      status: "not_ready",
+      error: error instanceof Error ? error.message : "Unknown error",
       timestamp: new Date().toISOString(),
     });
   }
@@ -403,15 +424,15 @@ export const livenessCheck = async (req: Request, res: Response) => {
   try {
     // Basic liveness check - process is running
     res.status(200).json({
-      status: 'alive',
+      status: "alive",
       timestamp: new Date().toISOString(),
       pid: process.pid,
       uptime: Math.floor(process.uptime()),
     });
   } catch (error) {
     res.status(500).json({
-      status: 'dead',
-      error: error instanceof Error ? error.message : 'Unknown error',
+      status: "dead",
+      error: error instanceof Error ? error.message : "Unknown error",
       timestamp: new Date().toISOString(),
     });
   }
@@ -422,9 +443,9 @@ export const livenessCheck = async (req: Request, res: Response) => {
  */
 export const getMetrics = async (req: Request, res: Response) => {
   try {
-    const os = require('os');
+    const os = require("os");
     const memoryUsage = process.memoryUsage();
-    
+
     const metrics = {
       timestamp: new Date().toISOString(),
       uptime: {
@@ -453,13 +474,13 @@ export const getMetrics = async (req: Request, res: Response) => {
         versions: process.versions,
       },
     };
-    
+
     res.status(200).json(metrics);
   } catch (error) {
-    logger.error('Failed to get metrics:', error);
+    logger.error("Failed to get metrics:", error);
     res.status(500).json({
-      error: 'Failed to get metrics',
-      message: error instanceof Error ? error.message : 'Unknown error',
+      error: "Failed to get metrics",
+      message: error instanceof Error ? error.message : "Unknown error",
     });
   }
 };

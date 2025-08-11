@@ -2,25 +2,33 @@
  * ============================================================================
  * MODELS INDEX - SEQUELIZE MODELS EXPORT
  * ============================================================================
- * 
+ *
  * Central export point for all Sequelize models with proper initialization
  * order to handle dependencies and associations.
- * 
+ *
  * Created by: Database Architect Agent
  * Date: 2025-08-10
  * Version: 1.0.0
  */
 
-import { database } from '@/config/database';
+import { database } from "@/config/database";
 
 // Import all models
-import User, { UserRole, UserStatus } from './User';
-import Organization, { OrganizationType, OrganizationStatus, DataRetentionPolicy } from './Organization';
-import Customer, { ServiceFrequency, PreferredServiceDay, PaymentTerms } from './Customer';
-import Vehicle, { VehicleType, FuelType, VehicleStatus } from './Vehicle';
-import Driver, { EmploymentStatus, LicenseClass } from './Driver';
-import Route, { RouteType, RouteStatus, ServiceDay } from './Route';
-import Bin, { BinType, BinStatus, BinMaterial } from './Bin';
+import User, { UserRole, UserStatus } from "./User";
+import Organization, {
+  OrganizationType,
+  OrganizationStatus,
+  DataRetentionPolicy,
+} from "./Organization";
+import Customer, {
+  ServiceFrequency,
+  PreferredServiceDay,
+  PaymentTerms,
+} from "./Customer";
+import Vehicle, { VehicleType, FuelType, VehicleStatus } from "./Vehicle";
+import Driver, { EmploymentStatus, LicenseClass } from "./Driver";
+import Route, { RouteType, RouteStatus, ServiceDay } from "./Route";
+import Bin, { BinType, BinStatus, BinMaterial } from "./Bin";
 
 // Import additional models (will be created)
 // import ServiceEvent from './ServiceEvent';
@@ -55,189 +63,189 @@ import Bin, { BinType, BinStatus, BinMaterial } from './Bin';
 function defineAssociations() {
   // User associations (self-referencing for audit trail)
   User.belongsTo(User, {
-    as: 'createdByUser',
-    foreignKey: 'createdBy',
+    as: "createdByUser",
+    foreignKey: "createdBy",
     constraints: false,
   });
-  
+
   User.belongsTo(User, {
-    as: 'updatedByUser',
-    foreignKey: 'updatedBy',
+    as: "updatedByUser",
+    foreignKey: "updatedBy",
     constraints: false,
   });
 
   // Organization associations
   Organization.belongsTo(User, {
-    as: 'primaryContact',
-    foreignKey: 'primaryContactId',
+    as: "primaryContact",
+    foreignKey: "primaryContactId",
     constraints: false,
   });
-  
+
   Organization.belongsTo(User, {
-    as: 'createdByUser',
-    foreignKey: 'createdBy',
+    as: "createdByUser",
+    foreignKey: "createdBy",
     constraints: false,
   });
-  
+
   Organization.belongsTo(User, {
-    as: 'updatedByUser',
-    foreignKey: 'updatedBy',
+    as: "updatedByUser",
+    foreignKey: "updatedBy",
     constraints: false,
   });
 
   // User has one primary contact organization (reverse)
   User.hasOne(Organization, {
-    as: 'primaryContactOrganization',
-    foreignKey: 'primaryContactId',
+    as: "primaryContactOrganization",
+    foreignKey: "primaryContactId",
     constraints: false,
   });
 
   // Customer associations
   Customer.belongsTo(Organization, {
-    as: 'organization',
-    foreignKey: 'organizationId',
+    as: "organization",
+    foreignKey: "organizationId",
     constraints: true,
   });
-  
+
   Customer.belongsTo(User, {
-    as: 'accountManager',
-    foreignKey: 'accountManagerId',
+    as: "accountManager",
+    foreignKey: "accountManagerId",
     constraints: false,
   });
-  
+
   Customer.belongsTo(User, {
-    as: 'createdByUser',
-    foreignKey: 'createdBy',
+    as: "createdByUser",
+    foreignKey: "createdBy",
     constraints: false,
   });
-  
+
   Customer.belongsTo(User, {
-    as: 'updatedByUser',
-    foreignKey: 'updatedBy',
+    as: "updatedByUser",
+    foreignKey: "updatedBy",
     constraints: false,
   });
 
   // Organization has many customers (reverse)
   Organization.hasMany(Customer, {
-    as: 'customers',
-    foreignKey: 'organizationId',
+    as: "customers",
+    foreignKey: "organizationId",
     constraints: true,
   });
 
   // User has many customers as account manager (reverse)
   User.hasMany(Customer, {
-    as: 'managedCustomers',
-    foreignKey: 'accountManagerId',
+    as: "managedCustomers",
+    foreignKey: "accountManagerId",
     constraints: false,
   });
 
   // Vehicle associations
   Vehicle.belongsTo(User, {
-    as: 'createdByUser',
-    foreignKey: 'createdBy',
+    as: "createdByUser",
+    foreignKey: "createdBy",
     constraints: false,
   });
-  
+
   Vehicle.belongsTo(User, {
-    as: 'updatedByUser',
-    foreignKey: 'updatedBy',
+    as: "updatedByUser",
+    foreignKey: "updatedBy",
     constraints: false,
   });
 
   // Driver associations
   Driver.belongsTo(User, {
-    as: 'user',
-    foreignKey: 'userId',
+    as: "user",
+    foreignKey: "userId",
     constraints: true,
   });
-  
+
   Driver.belongsTo(User, {
-    as: 'createdByUser',
-    foreignKey: 'createdBy',
+    as: "createdByUser",
+    foreignKey: "createdBy",
     constraints: false,
   });
-  
+
   Driver.belongsTo(User, {
-    as: 'updatedByUser',
-    foreignKey: 'updatedBy',
+    as: "updatedByUser",
+    foreignKey: "updatedBy",
     constraints: false,
   });
 
   // User has one driver profile (reverse)
   User.hasOne(Driver, {
-    as: 'driverProfile',
-    foreignKey: 'userId',
+    as: "driverProfile",
+    foreignKey: "userId",
     constraints: true,
   });
 
   // Route associations
   Route.belongsTo(Driver, {
-    as: 'driver',
-    foreignKey: 'driverId',
+    as: "driver",
+    foreignKey: "driverId",
     constraints: false,
   });
-  
+
   Route.belongsTo(Vehicle, {
-    as: 'vehicle',
-    foreignKey: 'vehicleId',
+    as: "vehicle",
+    foreignKey: "vehicleId",
     constraints: false,
   });
-  
+
   Route.belongsTo(User, {
-    as: 'createdByUser',
-    foreignKey: 'createdBy',
+    as: "createdByUser",
+    foreignKey: "createdBy",
     constraints: false,
   });
-  
+
   Route.belongsTo(User, {
-    as: 'updatedByUser',
-    foreignKey: 'updatedBy',
+    as: "updatedByUser",
+    foreignKey: "updatedBy",
     constraints: false,
   });
 
   // Driver has many routes (reverse)
   Driver.hasMany(Route, {
-    as: 'routes',
-    foreignKey: 'driverId',
+    as: "routes",
+    foreignKey: "driverId",
     constraints: false,
   });
 
   // Vehicle has many routes (reverse)
   Vehicle.hasMany(Route, {
-    as: 'routes',
-    foreignKey: 'vehicleId',
+    as: "routes",
+    foreignKey: "vehicleId",
     constraints: false,
   });
 
   // Bin associations
   Bin.belongsTo(Customer, {
-    as: 'customer',
-    foreignKey: 'customerId',
+    as: "customer",
+    foreignKey: "customerId",
     constraints: true,
   });
-  
+
   Bin.belongsTo(User, {
-    as: 'createdByUser',
-    foreignKey: 'createdBy',
-    constraints: false,
-  });
-  
-  Bin.belongsTo(User, {
-    as: 'updatedByUser',
-    foreignKey: 'updatedBy',
+    as: "createdByUser",
+    foreignKey: "createdBy",
     constraints: false,
   });
 
   Bin.belongsTo(User, {
-    as: 'deletedByUser',
-    foreignKey: 'deletedBy',
+    as: "updatedByUser",
+    foreignKey: "updatedBy",
+    constraints: false,
+  });
+
+  Bin.belongsTo(User, {
+    as: "deletedByUser",
+    foreignKey: "deletedBy",
     constraints: false,
   });
 
   // Customer has many bins (reverse)
   Customer.hasMany(Bin, {
-    as: 'bins',
-    foreignKey: 'customerId',
+    as: "bins",
+    foreignKey: "customerId",
     constraints: true,
   });
 
@@ -250,21 +258,21 @@ function defineAssociations() {
  */
 export async function initializeModels(): Promise<void> {
   try {
-    console.log('🔧 Initializing Sequelize models...');
-    
+    console.log("🔧 Initializing Sequelize models...");
+
     // Define all model associations
     defineAssociations();
-    
+
     // Sync models in development (be careful in production)
-    if (process.env.NODE_ENV === 'development') {
+    if (process.env.NODE_ENV === "development") {
       // Use alter: true to update existing tables without dropping them
       await database.sync({ alter: true });
-      console.log('✅ Database models synchronized successfully');
+      console.log("✅ Database models synchronized successfully");
     }
-    
-    console.log('✅ All models initialized successfully');
+
+    console.log("✅ All models initialized successfully");
   } catch (error) {
-    console.error('❌ Error initializing models:', error);
+    console.error("❌ Error initializing models:", error);
     throw error;
   }
 }
@@ -279,40 +287,40 @@ export {
   Driver,
   Route,
   Bin,
-  
+
   // User enums
   UserRole,
   UserStatus,
-  
+
   // Organization enums
   OrganizationType,
   OrganizationStatus,
   DataRetentionPolicy,
-  
+
   // Customer enums
   ServiceFrequency,
   PreferredServiceDay,
   PaymentTerms,
-  
+
   // Vehicle enums
   VehicleType,
   FuelType,
   VehicleStatus,
-  
+
   // Driver enums
   EmploymentStatus,
   LicenseClass,
-  
+
   // Route enums
   RouteType,
   RouteStatus,
   ServiceDay,
-  
+
   // Bin enums
   BinType,
   BinStatus,
   BinMaterial,
-  
+
   // Database instance
   database,
 };

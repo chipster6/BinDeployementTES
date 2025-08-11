@@ -2,36 +2,37 @@
  * ============================================================================
  * WASTE MANAGEMENT SYSTEM - LOGGING UTILITY
  * ============================================================================
- * 
+ *
  * Centralized logging configuration using Winston.
  * Provides structured logging with multiple transports and log levels.
- * 
+ *
  * Created by: Backend Development Agent
  * Date: 2025-08-10
  * Version: 1.0.0
  */
 
-import winston from 'winston';
-import DailyRotateFile from 'winston-daily-rotate-file';
-import path from 'path';
-import { config } from '@/config';
+import winston from "winston";
+import DailyRotateFile from "winston-daily-rotate-file";
+import path from "path";
+import { config } from "@/config";
 
 /**
  * Custom log format for consistent output
  */
 const logFormat = winston.format.combine(
   winston.format.timestamp({
-    format: 'YYYY-MM-DD HH:mm:ss.SSS'
+    format: "YYYY-MM-DD HH:mm:ss.SSS",
   }),
   winston.format.errors({ stack: true }),
   winston.format.splat(),
   winston.format.json(),
   winston.format.colorize({ all: true }),
   winston.format.printf(({ timestamp, level, message, stack, ...meta }) => {
-    const metaString = Object.keys(meta).length > 0 ? `\n${JSON.stringify(meta, null, 2)}` : '';
-    const stackString = stack ? `\n${stack}` : '';
+    const metaString =
+      Object.keys(meta).length > 0 ? `\n${JSON.stringify(meta, null, 2)}` : "";
+    const stackString = stack ? `\n${stack}` : "";
     return `${timestamp} [${level}]: ${message}${metaString}${stackString}`;
-  })
+  }),
 );
 
 /**
@@ -40,13 +41,14 @@ const logFormat = winston.format.combine(
 const devFormat = winston.format.combine(
   winston.format.colorize({ all: true }),
   winston.format.timestamp({
-    format: 'HH:mm:ss.SSS'
+    format: "HH:mm:ss.SSS",
   }),
   winston.format.printf(({ timestamp, level, message, stack, ...meta }) => {
-    const metaString = Object.keys(meta).length > 0 ? ` ${JSON.stringify(meta)}` : '';
-    const stackString = stack ? `\n${stack}` : '';
+    const metaString =
+      Object.keys(meta).length > 0 ? ` ${JSON.stringify(meta)}` : "";
+    const stackString = stack ? `\n${stack}` : "";
     return `${timestamp} ${level}: ${message}${metaString}${stackString}`;
-  })
+  }),
 );
 
 /**
@@ -55,7 +57,7 @@ const devFormat = winston.format.combine(
 const prodFormat = winston.format.combine(
   winston.format.timestamp(),
   winston.format.errors({ stack: true }),
-  winston.format.json()
+  winston.format.json(),
 );
 
 /**
@@ -68,68 +70,68 @@ const createTransports = (): winston.transport[] => {
   transports.push(
     new winston.transports.Console({
       level: config.logging.level,
-      format: config.app.nodeEnv === 'production' ? prodFormat : devFormat,
-    })
+      format: config.app.nodeEnv === "production" ? prodFormat : devFormat,
+    }),
   );
 
   // File transports (only in non-test environment)
-  if (config.app.nodeEnv !== 'test') {
+  if (config.app.nodeEnv !== "test") {
     // Error log file
     transports.push(
       new DailyRotateFile({
-        filename: path.join('logs', 'error-%DATE%.log'),
-        datePattern: 'YYYY-MM-DD',
-        level: 'error',
+        filename: path.join("logs", "error-%DATE%.log"),
+        datePattern: "YYYY-MM-DD",
+        level: "error",
         format: prodFormat,
         maxSize: config.logging.file.maxSize,
         maxFiles: config.logging.file.maxFiles,
         zippedArchive: true,
         handleExceptions: true,
         handleRejections: true,
-      })
+      }),
     );
 
     // Combined log file
     transports.push(
       new DailyRotateFile({
-        filename: path.join('logs', 'combined-%DATE%.log'),
-        datePattern: 'YYYY-MM-DD',
+        filename: path.join("logs", "combined-%DATE%.log"),
+        datePattern: "YYYY-MM-DD",
         format: prodFormat,
         maxSize: config.logging.file.maxSize,
         maxFiles: config.logging.file.maxFiles,
         zippedArchive: true,
         handleExceptions: true,
         handleRejections: true,
-      })
+      }),
     );
 
     // Access log file (for HTTP requests)
     transports.push(
       new DailyRotateFile({
-        filename: path.join('logs', 'access-%DATE%.log'),
-        datePattern: 'YYYY-MM-DD',
-        level: 'http',
+        filename: path.join("logs", "access-%DATE%.log"),
+        datePattern: "YYYY-MM-DD",
+        level: "http",
         format: prodFormat,
         maxSize: config.logging.file.maxSize,
         maxFiles: config.logging.file.maxFiles,
         zippedArchive: true,
-      })
+      }),
     );
 
     // Audit log file (for compliance)
     if (config.compliance.audit.enabled) {
       transports.push(
         new DailyRotateFile({
-          filename: path.join('logs', 'audit-%DATE%.log'),
-          datePattern: 'YYYY-MM-DD',
+          filename: path.join("logs", "audit-%DATE%.log"),
+          datePattern: "YYYY-MM-DD",
           format: winston.format.combine(
             winston.format.timestamp(),
-            winston.format.json()
+            winston.format.json(),
           ),
           maxSize: config.logging.file.maxSize,
           maxFiles: `${config.compliance.audit.retentionDays}d`,
           zippedArchive: true,
-        })
+        }),
       );
     }
   }
@@ -145,27 +147,29 @@ export const logger = winston.createLogger({
   format: logFormat,
   transports: createTransports(),
   exitOnError: false,
-  silent: config.app.nodeEnv === 'test' && !process.env.ENABLE_LOGGING_IN_TESTS,
+  silent: config.app.nodeEnv === "test" && !process.env.ENABLE_LOGGING_IN_TESTS,
 });
 
 /**
  * Audit logger for compliance logging
  */
 export const auditLogger = winston.createLogger({
-  level: 'info',
+  level: "info",
   format: winston.format.combine(
     winston.format.timestamp(),
-    winston.format.json()
+    winston.format.json(),
   ),
-  transports: config.compliance.audit.enabled ? [
-    new DailyRotateFile({
-      filename: path.join('logs', 'audit-%DATE%.log'),
-      datePattern: 'YYYY-MM-DD',
-      maxSize: config.logging.file.maxSize,
-      maxFiles: `${config.compliance.audit.retentionDays}d`,
-      zippedArchive: true,
-    })
-  ] : [],
+  transports: config.compliance.audit.enabled
+    ? [
+        new DailyRotateFile({
+          filename: path.join("logs", "audit-%DATE%.log"),
+          datePattern: "YYYY-MM-DD",
+          maxSize: config.logging.file.maxSize,
+          maxFiles: `${config.compliance.audit.retentionDays}d`,
+          zippedArchive: true,
+        }),
+      ]
+    : [],
   silent: !config.compliance.audit.enabled,
 });
 
@@ -173,72 +177,78 @@ export const auditLogger = winston.createLogger({
  * Security logger for security events
  */
 export const securityLogger = winston.createLogger({
-  level: 'warn',
+  level: "warn",
   format: winston.format.combine(
     winston.format.timestamp(),
-    winston.format.json()
+    winston.format.json(),
   ),
   transports: [
     new winston.transports.Console({
       format: devFormat,
     }),
-    ...(config.app.nodeEnv !== 'test' ? [
-      new DailyRotateFile({
-        filename: path.join('logs', 'security-%DATE%.log'),
-        datePattern: 'YYYY-MM-DD',
-        maxSize: config.logging.file.maxSize,
-        maxFiles: config.logging.file.maxFiles,
-        zippedArchive: true,
-      })
-    ] : []),
+    ...(config.app.nodeEnv !== "test"
+      ? [
+          new DailyRotateFile({
+            filename: path.join("logs", "security-%DATE%.log"),
+            datePattern: "YYYY-MM-DD",
+            maxSize: config.logging.file.maxSize,
+            maxFiles: config.logging.file.maxFiles,
+            zippedArchive: true,
+          }),
+        ]
+      : []),
   ],
-  silent: config.app.nodeEnv === 'test' && !process.env.ENABLE_LOGGING_IN_TESTS,
+  silent: config.app.nodeEnv === "test" && !process.env.ENABLE_LOGGING_IN_TESTS,
 });
 
 /**
  * Performance logger for monitoring slow operations
  */
 export const performanceLogger = winston.createLogger({
-  level: 'info',
+  level: "info",
   format: winston.format.combine(
     winston.format.timestamp(),
-    winston.format.json()
+    winston.format.json(),
   ),
   transports: [
-    ...(config.app.nodeEnv !== 'test' ? [
-      new DailyRotateFile({
-        filename: path.join('logs', 'performance-%DATE%.log'),
-        datePattern: 'YYYY-MM-DD',
-        maxSize: config.logging.file.maxSize,
-        maxFiles: '7d', // Keep performance logs for 7 days
-        zippedArchive: true,
-      })
-    ] : []),
+    ...(config.app.nodeEnv !== "test"
+      ? [
+          new DailyRotateFile({
+            filename: path.join("logs", "performance-%DATE%.log"),
+            datePattern: "YYYY-MM-DD",
+            maxSize: config.logging.file.maxSize,
+            maxFiles: "7d", // Keep performance logs for 7 days
+            zippedArchive: true,
+          }),
+        ]
+      : []),
   ],
-  silent: config.app.nodeEnv === 'test',
+  silent: config.app.nodeEnv === "test",
 });
 
 /**
  * HTTP request logger (used by Morgan middleware)
  */
 export const httpLogger = winston.createLogger({
-  level: 'http',
+  level: "http",
   format: winston.format.combine(
     winston.format.timestamp(),
-    winston.format.json()
+    winston.format.json(),
   ),
   transports: [
-    ...(config.app.nodeEnv !== 'test' && config.logging.enableRequestLogging ? [
-      new DailyRotateFile({
-        filename: path.join('logs', 'http-%DATE%.log'),
-        datePattern: 'YYYY-MM-DD',
-        maxSize: config.logging.file.maxSize,
-        maxFiles: '30d', // Keep HTTP logs for 30 days
-        zippedArchive: true,
-      })
-    ] : []),
+    ...(config.app.nodeEnv !== "test" && config.logging.enableRequestLogging
+      ? [
+          new DailyRotateFile({
+            filename: path.join("logs", "http-%DATE%.log"),
+            datePattern: "YYYY-MM-DD",
+            maxSize: config.logging.file.maxSize,
+            maxFiles: "30d", // Keep HTTP logs for 30 days
+            zippedArchive: true,
+          }),
+        ]
+      : []),
   ],
-  silent: config.app.nodeEnv === 'test' || !config.logging.enableRequestLogging,
+  silent: config.app.nodeEnv === "test" || !config.logging.enableRequestLogging,
 });
 
 /**
@@ -249,7 +259,7 @@ export const logEvent = (
   event: string,
   data: Record<string, any> = {},
   userId?: string,
-  ip?: string
+  ip?: string,
 ) => {
   const logData = {
     event,
@@ -272,7 +282,7 @@ export const logSecurityEvent = (
   data: Record<string, any> = {},
   userId?: string,
   ip?: string,
-  severity: 'low' | 'medium' | 'high' | 'critical' = 'medium'
+  severity: "low" | "medium" | "high" | "critical" = "medium",
 ) => {
   const logData = {
     event,
@@ -300,7 +310,7 @@ export const logAuditEvent = (
   resource: string,
   data: Record<string, any> = {},
   userId?: string,
-  ip?: string
+  ip?: string,
 ) => {
   if (!config.compliance.audit.enabled) return;
 
@@ -323,7 +333,7 @@ export const logAuditEvent = (
 export const logPerformance = (
   operation: string,
   duration: number,
-  data: Record<string, any> = {}
+  data: Record<string, any> = {},
 ) => {
   const logData = {
     operation,
@@ -332,11 +342,18 @@ export const logPerformance = (
     ...data,
   };
 
-  performanceLogger.info(`Performance: ${operation} took ${duration}ms`, logData);
+  performanceLogger.info(
+    `Performance: ${operation} took ${duration}ms`,
+    logData,
+  );
 
   // Log warning for slow operations
-  if (duration > 5000) { // 5 seconds
-    logger.warn(`Slow operation detected: ${operation} took ${duration}ms`, logData);
+  if (duration > 5000) {
+    // 5 seconds
+    logger.warn(
+      `Slow operation detected: ${operation} took ${duration}ms`,
+      logData,
+    );
   }
 };
 
@@ -383,7 +400,7 @@ export const logError = (
   error: Error | string,
   context: Record<string, any> = {},
   userId?: string,
-  ip?: string
+  ip?: string,
 ) => {
   const errorData = {
     timestamp: new Date().toISOString(),
@@ -411,7 +428,7 @@ export const logDatabaseOperation = (
   operation: string,
   table: string,
   duration?: number,
-  rowsAffected?: number
+  rowsAffected?: number,
 ) => {
   const logData = {
     operation,
@@ -423,16 +440,20 @@ export const logDatabaseOperation = (
 
   logger.debug(`DB Operation: ${operation} on ${table}`, logData);
 
-  if (duration && duration > 1000) { // Log slow queries
-    logger.warn(`Slow database query: ${operation} on ${table} took ${duration}ms`, logData);
+  if (duration && duration > 1000) {
+    // Log slow queries
+    logger.warn(
+      `Slow database query: ${operation} on ${table} took ${duration}ms`,
+      logData,
+    );
   }
 };
 
 /**
  * Ensure logs directory exists
  */
-import fs from 'fs';
-const logsDir = path.join(process.cwd(), 'logs');
+import fs from "fs";
+const logsDir = path.join(process.cwd(), "logs");
 if (!fs.existsSync(logsDir)) {
   fs.mkdirSync(logsDir, { recursive: true });
 }

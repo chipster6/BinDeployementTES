@@ -2,20 +2,23 @@
  * ============================================================================
  * WASTE MANAGEMENT SYSTEM - ERROR HANDLER MIDDLEWARE
  * ============================================================================
- * 
+ *
  * Global error handling middleware for Express application.
  * Provides consistent error responses and logging.
- * 
+ *
  * Created by: Backend Development Agent
  * Date: 2025-08-10
  * Version: 1.0.0
  */
 
-import { Request, Response, NextFunction } from 'express';
-import { ValidationError } from 'joi';
-import { ValidationError as SequelizeValidationError, DatabaseError } from 'sequelize';
-import { logger, logError, logSecurityEvent } from '@/utils/logger';
-import { config } from '@/config';
+import { Request, Response, NextFunction } from "express";
+import { ValidationError } from "joi";
+import {
+  ValidationError as SequelizeValidationError,
+  DatabaseError,
+} from "sequelize";
+import { logger, logError, logSecurityEvent } from "@/utils/logger";
+import { config } from "@/config";
 
 /**
  * Custom error class for application errors
@@ -28,14 +31,14 @@ export class AppError extends Error {
   public details?: any;
 
   constructor(
-    message: string, 
-    statusCode: number = 500, 
-    code?: string, 
-    details?: any
+    message: string,
+    statusCode: number = 500,
+    code?: string,
+    details?: any,
   ) {
     super(message);
     this.statusCode = statusCode;
-    this.status = statusCode >= 400 && statusCode < 500 ? 'fail' : 'error';
+    this.status = statusCode >= 400 && statusCode < 500 ? "fail" : "error";
     this.isOperational = true;
     this.code = code;
     this.details = details;
@@ -48,8 +51,8 @@ export class AppError extends Error {
  * Authentication error
  */
 export class AuthenticationError extends AppError {
-  constructor(message: string = 'Authentication failed') {
-    super(message, 401, 'AUTHENTICATION_FAILED');
+  constructor(message: string = "Authentication failed", details?: any) {
+    super(message, 401, "AUTHENTICATION_FAILED", details);
   }
 }
 
@@ -57,8 +60,8 @@ export class AuthenticationError extends AppError {
  * Authorization error
  */
 export class AuthorizationError extends AppError {
-  constructor(message: string = 'Access denied') {
-    super(message, 403, 'ACCESS_DENIED');
+  constructor(message: string = "Access denied") {
+    super(message, 403, "ACCESS_DENIED");
   }
 }
 
@@ -67,7 +70,16 @@ export class AuthorizationError extends AppError {
  */
 export class ValidationError extends AppError {
   constructor(message: string, details?: any) {
-    super(message, 400, 'VALIDATION_ERROR', details);
+    super(message, 400, "VALIDATION_ERROR", details);
+  }
+}
+
+/**
+ * Bad request error
+ */
+export class BadRequestError extends AppError {
+  constructor(message: string = "Bad request") {
+    super(message, 400, "BAD_REQUEST");
   }
 }
 
@@ -75,8 +87,8 @@ export class ValidationError extends AppError {
  * Not found error
  */
 export class NotFoundError extends AppError {
-  constructor(message: string = 'Resource not found') {
-    super(message, 404, 'NOT_FOUND');
+  constructor(message: string = "Resource not found") {
+    super(message, 404, "NOT_FOUND");
   }
 }
 
@@ -84,8 +96,8 @@ export class NotFoundError extends AppError {
  * Rate limit error
  */
 export class RateLimitError extends AppError {
-  constructor(message: string = 'Too many requests') {
-    super(message, 429, 'RATE_LIMIT_EXCEEDED');
+  constructor(message: string = "Too many requests") {
+    super(message, 429, "RATE_LIMIT_EXCEEDED");
   }
 }
 
@@ -95,10 +107,10 @@ export class RateLimitError extends AppError {
 export class ExternalServiceError extends AppError {
   constructor(service: string, message?: string) {
     super(
-      message || `External service ${service} is currently unavailable`, 
-      503, 
-      'EXTERNAL_SERVICE_ERROR',
-      { service }
+      message || `External service ${service} is currently unavailable`,
+      503,
+      "EXTERNAL_SERVICE_ERROR",
+      { service },
     );
   }
 }
@@ -108,12 +120,7 @@ export class ExternalServiceError extends AppError {
  */
 export class DatabaseOperationError extends AppError {
   constructor(message: string, operation?: string) {
-    super(
-      message, 
-      500, 
-      'DATABASE_ERROR',
-      { operation }
-    );
+    super(message, 500, "DATABASE_ERROR", { operation });
   }
 }
 
@@ -121,27 +128,29 @@ export class DatabaseOperationError extends AppError {
  * Handle Joi validation errors
  */
 const handleJoiError = (error: ValidationError): AppError => {
-  const errors = error.details.map(detail => ({
-    field: detail.path.join('.'),
+  const errors = error.details.map((detail) => ({
+    field: detail.path.join("."),
     message: detail.message,
     value: detail.context?.value,
   }));
 
-  return new ValidationError('Validation failed', { errors });
+  return new ValidationError("Validation failed", { errors });
 };
 
 /**
  * Handle Sequelize validation errors
  */
-const handleSequelizeValidationError = (error: SequelizeValidationError): AppError => {
-  const errors = error.errors.map(err => ({
+const handleSequelizeValidationError = (
+  error: SequelizeValidationError,
+): AppError => {
+  const errors = error.errors.map((err) => ({
     field: err.path,
     message: err.message,
     value: err.value,
     type: err.type,
   }));
 
-  return new ValidationError('Database validation failed', { errors });
+  return new ValidationError("Database validation failed", { errors });
 };
 
 /**
@@ -150,36 +159,36 @@ const handleSequelizeValidationError = (error: SequelizeValidationError): AppErr
 const handleSequelizeDatabaseError = (error: DatabaseError): AppError => {
   // Handle specific database error types
   switch (error.parent?.code) {
-    case '23505': // Unique constraint violation
-      return new ValidationError('Duplicate entry found', {
+    case "23505": // Unique constraint violation
+      return new ValidationError("Duplicate entry found", {
         constraint: error.parent.constraint,
         detail: error.parent.detail,
       });
-    
-    case '23503': // Foreign key constraint violation
-      return new ValidationError('Referenced record not found', {
+
+    case "23503": // Foreign key constraint violation
+      return new ValidationError("Referenced record not found", {
         constraint: error.parent.constraint,
         detail: error.parent.detail,
       });
-    
-    case '23514': // Check constraint violation
-      return new ValidationError('Data constraint violation', {
+
+    case "23514": // Check constraint violation
+      return new ValidationError("Data constraint violation", {
         constraint: error.parent.constraint,
         detail: error.parent.detail,
       });
-    
-    case '08006': // Connection failure
-    case '08003': // Connection does not exist
-      return new DatabaseOperationError('Database connection failed');
-    
-    case '53300': // Too many connections
-      return new DatabaseOperationError('Database connection limit reached');
-    
+
+    case "08006": // Connection failure
+    case "08003": // Connection does not exist
+      return new DatabaseOperationError("Database connection failed");
+
+    case "53300": // Too many connections
+      return new DatabaseOperationError("Database connection limit reached");
+
     default:
       return new DatabaseOperationError(
-        config.app.nodeEnv === 'production' 
-          ? 'Database operation failed' 
-          : error.message
+        config.app.nodeEnv === "production"
+          ? "Database operation failed"
+          : error.message,
       );
   }
 };
@@ -188,16 +197,16 @@ const handleSequelizeDatabaseError = (error: DatabaseError): AppError => {
  * Handle JWT errors
  */
 const handleJWTError = (error: any): AppError => {
-  if (error.name === 'JsonWebTokenError') {
-    return new AuthenticationError('Invalid token');
+  if (error.name === "JsonWebTokenError") {
+    return new AuthenticationError("Invalid token");
   }
-  if (error.name === 'TokenExpiredError') {
-    return new AuthenticationError('Token expired');
+  if (error.name === "TokenExpiredError") {
+    return new AuthenticationError("Token expired");
   }
-  if (error.name === 'NotBeforeError') {
-    return new AuthenticationError('Token not active');
+  if (error.name === "NotBeforeError") {
+    return new AuthenticationError("Token not active");
   }
-  return new AuthenticationError('Token validation failed');
+  return new AuthenticationError("Token validation failed");
 };
 
 /**
@@ -205,25 +214,29 @@ const handleJWTError = (error: any): AppError => {
  */
 const handleMulterError = (error: any): AppError => {
   switch (error.code) {
-    case 'LIMIT_FILE_SIZE':
-      return new ValidationError('File too large');
-    case 'LIMIT_FILE_COUNT':
-      return new ValidationError('Too many files');
-    case 'LIMIT_UNEXPECTED_FILE':
-      return new ValidationError('Unexpected file field');
+    case "LIMIT_FILE_SIZE":
+      return new ValidationError("File too large");
+    case "LIMIT_FILE_COUNT":
+      return new ValidationError("Too many files");
+    case "LIMIT_UNEXPECTED_FILE":
+      return new ValidationError("Unexpected file field");
     default:
-      return new ValidationError('File upload error');
+      return new ValidationError("File upload error");
   }
 };
 
 /**
  * Send error response
  */
-const sendErrorResponse = (res: Response, error: AppError, requestId?: string) => {
+const sendErrorResponse = (
+  res: Response,
+  error: AppError,
+  requestId?: string,
+) => {
   const response: any = {
     status: error.status,
     error: {
-      code: error.code || 'INTERNAL_ERROR',
+      code: error.code || "INTERNAL_ERROR",
       message: error.message,
     },
     timestamp: new Date().toISOString(),
@@ -231,13 +244,13 @@ const sendErrorResponse = (res: Response, error: AppError, requestId?: string) =
   };
 
   // Include error details in development
-  if (config.app.nodeEnv === 'development') {
+  if (config.app.nodeEnv === "development") {
     response.error.details = error.details;
     response.error.stack = error.stack;
   }
 
   // Include validation errors
-  if (error.details && error.code === 'VALIDATION_ERROR') {
+  if (error.details && error.code === "VALIDATION_ERROR") {
     response.error.validation = error.details;
   }
 
@@ -248,16 +261,16 @@ const sendErrorResponse = (res: Response, error: AppError, requestId?: string) =
  * Development error response (includes stack trace)
  */
 const sendErrorDev = (err: AppError, req: Request, res: Response) => {
-  const requestId = req.headers['x-request-id'] as string;
-  
-  logger.error('Error in development mode:', {
+  const requestId = req.headers["x-request-id"] as string;
+
+  logger.error("Error in development mode:", {
     error: err.message,
     stack: err.stack,
     requestId,
     url: req.originalUrl,
     method: req.method,
     ip: req.ip,
-    userAgent: req.get('User-Agent'),
+    userAgent: req.get("User-Agent"),
   });
 
   sendErrorResponse(res, err, requestId);
@@ -267,21 +280,26 @@ const sendErrorDev = (err: AppError, req: Request, res: Response) => {
  * Production error response (no stack trace)
  */
 const sendErrorProd = (err: AppError, req: Request, res: Response) => {
-  const requestId = req.headers['x-request-id'] as string;
-  
+  const requestId = req.headers["x-request-id"] as string;
+
   // Log operational errors
   if (err.isOperational) {
-    logError(err, {
-      requestId,
-      url: req.originalUrl,
-      method: req.method,
-      ip: req.ip,
-    }, req.user?.id, req.ip);
-    
+    logError(
+      err,
+      {
+        requestId,
+        url: req.originalUrl,
+        method: req.method,
+        ip: req.ip,
+      },
+      req.user?.id,
+      req.ip,
+    );
+
     sendErrorResponse(res, err, requestId);
   } else {
     // Log programming errors
-    logger.error('Non-operational error in production:', {
+    logger.error("Non-operational error in production:", {
       error: err.message,
       stack: err.stack,
       requestId,
@@ -292,9 +310,9 @@ const sendErrorProd = (err: AppError, req: Request, res: Response) => {
 
     // Send generic error message
     const genericError = new AppError(
-      'Something went wrong', 
-      500, 
-      'INTERNAL_ERROR'
+      "Something went wrong",
+      500,
+      "INTERNAL_ERROR",
     );
     sendErrorResponse(res, genericError, requestId);
   }
@@ -307,7 +325,7 @@ export const errorHandler = (
   err: any,
   req: Request,
   res: Response,
-  next: NextFunction
+  next: NextFunction,
 ) => {
   // Skip if response already sent
   if (res.headersSent) {
@@ -323,15 +341,17 @@ export const errorHandler = (
     error = handleSequelizeValidationError(err);
   } else if (err instanceof DatabaseError) {
     error = handleSequelizeDatabaseError(err);
-  } else if (err.name && err.name.includes('JWT')) {
+  } else if (err.name && err.name.includes("JWT")) {
     error = handleJWTError(err);
-  } else if (err.code && err.code.startsWith('LIMIT_')) {
+  } else if (err.code && err.code.startsWith("LIMIT_")) {
     error = handleMulterError(err);
   } else if (!(err instanceof AppError)) {
     // Convert unknown errors to AppError
     error = new AppError(
-      config.app.nodeEnv === 'production' ? 'Internal server error' : err.message,
-      err.statusCode || 500
+      config.app.nodeEnv === "production"
+        ? "Internal server error"
+        : err.message,
+      err.statusCode || 500,
     );
     error.stack = err.stack;
     error.isOperational = false;
@@ -340,31 +360,33 @@ export const errorHandler = (
   // Log security-related errors
   if (error.statusCode === 401 || error.statusCode === 403) {
     logSecurityEvent(
-      'authorization_failed',
+      "authorization_failed",
       {
         error: error.message,
         url: req.originalUrl,
         method: req.method,
-        userAgent: req.get('User-Agent'),
+        userAgent: req.get("User-Agent"),
       },
       req.user?.id,
       req.ip,
-      'medium'
+      "medium",
     );
   }
 
   // Handle rate limit errors
   if (error instanceof RateLimitError) {
     res.set({
-      'Retry-After': Math.round(config.rateLimit.windowMs / 1000),
-      'X-RateLimit-Limit': config.rateLimit.maxRequests,
-      'X-RateLimit-Remaining': 0,
-      'X-RateLimit-Reset': new Date(Date.now() + config.rateLimit.windowMs).toISOString(),
+      "Retry-After": Math.round(config.rateLimit.windowMs / 1000),
+      "X-RateLimit-Limit": config.rateLimit.maxRequests,
+      "X-RateLimit-Remaining": 0,
+      "X-RateLimit-Reset": new Date(
+        Date.now() + config.rateLimit.windowMs,
+      ).toISOString(),
     });
   }
 
   // Send appropriate error response
-  if (config.app.nodeEnv === 'development') {
+  if (config.app.nodeEnv === "development") {
     sendErrorDev(error, req, res);
   } else {
     sendErrorProd(error, req, res);
@@ -374,7 +396,11 @@ export const errorHandler = (
 /**
  * Handle 404 errors (catch-all for undefined routes)
  */
-export const notFoundHandler = (req: Request, res: Response, next: NextFunction) => {
+export const notFoundHandler = (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) => {
   const error = new NotFoundError(`Route ${req.originalUrl} not found`);
   next(error);
 };
@@ -391,7 +417,10 @@ export const asyncHandler = (fn: Function) => {
 /**
  * Validation middleware wrapper
  */
-export const validateRequest = (schema: any, property: 'body' | 'query' | 'params' = 'body') => {
+export const validateRequest = (
+  schema: any,
+  property: "body" | "query" | "params" = "body",
+) => {
   return (req: Request, res: Response, next: NextFunction) => {
     const { error } = schema.validate(req[property]);
     if (error) {
@@ -406,7 +435,7 @@ export const validateRequest = (schema: any, property: 'body' | 'query' | 'param
  */
 export const withErrorHandling = async <T>(
   operation: () => Promise<T>,
-  context: string = 'Database operation'
+  context: string = "Database operation",
 ): Promise<T> => {
   try {
     return await operation();

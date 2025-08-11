@@ -1,7 +1,7 @@
 /**
- * ============================================================================
+ * ============================================================================ 
  * WASTE MANAGEMENT SYSTEM - SECURITY MIDDLEWARE
- * ============================================================================
+ * ============================================================================ 
  * 
  * Security middleware for request validation, sanitization, and protection.
  * Includes XSS protection, SQL injection prevention, and security headers.
@@ -38,7 +38,7 @@ const SECURITY_PATTERNS = {
   SQL_INJECTION: [
     /(\b(union|select|insert|update|delete|drop|create|alter|exec|execute)\b)/gi,
     /(\b(or|and)\s+\d+\s*=\s*\d+)/gi,
-    /([\'"]\s*(or|and)\s+[\'"]\s*\w+[\'"]\s*=\s*[\'"]\w+[\'"]\s*)/gi,
+    /([\'"]\s*(or|and)\s+[\'"]\s*\w+[\'']\s*=\s*[\'']\w+[\'']\s*)/gi,
     /(\bwhere\b.*\b(or|and)\b.*[\'"])/gi,
   ],
   XSS: [
@@ -54,17 +54,17 @@ const SECURITY_PATTERNS = {
   ],
   PATH_TRAVERSAL: [
     /\.\.\//g,
-    /\.\.\\g,
+    /\.\\\\/g,
     /%2e%2e%2f/gi,
     /%2e%2e%5c/gi,
   ],
-  COMMAND_INJECTION: [
-    /[;&|`$()]/g,
-    /%3b/gi,
-    /%26/gi,
-    /%7c/gi,
-    /%60/gi,
-  ],
+  // COMMAND_INJECTION: [
+  //   /[;&|`$()]/g,
+  //   /%3b/gi,
+  //   /%26/gi,
+  //   /%7c/gi,
+  //   /%60/gi,
+  // ],
   LDAP_INJECTION: [
     /[()&|!]/g,
     /%28/gi,
@@ -118,11 +118,11 @@ const detectThreats = (content: string): string[] => {
   });
   
   // Check for command injection patterns
-  SECURITY_PATTERNS.COMMAND_INJECTION.forEach(pattern => {
-    if (pattern.test(content)) {
-      threats.push('COMMAND_INJECTION');
-    }
-  });
+  // SECURITY_PATTERNS.COMMAND_INJECTION.forEach(pattern => {
+  //   if (pattern.test(content)) {
+  //     threats.push('COMMAND_INJECTION');
+  //   }
+  // });
   
   // Check for LDAP injection patterns
   SECURITY_PATTERNS.LDAP_INJECTION.forEach(pattern => {

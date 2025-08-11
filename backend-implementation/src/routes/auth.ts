@@ -2,10 +2,10 @@
  * ============================================================================
  * WASTE MANAGEMENT SYSTEM - AUTHENTICATION ROUTES
  * ============================================================================
- * 
+ *
  * Authentication and authorization routes with comprehensive security
  * controls including rate limiting, input validation, and audit logging.
- * 
+ *
  * Endpoints:
  * - POST /register - User registration
  * - POST /login - User authentication
@@ -18,30 +18,30 @@
  * - GET /profile - Get current user profile
  * - GET /sessions - Get user sessions
  * - DELETE /sessions/:sessionId - Revoke specific session
- * 
+ *
  * Created by: Security & Compliance Specialist
  * Date: 2025-08-10
  * Version: 1.0.0
  */
 
-import { Router } from 'express';
-import { 
+import { Router } from "express";
+import {
   AuthController,
   authRateLimit,
   failedLoginRateLimit,
   validateRegistration,
   validateLogin,
   validatePasswordChange,
-} from '@/controllers/AuthController';
-import { 
-  authenticate, 
+} from "@/controllers/AuthController";
+import {
+  authenticate,
   optionalAuth,
   authorize,
   UserRole,
   adminOnly,
   staffOnly,
-} from '@/middleware/auth';
-import { logger } from '@/utils/logger';
+} from "@/middleware/auth";
+import { logger } from "@/utils/logger";
 
 /**
  * Create authentication router
@@ -62,20 +62,18 @@ authRouter.use(authRateLimit);
  * @desc Register a new user
  * @access Public (with validation)
  */
-authRouter.post('/register', 
-  validateRegistration,
-  AuthController.register
-);
+authRouter.post("/register", validateRegistration, AuthController.register);
 
 /**
  * @route POST /auth/login
  * @desc Authenticate user and get tokens
  * @access Public
  */
-authRouter.post('/login',
+authRouter.post(
+  "/login",
   failedLoginRateLimit,
   validateLogin,
-  AuthController.login
+  AuthController.login,
 );
 
 /**
@@ -83,9 +81,7 @@ authRouter.post('/login',
  * @desc Refresh access token using refresh token
  * @access Public (requires valid refresh token)
  */
-authRouter.post('/refresh',
-  AuthController.refreshToken
-);
+authRouter.post("/refresh", AuthController.refreshToken);
 
 /**
  * Protected endpoints (authentication required)
@@ -96,30 +92,25 @@ authRouter.post('/refresh',
  * @desc Logout user from current session
  * @access Private
  */
-authRouter.post('/logout',
-  authenticate,
-  AuthController.logout
-);
+authRouter.post("/logout", authenticate, AuthController.logout);
 
 /**
  * @route POST /auth/logout-all
  * @desc Logout user from all sessions
  * @access Private
  */
-authRouter.post('/logout-all',
-  authenticate,
-  AuthController.logoutAll
-);
+authRouter.post("/logout-all", authenticate, AuthController.logoutAll);
 
 /**
  * @route POST /auth/change-password
  * @desc Change user password
  * @access Private
  */
-authRouter.post('/change-password',
+authRouter.post(
+  "/change-password",
   authenticate,
   validatePasswordChange,
-  AuthController.changePassword
+  AuthController.changePassword,
 );
 
 /**
@@ -127,29 +118,24 @@ authRouter.post('/change-password',
  * @desc Get current user profile
  * @access Private
  */
-authRouter.get('/profile',
-  authenticate,
-  AuthController.getProfile
-);
+authRouter.get("/profile", authenticate, AuthController.getProfile);
 
 /**
  * @route GET /auth/sessions
  * @desc Get all user sessions
  * @access Private
  */
-authRouter.get('/sessions',
-  authenticate,
-  AuthController.getSessions
-);
+authRouter.get("/sessions", authenticate, AuthController.getSessions);
 
 /**
  * @route DELETE /auth/sessions/:sessionId
  * @desc Revoke a specific session
  * @access Private
  */
-authRouter.delete('/sessions/:sessionId',
+authRouter.delete(
+  "/sessions/:sessionId",
   authenticate,
-  AuthController.revokeSession
+  AuthController.revokeSession,
 );
 
 /**
@@ -161,20 +147,14 @@ authRouter.delete('/sessions/:sessionId',
  * @desc Setup multi-factor authentication
  * @access Private
  */
-authRouter.post('/setup-mfa',
-  authenticate,
-  AuthController.setupMFA
-);
+authRouter.post("/setup-mfa", authenticate, AuthController.setupMFA);
 
 /**
  * @route POST /auth/verify-mfa
  * @desc Verify and enable MFA
  * @access Private
  */
-authRouter.post('/verify-mfa',
-  authenticate,
-  AuthController.verifyMFASetup
-);
+authRouter.post("/verify-mfa", authenticate, AuthController.verifyMFASetup);
 
 /**
  * Administrative endpoints (admin only)
@@ -185,111 +165,112 @@ authRouter.post('/verify-mfa',
  * @desc Authentication system health check
  * @access Admin only
  */
-authRouter.get('/health',
-  authenticate,
-  adminOnly,
-  async (req, res, next) => {
-    try {
-      // Import here to avoid circular dependencies
-      const { SessionService } = await import('@/services/SessionService');
-      const { User } = await import('@/models/User');
-      const { UserSession } = await import('@/models/UserSession');
+authRouter.get("/health", authenticate, adminOnly, async (req, res, next) => {
+  try {
+    // Import here to avoid circular dependencies
+    const { SessionService } = await import("@/services/SessionService");
+    const { User } = await import("@/models/User");
+    const { UserSession } = await import("@/models/UserSession");
 
-      // Get system statistics
-      const [sessionStats, userCount, activeUserCount] = await Promise.all([
-        SessionService.getSessionStats(),
-        User.count(),
-        User.count({ where: { status: 'active' } }),
-      ]);
+    // Get system statistics
+    const [sessionStats, userCount, activeUserCount] = await Promise.all([
+      SessionService.getSessionStats(),
+      User.count(),
+      User.count({ where: { status: "active" } }),
+    ]);
 
-      res.status(200).json({
-        success: true,
-        message: 'Authentication system health check',
-        data: {
-          systemStatus: 'healthy',
-          timestamp: new Date().toISOString(),
-          statistics: {
-            totalUsers: userCount,
-            activeUsers: activeUserCount,
-            sessions: sessionStats,
-          },
-          security: {
-            rateLimiting: 'enabled',
-            mfaSupport: 'enabled',
-            auditLogging: 'enabled',
-            sessionManagement: 'enabled',
-          },
+    res.status(200).json({
+      success: true,
+      message: "Authentication system health check",
+      data: {
+        systemStatus: "healthy",
+        timestamp: new Date().toISOString(),
+        statistics: {
+          totalUsers: userCount,
+          activeUsers: activeUserCount,
+          sessions: sessionStats,
         },
-      });
-    } catch (error) {
-      next(error);
-    }
+        security: {
+          rateLimiting: "enabled",
+          mfaSupport: "enabled",
+          auditLogging: "enabled",
+          sessionManagement: "enabled",
+        },
+      },
+    });
+  } catch (error) {
+    next(error);
   }
-);
+});
 
 /**
  * @route GET /auth/users
  * @desc Get all users (admin only)
  * @access Admin only
  */
-authRouter.get('/users',
-  authenticate,
-  adminOnly,
-  async (req, res, next) => {
-    try {
-      const { User } = await import('@/models/User');
-      
-      const page = parseInt(req.query.page as string) || 1;
-      const limit = Math.min(parseInt(req.query.limit as string) || 10, 100);
-      const offset = (page - 1) * limit;
-      
-      const { rows: users, count: total } = await User.findAndCountAll({
-        attributes: [
-          'id', 'email', 'firstName', 'lastName', 'role', 'status',
-          'mfaEnabled', 'lastLoginAt', 'createdAt', 'updatedAt'
-        ],
-        limit,
-        offset,
-        order: [['createdAt', 'DESC']],
-      });
+authRouter.get("/users", authenticate, adminOnly, async (req, res, next) => {
+  try {
+    const { User } = await import("@/models/User");
 
-      res.status(200).json({
-        success: true,
-        data: {
-          users,
-          pagination: {
-            page,
-            limit,
-            total,
-            pages: Math.ceil(total / limit),
-          },
+    const page = parseInt(req.query.page as string) || 1;
+    const limit = Math.min(parseInt(req.query.limit as string) || 10, 100);
+    const offset = (page - 1) * limit;
+
+    const { rows: users, count: total } = await User.findAndCountAll({
+      attributes: [
+        "id",
+        "email",
+        "firstName",
+        "lastName",
+        "role",
+        "status",
+        "mfaEnabled",
+        "lastLoginAt",
+        "createdAt",
+        "updatedAt",
+      ],
+      limit,
+      offset,
+      order: [["createdAt", "DESC"]],
+    });
+
+    res.status(200).json({
+      success: true,
+      data: {
+        users,
+        pagination: {
+          page,
+          limit,
+          total,
+          pages: Math.ceil(total / limit),
         },
-      });
-    } catch (error) {
-      next(error);
-    }
+      },
+    });
+  } catch (error) {
+    next(error);
   }
-);
+});
 
 /**
  * @route PATCH /auth/users/:userId/status
  * @desc Update user status (admin only)
  * @access Admin only
  */
-authRouter.patch('/users/:userId/status',
+authRouter.patch(
+  "/users/:userId/status",
   authenticate,
   adminOnly,
   async (req, res, next) => {
     try {
-      const { User, UserStatus } = await import('@/models/User');
-      const { AuditLog, AuditAction } = await import('@/models/AuditLog');
+      const { User, UserStatus } = await import("@/models/User");
+      const { AuditLog, AuditAction } = await import("@/models/AuditLog");
       const { userId } = req.params;
       const { status } = req.body;
 
       if (!Object.values(UserStatus).includes(status)) {
         return res.status(400).json({
           success: false,
-          error: 'Invalid status value',
+          error: "Invalid status value",
         });
       }
 
@@ -297,7 +278,7 @@ authRouter.patch('/users/:userId/status',
       if (!user) {
         return res.status(404).json({
           success: false,
-          error: 'User not found',
+          error: "User not found",
         });
       }
 
@@ -306,18 +287,18 @@ authRouter.patch('/users/:userId/status',
 
       // Log status change
       await AuditLog.logDataAccess(
-        'users',
+        "users",
         user.id,
         AuditAction.UPDATE,
         (req as any).user.id,
         (req as any).user.sessionId,
         req.ip,
-        req.headers['user-agent'],
+        req.headers["user-agent"],
         { status: oldStatus },
-        { status }
+        { status },
       );
 
-      logger.info('User status updated', {
+      logger.info("User status updated", {
         adminUserId: (req as any).user.id,
         targetUserId: userId,
         oldStatus,
@@ -327,7 +308,7 @@ authRouter.patch('/users/:userId/status',
 
       res.status(200).json({
         success: true,
-        message: 'User status updated successfully',
+        message: "User status updated successfully",
         data: {
           userId: user.id,
           email: user.email,
@@ -337,7 +318,7 @@ authRouter.patch('/users/:userId/status',
     } catch (error) {
       next(error);
     }
-  }
+  },
 );
 
 /**
@@ -345,12 +326,12 @@ authRouter.patch('/users/:userId/status',
  */
 authRouter.use((error: any, req: any, res: any, next: any) => {
   // Log authentication errors
-  logger.error('Authentication route error', {
+  logger.error("Authentication route error", {
     error: error.message,
     route: req.originalUrl,
     method: req.method,
     ip: req.ip,
-    userAgent: req.headers['user-agent'],
+    userAgent: req.headers["user-agent"],
   });
 
   next(error);
@@ -359,32 +340,32 @@ authRouter.use((error: any, req: any, res: any, next: any) => {
 /**
  * 404 handler for auth routes
  */
-authRouter.use('*', (req, res) => {
+authRouter.use("*", (req, res) => {
   res.status(404).json({
     success: false,
-    error: 'authentication_route_not_found',
+    error: "authentication_route_not_found",
     message: `Authentication route ${req.originalUrl} not found`,
     availableEndpoints: [
-      'POST /auth/register',
-      'POST /auth/login',
-      'POST /auth/logout',
-      'POST /auth/logout-all',
-      'POST /auth/refresh',
-      'POST /auth/change-password',
-      'POST /auth/setup-mfa',
-      'POST /auth/verify-mfa',
-      'GET /auth/profile',
-      'GET /auth/sessions',
-      'DELETE /auth/sessions/:sessionId',
-      'GET /auth/health (admin)',
-      'GET /auth/users (admin)',
-      'PATCH /auth/users/:userId/status (admin)',
+      "POST /auth/register",
+      "POST /auth/login",
+      "POST /auth/logout",
+      "POST /auth/logout-all",
+      "POST /auth/refresh",
+      "POST /auth/change-password",
+      "POST /auth/setup-mfa",
+      "POST /auth/verify-mfa",
+      "GET /auth/profile",
+      "GET /auth/sessions",
+      "DELETE /auth/sessions/:sessionId",
+      "GET /auth/health (admin)",
+      "GET /auth/users (admin)",
+      "PATCH /auth/users/:userId/status (admin)",
     ],
     timestamp: new Date().toISOString(),
   });
 });
 
-logger.info('✅ Authentication routes configured');
+logger.info("✅ Authentication routes configured");
 
 export { authRouter };
 export default authRouter;
