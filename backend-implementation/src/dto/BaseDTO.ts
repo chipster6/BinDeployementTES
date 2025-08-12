@@ -56,7 +56,7 @@ export abstract class BaseDTO<T = any> {
 
   constructor(data?: T | Model, options?: DTOTransformOptions) {
     this.transformOptions = options || {};
-    
+
     if (data) {
       if (data instanceof Model) {
         this.originalData = data;
@@ -85,7 +85,7 @@ export abstract class BaseDTO<T = any> {
     const dtoData: any = {};
 
     // Apply field mappings
-    Object.keys(modelData).forEach(key => {
+    Object.keys(modelData).forEach((key) => {
       const mappedKey = mappings[key] || key;
       dtoData[mappedKey] = modelData[key];
     });
@@ -93,7 +93,7 @@ export abstract class BaseDTO<T = any> {
     // Include/exclude fields based on options
     if (this.transformOptions?.includeFields) {
       const filtered: any = {};
-      this.transformOptions.includeFields.forEach(field => {
+      this.transformOptions.includeFields.forEach((field) => {
         if (Object.prototype.hasOwnProperty.call(dtoData, field)) {
           filtered[field] = dtoData[field];
         }
@@ -102,7 +102,7 @@ export abstract class BaseDTO<T = any> {
     }
 
     if (this.transformOptions?.excludeFields) {
-      this.transformOptions.excludeFields.forEach(field => {
+      this.transformOptions.excludeFields.forEach((field) => {
         if (Object.prototype.hasOwnProperty.call(dtoData, field)) {
           delete dtoData[field];
         }
@@ -111,7 +111,7 @@ export abstract class BaseDTO<T = any> {
 
     // Mask sensitive fields
     if (this.transformOptions?.maskSensitiveFields !== false) {
-      this.getSensitiveFields().forEach(field => {
+      this.getSensitiveFields().forEach((field) => {
         if (dtoData[field]) {
           dtoData[field] = this.maskSensitiveField(dtoData[field]);
         }
@@ -126,17 +126,20 @@ export abstract class BaseDTO<T = any> {
    */
   protected toModelData(): any {
     const mappings = this.getFieldMappings();
-    const reverseMappings = Object.keys(mappings).reduce((acc, key) => {
-      const mappingKey = mappings[key];
-      if (mappingKey) {
-        acc[mappingKey] = key;
-      }
-      return acc;
-    }, {} as Record<string, string>);
+    const reverseMappings = Object.keys(mappings).reduce(
+      (acc, key) => {
+        const mappingKey = mappings[key];
+        if (mappingKey) {
+          acc[mappingKey] = key;
+        }
+        return acc;
+      },
+      {} as Record<string, string>,
+    );
 
     const modelData: any = {};
     if (this.data) {
-      Object.keys(this.data as any).forEach(key => {
+      Object.keys(this.data as any).forEach((key) => {
         const mappedKey = reverseMappings[key] || key;
         const value = (this.data as any)[key];
         if (value !== undefined) {
@@ -159,8 +162,8 @@ export abstract class BaseDTO<T = any> {
     });
 
     if (error) {
-      const errors = error.details.map(detail => ({
-        field: detail.path.join('.'),
+      const errors = error.details.map((detail) => ({
+        field: detail.path.join("."),
         message: detail.message,
         value: detail.context?.value,
       }));
@@ -211,7 +214,7 @@ export abstract class BaseDTO<T = any> {
    */
   public hasField(field: keyof T): boolean {
     const value = this.data[field];
-    return value !== undefined && value !== null && value !== '';
+    return value !== undefined && value !== null && value !== "";
   }
 
   /**
@@ -220,10 +223,12 @@ export abstract class BaseDTO<T = any> {
   public toSafeJSON(): any {
     const safeData = { ...this.data };
     const sensitiveFields = this.getSensitiveFields();
-    
-    sensitiveFields.forEach(field => {
+
+    sensitiveFields.forEach((field) => {
       if ((safeData as any)[field]) {
-        (safeData as any)[field] = this.maskSensitiveField((safeData as any)[field]);
+        (safeData as any)[field] = this.maskSensitiveField(
+          (safeData as any)[field],
+        );
       }
     });
 
@@ -242,10 +247,10 @@ export abstract class BaseDTO<T = any> {
    */
   public toCreateData(): any {
     const modelData = this.toModelData();
-    
+
     // Remove fields that shouldn't be included in create
-    const excludeFromCreate = ['id', 'createdAt', 'updatedAt', 'deletedAt'];
-    excludeFromCreate.forEach(field => {
+    const excludeFromCreate = ["id", "createdAt", "updatedAt", "deletedAt"];
+    excludeFromCreate.forEach((field) => {
       delete modelData[field];
     });
 
@@ -257,10 +262,10 @@ export abstract class BaseDTO<T = any> {
    */
   public toUpdateData(): any {
     const modelData = this.toModelData();
-    
+
     // Remove fields that shouldn't be included in update
-    const excludeFromUpdate = ['id', 'createdAt', 'updatedAt', 'deletedAt'];
-    excludeFromUpdate.forEach(field => {
+    const excludeFromUpdate = ["id", "createdAt", "updatedAt", "deletedAt"];
+    excludeFromUpdate.forEach((field) => {
       delete modelData[field];
     });
 
@@ -291,10 +296,10 @@ export abstract class BaseDTO<T = any> {
    */
   public hasChanges(): boolean {
     if (!this.originalData) return true;
-    
+
     const currentData = JSON.stringify(this.toModelData());
     const originalData = JSON.stringify(this.originalData.toJSON());
-    
+
     return currentData !== originalData;
   }
 
@@ -303,32 +308,37 @@ export abstract class BaseDTO<T = any> {
    */
   public getChangedFields(): string[] {
     if (!this.originalData) return Object.keys(this.data as any);
-    
+
     const changedFields: string[] = [];
     const currentData = this.toModelData();
     const originalData = this.originalData.toJSON();
-    
-    Object.keys(currentData).forEach(key => {
-      if (JSON.stringify(currentData[key]) !== JSON.stringify(originalData[key])) {
+
+    Object.keys(currentData).forEach((key) => {
+      if (
+        JSON.stringify(currentData[key]) !== JSON.stringify(originalData[key])
+      ) {
         changedFields.push(key);
       }
     });
-    
+
     return changedFields;
   }
 
   /**
    * Convert dates to specified timezone
    */
-  protected convertDateToTimezone(date: Date | string, timezone?: string): string {
-    if (!date) return '';
-    
-    const dateObj = typeof date === 'string' ? new Date(date) : date;
-    
+  protected convertDateToTimezone(
+    date: Date | string,
+    timezone?: string,
+  ): string {
+    if (!date) return "";
+
+    const dateObj = typeof date === "string" ? new Date(date) : date;
+
     if (timezone) {
-      return dateObj.toLocaleString('en-US', { timeZone: timezone });
+      return dateObj.toLocaleString("en-US", { timeZone: timezone });
     }
-    
+
     return dateObj.toISOString();
   }
 
@@ -336,22 +346,22 @@ export abstract class BaseDTO<T = any> {
    * Mask sensitive field value
    */
   protected maskSensitiveField(value: any): string {
-    if (!value) return '';
-    
+    if (!value) return "";
+
     const strValue = String(value);
     if (strValue.length <= 4) {
-      return '*'.repeat(strValue.length);
+      return "*".repeat(strValue.length);
     }
-    
-    return `${strValue.substring(0, 2)}${'*'.repeat(strValue.length - 4)}${strValue.substring(strValue.length - 2)}`;
+
+    return `${strValue.substring(0, 2)}${"*".repeat(strValue.length - 4)}${strValue.substring(strValue.length - 2)}`;
   }
 
   /**
    * Format currency value
    */
-  protected formatCurrency(amount: number, currency: string = 'USD'): string {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
+  protected formatCurrency(amount: number, currency: string = "USD"): string {
+    return new Intl.NumberFormat("en-US", {
+      style: "currency",
       currency,
     }).format(amount);
   }
@@ -367,11 +377,11 @@ export abstract class BaseDTO<T = any> {
    * Sanitize string input
    */
   protected sanitizeString(input: string): string {
-    if (!input) return '';
-    
+    if (!input) return "";
+
     return input
       .trim()
-      .replace(/[<>]/g, '') // Remove potential HTML tags
+      .replace(/[<>]/g, "") // Remove potential HTML tags
       .substring(0, 1000); // Limit length
   }
 
@@ -388,7 +398,7 @@ export abstract class BaseDTO<T = any> {
    */
   protected isValidPhone(phone: string): boolean {
     const phoneRegex = /^\+?[1-9]\d{1,14}$/;
-    return phoneRegex.test(phone.replace(/[\s\-\(\)]/g, ''));
+    return phoneRegex.test(phone.replace(/[\s\-\(\)]/g, ""));
   }
 
   /**
@@ -397,7 +407,7 @@ export abstract class BaseDTO<T = any> {
   public static fromModel<T extends BaseDTO>(
     this: new (data?: any, options?: DTOTransformOptions) => T,
     model: Model,
-    options?: DTOTransformOptions
+    options?: DTOTransformOptions,
   ): T {
     return new this(model, options);
   }
@@ -408,9 +418,9 @@ export abstract class BaseDTO<T = any> {
   public static fromModels<T extends BaseDTO>(
     this: new (data?: any, options?: DTOTransformOptions) => T,
     models: Model[],
-    options?: DTOTransformOptions
+    options?: DTOTransformOptions,
   ): T[] {
-    return models.map(model => new this(model, options));
+    return models.map((model) => new this(model, options));
   }
 
   /**
@@ -424,7 +434,7 @@ export abstract class BaseDTO<T = any> {
       const result = dto.validate();
       if (!result.isValid) {
         isValid = false;
-        result.errors.forEach(error => {
+        result.errors.forEach((error) => {
           allErrors.push({
             ...error,
             index,

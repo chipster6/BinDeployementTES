@@ -117,9 +117,13 @@ export async function encryptSensitiveData(
     // Encrypt the data
     let encrypted = cipher.update(plaintext, "utf8", "base64");
     encrypted += cipher.final("base64");
-    
+
     // Note: For Node.js compatibility, we'll simulate tag for structure consistency
-    const tag = crypto.createHash('sha256').update(encrypted + iv.toString('base64')).digest('base64').slice(0, 22);
+    const tag = crypto
+      .createHash("sha256")
+      .update(encrypted + iv.toString("base64"))
+      .digest("base64")
+      .slice(0, 22);
 
     // Create encrypted data structure
     const encryptedData: EncryptedData = {
@@ -162,7 +166,7 @@ export async function decryptSensitiveData(
     if (!encryptedData.data || !encryptedData.iv) {
       throw new Error("Invalid encrypted data structure");
     }
-    
+
     // For backwards compatibility, handle missing tag field
     if (!encryptedData.tag) {
       encryptedData.tag = "";
@@ -259,7 +263,7 @@ export function verifySensitiveDataHash(
     if (!salt || !originalHash) {
       return false;
     }
-    
+
     const hash = crypto.pbkdf2Sync(data, salt, 10000, 64, "sha512");
     const newHash = hash.toString("hex");
 
@@ -284,16 +288,18 @@ export function generateSessionKey(): string {
  * Encrypt session data
  */
 export function encryptSessionData(data: any): string {
-  const sessionKey =
-    process.env.SESSION_SECRET ||
-    generateSessionKey();
+  const sessionKey = process.env.SESSION_SECRET || generateSessionKey();
   const iv = generateIV();
 
   const cipher = crypto.createCipher("aes-256-cbc", sessionKey);
   let encrypted = cipher.update(JSON.stringify(data), "utf8", "base64");
   encrypted += cipher.final("base64");
-  const tag = crypto.createHash('sha256').update(encrypted + iv.toString('base64')).digest('base64').slice(0, 22);
-  
+  const tag = crypto
+    .createHash("sha256")
+    .update(encrypted + iv.toString("base64"))
+    .digest("base64")
+    .slice(0, 22);
+
   return `${iv.toString("base64")}:${tag.toString("base64")}:${encrypted}`;
 }
 
@@ -311,7 +317,7 @@ export function decryptSessionData(encryptedData: string): any {
     if (!ivString || !tagString || !encrypted) {
       throw new Error("Invalid encrypted data format");
     }
-    
+
     const iv = Buffer.from(ivString, "base64");
     const tag = Buffer.from(tagString, "base64");
     const decipher = crypto.createDecipher("aes-256-cbc", sessionKey);
@@ -352,7 +358,8 @@ export function generateSecurePassword(length: number = 16): string {
  * Create HMAC signature for data integrity
  */
 export function createHmacSignature(data: string, key?: string): string {
-  const secretKey = key || config?.security?.encryptionKey || process.env.HMAC_SECRET;
+  const secretKey =
+    key || config?.security?.encryptionKey || process.env.HMAC_SECRET;
   if (!secretKey) {
     throw new Error("HMAC secret key not configured");
   }

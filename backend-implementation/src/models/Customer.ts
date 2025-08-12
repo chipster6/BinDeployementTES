@@ -708,9 +708,7 @@ Customer.findByStatus = async function (
 };
 
 // Find customers due for service
-Customer.findDueForService = async function (
-  date?: Date,
-): Promise<Customer[]> {
+Customer.findDueForService = async function (date?: Date): Promise<Customer[]> {
   const targetDate = date || new Date();
 
   return await this.scope("dueForService").findAll({

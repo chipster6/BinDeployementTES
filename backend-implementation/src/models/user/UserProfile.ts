@@ -339,7 +339,9 @@ export class UserProfile extends Model<UserProfile> {
    * Get full name
    */
   getFullName(): string {
-    const parts = [this.firstName, this.middleName, this.lastName].filter(Boolean);
+    const parts = [this.firstName, this.middleName, this.lastName].filter(
+      Boolean,
+    );
     return parts.join(" ");
   }
 
@@ -370,7 +372,9 @@ export class UserProfile extends Model<UserProfile> {
       this.gdprConsentGiven,
     ];
 
-    return requiredFields.every(field => field !== null && field !== undefined);
+    return requiredFields.every(
+      (field) => field !== null && field !== undefined,
+    );
   }
 
   /**
@@ -384,7 +388,10 @@ export class UserProfile extends Model<UserProfile> {
     let age = today.getFullYear() - birthDate.getFullYear();
     const monthDiff = today.getMonth() - birthDate.getMonth();
 
-    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+    if (
+      monthDiff < 0 ||
+      (monthDiff === 0 && today.getDate() < birthDate.getDate())
+    ) {
       age--;
     }
 
@@ -394,7 +401,9 @@ export class UserProfile extends Model<UserProfile> {
   /**
    * Update preferences
    */
-  async updatePreferences(newPreferences: Partial<UserPreferences>): Promise<void> {
+  async updatePreferences(
+    newPreferences: Partial<UserPreferences>,
+  ): Promise<void> {
     this.preferences = {
       ...this.preferences,
       ...newPreferences,
@@ -479,7 +488,7 @@ export class UserProfile extends Model<UserProfile> {
    */
   static async createForUser(
     userId: string,
-    profileData: Partial<UserProfile>
+    profileData: Partial<UserProfile>,
   ): Promise<UserProfile> {
     return this.create({
       userId,
@@ -512,10 +521,7 @@ export class UserProfile extends Model<UserProfile> {
     return this.findAll({
       where: {
         [DataType.op]: {
-          or: [
-            { dataExportRequested: true },
-            { dataDeletionRequested: true },
-          ],
+          or: [{ dataExportRequested: true }, { dataDeletionRequested: true }],
         },
       },
     });

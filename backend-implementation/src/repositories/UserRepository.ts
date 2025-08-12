@@ -23,7 +23,11 @@ import { User, UserStatus } from "@/models/User";
 import { Organization } from "@/models/Organization";
 import { UserProfile } from "@/models/user/UserProfile";
 import { UserSecurity } from "@/models/user/UserSecurity";
-import { BaseRepository, RepositoryFilter, PaginationResult } from "./BaseRepository";
+import {
+  BaseRepository,
+  RepositoryFilter,
+  PaginationResult,
+} from "./BaseRepository";
 import { logger } from "@/utils/logger";
 
 /**
@@ -72,7 +76,7 @@ export class UserRepository extends BaseRepository<User> {
   public async findByEmailWithDetails(
     email: string,
     includeProfile: boolean = true,
-    includeSecurity: boolean = true
+    includeSecurity: boolean = true,
   ): Promise<User | null> {
     const cacheKey = this.generateCacheKey("findByEmailWithDetails", {
       email,
@@ -123,7 +127,7 @@ export class UserRepository extends BaseRepository<User> {
    */
   public async findActiveByOrganization(
     organizationId: string,
-    options: { limit?: number; offset?: number } = {}
+    options: { limit?: number; offset?: number } = {},
   ): Promise<User[]> {
     return this.findAll({
       where: {
@@ -138,7 +142,10 @@ export class UserRepository extends BaseRepository<User> {
           attributes: ["firstName", "lastName", "title"],
         },
       ],
-      order: [["lastName", "ASC"], ["firstName", "ASC"]],
+      order: [
+        ["lastName", "ASC"],
+        ["firstName", "ASC"],
+      ],
       limit: options.limit,
       offset: options.offset,
     });
@@ -149,10 +156,10 @@ export class UserRepository extends BaseRepository<User> {
    */
   public async findByRole(
     role: string,
-    organizationId?: string
+    organizationId?: string,
   ): Promise<User[]> {
     const whereClause: WhereOptions = { role };
-    
+
     if (organizationId) {
       whereClause.organizationId = organizationId;
     }
@@ -180,7 +187,7 @@ export class UserRepository extends BaseRepository<User> {
    */
   public async searchUsers(
     criteria: UserSearchCriteria,
-    pagination?: { page: number; limit: number }
+    pagination?: { page: number; limit: number },
   ): Promise<PaginationResult<User> | User[]> {
     const whereClause = this.buildUserSearchWhereClause(criteria);
 
@@ -266,11 +273,11 @@ export class UserRepository extends BaseRepository<User> {
    */
   public async findRecentlyActive(
     days: number = 30,
-    organizationId?: string
+    organizationId?: string,
   ): Promise<User[]> {
     const cutoffDate = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
     const whereClause: WhereOptions = {};
-    
+
     if (organizationId) {
       whereClause.organizationId = organizationId;
     }
@@ -301,7 +308,7 @@ export class UserRepository extends BaseRepository<User> {
    */
   public async getUserStatistics(organizationId?: string): Promise<UserStats> {
     const whereClause = organizationId ? { organizationId } : {};
-    
+
     const [
       totalUsers,
       activeUsers,
@@ -316,27 +323,26 @@ export class UserRepository extends BaseRepository<User> {
       this.count({ ...whereClause, status: UserStatus.ACTIVE, isActive: true }),
       User.findAll({
         where: whereClause,
-        attributes: [
-          "role",
-          [User.sequelize?.fn("COUNT", "*"), "count"],
-        ],
+        attributes: ["role", [User.sequelize?.fn("COUNT", "*"), "count"]],
         group: ["role"],
         raw: true,
       }),
-      organizationId ? Promise.resolve([]) : User.findAll({
-        attributes: [
-          "organizationId",
-          [User.sequelize?.fn("COUNT", "*"), "count"],
-        ],
-        group: ["organizationId"],
-        include: [
-          {
-            model: Organization,
-            as: "organization",
-            attributes: ["name"],
-          },
-        ],
-      }),
+      organizationId
+        ? Promise.resolve([])
+        : User.findAll({
+            attributes: [
+              "organizationId",
+              [User.sequelize?.fn("COUNT", "*"), "count"],
+            ],
+            group: ["organizationId"],
+            include: [
+              {
+                model: Organization,
+                as: "organization",
+                attributes: ["name"],
+              },
+            ],
+          }),
       this.count({ ...whereClause, emailVerified: true }),
       User.count({
         where: whereClause,
@@ -355,14 +361,22 @@ export class UserRepository extends BaseRepository<User> {
             model: UserSecurity,
             as: "security",
             where: {
-              lastLoginAt: { [Op.gte]: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) },
+              lastLoginAt: {
+                [Op.gte]: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000),
+              },
             },
           },
         ],
       }),
       this.count({
         ...whereClause,
-        createdAt: { [Op.gte]: new Date(new Date().getFullYear(), new Date().getMonth(), 1) },
+        createdAt: {
+          [Op.gte]: new Date(
+            new Date().getFullYear(),
+            new Date().getMonth(),
+            1,
+          ),
+        },
       }),
     ]);
 
@@ -377,7 +391,9 @@ export class UserRepository extends BaseRepository<User> {
     if (!organizationId) {
       usersByOrganization.forEach((item: any) => {
         const orgName = item.organization?.name || "Unknown";
-        byOrganization[orgName] = parseInt((item as any).dataValues?.count || 0);
+        byOrganization[orgName] = parseInt(
+          (item as any).dataValues?.count || 0,
+        );
       });
     }
 
@@ -399,18 +415,17 @@ export class UserRepository extends BaseRepository<User> {
    */
   public async batchUpdateStatus(
     userIds: string[],
-    status: UserStatus
+    status: UserStatus,
   ): Promise<number> {
-    return this.updateWhere(
-      { id: { [Op.in]: userIds } },
-      { status }
-    );
+    return this.updateWhere({ id: { [Op.in]: userIds } }, { status });
   }
 
   /**
    * Find duplicate users by email
    */
-  public async findDuplicateEmails(): Promise<Array<{ email: string; count: number; userIds: string[] }>> {
+  public async findDuplicateEmails(): Promise<
+    Array<{ email: string; count: number; userIds: string[] }>
+  > {
     const duplicates = await User.findAll({
       attributes: [
         "email",
@@ -418,11 +433,7 @@ export class UserRepository extends BaseRepository<User> {
         [User.sequelize?.fn("ARRAY_AGG", User.sequelize?.col("id")), "userIds"],
       ],
       group: ["email"],
-      having: User.sequelize?.where(
-        User.sequelize?.fn("COUNT", "*"),
-        Op.gt,
-        1
-      ),
+      having: User.sequelize?.where(User.sequelize?.fn("COUNT", "*"), Op.gt, 1),
       raw: true,
     });
 
@@ -437,7 +448,7 @@ export class UserRepository extends BaseRepository<User> {
    * Get user activity summary
    */
   public async getUserActivitySummary(
-    userId: string
+    userId: string,
   ): Promise<Record<string, any> | null> {
     const user = await User.findByPk(userId, {
       include: [
@@ -465,21 +476,29 @@ export class UserRepository extends BaseRepository<User> {
         status: user.status,
         isActive: user.isActive,
       },
-      profile: profile ? {
-        name: profile.getFullName(),
-        title: profile.title,
-        department: profile.department,
-        lastUpdated: profile.updatedAt,
-      } : null,
-      security: security ? {
-        lastLogin: security.lastLoginAt,
-        previousLogin: security.previousLoginAt,
-        failedAttempts: security.failedLoginAttempts,
-        isLocked: security.isAccountLocked(),
-        mfaEnabled: security.mfaEnabled,
-        passwordAge: security.passwordChangedAt ? 
-          Math.floor((Date.now() - security.passwordChangedAt.getTime()) / (1000 * 60 * 60 * 24)) : null,
-      } : null,
+      profile: profile
+        ? {
+            name: profile.getFullName(),
+            title: profile.title,
+            department: profile.department,
+            lastUpdated: profile.updatedAt,
+          }
+        : null,
+      security: security
+        ? {
+            lastLogin: security.lastLoginAt,
+            previousLogin: security.previousLoginAt,
+            failedAttempts: security.failedLoginAttempts,
+            isLocked: security.isAccountLocked(),
+            mfaEnabled: security.mfaEnabled,
+            passwordAge: security.passwordChangedAt
+              ? Math.floor(
+                  (Date.now() - security.passwordChangedAt.getTime()) /
+                    (1000 * 60 * 60 * 24),
+                )
+              : null,
+          }
+        : null,
       createdAt: user.createdAt,
       updatedAt: user.updatedAt,
     };
@@ -489,7 +508,9 @@ export class UserRepository extends BaseRepository<User> {
    * Private helper methods
    */
 
-  private buildUserSearchWhereClause(criteria: UserSearchCriteria): WhereOptions {
+  private buildUserSearchWhereClause(
+    criteria: UserSearchCriteria,
+  ): WhereOptions {
     const whereClause: WhereOptions = {};
 
     if (criteria.organizationId) {

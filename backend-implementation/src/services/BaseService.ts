@@ -20,11 +20,23 @@
  * Version: 1.0.0
  */
 
-import { Model, ModelStatic, Transaction, FindOptions, CreateOptions, UpdateOptions, DestroyOptions } from "sequelize";
+import {
+  Model,
+  ModelStatic,
+  Transaction,
+  FindOptions,
+  CreateOptions,
+  UpdateOptions,
+  DestroyOptions,
+} from "sequelize";
 import { database } from "@/config/database";
 import { redisClient } from "@/config/redis";
 import { logger, Timer } from "@/utils/logger";
-import { AppError, ValidationError, NotFoundError } from "@/middleware/errorHandler";
+import {
+  AppError,
+  ValidationError,
+  NotFoundError,
+} from "@/middleware/errorHandler";
 
 /**
  * Service result interface
@@ -82,7 +94,8 @@ export abstract class BaseService<T extends Model = Model> {
   constructor(model: ModelStatic<T>, serviceName?: string) {
     this.model = model;
     this.serviceName = serviceName || model.name + "Service";
-    this.cacheNamespace = serviceName?.toLowerCase() || model.name.toLowerCase();
+    this.cacheNamespace =
+      serviceName?.toLowerCase() || model.name.toLowerCase();
   }
 
   /**
@@ -90,10 +103,10 @@ export abstract class BaseService<T extends Model = Model> {
    */
   protected async withTransaction<R>(
     operation: (transaction: Transaction) => Promise<R>,
-    transaction?: Transaction
+    transaction?: Transaction,
   ): Promise<R> {
     const timer = new Timer(`${this.serviceName}.withTransaction`);
-    
+
     if (transaction) {
       // Use provided transaction
       const result = await operation(transaction);
@@ -110,7 +123,11 @@ export abstract class BaseService<T extends Model = Model> {
       return result;
     } catch (error) {
       await newTransaction.rollback();
-      timer.end({ operation: "new_transaction", status: "rolled_back", error: error.message });
+      timer.end({
+        operation: "new_transaction",
+        status: "rolled_back",
+        error: error.message,
+      });
       throw error;
     }
   }
@@ -118,23 +135,26 @@ export abstract class BaseService<T extends Model = Model> {
   /**
    * Cache get operation
    */
-  protected async getFromCache<R>(key: string, namespace?: string): Promise<R | null> {
+  protected async getFromCache<R>(
+    key: string,
+    namespace?: string,
+  ): Promise<R | null> {
     try {
       const cacheKey = `${namespace || this.cacheNamespace}:${key}`;
       const cached = await redisClient.get(cacheKey);
-      
+
       if (cached) {
         logger.debug("Cache hit", { service: this.serviceName, key: cacheKey });
         return JSON.parse(cached);
       }
-      
+
       logger.debug("Cache miss", { service: this.serviceName, key: cacheKey });
       return null;
     } catch (error) {
-      logger.warn("Cache get failed", { 
-        service: this.serviceName, 
-        key, 
-        error: error.message 
+      logger.warn("Cache get failed", {
+        service: this.serviceName,
+        key,
+        error: error.message,
       });
       return null;
     }
@@ -144,25 +164,25 @@ export abstract class BaseService<T extends Model = Model> {
    * Cache set operation
    */
   protected async setCache<R>(
-    key: string, 
-    data: R, 
-    options: Partial<CacheOptions> = {}
+    key: string,
+    data: R,
+    options: Partial<CacheOptions> = {},
   ): Promise<void> {
     try {
       const cacheKey = `${options.namespace || this.cacheNamespace}:${key}`;
       const ttl = options.ttl || this.defaultCacheTTL;
-      
+
       await redisClient.setex(cacheKey, ttl, JSON.stringify(data));
-      logger.debug("Cache set", { 
-        service: this.serviceName, 
-        key: cacheKey, 
-        ttl 
+      logger.debug("Cache set", {
+        service: this.serviceName,
+        key: cacheKey,
+        ttl,
       });
     } catch (error) {
-      logger.warn("Cache set failed", { 
-        service: this.serviceName, 
-        key, 
-        error: error.message 
+      logger.warn("Cache set failed", {
+        service: this.serviceName,
+        key,
+        error: error.message,
       });
     }
   }
@@ -170,16 +190,22 @@ export abstract class BaseService<T extends Model = Model> {
   /**
    * Cache delete operation
    */
-  protected async deleteFromCache(key: string, namespace?: string): Promise<void> {
+  protected async deleteFromCache(
+    key: string,
+    namespace?: string,
+  ): Promise<void> {
     try {
       const cacheKey = `${namespace || this.cacheNamespace}:${key}`;
       await redisClient.del(cacheKey);
-      logger.debug("Cache deleted", { service: this.serviceName, key: cacheKey });
+      logger.debug("Cache deleted", {
+        service: this.serviceName,
+        key: cacheKey,
+      });
     } catch (error) {
-      logger.warn("Cache delete failed", { 
-        service: this.serviceName, 
-        key, 
-        error: error.message 
+      logger.warn("Cache delete failed", {
+        service: this.serviceName,
+        key,
+        error: error.message,
       });
     }
   }
@@ -191,18 +217,18 @@ export abstract class BaseService<T extends Model = Model> {
     try {
       const pattern = `${this.cacheNamespace}:*`;
       const keys = await redisClient.keys(pattern);
-      
+
       if (keys.length > 0) {
         await redisClient.del(...keys);
-        logger.info("Service cache cleared", { 
-          service: this.serviceName, 
-          keysCleared: keys.length 
+        logger.info("Service cache cleared", {
+          service: this.serviceName,
+          keysCleared: keys.length,
         });
       }
     } catch (error) {
-      logger.warn("Cache clear failed", { 
-        service: this.serviceName, 
-        error: error.message 
+      logger.warn("Cache clear failed", {
+        service: this.serviceName,
+        error: error.message,
       });
     }
   }
@@ -211,12 +237,12 @@ export abstract class BaseService<T extends Model = Model> {
    * Find by ID with caching
    */
   public async findById(
-    id: string | number, 
+    id: string | number,
     options: FindOptions = {},
-    useCache: boolean = true
+    useCache: boolean = true,
   ): Promise<T | null> {
     const timer = new Timer(`${this.serviceName}.findById`);
-    
+
     try {
       // Check cache first
       if (useCache) {
@@ -229,7 +255,7 @@ export abstract class BaseService<T extends Model = Model> {
 
       // Query database
       const result = await this.model.findByPk(id, options);
-      
+
       // Cache the result
       if (result && useCache) {
         await this.setCache(`id:${id}`, result);
@@ -239,7 +265,10 @@ export abstract class BaseService<T extends Model = Model> {
       return result;
     } catch (error) {
       timer.end({ error: error.message });
-      logger.error(`${this.serviceName}.findById failed`, { id, error: error.message });
+      logger.error(`${this.serviceName}.findById failed`, {
+        id,
+        error: error.message,
+      });
       throw new AppError(`Failed to find ${this.model.name}`, 500);
     }
   }
@@ -249,14 +278,16 @@ export abstract class BaseService<T extends Model = Model> {
    */
   public async findOne(options: FindOptions = {}): Promise<T | null> {
     const timer = new Timer(`${this.serviceName}.findOne`);
-    
+
     try {
       const result = await this.model.findOne(options);
       timer.end({ found: !!result });
       return result;
     } catch (error) {
       timer.end({ error: error.message });
-      logger.error(`${this.serviceName}.findOne failed`, { error: error.message });
+      logger.error(`${this.serviceName}.findOne failed`, {
+        error: error.message,
+      });
       throw new AppError(`Failed to find ${this.model.name}`, 500);
     }
   }
@@ -266,15 +297,15 @@ export abstract class BaseService<T extends Model = Model> {
    */
   public async findAll(
     options: FindOptions = {},
-    pagination?: PaginationOptions
+    pagination?: PaginationOptions,
   ): Promise<PaginatedResult<T> | T[]> {
     const timer = new Timer(`${this.serviceName}.findAll`);
-    
+
     try {
       if (pagination) {
         const { page, limit } = pagination;
         const offset = (page - 1) * limit;
-        
+
         const { count, rows } = await this.model.findAndCountAll({
           ...options,
           limit,
@@ -282,13 +313,13 @@ export abstract class BaseService<T extends Model = Model> {
         });
 
         const totalPages = Math.ceil(count / limit);
-        
-        timer.end({ 
-          paginated: true, 
-          page, 
-          limit, 
-          total: count, 
-          returned: rows.length 
+
+        timer.end({
+          paginated: true,
+          page,
+          limit,
+          total: count,
+          returned: rows.length,
         });
 
         return {
@@ -309,7 +340,9 @@ export abstract class BaseService<T extends Model = Model> {
       return results;
     } catch (error) {
       timer.end({ error: error.message });
-      logger.error(`${this.serviceName}.findAll failed`, { error: error.message });
+      logger.error(`${this.serviceName}.findAll failed`, {
+        error: error.message,
+      });
       throw new AppError(`Failed to find ${this.model.name} records`, 500);
     }
   }
@@ -318,12 +351,12 @@ export abstract class BaseService<T extends Model = Model> {
    * Create new record
    */
   public async create(
-    data: any, 
+    data: any,
     options: CreateOptions = {},
-    useCache: boolean = true
+    useCache: boolean = true,
   ): Promise<T> {
     const timer = new Timer(`${this.serviceName}.create`);
-    
+
     try {
       const result = await this.withTransaction(async (transaction) => {
         const created = await this.model.create(data, {
@@ -340,22 +373,22 @@ export abstract class BaseService<T extends Model = Model> {
       }, options.transaction);
 
       timer.end({ created: true });
-      logger.info(`${this.serviceName}.create successful`, { 
-        id: (result as any).id 
+      logger.info(`${this.serviceName}.create successful`, {
+        id: (result as any).id,
       });
-      
+
       return result;
     } catch (error) {
       timer.end({ error: error.message });
-      logger.error(`${this.serviceName}.create failed`, { 
-        data, 
-        error: error.message 
+      logger.error(`${this.serviceName}.create failed`, {
+        data,
+        error: error.message,
       });
-      
-      if (error.name === 'SequelizeValidationError') {
+
+      if (error.name === "SequelizeValidationError") {
         throw new ValidationError("Validation failed", error.errors);
       }
-      
+
       throw new AppError(`Failed to create ${this.model.name}`, 500);
     }
   }
@@ -367,10 +400,10 @@ export abstract class BaseService<T extends Model = Model> {
     id: string | number,
     data: any,
     options: UpdateOptions = {},
-    useCache: boolean = true
+    useCache: boolean = true,
   ): Promise<T> {
     const timer = new Timer(`${this.serviceName}.update`);
-    
+
     try {
       const result = await this.withTransaction(async (transaction) => {
         // First, find the record
@@ -396,24 +429,24 @@ export abstract class BaseService<T extends Model = Model> {
 
       timer.end({ updated: true });
       logger.info(`${this.serviceName}.update successful`, { id });
-      
+
       return result;
     } catch (error) {
       timer.end({ error: error.message });
-      logger.error(`${this.serviceName}.update failed`, { 
-        id, 
-        data, 
-        error: error.message 
+      logger.error(`${this.serviceName}.update failed`, {
+        id,
+        data,
+        error: error.message,
       });
-      
+
       if (error instanceof AppError) {
         throw error;
       }
-      
-      if (error.name === 'SequelizeValidationError') {
+
+      if (error.name === "SequelizeValidationError") {
         throw new ValidationError("Validation failed", error.errors);
       }
-      
+
       throw new AppError(`Failed to update ${this.model.name}`, 500);
     }
   }
@@ -424,10 +457,10 @@ export abstract class BaseService<T extends Model = Model> {
   public async delete(
     id: string | number,
     options: DestroyOptions = {},
-    useCache: boolean = true
+    useCache: boolean = true,
   ): Promise<boolean> {
     const timer = new Timer(`${this.serviceName}.delete`);
-    
+
     try {
       const result = await this.withTransaction(async (transaction) => {
         const deleted = await this.model.destroy({
@@ -451,19 +484,19 @@ export abstract class BaseService<T extends Model = Model> {
 
       timer.end({ deleted: result });
       logger.info(`${this.serviceName}.delete successful`, { id });
-      
+
       return result;
     } catch (error) {
       timer.end({ error: error.message });
-      logger.error(`${this.serviceName}.delete failed`, { 
-        id, 
-        error: error.message 
+      logger.error(`${this.serviceName}.delete failed`, {
+        id,
+        error: error.message,
       });
-      
+
       if (error instanceof AppError) {
         throw error;
       }
-      
+
       throw new AppError(`Failed to delete ${this.model.name}`, 500);
     }
   }
@@ -473,7 +506,7 @@ export abstract class BaseService<T extends Model = Model> {
    */
   public async exists(id: string | number): Promise<boolean> {
     const timer = new Timer(`${this.serviceName}.exists`);
-    
+
     try {
       // Check cache first
       const cached = await this.getFromCache(`id:${id}`);
@@ -484,17 +517,17 @@ export abstract class BaseService<T extends Model = Model> {
 
       // Check database
       const count = await this.model.count({
-        where: { id }
+        where: { id },
       });
-      
+
       const exists = count > 0;
       timer.end({ exists });
       return exists;
     } catch (error) {
       timer.end({ error: error.message });
-      logger.error(`${this.serviceName}.exists failed`, { 
-        id, 
-        error: error.message 
+      logger.error(`${this.serviceName}.exists failed`, {
+        id,
+        error: error.message,
       });
       return false;
     }
@@ -513,8 +546,8 @@ export abstract class BaseService<T extends Model = Model> {
         cacheNamespace: this.cacheNamespace,
       };
     } catch (error) {
-      logger.error(`${this.serviceName}.getStats failed`, { 
-        error: error.message 
+      logger.error(`${this.serviceName}.getStats failed`, {
+        error: error.message,
       });
       return {
         service: this.serviceName,

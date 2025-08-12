@@ -159,7 +159,7 @@ export class User extends Model<
 
   // MFA Methods
   public generateMfaSecret(): string {
-    const { generateSecret } = require('otplib/authenticator');
+    const { generateSecret } = require("otplib/authenticator");
     this.mfa_secret = generateSecret();
     return this.mfa_secret;
   }
@@ -168,17 +168,17 @@ export class User extends Model<
     if (!this.mfa_secret) {
       return false;
     }
-    
-    const { verify } = require('otplib/authenticator');
+
+    const { verify } = require("otplib/authenticator");
     return verify({ token, secret: this.mfa_secret });
   }
 
   public getMfaQrCodeUri(): string {
     if (!this.mfa_secret) {
-      throw new Error('MFA secret not generated');
+      throw new Error("MFA secret not generated");
     }
-    
-    const { keyuri } = require('otplib/authenticator');
+
+    const { keyuri } = require("otplib/authenticator");
     return keyuri(this.email, config.security.mfa.issuer, this.mfa_secret);
   }
 
@@ -200,7 +200,7 @@ export class User extends Model<
     return this.resetFailedLoginAttempts();
   }
 
-  // Alias for backward compatibility  
+  // Alias for backward compatibility
   public async incrementFailedLogin(): Promise<void> {
     return this.incrementFailedLoginAttempts();
   }

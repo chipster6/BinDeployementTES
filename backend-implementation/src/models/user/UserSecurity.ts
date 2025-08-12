@@ -42,7 +42,7 @@ import speakeasy from "speakeasy";
  */
 export enum MfaMethod {
   TOTP = "totp",
-  SMS = "sms", 
+  SMS = "sms",
   EMAIL = "email",
   BACKUP_CODES = "backup_codes",
 }
@@ -402,7 +402,11 @@ export class UserSecurity extends Model<UserSecurity> {
   /**
    * Record failed login attempt
    */
-  async recordFailedLogin(ipAddress?: string, userAgent?: string, reason?: string): Promise<void> {
+  async recordFailedLogin(
+    ipAddress?: string,
+    userAgent?: string,
+    reason?: string,
+  ): Promise<void> {
     this.failedLoginAttempts += 1;
 
     // Add to login attempts history
@@ -429,7 +433,10 @@ export class UserSecurity extends Model<UserSecurity> {
   /**
    * Record successful login
    */
-  async recordSuccessfulLogin(ipAddress?: string, userAgent?: string): Promise<void> {
+  async recordSuccessfulLogin(
+    ipAddress?: string,
+    userAgent?: string,
+  ): Promise<void> {
     this.previousLoginAt = this.lastLoginAt;
     this.lastLoginAt = new Date();
     this.lastLoginIp = ipAddress;
@@ -461,7 +468,7 @@ export class UserSecurity extends Model<UserSecurity> {
 
     this.mfaSecret = secret.base32; // Should be encrypted in production
     this.mfaMethod = MfaMethod.TOTP;
-    
+
     await this.save();
 
     return {
@@ -495,7 +502,7 @@ export class UserSecurity extends Model<UserSecurity> {
 
     // Hash the codes before storing
     const hashedCodes = await Promise.all(
-      codes.map(code => bcrypt.hash(code, 10))
+      codes.map((code) => bcrypt.hash(code, 10)),
     );
 
     this.mfaBackupCodes = hashedCodes;
@@ -546,7 +553,7 @@ export class UserSecurity extends Model<UserSecurity> {
    */
   async addSecurityQuestion(question: string, answer: string): Promise<void> {
     const answerHash = await bcrypt.hash(answer.toLowerCase().trim(), 10);
-    
+
     const securityQuestion: SecurityQuestion = {
       id: DataType.UUIDV4.toString(),
       question,
@@ -562,8 +569,13 @@ export class UserSecurity extends Model<UserSecurity> {
   /**
    * Verify security question answer
    */
-  async verifySecurityQuestion(questionId: string, answer: string): Promise<boolean> {
-    const question = this.securityQuestions.find(q => q.id === questionId && q.isActive);
+  async verifySecurityQuestion(
+    questionId: string,
+    answer: string,
+  ): Promise<boolean> {
+    const question = this.securityQuestions.find(
+      (q) => q.id === questionId && q.isActive,
+    );
     if (!question) return false;
 
     return bcrypt.compare(answer.toLowerCase().trim(), question.answerHash);
@@ -577,12 +589,18 @@ export class UserSecurity extends Model<UserSecurity> {
       mfaEnabled: this.mfaEnabled,
       mfaMethod: this.mfaMethod,
       hasBackupCodes: this.mfaBackupCodes.length > 0,
-      passwordAge: this.passwordChangedAt ? Math.floor((Date.now() - this.passwordChangedAt.getTime()) / (1000 * 60 * 60 * 24)) : null,
+      passwordAge: this.passwordChangedAt
+        ? Math.floor(
+            (Date.now() - this.passwordChangedAt.getTime()) /
+              (1000 * 60 * 60 * 24),
+          )
+        : null,
       isLocked: this.isAccountLocked(),
       lockReason: this.lockReason,
       lastLogin: this.lastLoginAt,
       failedAttempts: this.failedLoginAttempts,
-      securityQuestionsCount: this.securityQuestions.filter(q => q.isActive).length,
+      securityQuestionsCount: this.securityQuestions.filter((q) => q.isActive)
+        .length,
       trustedDevicesCount: this.trustedDevices.length,
     };
   }
@@ -606,7 +624,7 @@ export class UserSecurity extends Model<UserSecurity> {
   static async createForUser(
     userId: string,
     passwordHash: string,
-    options?: Partial<UserSecurity>
+    options?: Partial<UserSecurity>,
   ): Promise<UserSecurity> {
     return this.create({
       userId,

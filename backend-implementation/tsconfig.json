@@ -33,7 +33,10 @@
       "@services/*": ["services/*"],
       "@utils/*": ["utils/*"],
       "@types/*": ["types/*"],
-      "@routes/*": ["routes/*"]
+      "@routes/*": ["routes/*"],
+      "@dto/*": ["dto/*"],
+      "@repositories/*": ["repositories/*"],
+      "@tests/*": ["../tests/*"]
     }
   },
   "include": [

@@ -47,19 +47,19 @@ export interface BinDTOData {
   notes?: string;
   createdAt?: Date;
   updatedAt?: Date;
-  
+
   // Derived fields
   capacityPercentage?: number;
   needsService?: boolean;
   serviceOverdue?: boolean;
   locationAccuracy?: number;
   locationSource?: string;
-  
+
   // Customer data (when included)
   customerName?: string;
   customerContactName?: string;
   customerEmail?: string;
-  
+
   // Sensor data (simplified)
   sensorStatus?: "online" | "offline" | "unknown";
   lastReading?: {
@@ -67,7 +67,7 @@ export interface BinDTOData {
     level: number;
     source: string;
   };
-  
+
   // Service data (when included)
   upcomingService?: {
     scheduledDate: Date;
@@ -130,46 +130,60 @@ export class BinDTO extends BaseDTO<BinDTOData> {
     return Joi.object({
       id: Joi.string().uuid().optional(),
       serialNumber: Joi.string().min(3).max(50).required(),
-      type: Joi.string().valid(...Object.values(BinType)).required(),
-      status: Joi.string().valid(...Object.values(BinStatus)).optional(),
+      type: Joi.string()
+        .valid(...Object.values(BinType))
+        .required(),
+      status: Joi.string()
+        .valid(...Object.values(BinStatus))
+        .optional(),
       capacity: Joi.number().positive().max(10000).required(), // Max 10,000 liters
       currentCapacity: Joi.number().min(0).max(100).optional(), // Percentage
       customerId: Joi.string().uuid().required(),
       latitude: Joi.number().min(-90).max(90).optional(),
       longitude: Joi.number().min(-180).max(180).optional(),
       address: Joi.string().max(500).optional(),
-      installationDate: Joi.date().max('now').optional(),
+      installationDate: Joi.date().max("now").optional(),
       lastServiceDate: Joi.date().optional(),
       nextServiceDate: Joi.date().optional(),
       lastCapacityUpdate: Joi.date().optional(),
       locationUpdatedAt: Joi.date().optional(),
-      maintenanceStatus: Joi.string().valid(
-        "good", "needs_maintenance", "needs_repair", "under_maintenance", "decommissioned"
-      ).optional(),
+      maintenanceStatus: Joi.string()
+        .valid(
+          "good",
+          "needs_maintenance",
+          "needs_repair",
+          "under_maintenance",
+          "decommissioned",
+        )
+        .optional(),
       notes: Joi.string().max(1000).optional(),
       createdAt: Joi.date().optional(),
       updatedAt: Joi.date().optional(),
-      
+
       // Derived fields
       capacityPercentage: Joi.number().min(0).max(100).optional(),
       needsService: Joi.boolean().optional(),
       serviceOverdue: Joi.boolean().optional(),
       locationAccuracy: Joi.number().min(0).optional(),
-      locationSource: Joi.string().valid("gps", "manual", "geocoded").optional(),
-      
+      locationSource: Joi.string()
+        .valid("gps", "manual", "geocoded")
+        .optional(),
+
       // Customer fields
       customerName: Joi.string().optional(),
       customerContactName: Joi.string().optional(),
       customerEmail: Joi.string().email().optional(),
-      
+
       // Sensor fields
-      sensorStatus: Joi.string().valid("online", "offline", "unknown").optional(),
+      sensorStatus: Joi.string()
+        .valid("online", "offline", "unknown")
+        .optional(),
       lastReading: Joi.object({
         timestamp: Joi.date().required(),
         level: Joi.number().min(0).max(100).required(),
         source: Joi.string().required(),
       }).optional(),
-      
+
       // Service fields
       upcomingService: Joi.object({
         scheduledDate: Joi.date().required(),
@@ -185,28 +199,28 @@ export class BinDTO extends BaseDTO<BinDTOData> {
   protected getFieldMappings(): Record<string, string> {
     return {
       // Bin model fields
-      "id": "id",
-      "serialNumber": "serialNumber",
-      "type": "type",
-      "status": "status",
-      "capacity": "capacity",
-      "currentCapacity": "currentCapacity",
-      "customerId": "customerId",
-      "latitude": "latitude",
-      "longitude": "longitude",
-      "address": "address",
-      "installationDate": "installationDate",
-      "lastServiceDate": "lastServiceDate",
-      "nextServiceDate": "nextServiceDate",
-      "lastCapacityUpdate": "lastCapacityUpdate",
-      "locationUpdatedAt": "locationUpdatedAt",
-      "locationAccuracy": "locationAccuracy",
-      "locationSource": "locationSource",
-      "maintenanceStatus": "maintenanceStatus",
-      "notes": "notes",
-      "createdAt": "createdAt",
-      "updatedAt": "updatedAt",
-      
+      id: "id",
+      serialNumber: "serialNumber",
+      type: "type",
+      status: "status",
+      capacity: "capacity",
+      currentCapacity: "currentCapacity",
+      customerId: "customerId",
+      latitude: "latitude",
+      longitude: "longitude",
+      address: "address",
+      installationDate: "installationDate",
+      lastServiceDate: "lastServiceDate",
+      nextServiceDate: "nextServiceDate",
+      lastCapacityUpdate: "lastCapacityUpdate",
+      locationUpdatedAt: "locationUpdatedAt",
+      locationAccuracy: "locationAccuracy",
+      locationSource: "locationSource",
+      maintenanceStatus: "maintenanceStatus",
+      notes: "notes",
+      createdAt: "createdAt",
+      updatedAt: "updatedAt",
+
       // Customer fields
       "customer.companyName": "customerName",
       "customer.contactName": "customerContactName",
@@ -220,8 +234,8 @@ export class BinDTO extends BaseDTO<BinDTOData> {
   protected getSensitiveFields(): string[] {
     return [
       "customerEmail", // Mask customer email
-      "latitude",      // Optionally mask exact coordinates for privacy
-      "longitude",     // Optionally mask exact coordinates for privacy
+      "latitude", // Optionally mask exact coordinates for privacy
+      "longitude", // Optionally mask exact coordinates for privacy
     ];
   }
 
@@ -259,7 +273,7 @@ export class BinDTO extends BaseDTO<BinDTOData> {
     dtoData.capacityPercentage = binData.currentCapacity;
     dtoData.needsService = this.calculateNeedsService(model as Bin);
     dtoData.serviceOverdue = this.calculateServiceOverdue(model as Bin);
-    
+
     // Handle customer data if included
     if (binData.customer) {
       const customer = binData.customer as any;
@@ -279,7 +293,7 @@ export class BinDTO extends BaseDTO<BinDTOData> {
     if (binData.sensorData) {
       const sensorData = binData.sensorData;
       dtoData.sensorStatus = this.determineSensorStatus(sensorData);
-      
+
       if (sensorData.lastReading) {
         dtoData.lastReading = {
           timestamp: new Date(sensorData.lastReading.timestamp),
@@ -291,16 +305,19 @@ export class BinDTO extends BaseDTO<BinDTOData> {
 
     // Handle upcoming service data if included
     if (binData.serviceEvents && binData.serviceEvents.length > 0) {
-      const upcomingService = binData.serviceEvents.find((se: any) => 
-        se.status === "scheduled" && new Date(se.scheduledDate) > new Date()
+      const upcomingService = binData.serviceEvents.find(
+        (se: any) =>
+          se.status === "scheduled" && new Date(se.scheduledDate) > new Date(),
       );
-      
+
       if (upcomingService) {
         dtoData.upcomingService = {
           scheduledDate: new Date(upcomingService.scheduledDate),
           serviceType: upcomingService.serviceType,
-          assignedDriver: upcomingService.assignedDriver?.firstName + 
-            " " + upcomingService.assignedDriver?.lastName,
+          assignedDriver:
+            upcomingService.assignedDriver?.firstName +
+            " " +
+            upcomingService.assignedDriver?.lastName,
         };
       }
     }
@@ -328,7 +345,11 @@ export class BinDTO extends BaseDTO<BinDTOData> {
   /**
    * Get capacity status as color-coded string
    */
-  public getCapacityStatus(): { level: string; color: string; urgency: number } {
+  public getCapacityStatus(): {
+    level: string;
+    color: string;
+    urgency: number;
+  } {
     const capacity = this.getField("currentCapacity") || 0;
 
     if (capacity >= 95) {
@@ -349,25 +370,27 @@ export class BinDTO extends BaseDTO<BinDTOData> {
    */
   public getServicePriority(): { priority: string; score: number } {
     let score = 0;
-    
+
     // Capacity factor (0-40 points)
     const capacity = this.getField("currentCapacity") || 0;
     score += Math.min(capacity * 0.4, 40);
-    
+
     // Overdue factor (0-30 points)
     if (this.getField("serviceOverdue")) {
       const nextService = this.getField("nextServiceDate");
       if (nextService) {
-        const daysOverdue = Math.floor((Date.now() - nextService.getTime()) / (1000 * 60 * 60 * 24));
+        const daysOverdue = Math.floor(
+          (Date.now() - nextService.getTime()) / (1000 * 60 * 60 * 24),
+        );
         score += Math.min(daysOverdue * 2, 30);
       }
     }
-    
+
     // Maintenance factor (0-20 points)
     const maintenance = this.getField("maintenanceStatus");
     if (maintenance === "needs_repair") score += 20;
     else if (maintenance === "needs_maintenance") score += 10;
-    
+
     // Status factor (0-10 points)
     const status = this.getField("status");
     if (status === BinStatus.ACTIVE) score += 0;
@@ -462,10 +485,7 @@ export class BinDTO extends BaseDTO<BinDTOData> {
   /**
    * Create DTO from Bin model
    */
-  public static fromBinModel(
-    bin: Bin,
-    options?: DTOTransformOptions
-  ): BinDTO {
+  public static fromBinModel(bin: Bin, options?: DTOTransformOptions): BinDTO {
     return new BinDTO(bin, options);
   }
 
@@ -486,7 +506,9 @@ export class BinDTO extends BaseDTO<BinDTOData> {
       ...(data.latitude !== undefined && { latitude: data.latitude }),
       ...(data.longitude !== undefined && { longitude: data.longitude }),
       ...(data.address !== undefined && { address: data.address }),
-      ...(data.installationDate !== undefined && { installationDate: data.installationDate }),
+      ...(data.installationDate !== undefined && {
+        installationDate: data.installationDate,
+      }),
       ...(data.notes !== undefined && { notes: data.notes }),
     };
 
@@ -503,21 +525,29 @@ export class BinDTO extends BaseDTO<BinDTOData> {
    */
 
   private calculateNeedsService(bin: Bin): boolean {
-    return (bin as any).currentCapacity >= 80 || 
-           ((bin as any).nextServiceDate && (bin as any).nextServiceDate <= new Date()) ||
-           (bin as any).maintenanceStatus === "needs_repair";
+    return (
+      (bin as any).currentCapacity >= 80 ||
+      ((bin as any).nextServiceDate &&
+        (bin as any).nextServiceDate <= new Date()) ||
+      (bin as any).maintenanceStatus === "needs_repair"
+    );
   }
 
   private calculateServiceOverdue(bin: Bin): boolean {
-    return (bin as any).nextServiceDate ? (bin as any).nextServiceDate < new Date() : false;
+    return (bin as any).nextServiceDate
+      ? (bin as any).nextServiceDate < new Date()
+      : false;
   }
 
-  private determineSensorStatus(sensorData: any): "online" | "offline" | "unknown" {
+  private determineSensorStatus(
+    sensorData: any,
+  ): "online" | "offline" | "unknown" {
     if (!sensorData?.lastReading) return "unknown";
-    
+
     const lastReading = new Date(sensorData.lastReading.timestamp);
-    const hoursSinceReading = (Date.now() - lastReading.getTime()) / (1000 * 60 * 60);
-    
+    const hoursSinceReading =
+      (Date.now() - lastReading.getTime()) / (1000 * 60 * 60);
+
     if (hoursSinceReading <= 4) return "online";
     else if (hoursSinceReading <= 24) return "offline";
     else return "unknown";

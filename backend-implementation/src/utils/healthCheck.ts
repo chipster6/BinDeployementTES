@@ -128,7 +128,10 @@ const checkDiskUsage = async (): Promise<
   } catch (error) {
     return {
       status: "healthy",
-      details: { message: "Disk check not available", error: (error as Error).message },
+      details: {
+        message: "Disk check not available",
+        error: (error as Error).message,
+      },
     };
   }
 };

@@ -21,10 +21,21 @@
  * Version: 1.0.0
  */
 
-import axios, { AxiosInstance, AxiosRequestConfig, AxiosResponse, AxiosError } from "axios";
+import axios, {
+  AxiosInstance,
+  AxiosRequestConfig,
+  AxiosResponse,
+  AxiosError,
+} from "axios";
 import { logger, Timer } from "@/utils/logger";
 import { redisClient } from "@/config/redis";
-import { ExternalServiceError } from "@/middleware/errorHandler";
+import {
+  ExternalServiceError,
+  NetworkError,
+  TimeoutError,
+  CircuitBreakerError,
+  gracefulDegradation,
+} from "@/middleware/errorHandler";
 
 /**
  * Service configuration interface
@@ -54,6 +65,8 @@ export interface ApiRequestOptions {
   skipAuth?: boolean;
   skipRetry?: boolean;
   skipCircuitBreaker?: boolean;
+  useGracefulDegradation?: boolean;
+  fallbackData?: any;
   metadata?: Record<string, any>;
 }
 
@@ -153,9 +166,11 @@ export abstract class BaseExternalService {
         return config;
       },
       (error) => {
-        logger.error(`${this.serviceName} Request Error`, { error: error.message });
+        logger.error(`${this.serviceName} Request Error`, {
+          error: error.message,
+        });
         return Promise.reject(error);
-      }
+      },
     );
 
     // Response interceptor
@@ -178,7 +193,7 @@ export abstract class BaseExternalService {
         });
 
         return Promise.reject(error);
-      }
+      },
     );
   }
 
@@ -189,7 +204,7 @@ export abstract class BaseExternalService {
     method: "GET" | "POST" | "PUT" | "DELETE" | "PATCH",
     endpoint: string,
     data?: any,
-    options: ApiRequestOptions = {}
+    options: ApiRequestOptions = {},
   ): Promise<ApiResponse<T>> {
     const timer = new Timer(`${this.serviceName}.${method}.${endpoint}`);
     let attempt = 0;
@@ -226,7 +241,10 @@ export abstract class BaseExternalService {
           }
 
           if (options.skipAuth) {
-            requestConfig.headers = { ...requestConfig.headers, skipAuth: true };
+            requestConfig.headers = {
+              ...requestConfig.headers,
+              skipAuth: true,
+            };
           }
 
           const response = await this.client.request(requestConfig);
@@ -236,10 +254,10 @@ export abstract class BaseExternalService {
             await this.recordSuccess();
           }
 
-          const duration = timer.end({ 
-            success: true, 
-            attempt, 
-            statusCode: response.status 
+          const duration = timer.end({
+            success: true,
+            attempt,
+            statusCode: response.status,
           });
 
           return {
@@ -253,7 +271,6 @@ export abstract class BaseExternalService {
               attempt,
             },
           };
-
         } catch (error) {
           const axiosError = error as AxiosError;
           const isRetryableError = this.isRetryableError(axiosError);
@@ -263,18 +280,51 @@ export abstract class BaseExternalService {
             await this.recordFailure();
           }
 
-          // If this is the last attempt or not retryable, throw
-          if (attempt >= maxAttempts || !isRetryableError || options.skipRetry) {
-            const duration = timer.end({ 
-              error: axiosError.message, 
-              attempt, 
-              statusCode: axiosError.response?.status 
+          // If this is the last attempt or not retryable, check for graceful degradation
+          if (
+            attempt >= maxAttempts ||
+            !isRetryableError ||
+            options.skipRetry
+          ) {
+            const duration = timer.end({
+              error: axiosError.message,
+              attempt,
+              statusCode: axiosError.response?.status,
             });
 
-            throw new ExternalServiceError(
+            const serviceError = new ExternalServiceError(
               this.serviceName,
-              this.formatErrorMessage(axiosError)
+              this.formatErrorMessage(axiosError),
+              isRetryableError,
             );
+
+            // Try graceful degradation if enabled
+            if (options.useGracefulDegradation) {
+              try {
+                const fallbackResult =
+                  await gracefulDegradation.handleGracefully(serviceError, {
+                    serviceName: this.serviceName,
+                    fallbackData: options.fallbackData,
+                    requestData: { method, endpoint, data },
+                  });
+
+                return {
+                  success: false,
+                  data: fallbackResult,
+                  error: serviceError.message,
+                  statusCode: serviceError.statusCode,
+                  metadata: {
+                    duration,
+                    attempt,
+                    fallback: true,
+                  },
+                };
+              } catch (degradationError) {
+                // Graceful degradation failed, continue with original error
+              }
+            }
+
+            throw serviceError;
           }
 
           // Wait before retry with exponential backoff
@@ -289,10 +339,9 @@ export abstract class BaseExternalService {
           });
         }
       }
-
     } catch (error) {
       timer.end({ error: error.message });
-      
+
       if (error instanceof ExternalServiceError) {
         throw error;
       }
@@ -301,7 +350,10 @@ export abstract class BaseExternalService {
     }
 
     // This should never be reached
-    throw new ExternalServiceError(this.serviceName, "Unexpected error occurred");
+    throw new ExternalServiceError(
+      this.serviceName,
+      "Unexpected error occurred",
+    );
   }
 
   /**
@@ -310,7 +362,7 @@ export abstract class BaseExternalService {
   protected async get<T>(
     endpoint: string,
     params?: any,
-    options?: ApiRequestOptions
+    options?: ApiRequestOptions,
   ): Promise<ApiResponse<T>> {
     return this.makeRequest("GET", endpoint, params, options);
   }
@@ -321,7 +373,7 @@ export abstract class BaseExternalService {
   protected async post<T>(
     endpoint: string,
     data?: any,
-    options?: ApiRequestOptions
+    options?: ApiRequestOptions,
   ): Promise<ApiResponse<T>> {
     return this.makeRequest("POST", endpoint, data, options);
   }
@@ -332,7 +384,7 @@ export abstract class BaseExternalService {
   protected async put<T>(
     endpoint: string,
     data?: any,
-    options?: ApiRequestOptions
+    options?: ApiRequestOptions,
   ): Promise<ApiResponse<T>> {
     return this.makeRequest("PUT", endpoint, data, options);
   }
@@ -342,7 +394,7 @@ export abstract class BaseExternalService {
    */
   protected async delete<T>(
     endpoint: string,
-    options?: ApiRequestOptions
+    options?: ApiRequestOptions,
   ): Promise<ApiResponse<T>> {
     return this.makeRequest("DELETE", endpoint, undefined, options);
   }
@@ -353,7 +405,7 @@ export abstract class BaseExternalService {
   protected async patch<T>(
     endpoint: string,
     data?: any,
-    options?: ApiRequestOptions
+    options?: ApiRequestOptions,
   ): Promise<ApiResponse<T>> {
     return this.makeRequest("PATCH", endpoint, data, options);
   }
@@ -378,7 +430,7 @@ export abstract class BaseExternalService {
         if (now < circuit.nextRetryTime) {
           throw new ExternalServiceError(
             this.serviceName,
-            "Service temporarily unavailable (circuit breaker open)"
+            "Service temporarily unavailable (circuit breaker open)",
           );
         } else {
           // Move to half-open state
@@ -386,7 +438,7 @@ export abstract class BaseExternalService {
           await redisClient.setex(
             this.circuitBreakerKey,
             300, // 5 minutes
-            JSON.stringify(circuit)
+            JSON.stringify(circuit),
           );
         }
       }
@@ -416,7 +468,7 @@ export abstract class BaseExternalService {
       await redisClient.setex(
         this.circuitBreakerKey,
         300, // 5 minutes
-        JSON.stringify(circuit)
+        JSON.stringify(circuit),
       );
     } catch (error) {
       logger.warn(`Failed to record success for ${this.serviceName}`, {
@@ -432,7 +484,7 @@ export abstract class BaseExternalService {
     try {
       let circuit: CircuitBreaker;
       const circuitData = await redisClient.get(this.circuitBreakerKey);
-      
+
       if (circuitData) {
         circuit = JSON.parse(circuitData);
       } else {
@@ -450,13 +502,14 @@ export abstract class BaseExternalService {
       // Open circuit if threshold reached
       if (circuit.failureCount >= (this.config.circuitBreakerThreshold || 5)) {
         circuit.state = CircuitState.OPEN;
-        circuit.nextRetryTime = Date.now() + (this.config.circuitBreakerTimeout || 30000);
+        circuit.nextRetryTime =
+          Date.now() + (this.config.circuitBreakerTimeout || 30000);
       }
 
       await redisClient.setex(
         this.circuitBreakerKey,
         300, // 5 minutes
-        JSON.stringify(circuit)
+        JSON.stringify(circuit),
       );
     } catch (error) {
       logger.warn(`Failed to record failure for ${this.serviceName}`, {
@@ -474,14 +527,14 @@ export abstract class BaseExternalService {
     try {
       const { requests, window } = this.config.rateLimit;
       const key = `${this.rateLimitKey}:${Math.floor(Date.now() / (window * 1000))}`;
-      
+
       const current = await redisClient.incr(key);
       await redisClient.expire(key, window);
 
       if (current > requests) {
         throw new ExternalServiceError(
           this.serviceName,
-          `Rate limit exceeded (${requests} requests per ${window}s)`
+          `Rate limit exceeded (${requests} requests per ${window}s)`,
         );
       }
     } catch (error) {
@@ -503,9 +556,16 @@ export abstract class BaseExternalService {
     if (!error.response) return true;
 
     const status = error.response.status;
-    
+
     // Retry on server errors and some client errors
-    return status >= 500 || status === 408 || status === 429 || status === 502 || status === 503 || status === 504;
+    return (
+      status >= 500 ||
+      status === 408 ||
+      status === 429 ||
+      status === 502 ||
+      status === 503 ||
+      status === 504
+    );
   }
 
   /**
@@ -544,7 +604,7 @@ export abstract class BaseExternalService {
   private maskSensitiveHeaders(headers: any): any {
     const masked = { ...headers };
     const sensitiveHeaders = ["authorization", "x-api-key", "cookie"];
-    
+
     sensitiveHeaders.forEach((header) => {
       if (masked[header]) {
         masked[header] = "*****";
@@ -583,7 +643,7 @@ export abstract class BaseExternalService {
 
       if (circuitData) {
         circuit = JSON.parse(circuitData);
-        
+
         if (circuit.state === CircuitState.OPEN) {
           status = "unhealthy";
         } else if (circuit.failureCount > 0) {

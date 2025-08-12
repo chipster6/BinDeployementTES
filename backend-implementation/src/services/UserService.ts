@@ -25,19 +25,19 @@ import { UserSession } from "@/models/UserSession";
 import { AuditLog } from "@/models/AuditLog";
 import { BaseService, ServiceResult } from "./BaseService";
 import { logger, Timer } from "@/utils/logger";
-import { 
-  encryptSensitiveData, 
+import {
+  encryptSensitiveData,
   decryptSensitiveData,
   hashSensitiveData,
   verifySensitiveDataHash,
   generateSecureToken,
-  maskSensitiveData
+  maskSensitiveData,
 } from "@/utils/encryption";
-import { 
-  AppError, 
-  ValidationError, 
-  AuthenticationError, 
-  NotFoundError 
+import {
+  AppError,
+  ValidationError,
+  AuthenticationError,
+  NotFoundError,
 } from "@/middleware/errorHandler";
 import jwt from "jsonwebtoken";
 import { config } from "@/config";
@@ -119,7 +119,7 @@ export class UserService extends BaseService<User> {
   public async createUser(
     userData: CreateUserData,
     createdBy?: string,
-    transaction?: Transaction
+    transaction?: Transaction,
   ): Promise<ServiceResult<User>> {
     const timer = new Timer("UserService.createUser");
 
@@ -129,7 +129,7 @@ export class UserService extends BaseService<User> {
 
       // Check if user already exists
       const existingUser = await User.findOne({
-        where: { email: userData.email.toLowerCase() }
+        where: { email: userData.email.toLowerCase() },
       });
 
       if (existingUser) {
@@ -141,45 +141,52 @@ export class UserService extends BaseService<User> {
         const passwordHash = await User.hashPassword(userData.password);
 
         // Encrypt sensitive data
-        const encryptedPhone = userData.phone ? 
-          await encryptSensitiveData(userData.phone) : null;
+        const encryptedPhone = userData.phone
+          ? await encryptSensitiveData(userData.phone)
+          : null;
 
         // Create user
-        const user = await User.create({
-          email: userData.email.toLowerCase(),
-          passwordHash,
-          firstName: userData.firstName,
-          lastName: userData.lastName,
-          phone: encryptedPhone,
-          role: userData.role,
-          organizationId: userData.organizationId,
-          permissions: userData.permissions || [],
-          isActive: userData.isActive ?? true,
-          requiresPasswordChange: userData.requiresPasswordChange ?? false,
-          lastLoginAt: null,
-          passwordChangedAt: new Date(),
-          mfaEnabled: false,
-          mfaSecret: null,
-          failedLoginAttempts: 0,
-          lockedUntil: null,
-        }, { transaction: tx });
-
-        // Log user creation
-        await AuditLog.create({
-          userId: createdBy || user.id,
-          action: "user_created",
-          entityType: "User",
-          entityId: user.id,
-          changes: {
-            email: userData.email,
+        const user = await User.create(
+          {
+            email: userData.email.toLowerCase(),
+            passwordHash,
+            firstName: userData.firstName,
+            lastName: userData.lastName,
+            phone: encryptedPhone,
             role: userData.role,
             organizationId: userData.organizationId,
+            permissions: userData.permissions || [],
+            isActive: userData.isActive ?? true,
+            requiresPasswordChange: userData.requiresPasswordChange ?? false,
+            lastLoginAt: null,
+            passwordChangedAt: new Date(),
+            mfaEnabled: false,
+            mfaSecret: null,
+            failedLoginAttempts: 0,
+            lockedUntil: null,
           },
-          metadata: {
-            createdBy: createdBy || "system",
-            ip: null,
+          { transaction: tx },
+        );
+
+        // Log user creation
+        await AuditLog.create(
+          {
+            userId: createdBy || user.id,
+            action: "user_created",
+            entityType: "User",
+            entityId: user.id,
+            changes: {
+              email: userData.email,
+              role: userData.role,
+              organizationId: userData.organizationId,
+            },
+            metadata: {
+              createdBy: createdBy || "system",
+              ip: null,
+            },
           },
-        }, { transaction: tx });
+          { transaction: tx },
+        );
 
         return user;
       }, transaction);
@@ -197,7 +204,6 @@ export class UserService extends BaseService<User> {
         data: result,
         message: "User created successfully",
       };
-
     } catch (error) {
       timer.end({ error: error.message });
       logger.error("User creation failed", {
@@ -219,17 +225,17 @@ export class UserService extends BaseService<User> {
   public async authenticateUser(
     authData: AuthenticationData,
     ip?: string,
-    userAgent?: string
+    userAgent?: string,
   ): Promise<ServiceResult<AuthResult>> {
     const timer = new Timer("UserService.authenticateUser");
 
     try {
       // Find user by email
       const user = await User.findOne({
-        where: { 
+        where: {
           email: authData.email.toLowerCase(),
-          isActive: true 
-        }
+          isActive: true,
+        },
       });
 
       if (!user) {
@@ -244,7 +250,10 @@ export class UserService extends BaseService<User> {
       }
 
       // Verify password
-      const passwordValid = await User.verifyPassword(authData.password, user.passwordHash);
+      const passwordValid = await User.verifyPassword(
+        authData.password,
+        user.passwordHash,
+      );
       if (!passwordValid) {
         await this.handleFailedLogin(user, ip);
         throw new AuthenticationError("Invalid credentials");
@@ -266,7 +275,7 @@ export class UserService extends BaseService<User> {
       const session = await UserSession.create({
         userId: user.id,
         token: refreshToken,
-        expiresAt: new Date(Date.now() + (7 * 24 * 60 * 60 * 1000)), // 7 days
+        expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days
         isActive: true,
         metadata: {
           ip,
@@ -312,10 +321,9 @@ export class UserService extends BaseService<User> {
         data: result,
         message: "Authentication successful",
       };
-
     } catch (error) {
       timer.end({ error: error.message });
-      
+
       if (error instanceof AppError) {
         throw error;
       }
@@ -330,7 +338,7 @@ export class UserService extends BaseService<User> {
   public async updateProfile(
     userId: string,
     profileData: ProfileUpdateData,
-    updatedBy?: string
+    updatedBy?: string,
   ): Promise<ServiceResult<User>> {
     const timer = new Timer("UserService.updateProfile");
 
@@ -347,17 +355,17 @@ export class UserService extends BaseService<User> {
         // Handle basic profile updates
         if (profileData.firstName) {
           updateData.firstName = profileData.firstName;
-          changes.firstName = { 
-            from: user.firstName, 
-            to: profileData.firstName 
+          changes.firstName = {
+            from: user.firstName,
+            to: profileData.firstName,
           };
         }
 
         if (profileData.lastName) {
           updateData.lastName = profileData.lastName;
-          changes.lastName = { 
-            from: user.lastName, 
-            to: profileData.lastName 
+          changes.lastName = {
+            from: user.lastName,
+            to: profileData.lastName,
           };
         }
 
@@ -369,10 +377,10 @@ export class UserService extends BaseService<User> {
         if (profileData.email && profileData.email !== user.email) {
           // Check if new email is already taken
           const existingUser = await User.findOne({
-            where: { 
+            where: {
               email: profileData.email.toLowerCase(),
-              id: { [Op.ne]: userId }
-            }
+              id: { [Op.ne]: userId },
+            },
           });
 
           if (existingUser) {
@@ -380,9 +388,9 @@ export class UserService extends BaseService<User> {
           }
 
           updateData.email = profileData.email.toLowerCase();
-          changes.email = { 
-            from: maskSensitiveData(user.email), 
-            to: maskSensitiveData(profileData.email) 
+          changes.email = {
+            from: maskSensitiveData(user.email),
+            to: maskSensitiveData(profileData.email),
           };
         }
 
@@ -398,13 +406,16 @@ export class UserService extends BaseService<User> {
         const updatedUser = await user.update(updateData, { transaction });
 
         // Log profile update
-        await AuditLog.create({
-          userId: updatedBy || userId,
-          action: "profile_updated",
-          entityType: "User",
-          entityId: userId,
-          changes,
-        }, { transaction });
+        await AuditLog.create(
+          {
+            userId: updatedBy || userId,
+            action: "profile_updated",
+            entityType: "User",
+            entityId: userId,
+            changes,
+          },
+          { transaction },
+        );
 
         return updatedUser;
       });
@@ -424,7 +435,6 @@ export class UserService extends BaseService<User> {
         data: result,
         message: "Profile updated successfully",
       };
-
     } catch (error) {
       timer.end({ error: error.message });
       logger.error("Profile update failed", {
@@ -445,7 +455,7 @@ export class UserService extends BaseService<User> {
    */
   public async changePassword(
     userId: string,
-    passwordData: PasswordChangeData
+    passwordData: PasswordChangeData,
   ): Promise<ServiceResult<void>> {
     const timer = new Timer("UserService.changePassword");
 
@@ -458,7 +468,7 @@ export class UserService extends BaseService<User> {
       // Verify current password
       const currentPasswordValid = await User.verifyPassword(
         passwordData.currentPassword,
-        user.passwordHash
+        user.passwordHash,
       );
 
       if (!currentPasswordValid) {
@@ -475,11 +485,14 @@ export class UserService extends BaseService<User> {
 
       await this.withTransaction(async (transaction) => {
         // Update password
-        await user.update({
-          passwordHash: newPasswordHash,
-          passwordChangedAt: new Date(),
-          requiresPasswordChange: false,
-        }, { transaction });
+        await user.update(
+          {
+            passwordHash: newPasswordHash,
+            passwordChangedAt: new Date(),
+            requiresPasswordChange: false,
+          },
+          { transaction },
+        );
 
         // Invalidate all user sessions except current one
         await UserSession.update(
@@ -490,19 +503,22 @@ export class UserService extends BaseService<User> {
               isActive: true,
             },
             transaction,
-          }
+          },
         );
 
         // Log password change
-        await AuditLog.create({
-          userId,
-          action: "password_changed",
-          entityType: "User",
-          entityId: userId,
-          metadata: {
-            timestamp: new Date(),
+        await AuditLog.create(
+          {
+            userId,
+            action: "password_changed",
+            entityType: "User",
+            entityId: userId,
+            metadata: {
+              timestamp: new Date(),
+            },
           },
-        }, { transaction });
+          { transaction },
+        );
       });
 
       timer.end({ success: true, userId });
@@ -512,7 +528,6 @@ export class UserService extends BaseService<User> {
         success: true,
         message: "Password changed successfully",
       };
-
     } catch (error) {
       timer.end({ error: error.message });
       logger.error("Password change failed", {
@@ -543,7 +558,10 @@ export class UserService extends BaseService<User> {
         try {
           (user as any).phone = await decryptSensitiveData(user.phone);
         } catch (error) {
-          logger.warn("Failed to decrypt user phone", { userId, error: error.message });
+          logger.warn("Failed to decrypt user phone", {
+            userId,
+            error: error.message,
+          });
           (user as any).phone = null;
         }
       }
@@ -552,7 +570,6 @@ export class UserService extends BaseService<User> {
         success: true,
         data: user,
       };
-
     } catch (error) {
       if (error instanceof AppError) {
         throw error;
@@ -568,7 +585,7 @@ export class UserService extends BaseService<User> {
   public async deactivateUser(
     userId: string,
     deactivatedBy: string,
-    reason?: string
+    reason?: string,
   ): Promise<ServiceResult<void>> {
     const timer = new Timer("UserService.deactivateUser");
 
@@ -580,9 +597,12 @@ export class UserService extends BaseService<User> {
 
       await this.withTransaction(async (transaction) => {
         // Deactivate user
-        await user.update({
-          isActive: false,
-        }, { transaction });
+        await user.update(
+          {
+            isActive: false,
+          },
+          { transaction },
+        );
 
         // Invalidate all user sessions
         await UserSession.update(
@@ -590,20 +610,23 @@ export class UserService extends BaseService<User> {
           {
             where: { userId },
             transaction,
-          }
+          },
         );
 
         // Log deactivation
-        await AuditLog.create({
-          userId: deactivatedBy,
-          action: "user_deactivated",
-          entityType: "User",
-          entityId: userId,
-          changes: {
-            isActive: { from: true, to: false },
-            reason,
+        await AuditLog.create(
+          {
+            userId: deactivatedBy,
+            action: "user_deactivated",
+            entityType: "User",
+            entityId: userId,
+            changes: {
+              isActive: { from: true, to: false },
+              reason,
+            },
           },
-        }, { transaction });
+          { transaction },
+        );
       });
 
       // Clear user cache
@@ -620,7 +643,6 @@ export class UserService extends BaseService<User> {
         success: true,
         message: "User deactivated successfully",
       };
-
     } catch (error) {
       timer.end({ error: error.message });
       logger.error("User deactivation failed", {
@@ -648,7 +670,10 @@ export class UserService extends BaseService<User> {
     }
 
     if (!userData.password || userData.password.length < 8) {
-      errors.push({ field: "password", message: "Password must be at least 8 characters" });
+      errors.push({
+        field: "password",
+        message: "Password must be at least 8 characters",
+      });
     }
 
     if (!userData.firstName || userData.firstName.trim().length === 0) {
@@ -664,7 +689,10 @@ export class UserService extends BaseService<User> {
     }
 
     if (!userData.organizationId) {
-      errors.push({ field: "organizationId", message: "Organization ID is required" });
+      errors.push({
+        field: "organizationId",
+        message: "Organization ID is required",
+      });
     }
 
     if (errors.length > 0) {
@@ -672,7 +700,9 @@ export class UserService extends BaseService<User> {
     }
   }
 
-  private async generateTokens(user: User): Promise<{ token: string; refreshToken: string }> {
+  private async generateTokens(
+    user: User,
+  ): Promise<{ token: string; refreshToken: string }> {
     const payload = {
       userId: user.id,
       email: user.email,
@@ -692,14 +722,14 @@ export class UserService extends BaseService<User> {
   private async handleFailedLogin(user: User, ip?: string): Promise<void> {
     const attempts = user.failedLoginAttempts + 1;
     const maxAttempts = 5;
-    
+
     const updateData: any = {
       failedLoginAttempts: attempts,
     };
 
     // Lock account after max attempts
     if (attempts >= maxAttempts) {
-      updateData.lockedUntil = new Date(Date.now() + (30 * 60 * 1000)); // 30 minutes
+      updateData.lockedUntil = new Date(Date.now() + 30 * 60 * 1000); // 30 minutes
     }
 
     await user.update(updateData);
@@ -712,7 +742,7 @@ export class UserService extends BaseService<User> {
     email: string,
     reason: string,
     ip?: string,
-    userId?: string
+    userId?: string,
   ): Promise<void> {
     try {
       await AuditLog.create({
@@ -728,7 +758,9 @@ export class UserService extends BaseService<User> {
         },
       });
     } catch (error) {
-      logger.error("Failed to log failed login attempt", { error: error.message });
+      logger.error("Failed to log failed login attempt", {
+        error: error.message,
+      });
     }
   }
 

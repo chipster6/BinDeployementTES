@@ -39,7 +39,7 @@ export interface UserDTOData {
   lastLoginAt?: Date;
   createdAt?: Date;
   updatedAt?: Date;
-  
+
   // Profile data (flattened)
   firstName?: string;
   lastName?: string;
@@ -49,12 +49,12 @@ export interface UserDTOData {
   avatar?: string;
   timezone?: string;
   locale?: string;
-  
+
   // Security data (limited)
   mfaEnabled?: boolean;
   passwordAge?: number;
   isLocked?: boolean;
-  
+
   // Organization data
   organizationName?: string;
   organizationType?: string;
@@ -98,7 +98,10 @@ export interface UpdateUserDTOData {
  * User DTO class
  */
 export class UserDTO extends BaseDTO<UserDTOData> {
-  constructor(data?: UserDTOData | User | Model, options?: DTOTransformOptions) {
+  constructor(
+    data?: UserDTOData | User | Model,
+    options?: DTOTransformOptions,
+  ) {
     super(data, options);
   }
 
@@ -109,30 +112,36 @@ export class UserDTO extends BaseDTO<UserDTOData> {
     return Joi.object({
       id: Joi.string().uuid().optional(),
       email: Joi.string().email().required(),
-      role: Joi.string().valid(...Object.values(UserRole)).required(),
-      status: Joi.string().valid(...Object.values(UserStatus)).optional(),
+      role: Joi.string()
+        .valid(...Object.values(UserRole))
+        .required(),
+      status: Joi.string()
+        .valid(...Object.values(UserStatus))
+        .optional(),
       isActive: Joi.boolean().optional(),
       emailVerified: Joi.boolean().optional(),
       organizationId: Joi.string().uuid().required(),
       lastLoginAt: Joi.date().optional(),
       createdAt: Joi.date().optional(),
       updatedAt: Joi.date().optional(),
-      
+
       // Profile fields
       firstName: Joi.string().min(1).max(100).optional(),
       lastName: Joi.string().min(1).max(100).optional(),
       title: Joi.string().max(200).optional(),
       department: Joi.string().max(100).optional(),
-      phone: Joi.string().pattern(/^\+?[1-9]\d{1,14}$/).optional(),
+      phone: Joi.string()
+        .pattern(/^\+?[1-9]\d{1,14}$/)
+        .optional(),
       avatar: Joi.string().uri().optional(),
       timezone: Joi.string().max(50).optional(),
       locale: Joi.string().max(10).optional(),
-      
+
       // Security fields (limited)
       mfaEnabled: Joi.boolean().optional(),
       passwordAge: Joi.number().integer().min(0).optional(),
       isLocked: Joi.boolean().optional(),
-      
+
       // Organization fields
       organizationName: Joi.string().optional(),
       organizationType: Joi.string().optional(),
@@ -145,17 +154,17 @@ export class UserDTO extends BaseDTO<UserDTOData> {
   protected getFieldMappings(): Record<string, string> {
     return {
       // User model fields
-      "id": "id",
-      "email": "email",
-      "role": "role",
-      "status": "status",
-      "isActive": "isActive",
-      "emailVerified": "emailVerified",
-      "organizationId": "organizationId",
-      "lastLoginAt": "lastLoginAt",
-      "createdAt": "createdAt",
-      "updatedAt": "updatedAt",
-      
+      id: "id",
+      email: "email",
+      role: "role",
+      status: "status",
+      isActive: "isActive",
+      emailVerified: "emailVerified",
+      organizationId: "organizationId",
+      lastLoginAt: "lastLoginAt",
+      createdAt: "createdAt",
+      updatedAt: "updatedAt",
+
       // Profile model fields (flattened)
       "profile.firstName": "firstName",
       "profile.lastName": "lastName",
@@ -165,11 +174,11 @@ export class UserDTO extends BaseDTO<UserDTOData> {
       "profile.avatar": "avatar",
       "profile.timezone": "timezone",
       "profile.locale": "locale",
-      
+
       // Security model fields (limited)
       "security.mfaEnabled": "mfaEnabled",
       "security.isLocked": "isLocked",
-      
+
       // Organization fields
       "organization.name": "organizationName",
       "organization.type": "organizationType",
@@ -226,11 +235,12 @@ export class UserDTO extends BaseDTO<UserDTOData> {
       const security = userData.security as UserSecurity;
       dtoData.mfaEnabled = security.mfaEnabled;
       dtoData.isLocked = security.isAccountLocked();
-      
+
       // Calculate password age in days
       if (security.passwordChangedAt) {
         dtoData.passwordAge = Math.floor(
-          (Date.now() - security.passwordChangedAt.getTime()) / (1000 * 60 * 60 * 24)
+          (Date.now() - security.passwordChangedAt.getTime()) /
+            (1000 * 60 * 60 * 24),
         );
       }
     }
@@ -250,7 +260,9 @@ export class UserDTO extends BaseDTO<UserDTOData> {
   public getFullName(): string {
     const firstName = this.getField("firstName") || "";
     const lastName = this.getField("lastName") || "";
-    return [firstName, lastName].filter(Boolean).join(" ").trim() || "Unknown User";
+    return (
+      [firstName, lastName].filter(Boolean).join(" ").trim() || "Unknown User"
+    );
   }
 
   /**
@@ -258,7 +270,9 @@ export class UserDTO extends BaseDTO<UserDTOData> {
    */
   public getDisplayName(): string {
     const fullName = this.getFullName();
-    return fullName !== "Unknown User" ? fullName : this.getField("email") || "Unknown";
+    return fullName !== "Unknown User"
+      ? fullName
+      : this.getField("email") || "Unknown";
   }
 
   /**
@@ -287,49 +301,56 @@ export class UserDTO extends BaseDTO<UserDTOData> {
    */
   public getRolePermissions(): string[] {
     const role = this.getField("role");
-    
+
     switch (role) {
       case UserRole.SUPER_ADMIN:
         return ["*"]; // All permissions
       case UserRole.ADMIN:
         return [
-          "users.read", "users.create", "users.update",
-          "customers.read", "customers.create", "customers.update",
-          "bins.read", "bins.create", "bins.update",
-          "routes.read", "routes.create", "routes.update",
+          "users.read",
+          "users.create",
+          "users.update",
+          "customers.read",
+          "customers.create",
+          "customers.update",
+          "bins.read",
+          "bins.create",
+          "bins.update",
+          "routes.read",
+          "routes.create",
+          "routes.update",
           "reports.read",
         ];
       case UserRole.OFFICE_STAFF:
         return [
           "users.read",
-          "customers.read", "customers.update",
-          "bins.read", "bins.update",
-          "routes.read", "routes.update",
+          "customers.read",
+          "customers.update",
+          "bins.read",
+          "bins.update",
+          "routes.read",
+          "routes.update",
           "reports.read",
         ];
       case UserRole.DISPATCHER:
         return [
-          "routes.read", "routes.update",
-          "bins.read", "bins.update",
+          "routes.read",
+          "routes.update",
+          "bins.read",
+          "bins.update",
           "customers.read",
         ];
       case UserRole.DRIVER:
-        return [
-          "routes.read",
-          "bins.read", "bins.update",
-          "customers.read",
-        ];
+        return ["routes.read", "bins.read", "bins.update", "customers.read"];
       case UserRole.CUSTOMER:
         return [
-          "customer.bins.read", "customer.bins.update",
+          "customer.bins.read",
+          "customer.bins.update",
           "customer.reports.read",
           "customer.profile.update",
         ];
       case UserRole.CUSTOMER_STAFF:
-        return [
-          "customer.bins.read",
-          "customer.reports.read",
-        ];
+        return ["customer.bins.read", "customer.reports.read"];
       default:
         return [];
     }
@@ -340,15 +361,10 @@ export class UserDTO extends BaseDTO<UserDTOData> {
    */
   public toPublicJSON(): Partial<UserDTOData> {
     const safeData = this.toSafeJSON();
-    
+
     // Remove sensitive fields for public responses
-    const {
-      passwordAge,
-      mfaEnabled,
-      isLocked,
-      organizationId,
-      ...publicData
-    } = safeData;
+    const { passwordAge, mfaEnabled, isLocked, organizationId, ...publicData } =
+      safeData;
 
     return publicData;
   }
@@ -378,7 +394,8 @@ export class UserDTO extends BaseDTO<UserDTOData> {
     if (title !== undefined) result.title = title;
 
     const organizationName = this.getField("organizationName");
-    if (organizationName !== undefined) result.organizationName = organizationName;
+    if (organizationName !== undefined)
+      result.organizationName = organizationName;
 
     const lastLoginAt = this.getField("lastLoginAt");
     if (lastLoginAt !== undefined) result.lastLoginAt = lastLoginAt;
@@ -395,7 +412,7 @@ export class UserDTO extends BaseDTO<UserDTOData> {
    */
   public static fromUserModel(
     user: User,
-    options?: DTOTransformOptions
+    options?: DTOTransformOptions,
   ): UserDTO {
     return new UserDTO(user, options);
   }
@@ -432,7 +449,7 @@ export class UserDTO extends BaseDTO<UserDTOData> {
     const dtoData: Partial<UserDTOData> = {};
 
     // Only include provided fields
-    Object.keys(data).forEach(key => {
+    Object.keys(data).forEach((key) => {
       if ((data as any)[key] !== undefined) {
         (dtoData as any)[key] = (data as any)[key];
       }

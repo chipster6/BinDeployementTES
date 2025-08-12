@@ -3,6 +3,7 @@ import { glob } from "glob";
 import path from "path";
 import { logger } from "@/utils/logger";
 import { config } from "@/config";
+import healthRoutes from "@/routes/health";
 
 export class RouteService {
   private app: Application;
@@ -13,6 +14,10 @@ export class RouteService {
 
   public async initialize(): Promise<void> {
     logger.info("Initializing routes...");
+
+    // Register health routes first (outside API prefix)
+    this.app.use("/health", healthRoutes);
+    logger.info("- /health routes registered");
 
     const routePath = path.join(__dirname, "../routes/**/*.routes.{ts,js}");
     const routeFiles = await glob(routePath);

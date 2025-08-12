@@ -394,7 +394,12 @@ export const customerOnly = requireRole(
 /**
  * Generate JWT access token
  */
-export function generateToken(payload: { id: string; email: string; role: UserRole; sessionId?: string }): string {
+export function generateToken(payload: {
+  id: string;
+  email: string;
+  role: UserRole;
+  sessionId?: string;
+}): string {
   return jwt.sign(
     {
       id: payload.id,
@@ -407,14 +412,17 @@ export function generateToken(payload: { id: string; email: string; role: UserRo
       expiresIn: config.jwt.expiresIn,
       issuer: config.jwt.issuer,
       audience: config.jwt.audience,
-    }
+    },
   );
 }
 
 /**
  * Generate JWT refresh token
  */
-export function generateRefreshToken(payload: { id: string; sessionId?: string }): string {
+export function generateRefreshToken(payload: {
+  id: string;
+  sessionId?: string;
+}): string {
   return jwt.sign(
     {
       userId: payload.id,
@@ -425,14 +433,17 @@ export function generateRefreshToken(payload: { id: string; sessionId?: string }
       expiresIn: config.jwt.refreshExpiresIn,
       issuer: config.jwt.issuer,
       audience: config.jwt.audience,
-    }
+    },
   );
 }
 
 /**
  * Verify refresh token and extract payload
  */
-export function verifyRefreshToken(token: string): { userId: string; sessionId?: string } {
+export function verifyRefreshToken(token: string): {
+  userId: string;
+  sessionId?: string;
+} {
   try {
     const payload = jwt.verify(token, config.jwt.refreshSecret, {
       issuer: config.jwt.issuer,

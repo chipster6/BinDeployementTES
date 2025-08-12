@@ -22,7 +22,11 @@ import { Op, WhereOptions, literal, fn, col } from "sequelize";
 import { Bin, BinType, BinStatus } from "@/models/Bin";
 import { Customer } from "@/models/Customer";
 import { ServiceEvent } from "@/models/ServiceEvent";
-import { BaseRepository, RepositoryFilter, PaginationResult } from "./BaseRepository";
+import {
+  BaseRepository,
+  RepositoryFilter,
+  PaginationResult,
+} from "./BaseRepository";
 import { logger } from "@/utils/logger";
 
 /**
@@ -94,7 +98,7 @@ export class BinRepository extends BaseRepository<Bin> {
    */
   public async findBySerialNumber(
     serialNumber: string,
-    includeCustomer: boolean = true
+    includeCustomer: boolean = true,
   ): Promise<Bin | null> {
     const cacheKey = this.generateCacheKey("findBySerialNumber", {
       serialNumber,
@@ -136,7 +140,7 @@ export class BinRepository extends BaseRepository<Bin> {
       status?: BinStatus;
       customerId?: string;
       limit?: number;
-    } = {}
+    } = {},
   ): Promise<Array<Bin & { distance: number }>> {
     const whereClause: WhereOptions = {
       latitude: { [Op.ne]: null },
@@ -160,12 +164,9 @@ export class BinRepository extends BaseRepository<Bin> {
       )
     `);
 
-    const bins = await Bin.findAll({
+    const bins = (await Bin.findAll({
       where: whereClause,
-      attributes: [
-        "*",
-        [distanceQuery, "distance"],
-      ],
+      attributes: ["*", [distanceQuery, "distance"]],
       having: literal(`
         6371 * acos(
           cos(radians(${latitude})) * cos(radians(latitude)) * 
@@ -182,7 +183,7 @@ export class BinRepository extends BaseRepository<Bin> {
           attributes: ["id", "companyName", "contactName"],
         },
       ],
-    }) as any;
+    })) as any;
 
     return bins;
   }
@@ -196,12 +197,9 @@ export class BinRepository extends BaseRepository<Bin> {
         status: BinStatus.ACTIVE,
         [Op.or]: [
           { currentCapacity: { [Op.gte]: 90 } }, // 90%+ full
-          { 
-            nextServiceDate: { 
-              [Op.and]: [
-                { [Op.lte]: new Date() },
-                { [Op.ne]: null },
-              ],
+          {
+            nextServiceDate: {
+              [Op.and]: [{ [Op.lte]: new Date() }, { [Op.ne]: null }],
             },
           },
           { maintenanceStatus: "needs_repair" },
@@ -227,7 +225,7 @@ export class BinRepository extends BaseRepository<Bin> {
   public async findBinsByCapacityRange(
     minCapacity: number,
     maxCapacity: number,
-    customerId?: string
+    customerId?: string,
   ): Promise<Bin[]> {
     const whereClause: WhereOptions = {
       currentCapacity: {
@@ -263,7 +261,7 @@ export class BinRepository extends BaseRepository<Bin> {
       startDate?: Date;
       endDate?: Date;
       priority?: string;
-    } = {}
+    } = {},
   ): Promise<ServiceScheduleSummary[]> {
     const whereClause: WhereOptions = {
       status: BinStatus.ACTIVE,
@@ -307,9 +305,9 @@ export class BinRepository extends BaseRepository<Bin> {
       order: [["nextServiceDate", "ASC"]],
     });
 
-    return bins.map(bin => {
+    return bins.map((bin) => {
       let priority: "low" | "normal" | "high" | "urgent" = "normal";
-      
+
       // Determine priority based on capacity and customer priority
       if (bin.currentCapacity >= 95) {
         priority = "urgent";
@@ -357,41 +355,49 @@ export class BinRepository extends BaseRepository<Bin> {
     ] = await Promise.all([
       this.count(whereClause),
       this.count({ ...whereClause, status: BinStatus.ACTIVE }),
-      
+
       // Bins by type
       Bin.findAll({
         where: whereClause,
-        attributes: [
-          "type",
-          [fn("COUNT", "*"), "count"],
-        ],
+        attributes: ["type", [fn("COUNT", "*"), "count"]],
         group: ["type"],
         raw: true,
       }),
-      
+
       // Bins by status
       Bin.findAll({
         where: whereClause,
-        attributes: [
-          "status",
-          [fn("COUNT", "*"), "count"],
-        ],
+        attributes: ["status", [fn("COUNT", "*"), "count"]],
         group: ["status"],
         raw: true,
       }),
-      
+
       // Capacity statistics
       Bin.findAll({
         where: whereClause,
         attributes: [
           [fn("AVG", col("currentCapacity")), "average"],
-          [fn("COUNT", literal("CASE WHEN current_capacity >= 80 THEN 1 END")), "high"],
-          [fn("COUNT", literal("CASE WHEN current_capacity >= 50 AND current_capacity < 80 THEN 1 END")), "medium"],
-          [fn("COUNT", literal("CASE WHEN current_capacity < 50 THEN 1 END")), "low"],
+          [
+            fn("COUNT", literal("CASE WHEN current_capacity >= 80 THEN 1 END")),
+            "high",
+          ],
+          [
+            fn(
+              "COUNT",
+              literal(
+                "CASE WHEN current_capacity >= 50 AND current_capacity < 80 THEN 1 END",
+              ),
+            ),
+            "medium",
+          ],
+          [
+            fn("COUNT", literal("CASE WHEN current_capacity < 50 THEN 1 END")),
+            "low",
+          ],
         ],
         raw: true,
       }),
-      
+
       // Bins needing service
       this.count({
         ...whereClause,
@@ -400,15 +406,17 @@ export class BinRepository extends BaseRepository<Bin> {
           { nextServiceDate: { [Op.lte]: new Date() } },
         ],
       }),
-      
+
       // Recent services (last 30 days)
       ServiceEvent.count({
         where: {
-          createdAt: { [Op.gte]: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) },
+          createdAt: {
+            [Op.gte]: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000),
+          },
           ...(customerId && { customerId }),
         },
       }),
-      
+
       // Maintenance issues
       this.count({
         ...whereClause,
@@ -418,7 +426,7 @@ export class BinRepository extends BaseRepository<Bin> {
 
     // Process type statistics
     const byType: Record<BinType, number> = {} as Record<BinType, number>;
-    Object.values(BinType).forEach(type => {
+    Object.values(BinType).forEach((type) => {
       byType[type] = 0;
     });
     binsByType.forEach((item: any) => {
@@ -429,7 +437,7 @@ export class BinRepository extends BaseRepository<Bin> {
 
     // Process status statistics
     const byStatus: Record<BinStatus, number> = {} as Record<BinStatus, number>;
-    Object.values(BinStatus).forEach(status => {
+    Object.values(BinStatus).forEach((status) => {
       byStatus[status] = 0;
     });
     binsByStatus.forEach((item: any) => {
@@ -463,7 +471,7 @@ export class BinRepository extends BaseRepository<Bin> {
    * Find bins with recent sensor readings
    */
   public async findBinsWithRecentReadings(
-    hoursAgo: number = 24
+    hoursAgo: number = 24,
   ): Promise<Bin[]> {
     const cutoffDate = new Date(Date.now() - hoursAgo * 60 * 60 * 1000);
 
@@ -488,7 +496,7 @@ export class BinRepository extends BaseRepository<Bin> {
    */
   public async searchBins(
     criteria: BinSearchCriteria,
-    pagination?: { page: number; limit: number }
+    pagination?: { page: number; limit: number },
   ): Promise<PaginationResult<Bin> | Bin[]> {
     const whereClause = this.buildBinSearchWhereClause(criteria);
 
@@ -517,18 +525,17 @@ export class BinRepository extends BaseRepository<Bin> {
    */
   public async batchUpdateStatus(
     binIds: string[],
-    status: BinStatus
+    status: BinStatus,
   ): Promise<number> {
-    return this.updateWhere(
-      { id: { [Op.in]: binIds } },
-      { status }
-    );
+    return this.updateWhere({ id: { [Op.in]: binIds } }, { status });
   }
 
   /**
    * Get bins summary for customer
    */
-  public async getCustomerBinsSummary(customerId: string): Promise<Record<string, any>> {
+  public async getCustomerBinsSummary(
+    customerId: string,
+  ): Promise<Record<string, any>> {
     const [
       totalBins,
       activeBins,
@@ -562,7 +569,9 @@ export class BinRepository extends BaseRepository<Bin> {
       active: activeBins,
       inactive: totalBins - activeBins,
       needingService: binsNeedingService,
-      averageCapacity: Math.round(parseFloat((averageCapacity as any)?.average || "0")),
+      averageCapacity: Math.round(
+        parseFloat((averageCapacity as any)?.average || "0"),
+      ),
       lastServiceDate: (lastServiceDate as any)?.lastService,
     };
   }
@@ -586,7 +595,10 @@ export class BinRepository extends BaseRepository<Bin> {
       whereClause.status = criteria.status;
     }
 
-    if (criteria.capacityMin !== undefined || criteria.capacityMax !== undefined) {
+    if (
+      criteria.capacityMin !== undefined ||
+      criteria.capacityMax !== undefined
+    ) {
       whereClause.currentCapacity = {};
       if (criteria.capacityMin !== undefined) {
         whereClause.currentCapacity[Op.gte] = criteria.capacityMin;

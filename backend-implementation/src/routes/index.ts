@@ -19,6 +19,8 @@ import authRoutes from "./auth";
 import userRoutes from "./users";
 import customerRoutes from "./customers";
 import binRoutes from "./bins";
+import healthRoutes from "./health";
+import webhookRoutes from "./webhooks";
 // import vehicleRoutes from './vehicles';
 // import routeRoutes from './routes';
 // import driverRoutes from './drivers';
@@ -26,7 +28,6 @@ import binRoutes from "./bins";
 // import billingRoutes from './billing';
 // import trackingRoutes from './tracking';
 // import analyticsRoutes from './analytics';
-// import webhookRoutes from './webhooks';
 
 /**
  * Create main API router
@@ -91,6 +92,10 @@ router.use("/auth", authRoutes);
 router.use("/users", userRoutes);
 router.use("/customers", customerRoutes);
 router.use("/bins", binRoutes);
+router.use("/webhooks", webhookRoutes);
+
+// Health and monitoring routes (not under /api/v1 prefix)
+router.use("/health", healthRoutes);
 /*
 router.use('/vehicles', vehicleRoutes);
 router.use('/drivers', driverRoutes);
@@ -99,7 +104,6 @@ router.use('/services', serviceRoutes);
 router.use('/billing', billingRoutes);
 router.use('/tracking', trackingRoutes);
 router.use('/analytics', analyticsRoutes);
-router.use('/webhooks', webhookRoutes);
 */
 
 // 404 handler for API routes

@@ -12,7 +12,7 @@
  */
 
 import { Request, Response, NextFunction } from "express";
-import { ValidationError } from "joi";
+import { ValidationError as JoiValidationError } from "joi";
 import {
   ValidationError as SequelizeValidationError,
   DatabaseError,
@@ -105,13 +105,92 @@ export class RateLimitError extends AppError {
  * External service error
  */
 export class ExternalServiceError extends AppError {
-  constructor(service: string, message?: string) {
+  public service: string;
+  public retryable: boolean;
+
+  constructor(service: string, message?: string, retryable: boolean = true) {
     super(
       message || `External service ${service} is currently unavailable`,
       503,
       "EXTERNAL_SERVICE_ERROR",
+      { service, retryable },
+    );
+    this.service = service;
+    this.retryable = retryable;
+  }
+}
+
+/**
+ * Network error
+ */
+export class NetworkError extends AppError {
+  constructor(message: string = "Network error occurred") {
+    super(message, 503, "NETWORK_ERROR");
+  }
+}
+
+/**
+ * Timeout error
+ */
+export class TimeoutError extends AppError {
+  constructor(operation: string, timeout: number) {
+    super(
+      `Operation ${operation} timed out after ${timeout}ms`,
+      408,
+      "TIMEOUT_ERROR",
+      { operation, timeout },
+    );
+  }
+}
+
+/**
+ * Circuit breaker error
+ */
+export class CircuitBreakerError extends AppError {
+  constructor(service: string) {
+    super(
+      `Service ${service} is temporarily unavailable (circuit breaker open)`,
+      503,
+      "CIRCUIT_BREAKER_OPEN",
       { service },
     );
+  }
+}
+
+/**
+ * Rate limit exceeded error
+ */
+export class RateLimitExceededError extends AppError {
+  constructor(limit: number, window: number, retryAfter?: number) {
+    super(
+      `Rate limit exceeded: ${limit} requests per ${window}s`,
+      429,
+      "RATE_LIMIT_EXCEEDED",
+      { limit, window, retryAfter },
+    );
+  }
+}
+
+/**
+ * Resource not available error
+ */
+export class ResourceUnavailableError extends AppError {
+  constructor(resource: string, reason?: string) {
+    super(
+      `Resource ${resource} is currently unavailable${reason ? `: ${reason}` : ""}`,
+      503,
+      "RESOURCE_UNAVAILABLE",
+      { resource, reason },
+    );
+  }
+}
+
+/**
+ * Configuration error
+ */
+export class ConfigurationError extends AppError {
+  constructor(message: string, configKey?: string) {
+    super(message, 500, "CONFIGURATION_ERROR", { configKey });
   }
 }
 
@@ -127,7 +206,7 @@ export class DatabaseOperationError extends AppError {
 /**
  * Handle Joi validation errors
  */
-const handleJoiError = (error: ValidationError): AppError => {
+const handleJoiError = (error: JoiValidationError): AppError => {
   const errors = error.details.map((detail) => ({
     field: detail.path.join("."),
     message: detail.message,
@@ -452,10 +531,83 @@ export const withErrorHandling = async <T>(
   }
 };
 
+/**
+ * Error recovery strategies
+ */
+export interface ErrorRecoveryStrategy {
+  canRecover(error: AppError): boolean;
+  recover(error: AppError, context?: any): Promise<any>;
+}
+
+/**
+ * Graceful degradation handler
+ */
+export class GracefulDegradationHandler {
+  private fallbackHandlers: Map<string, Function> = new Map();
+
+  registerFallback(errorCode: string, handler: Function) {
+    this.fallbackHandlers.set(errorCode, handler);
+  }
+
+  async handleGracefully(error: AppError, context?: any): Promise<any> {
+    const handler = this.fallbackHandlers.get(error.code || "DEFAULT");
+    if (handler) {
+      try {
+        return await handler(error, context);
+      } catch (fallbackError) {
+        logger.error("Fallback handler failed", {
+          originalError: error.message,
+          fallbackError: fallbackError.message,
+        });
+      }
+    }
+    throw error;
+  }
+}
+
+// Global graceful degradation instance
+export const gracefulDegradation = new GracefulDegradationHandler();
+
+// Register default fallback handlers
+gracefulDegradation.registerFallback(
+  "EXTERNAL_SERVICE_ERROR",
+  async (error: ExternalServiceError) => {
+    return {
+      success: false,
+      message: `Service ${error.service} is temporarily unavailable. Please try again later.`,
+      fallback: true,
+      retryAfter: 300, // 5 minutes
+    };
+  },
+);
+
+gracefulDegradation.registerFallback(
+  "DATABASE_ERROR",
+  async (error: DatabaseOperationError) => {
+    return {
+      success: false,
+      message:
+        "Data service is temporarily unavailable. Please try again in a moment.",
+      fallback: true,
+      retryAfter: 60, // 1 minute
+    };
+  },
+);
+
+gracefulDegradation.registerFallback(
+  "TIMEOUT_ERROR",
+  async (error: TimeoutError) => {
+    return {
+      success: false,
+      message: "Request is taking longer than expected. Please try again.",
+      fallback: true,
+      retryAfter: 30, // 30 seconds
+    };
+  },
+);
+
 // Export error classes and middleware
 export {
-  AppError as default,
-  AppError,
   AuthenticationError,
   AuthorizationError,
   ValidationError as AppValidationError,
@@ -463,4 +615,13 @@ export {
   RateLimitError,
   ExternalServiceError,
   DatabaseOperationError,
+  NetworkError,
+  TimeoutError,
+  CircuitBreakerError,
+  RateLimitExceededError,
+  ResourceUnavailableError,
+  ConfigurationError,
 };
+
+// Default export
+export default AppError;

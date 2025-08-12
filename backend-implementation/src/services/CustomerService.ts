@@ -28,15 +28,15 @@ import { User } from "@/models/User";
 import { AuditLog } from "@/models/AuditLog";
 import { BaseService, ServiceResult, PaginatedResult } from "./BaseService";
 import { logger, Timer } from "@/utils/logger";
-import { 
-  encryptSensitiveData, 
+import {
+  encryptSensitiveData,
   decryptSensitiveData,
-  maskSensitiveData
+  maskSensitiveData,
 } from "@/utils/encryption";
-import { 
-  AppError, 
-  ValidationError, 
-  NotFoundError 
+import {
+  AppError,
+  ValidationError,
+  NotFoundError,
 } from "@/middleware/errorHandler";
 
 /**
@@ -77,7 +77,7 @@ interface ServiceConfiguration {
   frequency: ServiceFrequency;
   preferredTimeWindows?: {
     start: string; // HH:MM format
-    end: string;   // HH:MM format
+    end: string; // HH:MM format
   }[];
   specialRequirements?: string[];
   hazardousMaterials?: boolean;
@@ -146,7 +146,7 @@ export class CustomerService extends BaseService<Customer> {
   public async createCustomer(
     customerData: CreateCustomerData,
     createdBy: string,
-    transaction?: Transaction
+    transaction?: Transaction,
   ): Promise<ServiceResult<Customer>> {
     const timer = new Timer("CustomerService.createCustomer");
 
@@ -156,81 +156,98 @@ export class CustomerService extends BaseService<Customer> {
 
       // Check if customer already exists
       const existingCustomer = await Customer.findOne({
-        where: { 
+        where: {
           email: customerData.email.toLowerCase(),
-          organizationId: customerData.organizationId 
-        }
+          organizationId: customerData.organizationId,
+        },
       });
 
       if (existingCustomer) {
-        throw new ValidationError("Customer with this email already exists in organization");
+        throw new ValidationError(
+          "Customer with this email already exists in organization",
+        );
       }
 
       // Verify organization exists
-      const organization = await Organization.findByPk(customerData.organizationId);
+      const organization = await Organization.findByPk(
+        customerData.organizationId,
+      );
       if (!organization) {
         throw new ValidationError("Organization not found");
       }
 
       const result = await this.withTransaction(async (tx) => {
         // Generate customer number
-        const customerNumber = await this.generateCustomerNumber(customerData.organizationId, tx);
+        const customerNumber = await this.generateCustomerNumber(
+          customerData.organizationId,
+          tx,
+        );
 
         // Encrypt sensitive data
-        const encryptedPhone = customerData.phone ? 
-          await encryptSensitiveData(customerData.phone) : null;
-        const encryptedTaxId = customerData.taxId ?
-          await encryptSensitiveData(customerData.taxId) : null;
+        const encryptedPhone = customerData.phone
+          ? await encryptSensitiveData(customerData.phone)
+          : null;
+        const encryptedTaxId = customerData.taxId
+          ? await encryptSensitiveData(customerData.taxId)
+          : null;
 
         // Create customer
-        const customer = await Customer.create({
-          organizationId: customerData.organizationId,
-          customerNumber,
-          companyName: customerData.companyName,
-          contactName: customerData.contactName,
-          contactTitle: customerData.contactTitle,
-          email: customerData.email.toLowerCase(),
-          phone: encryptedPhone,
-          address: customerData.address,
-          city: customerData.city,
-          state: customerData.state,
-          zipCode: customerData.zipCode,
-          country: customerData.country || "US",
-          serviceTypes: customerData.serviceTypes,
-          containerTypes: customerData.containerTypes,
-          serviceFrequency: customerData.serviceFrequency,
-          paymentTerms: customerData.paymentTerms,
-          billingContactId: customerData.billingContactId,
-          accountManagerId: customerData.accountManagerId,
-          primaryDriverId: customerData.primaryDriverId,
-          specialInstructions: customerData.specialInstructions,
-          creditLimit: customerData.creditLimit,
-          taxId: encryptedTaxId,
-          website: customerData.website,
-          notes: customerData.notes,
-          status: "active",
-          totalValue: 0,
-          currentBalance: 0,
-          lastServiceDate: null,
-          nextServiceDate: this.calculateNextServiceDate(customerData.serviceFrequency),
-        }, { transaction: tx });
+        const customer = await Customer.create(
+          {
+            organizationId: customerData.organizationId,
+            customerNumber,
+            companyName: customerData.companyName,
+            contactName: customerData.contactName,
+            contactTitle: customerData.contactTitle,
+            email: customerData.email.toLowerCase(),
+            phone: encryptedPhone,
+            address: customerData.address,
+            city: customerData.city,
+            state: customerData.state,
+            zipCode: customerData.zipCode,
+            country: customerData.country || "US",
+            serviceTypes: customerData.serviceTypes,
+            containerTypes: customerData.containerTypes,
+            serviceFrequency: customerData.serviceFrequency,
+            paymentTerms: customerData.paymentTerms,
+            billingContactId: customerData.billingContactId,
+            accountManagerId: customerData.accountManagerId,
+            primaryDriverId: customerData.primaryDriverId,
+            specialInstructions: customerData.specialInstructions,
+            creditLimit: customerData.creditLimit,
+            taxId: encryptedTaxId,
+            website: customerData.website,
+            notes: customerData.notes,
+            status: "active",
+            totalValue: 0,
+            currentBalance: 0,
+            lastServiceDate: null,
+            nextServiceDate: this.calculateNextServiceDate(
+              customerData.serviceFrequency,
+            ),
+          },
+          { transaction: tx },
+        );
 
         // Log customer creation
-        await AuditLog.create({
-          userId: createdBy,
-          action: "customer_created",
-          entityType: "Customer",
-          entityId: customer.id,
-          changes: {
-            companyName: customerData.companyName,
-            email: maskSensitiveData(customerData.email),
-            organizationId: customerData.organizationId,
+        await AuditLog.create(
+          {
+            userId: createdBy,
+            action: "customer_created",
+            entityType: "Customer",
+            entityId: customer.id,
+            changes: {
+              companyName: customerData.companyName,
+              email: maskSensitiveData(customerData.email),
+              organizationId: customerData.organizationId,
+            },
+            metadata: {
+              createdBy,
+              ip: null,
+            },
           },
-          metadata: {
-            createdBy,
-            ip: null,
-          },
-        }, { transaction: tx });
+          { transaction: tx },
+        );
 
         return customer;
       }, transaction);
@@ -248,7 +265,6 @@ export class CustomerService extends BaseService<Customer> {
         data: result,
         message: "Customer created successfully",
       };
-
     } catch (error) {
       timer.end({ error: error.message });
       logger.error("Customer creation failed", {
@@ -271,7 +287,7 @@ export class CustomerService extends BaseService<Customer> {
   public async updateServiceConfiguration(
     customerId: string,
     serviceConfig: ServiceConfiguration,
-    updatedBy: string
+    updatedBy: string,
   ): Promise<ServiceResult<Customer>> {
     const timer = new Timer("CustomerService.updateServiceConfiguration");
 
@@ -292,39 +308,47 @@ export class CustomerService extends BaseService<Customer> {
         // Calculate new next service date if frequency changed
         let nextServiceDate = customer.nextServiceDate;
         if (serviceConfig.frequency !== customer.serviceFrequency) {
-          nextServiceDate = this.calculateNextServiceDate(serviceConfig.frequency);
+          nextServiceDate = this.calculateNextServiceDate(
+            serviceConfig.frequency,
+          );
         }
 
         // Update customer service configuration
-        const updatedCustomer = await customer.update({
-          serviceTypes: serviceConfig.serviceTypes,
-          containerTypes: serviceConfig.containerTypes,
-          serviceFrequency: serviceConfig.frequency,
-          nextServiceDate,
-          specialInstructions: serviceConfig.specialRequirements?.join("; "),
-          metadata: {
-            ...customer.metadata,
-            serviceConfig: {
-              preferredTimeWindows: serviceConfig.preferredTimeWindows,
-              specialRequirements: serviceConfig.specialRequirements,
-              hazardousMaterials: serviceConfig.hazardousMaterials,
-              recyclingProgram: serviceConfig.recyclingProgram,
-              emergencyContact: serviceConfig.emergencyContact,
+        const updatedCustomer = await customer.update(
+          {
+            serviceTypes: serviceConfig.serviceTypes,
+            containerTypes: serviceConfig.containerTypes,
+            serviceFrequency: serviceConfig.frequency,
+            nextServiceDate,
+            specialInstructions: serviceConfig.specialRequirements?.join("; "),
+            metadata: {
+              ...customer.metadata,
+              serviceConfig: {
+                preferredTimeWindows: serviceConfig.preferredTimeWindows,
+                specialRequirements: serviceConfig.specialRequirements,
+                hazardousMaterials: serviceConfig.hazardousMaterials,
+                recyclingProgram: serviceConfig.recyclingProgram,
+                emergencyContact: serviceConfig.emergencyContact,
+              },
             },
           },
-        }, { transaction });
+          { transaction },
+        );
 
         // Log configuration change
-        await AuditLog.create({
-          userId: updatedBy,
-          action: "service_config_updated",
-          entityType: "Customer",
-          entityId: customerId,
-          changes: {
-            previousConfig,
-            newConfig: serviceConfig,
+        await AuditLog.create(
+          {
+            userId: updatedBy,
+            action: "service_config_updated",
+            entityType: "Customer",
+            entityId: customerId,
+            changes: {
+              previousConfig,
+              newConfig: serviceConfig,
+            },
           },
-        }, { transaction });
+          { transaction },
+        );
 
         return updatedCustomer;
       });
@@ -345,7 +369,6 @@ export class CustomerService extends BaseService<Customer> {
         data: result,
         message: "Service configuration updated successfully",
       };
-
     } catch (error) {
       timer.end({ error: error.message });
       logger.error("Service configuration update failed", {
@@ -367,7 +390,7 @@ export class CustomerService extends BaseService<Customer> {
   public async updateBillingInfo(
     customerId: string,
     billingInfo: BillingInfo,
-    updatedBy: string
+    updatedBy: string,
   ): Promise<ServiceResult<Customer>> {
     const timer = new Timer("CustomerService.updateBillingInfo");
 
@@ -400,20 +423,25 @@ export class CustomerService extends BaseService<Customer> {
           },
         };
 
-        const updatedCustomer = await customer.update(updateData, { transaction });
+        const updatedCustomer = await customer.update(updateData, {
+          transaction,
+        });
 
         // Log billing update
-        await AuditLog.create({
-          userId: updatedBy,
-          action: "billing_info_updated",
-          entityType: "Customer",
-          entityId: customerId,
-          changes: {
-            paymentTerms: billingInfo.paymentTerms,
-            creditLimit: billingInfo.creditLimit,
-            taxId: billingInfo.taxId ? "updated" : "unchanged",
+        await AuditLog.create(
+          {
+            userId: updatedBy,
+            action: "billing_info_updated",
+            entityType: "Customer",
+            entityId: customerId,
+            changes: {
+              paymentTerms: billingInfo.paymentTerms,
+              creditLimit: billingInfo.creditLimit,
+              taxId: billingInfo.taxId ? "updated" : "unchanged",
+            },
           },
-        }, { transaction });
+          { transaction },
+        );
 
         return updatedCustomer;
       });
@@ -433,7 +461,6 @@ export class CustomerService extends BaseService<Customer> {
         data: result,
         message: "Billing information updated successfully",
       };
-
     } catch (error) {
       timer.end({ error: error.message });
       logger.error("Billing information update failed", {
@@ -452,7 +479,9 @@ export class CustomerService extends BaseService<Customer> {
   /**
    * Get customer with decrypted sensitive data
    */
-  public async getCustomerById(customerId: string): Promise<ServiceResult<Customer>> {
+  public async getCustomerById(
+    customerId: string,
+  ): Promise<ServiceResult<Customer>> {
     try {
       const customer = await this.findById(customerId, {
         include: [
@@ -478,7 +507,10 @@ export class CustomerService extends BaseService<Customer> {
         try {
           (customer as any).phone = await decryptSensitiveData(customer.phone);
         } catch (error) {
-          logger.warn("Failed to decrypt customer phone", { customerId, error: error.message });
+          logger.warn("Failed to decrypt customer phone", {
+            customerId,
+            error: error.message,
+          });
           (customer as any).phone = null;
         }
       }
@@ -487,7 +519,10 @@ export class CustomerService extends BaseService<Customer> {
         try {
           (customer as any).taxId = await decryptSensitiveData(customer.taxId);
         } catch (error) {
-          logger.warn("Failed to decrypt customer tax ID", { customerId, error: error.message });
+          logger.warn("Failed to decrypt customer tax ID", {
+            customerId,
+            error: error.message,
+          });
           (customer as any).taxId = null;
         }
       }
@@ -496,7 +531,6 @@ export class CustomerService extends BaseService<Customer> {
         success: true,
         data: customer,
       };
-
     } catch (error) {
       if (error instanceof AppError) {
         throw error;
@@ -511,13 +545,13 @@ export class CustomerService extends BaseService<Customer> {
    */
   public async searchCustomers(
     criteria: CustomerSearchCriteria,
-    pagination?: { page: number; limit: number }
+    pagination?: { page: number; limit: number },
   ): Promise<ServiceResult<PaginatedResult<Customer> | Customer[]>> {
     const timer = new Timer("CustomerService.searchCustomers");
 
     try {
       const whereClause = await this.buildSearchWhereClause(criteria);
-      
+
       const options: any = {
         where: whereClause,
         include: [
@@ -542,9 +576,11 @@ export class CustomerService extends BaseService<Customer> {
         result = await this.findAll(options);
       }
 
-      timer.end({ 
-        success: true, 
-        resultsCount: Array.isArray(result) ? result.length : result.data.length 
+      timer.end({
+        success: true,
+        resultsCount: Array.isArray(result)
+          ? result.length
+          : result.data.length,
       });
 
       return {
@@ -552,7 +588,6 @@ export class CustomerService extends BaseService<Customer> {
         data: result,
         message: "Customers retrieved successfully",
       };
-
     } catch (error) {
       timer.end({ error: error.message });
       logger.error("Customer search failed", { error: error.message });
@@ -570,7 +605,7 @@ export class CustomerService extends BaseService<Customer> {
    */
   public async getServiceHistory(
     customerId: string,
-    options?: { limit?: number; offset?: number }
+    options?: { limit?: number; offset?: number },
   ): Promise<ServiceResult<ServiceEvent[]>> {
     const timer = new Timer("CustomerService.getServiceHistory");
 
@@ -606,7 +641,6 @@ export class CustomerService extends BaseService<Customer> {
         data: serviceEvents,
         message: "Service history retrieved successfully",
       };
-
     } catch (error) {
       timer.end({ error: error.message });
       logger.error("Service history retrieval failed", {
@@ -625,7 +659,9 @@ export class CustomerService extends BaseService<Customer> {
   /**
    * Get customer analytics
    */
-  public async getCustomerAnalytics(customerId: string): Promise<ServiceResult<Record<string, any>>> {
+  public async getCustomerAnalytics(
+    customerId: string,
+  ): Promise<ServiceResult<Record<string, any>>> {
     const timer = new Timer("CustomerService.getCustomerAnalytics");
 
     try {
@@ -647,15 +683,23 @@ export class CustomerService extends BaseService<Customer> {
         ServiceEvent.count({
           where: {
             customerId,
-            completedAt: { [Op.gte]: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) },
+            completedAt: {
+              [Op.gte]: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000),
+            },
           },
         }),
         ServiceEvent.findOne({
           where: { customerId, status: "completed" },
           attributes: [
-            [ServiceEvent.sequelize?.fn("AVG", 
-              ServiceEvent.sequelize?.literal("EXTRACT(epoch FROM (completed_at - started_at))/60")
-            ), "average_minutes"],
+            [
+              ServiceEvent.sequelize?.fn(
+                "AVG",
+                ServiceEvent.sequelize?.literal(
+                  "EXTRACT(epoch FROM (completed_at - started_at))/60",
+                ),
+              ),
+              "average_minutes",
+            ],
           ],
         }),
         ServiceEvent.count({
@@ -675,18 +719,25 @@ export class CustomerService extends BaseService<Customer> {
           total: totalServices,
           recent: recentServices, // Last 30 days
           missed: missedServices,
-          averageTime: Math.round((averageServiceTime as any)?.dataValues?.average_minutes || 0),
+          averageTime: Math.round(
+            (averageServiceTime as any)?.dataValues?.average_minutes || 0,
+          ),
         },
         billing: {
           totalValue: totalValue || 0,
           currentBalance: customer.currentBalance,
           creditLimit: customer.creditLimit,
-          creditUtilization: customer.creditLimit ? 
-            Math.round((customer.currentBalance / customer.creditLimit) * 100) : 0,
+          creditUtilization: customer.creditLimit
+            ? Math.round((customer.currentBalance / customer.creditLimit) * 100)
+            : 0,
         },
         performance: {
-          serviceReliability: totalServices > 0 ? 
-            Math.round(((totalServices - missedServices) / totalServices) * 100) : 100,
+          serviceReliability:
+            totalServices > 0
+              ? Math.round(
+                  ((totalServices - missedServices) / totalServices) * 100,
+                )
+              : 100,
           lastServiceDate: customer.lastServiceDate,
           nextServiceDate: customer.nextServiceDate,
         },
@@ -704,7 +755,6 @@ export class CustomerService extends BaseService<Customer> {
         data: analytics,
         message: "Customer analytics retrieved successfully",
       };
-
     } catch (error) {
       timer.end({ error: error.message });
       logger.error("Customer analytics failed", {
@@ -726,7 +776,7 @@ export class CustomerService extends BaseService<Customer> {
   public async deactivateCustomer(
     customerId: string,
     reason: string,
-    deactivatedBy: string
+    deactivatedBy: string,
   ): Promise<ServiceResult<void>> {
     const timer = new Timer("CustomerService.deactivateCustomer");
 
@@ -738,17 +788,20 @@ export class CustomerService extends BaseService<Customer> {
 
       await this.withTransaction(async (transaction) => {
         // Update customer status
-        await customer.update({
-          status: "inactive",
-          metadata: {
-            ...customer.metadata,
-            deactivation: {
-              reason,
-              deactivatedBy,
-              deactivatedAt: new Date(),
+        await customer.update(
+          {
+            status: "inactive",
+            metadata: {
+              ...customer.metadata,
+              deactivation: {
+                reason,
+                deactivatedBy,
+                deactivatedAt: new Date(),
+              },
             },
           },
-        }, { transaction });
+          { transaction },
+        );
 
         // Cancel pending services
         await ServiceEvent.update(
@@ -759,20 +812,23 @@ export class CustomerService extends BaseService<Customer> {
               status: "scheduled",
             },
             transaction,
-          }
+          },
         );
 
         // Log deactivation
-        await AuditLog.create({
-          userId: deactivatedBy,
-          action: "customer_deactivated",
-          entityType: "Customer",
-          entityId: customerId,
-          changes: {
-            status: { from: "active", to: "inactive" },
-            reason,
+        await AuditLog.create(
+          {
+            userId: deactivatedBy,
+            action: "customer_deactivated",
+            entityType: "Customer",
+            entityId: customerId,
+            changes: {
+              status: { from: "active", to: "inactive" },
+              reason,
+            },
           },
-        }, { transaction });
+          { transaction },
+        );
       });
 
       // Clear customer cache
@@ -789,7 +845,6 @@ export class CustomerService extends BaseService<Customer> {
         success: true,
         message: "Customer deactivated successfully",
       };
-
     } catch (error) {
       timer.end({ error: error.message });
       logger.error("Customer deactivation failed", {
@@ -809,15 +864,29 @@ export class CustomerService extends BaseService<Customer> {
    * Private helper methods
    */
 
-  private async validateCustomerData(customerData: CreateCustomerData): Promise<void> {
+  private async validateCustomerData(
+    customerData: CreateCustomerData,
+  ): Promise<void> {
     const errors: any[] = [];
 
-    if (!customerData.companyName || customerData.companyName.trim().length === 0) {
-      errors.push({ field: "companyName", message: "Company name is required" });
+    if (
+      !customerData.companyName ||
+      customerData.companyName.trim().length === 0
+    ) {
+      errors.push({
+        field: "companyName",
+        message: "Company name is required",
+      });
     }
 
-    if (!customerData.contactName || customerData.contactName.trim().length === 0) {
-      errors.push({ field: "contactName", message: "Contact name is required" });
+    if (
+      !customerData.contactName ||
+      customerData.contactName.trim().length === 0
+    ) {
+      errors.push({
+        field: "contactName",
+        message: "Contact name is required",
+      });
     }
 
     if (!customerData.email || !customerData.email.includes("@")) {
@@ -829,11 +898,17 @@ export class CustomerService extends BaseService<Customer> {
     }
 
     if (!customerData.organizationId) {
-      errors.push({ field: "organizationId", message: "Organization ID is required" });
+      errors.push({
+        field: "organizationId",
+        message: "Organization ID is required",
+      });
     }
 
     if (!customerData.serviceTypes || customerData.serviceTypes.length === 0) {
-      errors.push({ field: "serviceTypes", message: "At least one service type is required" });
+      errors.push({
+        field: "serviceTypes",
+        message: "At least one service type is required",
+      });
     }
 
     if (errors.length > 0) {
@@ -841,7 +916,10 @@ export class CustomerService extends BaseService<Customer> {
     }
   }
 
-  private async generateCustomerNumber(organizationId: string, transaction: Transaction): Promise<string> {
+  private async generateCustomerNumber(
+    organizationId: string,
+    transaction: Transaction,
+  ): Promise<string> {
     const count = await Customer.count({
       where: { organizationId },
       transaction,
@@ -877,7 +955,9 @@ export class CustomerService extends BaseService<Customer> {
     return new Date(now.getTime() + daysToAdd * 24 * 60 * 60 * 1000);
   }
 
-  private async buildSearchWhereClause(criteria: CustomerSearchCriteria): Promise<any> {
+  private async buildSearchWhereClause(
+    criteria: CustomerSearchCriteria,
+  ): Promise<any> {
     const whereClause: any = {};
 
     if (criteria.organizationId) {

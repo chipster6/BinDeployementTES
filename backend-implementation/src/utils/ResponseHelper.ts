@@ -92,11 +92,11 @@ export class ResponseHelper {
     success: boolean,
     status: string,
     options: SuccessResponseOptions<T> | ErrorResponseOptions,
-    req: Request
+    req: Request,
   ): ApiResponse<T> {
     const requestId = this.getRequestId(req);
     const processingTime = this.getProcessingTime(req);
-    
+
     const response: ApiResponse<T> = {
       success,
       status,
@@ -133,16 +133,16 @@ export class ResponseHelper {
   static success<T>(
     res: Response,
     req: Request,
-    options: SuccessResponseOptions<T> = {}
+    options: SuccessResponseOptions<T> = {},
   ): Response {
     const statusCode = options.statusCode || 200;
     const message = options.message || "Request successful";
-    
+
     const response = this.buildResponse(
       true,
       "success",
       { ...options, message },
-      req
+      req,
     );
 
     // Log successful response
@@ -164,7 +164,7 @@ export class ResponseHelper {
     res: Response,
     req: Request,
     data: T,
-    message: string = "Resource created successfully"
+    message: string = "Resource created successfully",
   ): Response {
     return this.success(res, req, {
       data,
@@ -180,7 +180,7 @@ export class ResponseHelper {
     res: Response,
     req: Request,
     data: T,
-    message: string = "Resource updated successfully"
+    message: string = "Resource updated successfully",
   ): Response {
     return this.success(res, req, {
       data,
@@ -195,7 +195,7 @@ export class ResponseHelper {
   static deleted(
     res: Response,
     req: Request,
-    message: string = "Resource deleted successfully"
+    message: string = "Resource deleted successfully",
   ): Response {
     return this.success(res, req, {
       message,
@@ -211,7 +211,7 @@ export class ResponseHelper {
     req: Request,
     data: T[],
     pagination: PaginationMeta,
-    message: string = "Data retrieved successfully"
+    message: string = "Data retrieved successfully",
   ): Response {
     return this.success(res, req, {
       data,
@@ -243,7 +243,7 @@ export class ResponseHelper {
   static error(
     res: Response,
     req: Request,
-    options: ErrorResponseOptions = {}
+    options: ErrorResponseOptions = {},
   ): Response {
     const statusCode = options.statusCode || 500;
     const message = options.message || "Internal server error";
@@ -253,7 +253,7 @@ export class ResponseHelper {
       false,
       status,
       { ...options, message },
-      req
+      req,
     );
 
     // Add error code if provided
@@ -283,7 +283,7 @@ export class ResponseHelper {
     res: Response,
     req: Request,
     message: string = "Bad request",
-    errors?: any[]
+    errors?: any[],
   ): Response {
     return this.error(res, req, {
       message,
@@ -299,7 +299,7 @@ export class ResponseHelper {
   static unauthorized(
     res: Response,
     req: Request,
-    message: string = "Authentication required"
+    message: string = "Authentication required",
   ): Response {
     return this.error(res, req, {
       message,
@@ -314,7 +314,7 @@ export class ResponseHelper {
   static forbidden(
     res: Response,
     req: Request,
-    message: string = "Access denied"
+    message: string = "Access denied",
   ): Response {
     return this.error(res, req, {
       message,
@@ -329,7 +329,7 @@ export class ResponseHelper {
   static notFound(
     res: Response,
     req: Request,
-    message: string = "Resource not found"
+    message: string = "Resource not found",
   ): Response {
     return this.error(res, req, {
       message,
@@ -345,7 +345,7 @@ export class ResponseHelper {
     res: Response,
     req: Request,
     errors: any[],
-    message: string = "Validation failed"
+    message: string = "Validation failed",
   ): Response {
     return this.error(res, req, {
       message,
@@ -361,7 +361,7 @@ export class ResponseHelper {
   static tooManyRequests(
     res: Response,
     req: Request,
-    message: string = "Too many requests"
+    message: string = "Too many requests",
   ): Response {
     return this.error(res, req, {
       message,
@@ -376,7 +376,7 @@ export class ResponseHelper {
   static internalError(
     res: Response,
     req: Request,
-    message: string = "Internal server error"
+    message: string = "Internal server error",
   ): Response {
     return this.error(res, req, {
       message,
@@ -391,7 +391,7 @@ export class ResponseHelper {
   static serviceUnavailable(
     res: Response,
     req: Request,
-    message: string = "Service temporarily unavailable"
+    message: string = "Service temporarily unavailable",
   ): Response {
     return this.error(res, req, {
       message,

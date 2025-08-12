@@ -35,7 +35,11 @@ import {
 import { database } from "@/config/database";
 import { redisClient } from "@/config/redis";
 import { logger, Timer } from "@/utils/logger";
-import { AppError, NotFoundError, ValidationError } from "@/middleware/errorHandler";
+import {
+  AppError,
+  NotFoundError,
+  ValidationError,
+} from "@/middleware/errorHandler";
 
 /**
  * Repository filter options
@@ -120,7 +124,7 @@ export abstract class BaseRepository<T extends Model = Model> {
    */
   protected async withTransaction<R>(
     operation: (transaction: Transaction) => Promise<R>,
-    transaction?: Transaction
+    transaction?: Transaction,
   ): Promise<R> {
     if (transaction) {
       return operation(transaction);
@@ -142,7 +146,10 @@ export abstract class BaseRepository<T extends Model = Model> {
    */
   protected generateCacheKey(method: string, params: any = {}): string {
     const paramStr = JSON.stringify(params);
-    const hash = require('crypto').createHash('md5').update(paramStr).digest('hex');
+    const hash = require("crypto")
+      .createHash("md5")
+      .update(paramStr)
+      .digest("hex");
     return `${this.cachePrefix}:${method}:${hash}`;
   }
 
@@ -155,18 +162,18 @@ export abstract class BaseRepository<T extends Model = Model> {
     try {
       const cached = await redisClient.get(key);
       if (cached) {
-        logger.debug("Repository cache hit", { 
-          repository: this.modelName, 
-          key 
+        logger.debug("Repository cache hit", {
+          repository: this.modelName,
+          key,
         });
         return JSON.parse(cached);
       }
       return null;
     } catch (error) {
-      logger.warn("Cache get failed", { 
-        repository: this.modelName, 
-        key, 
-        error: error.message 
+      logger.warn("Cache get failed", {
+        repository: this.modelName,
+        key,
+        error: error.message,
       });
       return null;
     }
@@ -175,22 +182,26 @@ export abstract class BaseRepository<T extends Model = Model> {
   /**
    * Set cache
    */
-  protected async setCache<R>(key: string, data: R, ttl?: number): Promise<void> {
+  protected async setCache<R>(
+    key: string,
+    data: R,
+    ttl?: number,
+  ): Promise<void> {
     if (!this.cacheEnabled) return;
 
     try {
       const cacheTTL = ttl || this.defaultCacheTTL;
       await redisClient.setex(key, cacheTTL, JSON.stringify(data));
-      logger.debug("Repository cache set", { 
-        repository: this.modelName, 
-        key, 
-        ttl: cacheTTL 
+      logger.debug("Repository cache set", {
+        repository: this.modelName,
+        key,
+        ttl: cacheTTL,
       });
     } catch (error) {
-      logger.warn("Cache set failed", { 
-        repository: this.modelName, 
-        key, 
-        error: error.message 
+      logger.warn("Cache set failed", {
+        repository: this.modelName,
+        key,
+        error: error.message,
       });
     }
   }
@@ -203,15 +214,15 @@ export abstract class BaseRepository<T extends Model = Model> {
 
     try {
       await redisClient.del(key);
-      logger.debug("Repository cache deleted", { 
-        repository: this.modelName, 
-        key 
+      logger.debug("Repository cache deleted", {
+        repository: this.modelName,
+        key,
       });
     } catch (error) {
-      logger.warn("Cache delete failed", { 
-        repository: this.modelName, 
-        key, 
-        error: error.message 
+      logger.warn("Cache delete failed", {
+        repository: this.modelName,
+        key,
+        error: error.message,
       });
     }
   }
@@ -225,18 +236,18 @@ export abstract class BaseRepository<T extends Model = Model> {
     try {
       const pattern = `${this.cachePrefix}:*`;
       const keys = await redisClient.keys(pattern);
-      
+
       if (keys.length > 0) {
         await redisClient.del(...keys);
-        logger.info("Repository cache cleared", { 
-          repository: this.modelName, 
-          keysCleared: keys.length 
+        logger.info("Repository cache cleared", {
+          repository: this.modelName,
+          keysCleared: keys.length,
         });
       }
     } catch (error) {
-      logger.warn("Cache clear failed", { 
-        repository: this.modelName, 
-        error: error.message 
+      logger.warn("Cache clear failed", {
+        repository: this.modelName,
+        error: error.message,
       });
     }
   }
@@ -257,13 +268,13 @@ export abstract class BaseRepository<T extends Model = Model> {
   public async findById(
     id: string | number,
     options: FindOptions = {},
-    useCache: boolean = true
+    useCache: boolean = true,
   ): Promise<T | null> {
     const timer = new Timer(`${this.modelName}.Repository.findById`);
-    
+
     try {
       const cacheKey = this.generateCacheKey("findById", { id, options });
-      
+
       // Check cache first
       if (useCache) {
         const cached = await this.getFromCache<T>(cacheKey);
@@ -279,7 +290,7 @@ export abstract class BaseRepository<T extends Model = Model> {
 
       // Query database
       const result = await this.model.findByPk(id, options);
-      
+
       // Cache the result
       if (result && useCache) {
         await this.setCache(cacheKey, result);
@@ -295,9 +306,9 @@ export abstract class BaseRepository<T extends Model = Model> {
       return result;
     } catch (error) {
       timer.end({ error: error.message });
-      logger.error(`${this.modelName} repository findById failed`, { 
-        id, 
-        error: error.message 
+      logger.error(`${this.modelName} repository findById failed`, {
+        id,
+        error: error.message,
       });
       throw new AppError(`Failed to find ${this.modelName}`, 500);
     }
@@ -308,13 +319,13 @@ export abstract class BaseRepository<T extends Model = Model> {
    */
   public async findOne(
     filter: RepositoryFilter = {},
-    useCache: boolean = true
+    useCache: boolean = true,
   ): Promise<T | null> {
     const timer = new Timer(`${this.modelName}.Repository.findOne`);
-    
+
     try {
       const cacheKey = this.generateCacheKey("findOne", filter);
-      
+
       // Check cache
       if (useCache) {
         const cached = await this.getFromCache<T>(cacheKey);
@@ -330,7 +341,7 @@ export abstract class BaseRepository<T extends Model = Model> {
 
       // Query database
       const result = await this.model.findOne(filter as FindOptions);
-      
+
       // Cache the result
       if (result && useCache) {
         await this.setCache(cacheKey, result);
@@ -346,9 +357,9 @@ export abstract class BaseRepository<T extends Model = Model> {
       return result;
     } catch (error) {
       timer.end({ error: error.message });
-      logger.error(`${this.modelName} repository findOne failed`, { 
-        filter, 
-        error: error.message 
+      logger.error(`${this.modelName} repository findOne failed`, {
+        filter,
+        error: error.message,
       });
       throw new AppError(`Failed to find ${this.modelName}`, 500);
     }
@@ -359,13 +370,13 @@ export abstract class BaseRepository<T extends Model = Model> {
    */
   public async findAll(
     filter: RepositoryFilter = {},
-    useCache: boolean = true
+    useCache: boolean = true,
   ): Promise<T[]> {
     const timer = new Timer(`${this.modelName}.Repository.findAll`);
-    
+
     try {
       const cacheKey = this.generateCacheKey("findAll", filter);
-      
+
       // Check cache
       if (useCache) {
         const cached = await this.getFromCache<T[]>(cacheKey);
@@ -382,7 +393,7 @@ export abstract class BaseRepository<T extends Model = Model> {
 
       // Query database
       const results = await this.model.findAll(filter as FindOptions);
-      
+
       // Cache the results
       if (useCache) {
         await this.setCache(cacheKey, results);
@@ -398,9 +409,9 @@ export abstract class BaseRepository<T extends Model = Model> {
       return results;
     } catch (error) {
       timer.end({ error: error.message });
-      logger.error(`${this.modelName} repository findAll failed`, { 
-        filter, 
-        error: error.message 
+      logger.error(`${this.modelName} repository findAll failed`, {
+        filter,
+        error: error.message,
       });
       throw new AppError(`Failed to find ${this.modelName} records`, 500);
     }
@@ -412,22 +423,25 @@ export abstract class BaseRepository<T extends Model = Model> {
   public async findAndCountAll(
     filter: RepositoryFilter = {},
     pagination: PaginationOptions,
-    useCache: boolean = true
+    useCache: boolean = true,
   ): Promise<PaginationResult<T>> {
     const timer = new Timer(`${this.modelName}.Repository.findAndCountAll`);
-    
+
     try {
       const { page, limit } = pagination;
       const offset = pagination.offset || (page - 1) * limit;
-      
+
       const queryOptions = {
         ...filter,
         limit,
         offset,
       } as FindOptions;
 
-      const cacheKey = this.generateCacheKey("findAndCountAll", { filter, pagination });
-      
+      const cacheKey = this.generateCacheKey("findAndCountAll", {
+        filter,
+        pagination,
+      });
+
       // Check cache
       if (useCache) {
         const cached = await this.getFromCache<PaginationResult<T>>(cacheKey);
@@ -444,7 +458,7 @@ export abstract class BaseRepository<T extends Model = Model> {
 
       // Query database
       const { count, rows } = await this.model.findAndCountAll(queryOptions);
-      
+
       const totalPages = Math.ceil(count / limit);
       const result: PaginationResult<T> = {
         data: rows,
@@ -474,10 +488,10 @@ export abstract class BaseRepository<T extends Model = Model> {
       return result;
     } catch (error) {
       timer.end({ error: error.message });
-      logger.error(`${this.modelName} repository findAndCountAll failed`, { 
-        filter, 
-        pagination, 
-        error: error.message 
+      logger.error(`${this.modelName} repository findAndCountAll failed`, {
+        filter,
+        pagination,
+        error: error.message,
       });
       throw new AppError(`Failed to find ${this.modelName} records`, 500);
     }
@@ -489,10 +503,10 @@ export abstract class BaseRepository<T extends Model = Model> {
   public async create(
     data: any,
     options: CreateOptions = {},
-    clearCache: boolean = true
+    clearCache: boolean = true,
   ): Promise<T> {
     const timer = new Timer(`${this.modelName}.Repository.create`);
-    
+
     try {
       const result = await this.withTransaction(async (transaction) => {
         const created = await this.model.create(data, {
@@ -514,22 +528,22 @@ export abstract class BaseRepository<T extends Model = Model> {
         recordCount: 1,
       });
 
-      logger.info(`${this.modelName} repository create successful`, { 
-        id: (result as any).id 
+      logger.info(`${this.modelName} repository create successful`, {
+        id: (result as any).id,
       });
-      
+
       return result;
     } catch (error) {
       timer.end({ error: error.message });
-      logger.error(`${this.modelName} repository create failed`, { 
-        data, 
-        error: error.message 
+      logger.error(`${this.modelName} repository create failed`, {
+        data,
+        error: error.message,
       });
-      
-      if (error.name === 'SequelizeValidationError') {
+
+      if (error.name === "SequelizeValidationError") {
         throw new ValidationError("Validation failed", error.errors);
       }
-      
+
       throw new AppError(`Failed to create ${this.modelName}`, 500);
     }
   }
@@ -541,10 +555,10 @@ export abstract class BaseRepository<T extends Model = Model> {
     id: string | number,
     data: any,
     options: UpdateOptions = {},
-    clearCache: boolean = true
+    clearCache: boolean = true,
   ): Promise<T> {
     const timer = new Timer(`${this.modelName}.Repository.updateById`);
-    
+
     try {
       const result = await this.withTransaction(async (transaction) => {
         // Find the record first
@@ -574,24 +588,24 @@ export abstract class BaseRepository<T extends Model = Model> {
       });
 
       logger.info(`${this.modelName} repository update successful`, { id });
-      
+
       return result;
     } catch (error) {
       timer.end({ error: error.message });
-      logger.error(`${this.modelName} repository updateById failed`, { 
-        id, 
-        data, 
-        error: error.message 
+      logger.error(`${this.modelName} repository updateById failed`, {
+        id,
+        data,
+        error: error.message,
       });
-      
+
       if (error instanceof AppError) {
         throw error;
       }
-      
-      if (error.name === 'SequelizeValidationError') {
+
+      if (error.name === "SequelizeValidationError") {
         throw new ValidationError("Validation failed", error.errors);
       }
-      
+
       throw new AppError(`Failed to update ${this.modelName}`, 500);
     }
   }
@@ -603,10 +617,10 @@ export abstract class BaseRepository<T extends Model = Model> {
     where: WhereOptions,
     data: any,
     options: UpdateOptions = {},
-    clearCache: boolean = true
+    clearCache: boolean = true,
   ): Promise<number> {
     const timer = new Timer(`${this.modelName}.Repository.updateWhere`);
-    
+
     try {
       const result = await this.withTransaction(async (transaction) => {
         const [affectedCount] = await this.model.update(data, {
@@ -629,23 +643,23 @@ export abstract class BaseRepository<T extends Model = Model> {
         recordCount: result,
       });
 
-      logger.info(`${this.modelName} repository updateWhere successful`, { 
-        affectedCount: result 
+      logger.info(`${this.modelName} repository updateWhere successful`, {
+        affectedCount: result,
       });
-      
+
       return result;
     } catch (error) {
       timer.end({ error: error.message });
-      logger.error(`${this.modelName} repository updateWhere failed`, { 
-        where, 
-        data, 
-        error: error.message 
+      logger.error(`${this.modelName} repository updateWhere failed`, {
+        where,
+        data,
+        error: error.message,
       });
-      
-      if (error.name === 'SequelizeValidationError') {
+
+      if (error.name === "SequelizeValidationError") {
         throw new ValidationError("Validation failed", error.errors);
       }
-      
+
       throw new AppError(`Failed to update ${this.modelName} records`, 500);
     }
   }
@@ -656,10 +670,10 @@ export abstract class BaseRepository<T extends Model = Model> {
   public async deleteById(
     id: string | number,
     options: DestroyOptions = {},
-    clearCache: boolean = true
+    clearCache: boolean = true,
   ): Promise<boolean> {
     const timer = new Timer(`${this.modelName}.Repository.deleteById`);
-    
+
     try {
       const result = await this.withTransaction(async (transaction) => {
         const deleted = await this.model.destroy({
@@ -687,19 +701,19 @@ export abstract class BaseRepository<T extends Model = Model> {
       });
 
       logger.info(`${this.modelName} repository delete successful`, { id });
-      
+
       return result;
     } catch (error) {
       timer.end({ error: error.message });
-      logger.error(`${this.modelName} repository deleteById failed`, { 
-        id, 
-        error: error.message 
+      logger.error(`${this.modelName} repository deleteById failed`, {
+        id,
+        error: error.message,
       });
-      
+
       if (error instanceof AppError) {
         throw error;
       }
-      
+
       throw new AppError(`Failed to delete ${this.modelName}`, 500);
     }
   }
@@ -710,10 +724,10 @@ export abstract class BaseRepository<T extends Model = Model> {
   public async deleteWhere(
     where: WhereOptions,
     options: DestroyOptions = {},
-    clearCache: boolean = true
+    clearCache: boolean = true,
   ): Promise<number> {
     const timer = new Timer(`${this.modelName}.Repository.deleteWhere`);
-    
+
     try {
       const result = await this.withTransaction(async (transaction) => {
         const deleted = await this.model.destroy({
@@ -736,18 +750,18 @@ export abstract class BaseRepository<T extends Model = Model> {
         recordCount: result,
       });
 
-      logger.info(`${this.modelName} repository deleteWhere successful`, { 
-        deletedCount: result 
+      logger.info(`${this.modelName} repository deleteWhere successful`, {
+        deletedCount: result,
       });
-      
+
       return result;
     } catch (error) {
       timer.end({ error: error.message });
-      logger.error(`${this.modelName} repository deleteWhere failed`, { 
-        where, 
-        error: error.message 
+      logger.error(`${this.modelName} repository deleteWhere failed`, {
+        where,
+        error: error.message,
       });
-      
+
       throw new AppError(`Failed to delete ${this.modelName} records`, 500);
     }
   }
@@ -757,13 +771,13 @@ export abstract class BaseRepository<T extends Model = Model> {
    */
   public async count(
     where: WhereOptions = {},
-    useCache: boolean = true
+    useCache: boolean = true,
   ): Promise<number> {
     const timer = new Timer(`${this.modelName}.Repository.count`);
-    
+
     try {
       const cacheKey = this.generateCacheKey("count", { where });
-      
+
       // Check cache
       if (useCache) {
         const cached = await this.getFromCache<number>(cacheKey);
@@ -780,7 +794,7 @@ export abstract class BaseRepository<T extends Model = Model> {
 
       // Query database
       const count = await this.model.count({ where });
-      
+
       // Cache the result
       if (useCache) {
         await this.setCache(cacheKey, count);
@@ -796,9 +810,9 @@ export abstract class BaseRepository<T extends Model = Model> {
       return count;
     } catch (error) {
       timer.end({ error: error.message });
-      logger.error(`${this.modelName} repository count failed`, { 
-        where, 
-        error: error.message 
+      logger.error(`${this.modelName} repository count failed`, {
+        where,
+        error: error.message,
       });
       throw new AppError(`Failed to count ${this.modelName} records`, 500);
     }
@@ -809,7 +823,7 @@ export abstract class BaseRepository<T extends Model = Model> {
    */
   public async exists(
     where: WhereOptions,
-    useCache: boolean = true
+    useCache: boolean = true,
   ): Promise<boolean> {
     const count = await this.count(where, useCache);
     return count > 0;
@@ -821,10 +835,10 @@ export abstract class BaseRepository<T extends Model = Model> {
   public async bulkCreate(
     data: any[],
     options: any = {},
-    clearCache: boolean = true
+    clearCache: boolean = true,
   ): Promise<T[]> {
     const timer = new Timer(`${this.modelName}.Repository.bulkCreate`);
-    
+
     try {
       const result = await this.withTransaction(async (transaction) => {
         const created = await this.model.bulkCreate(data, {
@@ -846,23 +860,26 @@ export abstract class BaseRepository<T extends Model = Model> {
         recordCount: result.length,
       });
 
-      logger.info(`${this.modelName} repository bulkCreate successful`, { 
-        count: result.length 
+      logger.info(`${this.modelName} repository bulkCreate successful`, {
+        count: result.length,
       });
-      
+
       return result;
     } catch (error) {
       timer.end({ error: error.message });
-      logger.error(`${this.modelName} repository bulkCreate failed`, { 
-        count: data.length, 
-        error: error.message 
+      logger.error(`${this.modelName} repository bulkCreate failed`, {
+        count: data.length,
+        error: error.message,
       });
-      
-      if (error.name === 'SequelizeValidationError') {
+
+      if (error.name === "SequelizeValidationError") {
         throw new ValidationError("Validation failed", error.errors);
       }
-      
-      throw new AppError(`Failed to bulk create ${this.modelName} records`, 500);
+
+      throw new AppError(
+        `Failed to bulk create ${this.modelName} records`,
+        500,
+      );
     }
   }
 
@@ -872,13 +889,13 @@ export abstract class BaseRepository<T extends Model = Model> {
   public async rawQuery(
     sql: string,
     replacements?: any,
-    useCache: boolean = false
+    useCache: boolean = false,
   ): Promise<any> {
     const timer = new Timer(`${this.modelName}.Repository.rawQuery`);
-    
+
     try {
       const cacheKey = this.generateCacheKey("rawQuery", { sql, replacements });
-      
+
       // Check cache
       if (useCache) {
         const cached = await this.getFromCache<any>(cacheKey);
@@ -916,11 +933,14 @@ export abstract class BaseRepository<T extends Model = Model> {
       return results;
     } catch (error) {
       timer.end({ error: error.message });
-      logger.error(`${this.modelName} repository rawQuery failed`, { 
-        sql, 
-        error: error.message 
+      logger.error(`${this.modelName} repository rawQuery failed`, {
+        sql,
+        error: error.message,
       });
-      throw new AppError(`Failed to execute raw query for ${this.modelName}`, 500);
+      throw new AppError(
+        `Failed to execute raw query for ${this.modelName}`,
+        500,
+      );
     }
   }
 
@@ -945,8 +965,8 @@ export abstract class BaseRepository<T extends Model = Model> {
         defaultCacheTTL: this.defaultCacheTTL,
       };
     } catch (error) {
-      logger.error(`${this.modelName} repository stats failed`, { 
-        error: error.message 
+      logger.error(`${this.modelName} repository stats failed`, {
+        error: error.message,
       });
       return {
         repository: this.modelName,
