@@ -34,14 +34,15 @@ module.exports = {
   // Transform configuration
   transform: {
     '^.+\\.tsx?$': ['ts-jest', {
-      tsconfig: './tsconfig.json',
+      tsconfig: './tsconfig.test.json',
     }],
   },
 
   // Global configuration for ts-jest
   globals: {
     'ts-jest': {
-      tsconfig: './tsconfig.json',
+      tsconfig: './tsconfig.test.json',
+      useESM: false,
     },
   },
 
@@ -137,7 +138,7 @@ module.exports = {
   detectLeaks: true,
 
   // Global setup and teardown
-  globalSetup: '<rootDir>/tests/globalSetup.js',
+  globalSetup: '<rootDir>/tests/globalSetup.ts',
   globalTeardown: '<rootDir>/tests/globalTeardown.ts',
 
   // Test projects for different test types
@@ -148,7 +149,7 @@ module.exports = {
         '<rootDir>/tests/unit/**/*.test.ts',
         '<rootDir>/tests/unit/**/*.spec.ts',
       ],
-      setupFilesAfterEnv: ['<rootDir>/tests/setup.js'],
+      setupFilesAfterEnv: ['<rootDir>/tests/setup.ts'],
     },
     {
       displayName: 'integration',

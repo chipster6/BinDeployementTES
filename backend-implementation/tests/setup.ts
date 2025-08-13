@@ -13,7 +13,7 @@
 
 import 'reflect-metadata';
 import { config } from 'dotenv';
-import { logger } from '../src/utils/logger';
+// import { logger } from '../src/utils/logger'; // Temporarily disabled for path mapping fix
 
 // Load test environment variables
 config({ path: '.env.test' });
@@ -34,8 +34,8 @@ beforeAll(async () => {
     console.error = jest.fn();
   }
 
-  // Configure logger for test environment
-  logger.level = process.env.TEST_LOG_LEVEL || 'error';
+  // Configure logger for test environment (temporarily disabled)
+  // logger.level = process.env.TEST_LOG_LEVEL || 'error';
 });
 
 // Global test teardown

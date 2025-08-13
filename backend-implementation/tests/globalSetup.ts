@@ -15,7 +15,6 @@ import { config } from 'dotenv';
 import { execSync } from 'child_process';
 import { Client } from 'pg';
 import Redis from 'ioredis';
-import { logger } from '@/utils/logger';
 
 // Load test environment variables
 config({ path: '.env.test' });

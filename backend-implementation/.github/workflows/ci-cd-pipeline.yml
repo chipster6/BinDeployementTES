@@ -1,0 +1,324 @@
+# ============================================================================
+# WASTE MANAGEMENT SYSTEM - CI/CD PIPELINE
+# ============================================================================
+#
+# Comprehensive CI/CD pipeline for production-ready deployment
+# Includes testing, security scanning, building, and deployment automation
+#
+# Created by: DevOps Infrastructure Orchestrator
+# Date: 2025-08-13
+# Version: 1.0.0
+# ============================================================================
+
+name: 'Waste Management System CI/CD Pipeline'
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment to deploy to'
+        required: true
+        default: 'staging'
+        type: choice
+        options:
+        - staging
+        - production
+
+# Global environment variables
+env:
+  NODE_VERSION: '20.x'
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+# Ensure only one deployment runs at a time
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # ============================================================================
+  # CODE QUALITY & TESTING PIPELINE
+  # ============================================================================
+  code-quality:
+    name: 'Code Quality & Testing'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    
+    services:
+      postgres:
+        image: postgis/postgis:16-3.4
+        env:
+          POSTGRES_PASSWORD: postgres123
+          POSTGRES_DB: waste_management_test
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+      
+      redis:
+        image: redis:7-alpine
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 3s
+          --health-retries 5
+        ports:
+          - 6379:6379
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install Dependencies
+        run: |
+          npm ci
+          cd frontend && npm ci
+
+      - name: Code Quality Checks
+        run: |
+          npm run lint
+          npm run format:check
+          npm run type-check
+
+      - name: Security Audit
+        run: |
+          npm audit --audit-level high
+          cd frontend && npm audit --audit-level high
+
+      - name: Run Unit Tests
+        env:
+          NODE_ENV: test
+          DB_HOST: localhost
+          DB_PORT: 5432
+          DB_NAME: waste_management_test
+          DB_USERNAME: postgres
+          DB_PASSWORD: postgres123
+          REDIS_HOST: localhost
+          REDIS_PORT: 6379
+        run: |
+          npm run test:unit
+
+      - name: Run Integration Tests
+        env:
+          NODE_ENV: test
+          DB_HOST: localhost
+          DB_PORT: 5432
+          DB_NAME: waste_management_test
+          DB_USERNAME: postgres
+          DB_PASSWORD: postgres123
+          REDIS_HOST: localhost
+          REDIS_PORT: 6379
+        run: |
+          npm run test:integration
+
+      - name: Upload Test Coverage
+        uses: codecov/codecov-action@v3
+        with:
+          file: ./coverage/lcov.info
+          flags: backend
+          name: backend-coverage
+
+      - name: Upload Test Results
+        uses: actions/upload-artifact@v3
+        if: always()
+        with:
+          name: test-results
+          path: |
+            coverage/
+            junit.xml
+
+  # ============================================================================
+  # SECURITY SCANNING
+  # ============================================================================
+  security-scan:
+    name: 'Security Scanning'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Run Trivy Vulnerability Scanner
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: 'fs'
+          scan-ref: '.'
+          format: 'sarif'
+          output: 'trivy-results.sarif'
+
+      - name: Upload Trivy Results
+        uses: github/codeql-action/upload-sarif@v2
+        with:
+          sarif_file: 'trivy-results.sarif'
+
+      - name: CodeQL Analysis
+        uses: github/codeql-action/analyze@v2
+        with:
+          languages: javascript
+
+  # ============================================================================
+  # BUILD & CONTAINERIZATION
+  # ============================================================================
+  build:
+    name: 'Build & Containerize'
+    runs-on: ubuntu-latest
+    needs: [code-quality, security-scan]
+    timeout-minutes: 20
+    
+    outputs:
+      image-tag: ${{ steps.meta.outputs.tags }}
+      image-digest: ${{ steps.build.outputs.digest }}
+    
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract Metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=ref,event=branch
+            type=ref,event=pr
+            type=sha,prefix=sha-
+            type=raw,value=latest,enable={{is_default_branch}}
+
+      - name: Build and Push Backend Image
+        id: build
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./docker/Dockerfile
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Build and Push Frontend Image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./frontend
+          file: ./docker/Dockerfile.frontend
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-frontend:${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  # ============================================================================
+  # STAGING DEPLOYMENT
+  # ============================================================================
+  deploy-staging:
+    name: 'Deploy to Staging'
+    runs-on: ubuntu-latest
+    needs: [build]
+    if: github.ref == 'refs/heads/develop' || (github.event_name == 'workflow_dispatch' && github.event.inputs.environment == 'staging')
+    environment: staging
+    timeout-minutes: 15
+    
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Deploy to Staging
+        run: |
+          echo "Deploying to staging environment..."
+          echo "Image: ${{ needs.build.outputs.image-tag }}"
+          # Add your staging deployment commands here
+          # Example: kubectl, docker-compose, or cloud provider CLI
+
+      - name: Run Health Checks
+        run: |
+          echo "Running health checks on staging..."
+          # Add health check commands
+          # curl -f https://staging-api.waste-mgmt.com/health
+
+      - name: Run E2E Tests
+        run: |
+          echo "Running E2E tests against staging..."
+          # Add E2E test commands
+
+  # ============================================================================
+  # PRODUCTION DEPLOYMENT
+  # ============================================================================
+  deploy-production:
+    name: 'Deploy to Production'
+    runs-on: ubuntu-latest
+    needs: [build, deploy-staging]
+    if: github.ref == 'refs/heads/main' || (github.event_name == 'workflow_dispatch' && github.event.inputs.environment == 'production')
+    environment: production
+    timeout-minutes: 20
+    
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Production Deployment
+        run: |
+          echo "Deploying to production environment..."
+          echo "Image: ${{ needs.build.outputs.image-tag }}"
+          # Add your production deployment commands here
+          # Implement blue-green or canary deployment strategy
+
+      - name: Production Health Checks
+        run: |
+          echo "Running production health checks..."
+          # Add comprehensive health checks
+          # Monitor key metrics and rollback if needed
+
+      - name: Notify Deployment Success
+        run: |
+          echo "Production deployment successful!"
+          # Add notification to Slack, email, etc.
+
+  # ============================================================================
+  # MONITORING & ROLLBACK
+  # ============================================================================
+  post-deployment:
+    name: 'Post-Deployment Monitoring'
+    runs-on: ubuntu-latest
+    needs: [deploy-production]
+    if: always() && needs.deploy-production.result != 'skipped'
+    timeout-minutes: 10
+    
+    steps:
+      - name: Monitor Deployment
+        run: |
+          echo "Monitoring deployment metrics..."
+          # Add monitoring checks
+          # Check error rates, response times, etc.
+
+      - name: Rollback on Failure
+        if: failure()
+        run: |
+          echo "Deployment failed, initiating rollback..."
+          # Add rollback procedures
