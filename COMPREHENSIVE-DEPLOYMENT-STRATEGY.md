@@ -24,6 +24,59 @@
 
 ---
 
+## CROSS-STREAM COORDINATION PROTOCOLS
+
+### COORDINATION REGISTRY
+**Location**: `/.agent-coordination/` directory
+**Master Registry**: `context-continuity-master-sync.md`
+
+### CRITICAL COORDINATION PAIRS
+
+#### 1. **Security ↔ External-API-Integration-Specialist** (PRIORITY 1)
+- **Coordination File**: `security-external-api-sync.md`
+- **Critical Focus**: Payment security (Stripe), API key management, webhook security
+- **Protocol**: Security reviews all external integrations before deployment
+- **Business Impact**: $2M+ MRR payment processing security
+
+#### 2. **Database-Architect ↔ Performance-Optimization-Specialist** (PRIORITY 2)
+- **Coordination File**: `database-performance-sync.md`
+- **Critical Focus**: Query optimization, spatial data performance, connection pooling
+- **Protocol**: Database changes trigger performance validation
+- **Business Impact**: Sub-200ms API response times for customer experience
+
+#### 3. **Frontend-Agent ↔ Backend-Agent** (PRIORITY 3)
+- **Coordination File**: `frontend-backend-sync.md`
+- **Critical Focus**: API contracts, real-time features, user experience
+- **Protocol**: API changes require frontend compatibility validation
+- **Business Impact**: User-friendly interface preventing customer churn
+
+#### 4. **Testing-Agent ↔ Security** (PRIORITY 4)
+- **Coordination File**: `testing-security-sync.md`
+- **Critical Focus**: Security testing, vulnerability validation, penetration testing
+- **Protocol**: Security implementations require comprehensive testing validation
+- **Business Impact**: Enterprise-grade security compliance
+
+#### 5. **DevOps-Agent ↔ Performance-Optimization-Specialist** (PRIORITY 5)
+- **Coordination File**: `devops-performance-sync.md`
+- **Critical Focus**: Infrastructure scaling, monitoring, deployment performance
+- **Protocol**: Infrastructure changes validated with performance benchmarks
+- **Business Impact**: 99.9% uptime production deployment capability
+
+### COORDINATION WORKFLOW
+1. **Agent Deployment**: Each agent reads relevant coordination files
+2. **Work Execution**: Agents update coordination files with progress
+3. **Cross-Validation**: Coordinated agents validate each other's work
+4. **Conflict Resolution**: Context-continuity-manager mediates conflicts
+5. **Completion Sync**: Final validation before marking tasks complete
+
+### COORDINATION ENFORCEMENT
+- **Mandatory**: No agent deploys without reading coordination files
+- **Real-time Updates**: Coordination files updated after major completions
+- **Quality Gates**: Cross-agent validation required for critical components
+- **Emergency Protocol**: Critical issues trigger immediate cross-agent coordination
+
+---
+
 ## DEPLOYMENT ARCHITECTURE
 
 ```

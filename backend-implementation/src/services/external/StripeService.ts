@@ -33,6 +33,15 @@ import {
 import { logger } from "@/utils/logger";
 import { CustomerService } from "@/services/CustomerService";
 import { AuditLog } from "@/models/AuditLog";
+import {
+  encryptSensitiveData,
+  decryptSensitiveData,
+  createHmacSignature,
+  verifyHmacSignature,
+  maskSensitiveData,
+} from "@/utils/encryption";
+import WebhookSecurityService from "./WebhookSecurityService";
+import { redisClient } from "@/config/redis";
 
 /**
  * Stripe customer data interface
@@ -138,6 +147,10 @@ interface StripeConfig extends ExternalServiceConfig {
   publishableKey: string;
   webhookSecret: string;
   apiVersion?: string;
+  enableKeyRotation?: boolean;
+  keyRotationIntervalDays?: number;
+  encryptSensitiveData?: boolean;
+  auditAllTransactions?: boolean;
 }
 
 /**
@@ -147,6 +160,12 @@ export class StripeService extends BaseExternalService {
   private stripe: Stripe;
   private webhookSecret: string;
   private customerService: CustomerService;
+  private webhookSecurityService: WebhookSecurityService;
+  private encryptSensitiveData: boolean;
+  private auditAllTransactions: boolean;
+  private keyRotationEnabled: boolean;
+  private keyRotationInterval: number;
+  private readonly SENSITIVE_FIELDS = ['card', 'payment_method', 'bank_account', 'routing_number'];
 
   constructor(config: StripeConfig, customerService: CustomerService) {
     super({
@@ -168,6 +187,25 @@ export class StripeService extends BaseExternalService {
 
     this.webhookSecret = config.webhookSecret;
     this.customerService = customerService;
+    this.webhookSecurityService = new WebhookSecurityService();
+    this.encryptSensitiveData = config.encryptSensitiveData !== false;
+    this.auditAllTransactions = config.auditAllTransactions !== false;
+    this.keyRotationEnabled = config.enableKeyRotation === true;
+    this.keyRotationInterval = config.keyRotationIntervalDays || 90;
+
+    // Register webhook security configuration
+    this.webhookSecurityService.registerWebhook('stripe', {
+      provider: 'stripe',
+      secret: this.webhookSecret,
+      tolerance: 300, // 5 minutes
+      enableReplayProtection: true,
+      maxPayloadSize: 1024 * 1024, // 1MB
+    });
+
+    // Initialize API key rotation monitoring
+    if (this.keyRotationEnabled) {
+      this.initializeKeyRotationMonitoring();
+    }
   }
 
   /**
@@ -560,22 +598,75 @@ export class StripeService extends BaseExternalService {
   }
 
   /**
-   * Process webhook event
+   * Process webhook event with enhanced security validation
    */
   public async processWebhookEvent(
     body: string,
     signature: string,
+    timestamp?: string,
+    headers?: Record<string, string>,
+    ipAddress?: string,
   ): Promise<ApiResponse<{ processed: boolean; eventType: string }>> {
     try {
+      // Enhanced security validation using WebhookSecurityService
+      const verificationResult = await this.webhookSecurityService.verifyWebhook(
+        'stripe',
+        body,
+        signature,
+        timestamp,
+        headers,
+      );
+
+      if (!verificationResult.isValid) {
+        await this.logSecurityEvent('webhook_verification_failed', {
+          error: verificationResult.error,
+          ipAddress,
+          signature: maskSensitiveData(signature),
+        });
+        throw new Error(`Webhook verification failed: ${verificationResult.error}`);
+      }
+
+      // Check for replay attacks
+      if (verificationResult.metadata?.isReplay) {
+        await this.logSecurityEvent('webhook_replay_attack_detected', {
+          eventId: verificationResult.metadata.eventId,
+          ipAddress,
+        });
+        throw new Error('Replay attack detected');
+      }
+
+      // Rate limiting check
+      const rateLimitResult = await this.webhookSecurityService.checkRateLimit(
+        'stripe',
+        ipAddress || 'unknown',
+        { windowMinutes: 5, maxRequests: 50 }
+      );
+
+      if (!rateLimitResult.allowed) {
+        await this.logSecurityEvent('webhook_rate_limit_exceeded', {
+          ipAddress,
+          remainingRequests: rateLimitResult.remainingRequests,
+        });
+        throw new Error('Rate limit exceeded for webhook requests');
+      }
+
+      // Construct and validate event
       const event = this.stripe.webhooks.constructEvent(
         body,
         signature,
         this.webhookSecret,
       );
 
+      // Additional payment security validation
+      if (this.isPaymentRelatedEvent(event.type)) {
+        await this.validatePaymentSecurity(event);
+      }
+
       logger.info("Processing Stripe webhook event", {
         eventType: event.type,
         eventId: event.id,
+        securityValidated: true,
+        ipAddress,
       });
 
       // Process different event types
@@ -628,19 +719,18 @@ export class StripeService extends BaseExternalService {
           });
       }
 
-      // Log audit event
-      await AuditLog.create({
-        userId: null,
-        customerId: null,
-        action: "webhook_processed",
-        resourceType: "stripe_webhook",
-        resourceId: event.id,
-        details: {
-          eventType: event.type,
-          processed: true,
+      // Enhanced audit logging with security metadata
+      await this.logSecurityEvent('webhook_processed', {
+        eventType: event.type,
+        eventId: event.id,
+        processed: true,
+        securityValidated: true,
+        verificationMetadata: verificationResult.metadata,
+        ipAddress: ipAddress || 'stripe',
+        rateLimitStatus: {
+          allowed: rateLimitResult.allowed,
+          remaining: rateLimitResult.remainingRequests,
         },
-        ipAddress: "stripe",
-        userAgent: "StripeWebhook",
       });
 
       return {
@@ -656,6 +746,15 @@ export class StripeService extends BaseExternalService {
     } catch (error) {
       logger.error("Failed to process webhook event", {
         error: error.message,
+        ipAddress,
+        signature: maskSensitiveData(signature || ''),
+      });
+
+      // Log security failure
+      await this.logSecurityEvent('webhook_processing_failed', {
+        error: error.message,
+        ipAddress,
+        signature: maskSensitiveData(signature || ''),
       });
 
       throw new Error(`Webhook processing failed: ${error.message}`);
@@ -854,22 +953,306 @@ export class StripeService extends BaseExternalService {
   }
 
   /**
-   * Get service health status
+   * Initialize API key rotation monitoring
+   */
+  private async initializeKeyRotationMonitoring(): Promise<void> {
+    try {
+      const keyAgeKey = 'stripe_key_age';
+      const lastRotation = await redisClient.get(keyAgeKey);
+      
+      if (!lastRotation) {
+        await redisClient.set(keyAgeKey, Date.now());
+        logger.info('Stripe API key age tracking initialized');
+      } else {
+        const daysSinceRotation = Math.floor((Date.now() - parseInt(lastRotation)) / (1000 * 60 * 60 * 24));
+        
+        if (daysSinceRotation >= this.keyRotationInterval) {
+          await this.logSecurityEvent('api_key_rotation_required', {
+            daysSinceRotation,
+            rotationInterval: this.keyRotationInterval,
+            keyType: 'stripe_secret_key',
+          });
+          
+          logger.warn('Stripe API key rotation required', {
+            daysSinceRotation,
+            rotationInterval: this.keyRotationInterval,
+          });
+        }
+      }
+    } catch (error) {
+      logger.error('Failed to initialize key rotation monitoring', {
+        error: error.message,
+      });
+    }
+  }
+
+  /**
+   * Check if event is payment-related and requires additional security
+   */
+  private isPaymentRelatedEvent(eventType: string): boolean {
+    const paymentEvents = [
+      'payment_intent.succeeded',
+      'payment_intent.payment_failed',
+      'payment_method.attached',
+      'invoice.payment_succeeded',
+      'invoice.payment_failed',
+      'customer.subscription.created',
+      'customer.subscription.updated',
+      'customer.subscription.deleted',
+    ];
+    
+    return paymentEvents.includes(eventType);
+  }
+
+  /**
+   * Validate payment security for sensitive events
+   */
+  private async validatePaymentSecurity(event: Stripe.Event): Promise<void> {
+    try {
+      // Additional validation for payment events
+      const eventData = event.data.object as any;
+      
+      // Check for suspicious payment patterns
+      if (eventData.amount && eventData.amount > 100000) { // $1000+ payments
+        await this.logSecurityEvent('high_value_payment_detected', {
+          eventId: event.id,
+          eventType: event.type,
+          amount: eventData.amount,
+          currency: eventData.currency,
+          customerId: eventData.customer,
+        });
+      }
+      
+      // Validate customer metadata
+      if (eventData.customer) {
+        const customer = await this.stripe.customers.retrieve(eventData.customer as string);
+        if (customer && !customer.deleted && !customer.metadata?.internal_customer_id) {
+          await this.logSecurityEvent('unlinked_customer_payment', {
+            eventId: event.id,
+            stripeCustomerId: eventData.customer,
+            eventType: event.type,
+          });
+        }
+      }
+    } catch (error) {
+      logger.error('Payment security validation failed', {
+        error: error.message,
+        eventId: event.id,
+        eventType: event.type,
+      });
+    }
+  }
+
+  /**
+   * Enhanced security event logging
+   */
+  private async logSecurityEvent(
+    action: string,
+    details: Record<string, any>,
+  ): Promise<void> {
+    try {
+      await AuditLog.create({
+        userId: null,
+        customerId: details.customerId || null,
+        action,
+        resourceType: 'stripe_security',
+        resourceId: details.eventId || details.paymentIntentId || 'stripe-security',
+        details: {
+          service: 'stripe',
+          timestamp: new Date().toISOString(),
+          ...details,
+        },
+        ipAddress: details.ipAddress || 'stripe-webhook',
+        userAgent: 'StripeSecurityService',
+      });
+    } catch (error) {
+      logger.error('Failed to log security event', {
+        error: error.message,
+        action,
+      });
+    }
+  }
+
+  /**
+   * Encrypt sensitive customer data before storage
+   */
+  private async encryptCustomerData(data: any): Promise<any> {
+    if (!this.encryptSensitiveData || !data) {
+      return data;
+    }
+
+    const encrypted = { ...data };
+    
+    // Encrypt sensitive fields
+    for (const field of this.SENSITIVE_FIELDS) {
+      if (encrypted[field] && typeof encrypted[field] === 'string') {
+        try {
+          encrypted[field] = await encryptSensitiveData(encrypted[field]);
+        } catch (error) {
+          logger.error('Failed to encrypt sensitive field', {
+            field,
+            error: error.message,
+          });
+        }
+      }
+    }
+    
+    return encrypted;
+  }
+
+  /**
+   * Decrypt sensitive customer data after retrieval
+   */
+  private async decryptCustomerData(data: any): Promise<any> {
+    if (!this.encryptSensitiveData || !data) {
+      return data;
+    }
+
+    const decrypted = { ...data };
+    
+    // Decrypt sensitive fields
+    for (const field of this.SENSITIVE_FIELDS) {
+      if (decrypted[field] && typeof decrypted[field] === 'string') {
+        try {
+          decrypted[field] = await decryptSensitiveData(decrypted[field]);
+        } catch (error) {
+          logger.error('Failed to decrypt sensitive field', {
+            field,
+            error: error.message,
+          });
+        }
+      }
+    }
+    
+    return decrypted;
+  }
+
+  /**
+   * Rotate API keys (manual trigger for security operations)
+   */
+  public async rotateApiKeys(newSecretKey: string, newWebhookSecret?: string): Promise<void> {
+    try {
+      // Validate new key by testing API call
+      const testStripe = new Stripe(newSecretKey, {
+        apiVersion: this.stripe.apiVersion,
+        typescript: true,
+      });
+      
+      await testStripe.balance.retrieve();
+      
+      // Update internal configuration
+      this.stripe = testStripe;
+      
+      if (newWebhookSecret) {
+        this.webhookSecret = newWebhookSecret;
+        this.webhookSecurityService.registerWebhook('stripe', {
+          provider: 'stripe',
+          secret: newWebhookSecret,
+          tolerance: 300,
+          enableReplayProtection: true,
+          maxPayloadSize: 1024 * 1024,
+        });
+      }
+      
+      // Update key rotation timestamp
+      await redisClient.set('stripe_key_age', Date.now());
+      
+      await this.logSecurityEvent('api_key_rotated', {
+        rotationDate: new Date().toISOString(),
+        webhookSecretUpdated: !!newWebhookSecret,
+      });
+      
+      logger.info('Stripe API keys rotated successfully');
+    } catch (error) {
+      await this.logSecurityEvent('api_key_rotation_failed', {
+        error: error.message,
+        rotationDate: new Date().toISOString(),
+      });
+      
+      throw new Error(`API key rotation failed: ${error.message}`);
+    }
+  }
+
+  /**
+   * Get comprehensive security status including key age
+   */
+  public async getSecurityStatus(): Promise<{
+    keyRotationStatus: 'current' | 'warning' | 'critical';
+    daysSinceLastRotation: number;
+    webhookSecurityEnabled: boolean;
+    encryptionEnabled: boolean;
+    auditingEnabled: boolean;
+    lastSecurityCheck: Date;
+  }> {
+    try {
+      const keyAgeKey = 'stripe_key_age';
+      const lastRotation = await redisClient.get(keyAgeKey);
+      
+      let daysSinceLastRotation = 0;
+      let keyRotationStatus: 'current' | 'warning' | 'critical' = 'current';
+      
+      if (lastRotation) {
+        daysSinceLastRotation = Math.floor((Date.now() - parseInt(lastRotation)) / (1000 * 60 * 60 * 24));
+        
+        if (daysSinceLastRotation >= this.keyRotationInterval) {
+          keyRotationStatus = 'critical';
+        } else if (daysSinceLastRotation >= this.keyRotationInterval * 0.8) {
+          keyRotationStatus = 'warning';
+        }
+      }
+      
+      return {
+        keyRotationStatus,
+        daysSinceLastRotation,
+        webhookSecurityEnabled: true,
+        encryptionEnabled: this.encryptSensitiveData,
+        auditingEnabled: this.auditAllTransactions,
+        lastSecurityCheck: new Date(),
+      };
+    } catch (error) {
+      logger.error('Failed to get security status', {
+        error: error.message,
+      });
+      
+      return {
+        keyRotationStatus: 'critical',
+        daysSinceLastRotation: 999,
+        webhookSecurityEnabled: false,
+        encryptionEnabled: false,
+        auditingEnabled: false,
+        lastSecurityCheck: new Date(),
+      };
+    }
+  }
+
+  /**
+   * Get service health status with security metrics
    */
   public async getServiceHealth(): Promise<{
     service: string;
     status: "healthy" | "degraded" | "unhealthy";
     lastCheck: Date;
     details?: any;
+    security?: any;
   }> {
     try {
       // Test API connectivity
       await this.stripe.balance.retrieve();
+      
+      // Get security status
+      const securityStatus = await this.getSecurityStatus();
+      
+      let status: "healthy" | "degraded" | "unhealthy" = "healthy";
+      
+      if (securityStatus.keyRotationStatus === 'critical') {
+        status = "degraded";
+      }
 
       return {
         service: "stripe",
-        status: "healthy",
+        status,
         lastCheck: new Date(),
+        security: securityStatus,
       };
     } catch (error) {
       return {
@@ -883,3 +1266,19 @@ export class StripeService extends BaseExternalService {
 }
 
 export default StripeService;
+
+/**
+ * Security-enhanced Stripe service factory
+ */
+export function createSecureStripeService(
+  config: StripeConfig,
+  customerService: CustomerService,
+): StripeService {
+  return new StripeService({
+    ...config,
+    enableKeyRotation: true,
+    keyRotationIntervalDays: 90,
+    encryptSensitiveData: true,
+    auditAllTransactions: true,
+  }, customerService);
+}

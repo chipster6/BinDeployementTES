@@ -67,26 +67,37 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-green-50 via-blue-50 to-purple-50 flex items-center justify-center p-4">
-      <div className="w-full max-w-md space-y-8">
+    <div className="min-h-screen bg-gradient-primary flex items-center justify-center p-4 relative overflow-hidden">
+      {/* Background Pattern */}
+      <div className="absolute inset-0 opacity-30">
+        <div className="absolute top-20 left-20 w-72 h-72 bg-green-200 rounded-full mix-blend-multiply filter blur-xl animate-pulse-slow"></div>
+        <div className="absolute top-40 right-20 w-72 h-72 bg-blue-200 rounded-full mix-blend-multiply filter blur-xl animate-pulse-slow" style={{animationDelay: '2s'}}></div>
+        <div className="absolute bottom-20 left-1/2 w-72 h-72 bg-emerald-200 rounded-full mix-blend-multiply filter blur-xl animate-pulse-slow" style={{animationDelay: '4s'}}></div>
+      </div>
+      <div className="w-full max-w-md space-y-8 relative z-10">
         {/* Logo and Header */}
-        <div className="text-center">
+        <div className="text-center animate-slide-up">
           <div className="flex items-center justify-center mb-6">
-            <div className="relative">
+            <div className="relative p-4 bg-white rounded-full shadow-lg">
               <Trash2 className="h-12 w-12 text-green-600" />
-              <Recycle className="h-6 w-6 text-blue-600 absolute -top-1 -right-1" />
+              <Recycle className="h-6 w-6 text-blue-600 absolute -top-1 -right-1 animate-pulse" />
+              <div className="absolute inset-0 bg-green-500 rounded-full opacity-20 animate-ping"></div>
             </div>
           </div>
-          <h1 className="text-3xl font-bold text-gray-900">Waste Management</h1>
-          <p className="text-gray-600 mt-2">Professional waste collection system</p>
+          <h1 className="text-4xl font-bold text-gray-900 mb-2">Waste Management</h1>
+          <p className="text-gray-600 text-lg">Professional waste collection system</p>
+          <div className="mt-4 flex items-center justify-center space-x-2">
+            <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+            <span className="text-sm text-gray-500 font-medium">Secure & Reliable Platform</span>
+          </div>
         </div>
 
         {/* Login Card */}
-        <Card className="shadow-xl">
-          <CardHeader className="space-y-1">
-            <CardTitle className="text-2xl text-center">Welcome back</CardTitle>
-            <CardDescription className="text-center">
-              Enter your credentials to access your account
+        <Card className="shadow-xl bg-white/95 backdrop-blur-sm border-0 animate-fade-in">
+          <CardHeader className="space-y-3 text-center">
+            <CardTitle className="text-2xl font-bold text-gray-900">Welcome back</CardTitle>
+            <CardDescription className="text-gray-600">
+              Enter your credentials to access your professional dashboard
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -163,12 +174,16 @@ export default function LoginPage() {
         </Card>
 
         {/* Footer */}
-        <div className="text-center text-sm text-gray-500">
-          <p>Need help? Contact your system administrator</p>
-          <div className="flex items-center justify-center space-x-4 mt-2">
-            <span className="inline-flex items-center">
-              <div className="w-2 h-2 bg-green-500 rounded-full mr-2"></div>
+        <div className="text-center text-sm text-gray-500 space-y-3 animate-fade-in">
+          <p className="font-medium">Need help? Contact your system administrator</p>
+          <div className="flex items-center justify-center space-x-6">
+            <span className="inline-flex items-center px-3 py-1 bg-white/50 rounded-full backdrop-blur-sm">
+              <div className="w-2 h-2 bg-green-500 rounded-full mr-2 animate-pulse"></div>
               System Online
+            </span>
+            <span className="inline-flex items-center px-3 py-1 bg-white/50 rounded-full backdrop-blur-sm">
+              <div className="w-2 h-2 bg-blue-500 rounded-full mr-2 animate-pulse"></div>
+              99.9% Uptime
             </span>
           </div>
         </div>

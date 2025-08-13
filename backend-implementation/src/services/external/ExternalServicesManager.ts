@@ -26,13 +26,14 @@
 import { logger } from "@/utils/logger";
 import { redisClient } from "@/config/redis";
 import { AuditLog } from "@/models/AuditLog";
-import StripeService from "./StripeService";
-import TwilioService from "./TwilioService";
+import StripeService, { createSecureStripeService } from "./StripeService";
+import TwilioService, { createSecureTwilioService } from "./TwilioService";
 import SendGridService from "./SendGridService";
 import SamsaraService from "./SamsaraService";
 import AirtableService from "./AirtableService";
 import MapsService from "./MapsService";
 import WebhookSecurityService from "./WebhookSecurityService";
+import ApiKeyRotationService, { apiKeyRotationService } from "./ApiKeyRotationService";
 import { CustomerService } from "@/services/CustomerService";
 
 /**
@@ -88,10 +89,13 @@ export class ExternalServicesManager {
   private configurations: Map<string, ServiceConfiguration> = new Map();
   private healthCheckIntervals: Map<string, NodeJS.Timeout> = new Map();
   private webhookSecurity: WebhookSecurityService;
+  private apiKeyRotationService: ApiKeyRotationService;
   private isInitialized: boolean = false;
+  private securityMonitoringInterval: NodeJS.Timeout | null = null;
 
   constructor() {
     this.webhookSecurity = new WebhookSecurityService();
+    this.apiKeyRotationService = apiKeyRotationService;
   }
 
   /**
@@ -104,6 +108,7 @@ export class ExternalServicesManager {
       await this.loadConfigurations();
       await this.initializeServices();
       await this.startHealthMonitoring();
+      await this.startSecurityMonitoring();
 
       this.isInitialized = true;
 
@@ -250,7 +255,8 @@ export class ExternalServicesManager {
 
         switch (serviceName) {
           case "stripe":
-            service = new StripeService(
+            // Use security-enhanced factory for critical payment service
+            service = createSecureStripeService(
               {
                 serviceName: "stripe",
                 baseURL: "https://api.stripe.com",
@@ -261,7 +267,8 @@ export class ExternalServicesManager {
             break;
 
           case "twilio":
-            service = new TwilioService({
+            // Use security-enhanced factory for SMS communications
+            service = createSecureTwilioService({
               serviceName: "twilio",
               baseURL: "https://api.twilio.com",
               ...config.config,
@@ -341,6 +348,94 @@ export class ExternalServicesManager {
     }
 
     logger.info("Health monitoring started for all services");
+  }
+
+  /**
+   * Start security monitoring for all services
+   */
+  private async startSecurityMonitoring(): Promise<void> {
+    // Monitor security status every 10 minutes
+    this.securityMonitoringInterval = setInterval(async () => {
+      await this.performSecurityAudit();
+    }, 10 * 60 * 1000); // 10 minutes
+
+    // Perform initial security audit
+    await this.performSecurityAudit();
+
+    logger.info('Security monitoring started for all services');
+  }
+
+  /**
+   * Perform comprehensive security audit
+   */
+  private async performSecurityAudit(): Promise<void> {
+    try {
+      const securityStatus = await this.apiKeyRotationService.getSecurityStatus();
+      
+      // Log security status
+      logger.info('Security audit completed', {
+        overallStatus: securityStatus.overallStatus,
+        servicesChecked: Object.keys(securityStatus.services).length,
+        criticalIssues: securityStatus.recommendations.filter(r => r.includes('URGENT')).length,
+      });
+
+      // Alert on critical security issues
+      if (securityStatus.overallStatus === 'critical') {
+        await this.handleCriticalSecurityIssues(securityStatus);
+      }
+
+      // Store security status in Redis for monitoring
+      await redisClient.setex(
+        'system_security_status',
+        600, // 10 minutes
+        JSON.stringify({
+          ...securityStatus,
+          lastAudit: new Date().toISOString(),
+        })
+      );
+    } catch (error) {
+      logger.error('Security audit failed', {
+        error: error.message,
+      });
+    }
+  }
+
+  /**
+   * Handle critical security issues
+   */
+  private async handleCriticalSecurityIssues(securityStatus: any): Promise<void> {
+    try {
+      const criticalServices = Object.entries(securityStatus.services)
+        .filter(([_, status]: [string, any]) => status.keyRotationStatus === 'critical')
+        .map(([serviceName]) => serviceName);
+
+      if (criticalServices.length > 0) {
+        await AuditLog.create({
+          userId: null,
+          customerId: null,
+          action: 'critical_security_alert',
+          resourceType: 'security_monitoring',
+          resourceId: 'external_services',
+          details: {
+            criticalServices,
+            recommendations: securityStatus.recommendations,
+            overallStatus: securityStatus.overallStatus,
+            alertLevel: 'CRITICAL',
+          },
+          ipAddress: 'system',
+          userAgent: 'ExternalServicesManager',
+        });
+
+        logger.error('CRITICAL SECURITY ALERT: API key rotation overdue', {
+          criticalServices,
+          recommendations: securityStatus.recommendations,
+        });
+      }
+    } catch (error) {
+      logger.error('Failed to handle critical security issues', {
+        error: error.message,
+      });
+    }
   }
 
   /**
@@ -624,7 +719,159 @@ export class ExternalServicesManager {
   }
 
   /**
-   * Get overall system health
+   * Get comprehensive security status for all services
+   */
+  public async getSecurityStatus(): Promise<any> {
+    try {
+      return await this.apiKeyRotationService.getSecurityStatus();
+    } catch (error) {
+      logger.error('Failed to get security status', {
+        error: error.message,
+      });
+      return {
+        overallStatus: 'critical',
+        services: {},
+        recommendations: ['Failed to retrieve security status'],
+        lastAudit: new Date(),
+      };
+    }
+  }
+
+  /**
+   * Generate security compliance report
+   */
+  public async generateSecurityComplianceReport(): Promise<any> {
+    try {
+      return await this.apiKeyRotationService.generateComplianceReport();
+    } catch (error) {
+      logger.error('Failed to generate compliance report', {
+        error: error.message,
+      });
+      return {
+        reportDate: new Date(),
+        overallCompliance: 'non_compliant',
+        serviceCompliance: [],
+        totalServices: 0,
+        compliantServices: 0,
+        recommendations: ['Failed to generate compliance report'],
+      };
+    }
+  }
+
+  /**
+   * Trigger API key rotation for a specific service
+   */
+  public async rotateServiceApiKeys(
+    serviceName: string,
+    newCredentials: Record<string, string>,
+    rotatedBy: string
+  ): Promise<{ success: boolean; error?: string }> {
+    try {
+      const service = this.services.get(serviceName);
+      if (!service) {
+        throw new Error(`Service ${serviceName} not found`);
+      }
+
+      // Service-specific rotation logic
+      switch (serviceName) {
+        case 'stripe':
+          if (service.rotateApiKeys) {
+            await service.rotateApiKeys(
+              newCredentials.secretKey,
+              newCredentials.webhookSecret
+            );
+          }
+          break;
+
+        case 'twilio':
+          if (service.rotateApiCredentials) {
+            await service.rotateApiCredentials(
+              newCredentials.authToken,
+              newCredentials.webhookAuthToken
+            );
+          }
+          break;
+
+        default:
+          throw new Error(`API key rotation not implemented for ${serviceName}`);
+      }
+
+      // Record the rotation
+      await this.apiKeyRotationService.recordKeyRotation(serviceName, {
+        oldKeyRevoked: true,
+        newKeyActivated: true,
+        validationPassed: true,
+        metadata: {
+          rotatedBy,
+          rotationDate: new Date().toISOString(),
+        },
+      });
+
+      logger.info(`API keys rotated successfully for ${serviceName}`, {
+        serviceName,
+        rotatedBy,
+      });
+
+      return { success: true };
+    } catch (error) {
+      logger.error(`Failed to rotate API keys for ${serviceName}`, {
+        error: error.message,
+        serviceName,
+        rotatedBy,
+      });
+
+      return {
+        success: false,
+        error: error.message,
+      };
+    }
+  }
+
+  /**
+   * Emergency API key revocation
+   */
+  public async emergencyRevokeApiKeys(
+    serviceName: string,
+    reason: string,
+    revokedBy: string
+  ): Promise<{ success: boolean; error?: string }> {
+    try {
+      await this.apiKeyRotationService.emergencyKeyRevocation(
+        serviceName,
+        reason,
+        revokedBy
+      );
+
+      // Disable the service temporarily
+      const config = this.configurations.get(serviceName);
+      if (config) {
+        config.enabled = false;
+        this.configurations.set(serviceName, config);
+      }
+
+      logger.error(`Emergency API key revocation for ${serviceName}`, {
+        serviceName,
+        reason,
+        revokedBy,
+      });
+
+      return { success: true };
+    } catch (error) {
+      logger.error(`Failed to revoke API keys for ${serviceName}`, {
+        error: error.message,
+        serviceName,
+        reason,
+      });
+
+      return {
+        success: false,
+        error: error.message,
+      };
+    }
+  }
+
+  /**
+   * Get overall system health with security integration
    */
   public async getSystemHealth(): Promise<{
     status: "healthy" | "degraded" | "unhealthy";
@@ -634,6 +881,8 @@ export class ExternalServicesManager {
     unhealthyServices: number;
     disabledServices: number;
     criticalServicesDown: string[];
+    securityStatus: string;
+    apiKeyRotationStatus: string;
     lastCheck: Date;
   }> {
     const statuses = await this.getAllServiceStatuses();
@@ -667,6 +916,20 @@ export class ExternalServicesManager {
       overallStatus = "degraded";
     }
 
+    // Get security status
+    const securityStatus = await this.getSecurityStatus();
+    let apiKeyRotationStatus = 'current';
+    
+    if (securityStatus.overallStatus === 'critical') {
+      apiKeyRotationStatus = 'critical';
+      // Upgrade overall status if security is critical
+      if (overallStatus === 'healthy') {
+        overallStatus = 'degraded';
+      }
+    } else if (securityStatus.overallStatus === 'warning') {
+      apiKeyRotationStatus = 'warning';
+    }
+
     return {
       status: overallStatus,
       serviceCount: statuses.length,
@@ -675,6 +938,8 @@ export class ExternalServicesManager {
       unhealthyServices,
       disabledServices,
       criticalServicesDown,
+      securityStatus: securityStatus.overallStatus,
+      apiKeyRotationStatus,
       lastCheck: new Date(),
     };
   }
@@ -692,6 +957,13 @@ export class ExternalServicesManager {
     }
 
     this.healthCheckIntervals.clear();
+
+    // Clear security monitoring
+    if (this.securityMonitoringInterval) {
+      clearInterval(this.securityMonitoringInterval);
+      this.securityMonitoringInterval = null;
+      logger.info('Stopped security monitoring');
+    }
 
     // Cleanup services
     this.services.clear();

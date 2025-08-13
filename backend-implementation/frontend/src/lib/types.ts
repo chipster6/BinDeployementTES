@@ -67,36 +67,224 @@ export interface ApiResponse<T = any> {
   errors?: Array<{ field: string; message: string }>;
 }
 
-// Bin interface
+// Bin type enums matching backend
+export enum BinType {
+  DUMPSTER = "dumpster",
+  ROLL_OFF = "roll_off",
+  COMPACTOR = "compactor",
+  RECYCLING = "recycling",
+  ORGANIC = "organic",
+}
+
+export enum BinStatus {
+  ACTIVE = "active",
+  MAINTENANCE = "maintenance",
+  RETIRED = "retired",
+  LOST = "lost",
+}
+
+export enum BinMaterial {
+  STEEL = "steel",
+  PLASTIC = "plastic",
+  FIBERGLASS = "fiberglass",
+}
+
+// Enhanced Bin interface matching backend
 export interface Bin {
   id: string;
-  bin_id: string;
-  customer_id?: string;
-  location?: string;
-  type: string;
-  size: number;
-  fill_level: number;
-  status: string;
-  last_collection?: string;
-  next_collection?: string;
+  binNumber: string;
+  customerId?: string;
+  binType: BinType;
+  size: string;
+  capacityCubicYards?: number;
+  material?: BinMaterial;
+  color?: string;
+  status: BinStatus;
   coordinates?: {
     latitude: number;
     longitude: number;
   };
-  created_at: string;
-  updated_at: string;
+  installationDate?: string;
+  lastServiceDate?: string;
+  nextServiceDate?: string;
+  gpsEnabled: boolean;
+  sensorEnabled: boolean;
+  fillLevelPercent?: number;
+  createdAt: string;
+  updatedAt: string;
 }
 
-// Customer interface
+// Customer status enums
+export enum CustomerStatus {
+  ACTIVE = "active",
+  INACTIVE = "inactive",
+  SUSPENDED = "suspended",
+  PENDING = "pending",
+}
+
+export enum ServiceType {
+  WEEKLY = "weekly",
+  BIWEEKLY = "biweekly",
+  MONTHLY = "monthly",
+  ON_DEMAND = "on_demand",
+}
+
+export enum BillingCycle {
+  MONTHLY = "monthly",
+  QUARTERLY = "quarterly",
+  ANNUALLY = "annually",
+}
+
+// Enhanced Customer interface
 export interface Customer {
   id: string;
-  name: string;
-  email?: string;
-  phone?: string;
-  address: string;
-  service_type: string;
-  billing_cycle: string;
-  status: string;
-  created_at: string;
-  updated_at: string;
+  organizationName: string;
+  contactEmail?: string;
+  contactPhone?: string;
+  billingAddress: string;
+  serviceAddress?: string;
+  serviceType: ServiceType;
+  billingCycle: BillingCycle;
+  status: CustomerStatus;
+  contractStartDate?: string;
+  contractEndDate?: string;
+  accountBalance?: number;
+  taxId?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+// Route and Vehicle Management Types
+export enum RouteStatus {
+  PLANNED = "planned",
+  IN_PROGRESS = "in_progress",
+  COMPLETED = "completed",
+  CANCELLED = "cancelled",
+}
+
+export enum VehicleStatus {
+  ACTIVE = "active",
+  MAINTENANCE = "maintenance",
+  OUT_OF_SERVICE = "out_of_service",
+}
+
+export interface Route {
+  id: string;
+  routeName: string;
+  driverId?: string;
+  vehicleId?: string;
+  status: RouteStatus;
+  scheduledDate: string;
+  startTime?: string;
+  endTime?: string;
+  estimatedDuration?: number;
+  actualDuration?: number;
+  totalStops: number;
+  completedStops: number;
+  efficiency?: number;
+  fuelConsumption?: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface Vehicle {
+  id: string;
+  vehicleNumber: string;
+  licensePlate: string;
+  make: string;
+  model: string;
+  year: number;
+  status: VehicleStatus;
+  capacity: number;
+  fuelLevel?: number;
+  mileage?: number;
+  lastMaintenanceDate?: string;
+  nextMaintenanceDate?: string;
+  gpsEnabled: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface Driver {
+  id: string;
+  userId: string;
+  licenseNumber: string;
+  licenseExpiry: string;
+  status: UserStatus;
+  currentRouteId?: string;
+  currentVehicleId?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+// Real-time and Analytics Types
+export interface DashboardStats {
+  totalBins: number;
+  activeBins: number;
+  completedCollections: number;
+  pendingCollections: number;
+  totalCustomers: number;
+  activeDrivers: number;
+  totalRevenue: number;
+  newTickets: number;
+  efficiency: number;
+  fuelSavings: number;
+}
+
+export interface ServiceEvent {
+  id: string;
+  binId: string;
+  routeId?: string;
+  driverId?: string;
+  eventType: string;
+  scheduledAt: string;
+  completedAt?: string;
+  duration?: number;
+  notes?: string;
+  photos?: string[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+// WebSocket Event Types
+export interface WebSocketEvent {
+  type: string;
+  payload: any;
+  timestamp: string;
+}
+
+export interface BinStatusUpdate {
+  binId: string;
+  fillLevelPercent: number;
+  status: BinStatus;
+  location?: {
+    latitude: number;
+    longitude: number;
+  };
+  timestamp: string;
+}
+
+export interface RouteUpdate {
+  routeId: string;
+  driverId: string;
+  status: RouteStatus;
+  currentLocation?: {
+    latitude: number;
+    longitude: number;
+  };
+  completedStops: number;
+  totalStops: number;
+  timestamp: string;
+}
+
+// Notification Types
+export interface Notification {
+  id: string;
+  userId: string;
+  title: string;
+  message: string;
+  type: "info" | "warning" | "error" | "success";
+  read: boolean;
+  actionUrl?: string;
+  createdAt: string;
 }

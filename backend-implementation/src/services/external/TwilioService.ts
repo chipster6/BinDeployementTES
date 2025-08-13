@@ -33,6 +33,13 @@ import {
 } from "./BaseExternalService";
 import { logger } from "@/utils/logger";
 import { AuditLog } from "@/models/AuditLog";
+import {
+  encryptSensitiveData,
+  decryptSensitiveData,
+  maskSensitiveData,
+} from "@/utils/encryption";
+import WebhookSecurityService from "./WebhookSecurityService";
+import { redisClient } from "@/config/redis";
 
 /**
  * SMS message interface
@@ -112,6 +119,11 @@ interface TwilioConfig extends ExternalServiceConfig {
   accountSid: string;
   authToken: string;
   webhookAuthToken?: string;
+  enableKeyRotation?: boolean;
+  keyRotationIntervalDays?: number;
+  encryptPhoneNumbers?: boolean;
+  auditAllMessages?: boolean;
+  enablePhoneNumberValidation?: boolean;
 }
 
 /**
@@ -121,6 +133,13 @@ export class TwilioService extends BaseExternalService {
   private twilio: Twilio;
   private webhookAuthToken?: string;
   private templates: Map<string, SmsTemplate> = new Map();
+  private webhookSecurityService: WebhookSecurityService;
+  private encryptPhoneNumbers: boolean;
+  private auditAllMessages: boolean;
+  private keyRotationEnabled: boolean;
+  private keyRotationInterval: number;
+  private enablePhoneNumberValidation: boolean;
+  private readonly SENSITIVE_FIELDS = ['to', 'from', 'phone', 'phoneNumber'];
 
   constructor(config: TwilioConfig) {
     super({
@@ -137,8 +156,30 @@ export class TwilioService extends BaseExternalService {
 
     this.twilio = new Twilio(config.accountSid, config.authToken);
     this.webhookAuthToken = config.webhookAuthToken;
+    this.webhookSecurityService = new WebhookSecurityService();
+    this.encryptPhoneNumbers = config.encryptPhoneNumbers !== false;
+    this.auditAllMessages = config.auditAllMessages !== false;
+    this.keyRotationEnabled = config.enableKeyRotation === true;
+    this.keyRotationInterval = config.keyRotationIntervalDays || 90;
+    this.enablePhoneNumberValidation = config.enablePhoneNumberValidation !== false;
+
+    // Register webhook security configuration
+    if (this.webhookAuthToken) {
+      this.webhookSecurityService.registerWebhook('twilio', {
+        provider: 'twilio',
+        secret: this.webhookAuthToken,
+        tolerance: 300, // 5 minutes
+        enableReplayProtection: true,
+        maxPayloadSize: 64 * 1024, // 64KB
+      });
+    }
 
     this.initializeTemplates();
+
+    // Initialize API key rotation monitoring
+    if (this.keyRotationEnabled) {
+      this.initializeKeyRotationMonitoring();
+    }
   }
 
   /**
@@ -548,89 +589,133 @@ export class TwilioService extends BaseExternalService {
   }
 
   /**
-   * Process incoming webhook
+   * Process incoming webhook with enhanced security validation
    */
   public async processWebhook(
-    body: TwilioWebhookPayload,
+    body: TwilioWebhookPayload | string,
     signature?: string,
     url?: string,
+    headers?: Record<string, string>,
+    ipAddress?: string,
   ): Promise<ApiResponse<{ processed: boolean; messageId: string }>> {
     try {
-      // Validate webhook signature if auth token is provided
-      if (this.webhookAuthToken && signature && url) {
-        const isValid = this.twilio.validateRequest(
-          this.webhookAuthToken,
-          signature,
-          url,
-          body,
+      // Enhanced security validation using WebhookSecurityService
+      if (this.webhookAuthToken) {
+        const verificationResult = await this.webhookSecurityService.verifyWebhook(
+          'twilio',
+          typeof body === 'string' ? body : JSON.stringify(body),
+          signature || '',
+          undefined, // Twilio doesn't use timestamp in header
+          headers,
         );
 
-        if (!isValid) {
-          throw new Error("Invalid webhook signature");
+        if (!verificationResult.isValid) {
+          await this.logSecurityEvent('webhook_verification_failed', {
+            error: verificationResult.error,
+            ipAddress,
+            signature: maskSensitiveData(signature || ''),
+          });
+          throw new Error(`Webhook verification failed: ${verificationResult.error}`);
+        }
+
+        // Check for replay attacks
+        if (verificationResult.metadata?.isReplay) {
+          await this.logSecurityEvent('webhook_replay_attack_detected', {
+            messageId: verificationResult.metadata.eventId,
+            ipAddress,
+          });
+          throw new Error('Replay attack detected');
+        }
+
+        // Rate limiting check
+        const rateLimitResult = await this.webhookSecurityService.checkRateLimit(
+          'twilio',
+          ipAddress || 'unknown',
+          { windowMinutes: 5, maxRequests: 100 }
+        );
+
+        if (!rateLimitResult.allowed) {
+          await this.logSecurityEvent('webhook_rate_limit_exceeded', {
+            ipAddress,
+            remainingRequests: rateLimitResult.remainingRequests,
+          });
+          throw new Error('Rate limit exceeded for webhook requests');
         }
       }
 
+      // Parse body if it's a string
+      const webhookPayload: TwilioWebhookPayload = typeof body === 'string' ? JSON.parse(body) : body;
+
+      // Validate phone numbers for suspicious patterns
+      await this.validatePhoneNumberSecurity(webhookPayload);
+
       logger.info("Processing Twilio webhook", {
-        messageSid: body.MessageSid,
-        status: body.MessageStatus,
-        to: this.maskPhoneNumber(body.To),
+        messageSid: webhookPayload.MessageSid,
+        status: webhookPayload.MessageStatus,
+        to: this.maskPhoneNumber(webhookPayload.To),
+        securityValidated: true,
+        ipAddress,
       });
 
       // Process different message statuses
-      switch (body.MessageStatus) {
+      switch (webhookPayload.MessageStatus) {
         case "delivered":
-          await this.handleMessageDelivered(body);
+          await this.handleMessageDelivered(webhookPayload);
           break;
 
         case "failed":
         case "undelivered":
-          await this.handleMessageFailed(body);
+          await this.handleMessageFailed(webhookPayload);
           break;
 
         case "sent":
-          await this.handleMessageSent(body);
+          await this.handleMessageSent(webhookPayload);
           break;
 
         case "received":
-          await this.handleMessageReceived(body);
+          await this.handleMessageReceived(webhookPayload);
           break;
 
         default:
           logger.info("Unhandled message status", {
-            status: body.MessageStatus,
+            status: webhookPayload.MessageStatus,
           });
       }
 
-      // Log audit event
-      await AuditLog.create({
-        userId: null,
-        customerId: null,
-        action: "webhook_processed",
-        resourceType: "twilio_webhook",
-        resourceId: body.MessageSid,
-        details: {
-          status: body.MessageStatus,
-          to: this.maskPhoneNumber(body.To),
-          from: body.From,
-        },
-        ipAddress: "twilio",
-        userAgent: "TwilioWebhook",
+      // Enhanced audit logging with security metadata
+      await this.logSecurityEvent('webhook_processed', {
+        messageId: webhookPayload.MessageSid,
+        status: webhookPayload.MessageStatus,
+        to: this.maskPhoneNumber(webhookPayload.To),
+        from: this.maskPhoneNumber(webhookPayload.From),
+        processed: true,
+        securityValidated: true,
+        ipAddress: ipAddress || 'twilio',
       });
 
       return {
         success: true,
-        data: { processed: true, messageId: body.MessageSid },
+        data: { processed: true, messageId: webhookPayload.MessageSid },
         statusCode: 200,
         metadata: {
-          requestId: body.MessageSid,
+          requestId: webhookPayload.MessageSid,
           duration: 0,
           attempt: 1,
         },
       };
     } catch (error) {
+      const webhookPayload = typeof body === 'string' ? JSON.parse(body || '{}') : body;
       logger.error("Failed to process Twilio webhook", {
         error: error.message,
-        messageSid: body.MessageSid,
+        messageSid: webhookPayload?.MessageSid,
+        ipAddress,
+      });
+
+      // Log security failure
+      await this.logSecurityEvent('webhook_processing_failed', {
+        error: error.message,
+        ipAddress,
+        signature: maskSensitiveData(signature || ''),
       });
 
       throw new Error(`Webhook processing failed: ${error.message}`);
@@ -805,22 +890,327 @@ export class TwilioService extends BaseExternalService {
   }
 
   /**
-   * Get service health status
+   * Initialize API key rotation monitoring
+   */
+  private async initializeKeyRotationMonitoring(): Promise<void> {
+    try {
+      const keyAgeKey = 'twilio_key_age';
+      const lastRotation = await redisClient.get(keyAgeKey);
+      
+      if (!lastRotation) {
+        await redisClient.set(keyAgeKey, Date.now());
+        logger.info('Twilio API key age tracking initialized');
+      } else {
+        const daysSinceRotation = Math.floor((Date.now() - parseInt(lastRotation)) / (1000 * 60 * 60 * 24));
+        
+        if (daysSinceRotation >= this.keyRotationInterval) {
+          await this.logSecurityEvent('api_key_rotation_required', {
+            daysSinceRotation,
+            rotationInterval: this.keyRotationInterval,
+            keyType: 'twilio_auth_token',
+          });
+          
+          logger.warn('Twilio API key rotation required', {
+            daysSinceRotation,
+            rotationInterval: this.keyRotationInterval,
+          });
+        }
+      }
+    } catch (error) {
+      logger.error('Failed to initialize key rotation monitoring', {
+        error: error.message,
+      });
+    }
+  }
+
+  /**
+   * Validate phone number security patterns
+   */
+  private async validatePhoneNumberSecurity(payload: TwilioWebhookPayload): Promise<void> {
+    try {
+      // Check for suspicious phone number patterns
+      const suspiciousPatterns = [
+        /^\+1234567890$/, // Test numbers
+        /^\+000/, // Invalid area codes
+        /^\+999/, // Reserved numbers
+      ];
+      
+      const isToSuspicious = suspiciousPatterns.some(pattern => pattern.test(payload.To));
+      const isFromSuspicious = suspiciousPatterns.some(pattern => pattern.test(payload.From));
+      
+      if (isToSuspicious || isFromSuspicious) {
+        await this.logSecurityEvent('suspicious_phone_number_detected', {
+          messageId: payload.MessageSid,
+          to: this.maskPhoneNumber(payload.To),
+          from: this.maskPhoneNumber(payload.From),
+          status: payload.MessageStatus,
+        });
+      }
+      
+      // Check for rapid message frequency from same number
+      if (payload.MessageStatus === 'received') {
+        const rateLimitKey = `sms_frequency:${payload.From}`;
+        const messageCount = await redisClient.incr(rateLimitKey);
+        
+        if (messageCount === 1) {
+          await redisClient.expire(rateLimitKey, 60); // 1 minute window
+        }
+        
+        if (messageCount > 10) { // More than 10 messages per minute
+          await this.logSecurityEvent('high_frequency_messaging_detected', {
+            messageId: payload.MessageSid,
+            from: this.maskPhoneNumber(payload.From),
+            messageCount,
+            timeWindow: '1 minute',
+          });
+        }
+      }
+    } catch (error) {
+      logger.error('Phone number security validation failed', {
+        error: error.message,
+        messageId: payload.MessageSid,
+      });
+    }
+  }
+
+  /**
+   * Enhanced security event logging
+   */
+  private async logSecurityEvent(
+    action: string,
+    details: Record<string, any>,
+  ): Promise<void> {
+    try {
+      await AuditLog.create({
+        userId: null,
+        customerId: details.customerId || null,
+        action,
+        resourceType: 'twilio_security',
+        resourceId: details.messageId || 'twilio-security',
+        details: {
+          service: 'twilio',
+          timestamp: new Date().toISOString(),
+          ...details,
+        },
+        ipAddress: details.ipAddress || 'twilio-webhook',
+        userAgent: 'TwilioSecurityService',
+      });
+    } catch (error) {
+      logger.error('Failed to log security event', {
+        error: error.message,
+        action,
+      });
+    }
+  }
+
+  /**
+   * Encrypt sensitive phone data before storage
+   */
+  private async encryptPhoneData(data: any): Promise<any> {
+    if (!this.encryptPhoneNumbers || !data) {
+      return data;
+    }
+
+    const encrypted = { ...data };
+    
+    // Encrypt sensitive fields
+    for (const field of this.SENSITIVE_FIELDS) {
+      if (encrypted[field] && typeof encrypted[field] === 'string') {
+        try {
+          encrypted[field] = await encryptSensitiveData(encrypted[field]);
+        } catch (error) {
+          logger.error('Failed to encrypt sensitive field', {
+            field,
+            error: error.message,
+          });
+        }
+      }
+    }
+    
+    return encrypted;
+  }
+
+  /**
+   * Decrypt sensitive phone data after retrieval
+   */
+  private async decryptPhoneData(data: any): Promise<any> {
+    if (!this.encryptPhoneNumbers || !data) {
+      return data;
+    }
+
+    const decrypted = { ...data };
+    
+    // Decrypt sensitive fields
+    for (const field of this.SENSITIVE_FIELDS) {
+      if (decrypted[field] && typeof decrypted[field] === 'string') {
+        try {
+          decrypted[field] = await decryptSensitiveData(decrypted[field]);
+        } catch (error) {
+          logger.error('Failed to decrypt sensitive field', {
+            field,
+            error: error.message,
+          });
+        }
+      }
+    }
+    
+    return decrypted;
+  }
+
+  /**
+   * Validate phone number format and security
+   */
+  private validatePhoneNumber(phoneNumber: string): { isValid: boolean; reason?: string } {
+    if (!this.enablePhoneNumberValidation) {
+      return { isValid: true };
+    }
+    
+    // Basic E.164 format validation
+    const e164Regex = /^\+[1-9]\d{1,14}$/;
+    if (!e164Regex.test(phoneNumber)) {
+      return { isValid: false, reason: 'Invalid E.164 format' };
+    }
+    
+    // Check for known test/suspicious numbers
+    const suspiciousPatterns = [
+      /^\+1234567890$/, // Common test number
+      /^\+000/, // Invalid area code
+      /^\+999/, // Reserved
+    ];
+    
+    if (suspiciousPatterns.some(pattern => pattern.test(phoneNumber))) {
+      return { isValid: false, reason: 'Suspicious phone number pattern' };
+    }
+    
+    return { isValid: true };
+  }
+
+  /**
+   * Rotate API credentials (manual trigger for security operations)
+   */
+  public async rotateApiCredentials(newAuthToken: string, newWebhookAuthToken?: string): Promise<void> {
+    try {
+      // Validate new credentials by testing API call
+      const testTwilio = new Twilio(this.twilio.accountSid, newAuthToken);
+      
+      await testTwilio.api.accounts(this.twilio.accountSid).fetch();
+      
+      // Update internal configuration
+      this.twilio = testTwilio;
+      
+      if (newWebhookAuthToken) {
+        this.webhookAuthToken = newWebhookAuthToken;
+        this.webhookSecurityService.registerWebhook('twilio', {
+          provider: 'twilio',
+          secret: newWebhookAuthToken,
+          tolerance: 300,
+          enableReplayProtection: true,
+          maxPayloadSize: 64 * 1024,
+        });
+      }
+      
+      // Update key rotation timestamp
+      await redisClient.set('twilio_key_age', Date.now());
+      
+      await this.logSecurityEvent('api_credentials_rotated', {
+        rotationDate: new Date().toISOString(),
+        webhookTokenUpdated: !!newWebhookAuthToken,
+      });
+      
+      logger.info('Twilio API credentials rotated successfully');
+    } catch (error) {
+      await this.logSecurityEvent('api_credentials_rotation_failed', {
+        error: error.message,
+        rotationDate: new Date().toISOString(),
+      });
+      
+      throw new Error(`API credentials rotation failed: ${error.message}`);
+    }
+  }
+
+  /**
+   * Get comprehensive security status
+   */
+  public async getSecurityStatus(): Promise<{
+    keyRotationStatus: 'current' | 'warning' | 'critical';
+    daysSinceLastRotation: number;
+    webhookSecurityEnabled: boolean;
+    phoneEncryptionEnabled: boolean;
+    auditingEnabled: boolean;
+    phoneValidationEnabled: boolean;
+    lastSecurityCheck: Date;
+  }> {
+    try {
+      const keyAgeKey = 'twilio_key_age';
+      const lastRotation = await redisClient.get(keyAgeKey);
+      
+      let daysSinceLastRotation = 0;
+      let keyRotationStatus: 'current' | 'warning' | 'critical' = 'current';
+      
+      if (lastRotation) {
+        daysSinceLastRotation = Math.floor((Date.now() - parseInt(lastRotation)) / (1000 * 60 * 60 * 24));
+        
+        if (daysSinceLastRotation >= this.keyRotationInterval) {
+          keyRotationStatus = 'critical';
+        } else if (daysSinceLastRotation >= this.keyRotationInterval * 0.8) {
+          keyRotationStatus = 'warning';
+        }
+      }
+      
+      return {
+        keyRotationStatus,
+        daysSinceLastRotation,
+        webhookSecurityEnabled: !!this.webhookAuthToken,
+        phoneEncryptionEnabled: this.encryptPhoneNumbers,
+        auditingEnabled: this.auditAllMessages,
+        phoneValidationEnabled: this.enablePhoneNumberValidation,
+        lastSecurityCheck: new Date(),
+      };
+    } catch (error) {
+      logger.error('Failed to get security status', {
+        error: error.message,
+      });
+      
+      return {
+        keyRotationStatus: 'critical',
+        daysSinceLastRotation: 999,
+        webhookSecurityEnabled: false,
+        phoneEncryptionEnabled: false,
+        auditingEnabled: false,
+        phoneValidationEnabled: false,
+        lastSecurityCheck: new Date(),
+      };
+    }
+  }
+
+  /**
+   * Get service health status with security metrics
    */
   public async getServiceHealth(): Promise<{
     service: string;
     status: "healthy" | "degraded" | "unhealthy";
     lastCheck: Date;
     details?: any;
+    security?: any;
   }> {
     try {
       // Test API connectivity by fetching account details
       await this.twilio.api.accounts(this.twilio.accountSid).fetch();
+      
+      // Get security status
+      const securityStatus = await this.getSecurityStatus();
+      
+      let status: "healthy" | "degraded" | "unhealthy" = "healthy";
+      
+      if (securityStatus.keyRotationStatus === 'critical') {
+        status = "degraded";
+      }
 
       return {
         service: "twilio",
-        status: "healthy",
+        status,
         lastCheck: new Date(),
+        security: securityStatus,
       };
     } catch (error) {
       return {
@@ -834,3 +1224,19 @@ export class TwilioService extends BaseExternalService {
 }
 
 export default TwilioService;
+
+/**
+ * Security-enhanced Twilio service factory
+ */
+export function createSecureTwilioService(
+  config: TwilioConfig,
+): TwilioService {
+  return new TwilioService({
+    ...config,
+    enableKeyRotation: true,
+    keyRotationIntervalDays: 90,
+    encryptPhoneNumbers: true,
+    auditAllMessages: true,
+    enablePhoneNumberValidation: true,
+  });
+}

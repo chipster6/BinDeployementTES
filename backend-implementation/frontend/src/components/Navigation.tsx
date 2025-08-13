@@ -136,15 +136,21 @@ export function Navigation() {
   };
 
   return (
-    <div className="bg-white shadow-sm border-b">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div className="bg-white shadow-lg border-b border-gray-200/50 backdrop-blur-sm">
+      <div className="content-container px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between h-16">
           {/* Logo and Navigation */}
           <div className="flex">
             <div className="flex-shrink-0 flex items-center">
-              <Link href="/dashboard" className="flex items-center space-x-2">
-                <Trash2 className="h-8 w-8 text-green-600" />
-                <span className="text-xl font-bold text-gray-900">WasteMS</span>
+              <Link href="/dashboard" className="flex items-center space-x-3 interactive-subtle p-2 rounded-lg">
+                <div className="relative">
+                  <Trash2 className="h-8 w-8 text-green-600" />
+                  <div className="absolute -top-1 -right-1 w-3 h-3 bg-green-500 rounded-full animate-pulse"></div>
+                </div>
+                <div className="hidden sm:block">
+                  <span className="text-xl font-bold text-gray-900">WasteMS</span>
+                  <div className="text-xs text-gray-500 font-medium">Professional</div>
+                </div>
               </Link>
             </div>
             
@@ -156,10 +162,10 @@ export function Navigation() {
                     key={item.name}
                     href={item.href}
                     className={cn(
-                      'inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium transition-colors duration-200',
+                      'inline-flex items-center px-3 py-2 border-b-2 text-sm font-medium transition-all duration-200 rounded-t-lg',
                       isActive
-                        ? 'border-green-500 text-gray-900'
-                        : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                        ? 'border-green-500 text-green-700 bg-green-50/50'
+                        : 'border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300 hover:bg-gray-50/50'
                     )}
                   >
                     <item.icon className="mr-2 h-4 w-4" />
@@ -176,45 +182,66 @@ export function Navigation() {
           </div>
 
           {/* User Menu */}
-          <div className="flex items-center">
+          <div className="flex items-center space-x-4">
+            {/* Status Indicator */}
+            <div className="hidden md:flex items-center space-x-2 text-sm">
+              <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+              <span className="text-gray-600 font-medium">System Online</span>
+            </div>
+            
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" className="relative h-8 w-8 rounded-full">
-                  <Avatar className="h-8 w-8">
-                    <AvatarFallback className="text-sm font-semibold">
+                <Button variant="ghost" className="relative h-10 w-10 rounded-full ring-2 ring-transparent hover:ring-green-200 transition-all duration-200">
+                  <Avatar className="h-10 w-10 shadow-md">
+                    <AvatarFallback className="text-sm font-semibold bg-gradient-to-br from-green-500 to-emerald-600 text-white">
                       {getUserInitials()}
                     </AvatarFallback>
                   </Avatar>
+                  {user?.mfa_enabled && (
+                    <div className="absolute -top-1 -right-1 w-3 h-3 bg-blue-500 rounded-full border-2 border-white"></div>
+                  )}
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent className="w-56" align="end" forceMount>
-                <div className="flex items-center justify-start gap-2 p-2">
-                  <div className="flex flex-col space-y-1 leading-none">
-                    <p className="font-medium">{user?.first_name} {user?.last_name}</p>
-                    <p className="text-xs text-muted-foreground">{user?.email}</p>
-                    {user?.role && (
-                      <Badge className={cn('text-xs', getRoleColor(user.role))}>
-                        {formatRole(user.role)}
-                      </Badge>
-                    )}
+              <DropdownMenuContent className="w-64 p-2" align="end" forceMount>
+                <div className="flex items-start gap-3 p-3 rounded-lg bg-gradient-to-r from-green-50 to-emerald-50">
+                  <Avatar className="h-12 w-12 shadow-md">
+                    <AvatarFallback className="bg-gradient-to-br from-green-500 to-emerald-600 text-white font-semibold">
+                      {getUserInitials()}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div className="flex flex-col space-y-1 leading-none min-w-0 flex-1">
+                    <p className="font-semibold text-gray-900 truncate">{user?.first_name} {user?.last_name}</p>
+                    <p className="text-xs text-gray-600 truncate">{user?.email}</p>
+                    <div className="flex items-center gap-2 mt-1">
+                      {user?.role && (
+                        <Badge className={cn('text-xs px-2 py-1', getRoleColor(user.role))}>
+                          {formatRole(user.role)}
+                        </Badge>
+                      )}
+                      {user?.mfa_enabled && (
+                        <Badge variant="outline" className="text-xs px-2 py-1 border-blue-200 text-blue-700">
+                          MFA Enabled
+                        </Badge>
+                      )}
+                    </div>
                   </div>
                 </div>
-                <DropdownMenuSeparator />
+                <DropdownMenuSeparator className="my-2" />
                 <DropdownMenuItem asChild>
-                  <Link href="/profile" className="flex items-center">
-                    <UserCircle className="mr-2 h-4 w-4" />
-                    Profile
+                  <Link href="/profile" className="flex items-center p-2 rounded-md hover:bg-gray-50 transition-colors">
+                    <UserCircle className="mr-3 h-4 w-4 text-gray-500" />
+                    <span className="font-medium">Profile</span>
                   </Link>
                 </DropdownMenuItem>
                 <DropdownMenuItem asChild>
-                  <Link href="/settings" className="flex items-center">
-                    <Settings className="mr-2 h-4 w-4" />
-                    Settings
+                  <Link href="/settings" className="flex items-center p-2 rounded-md hover:bg-gray-50 transition-colors">
+                    <Settings className="mr-3 h-4 w-4 text-gray-500" />
+                    <span className="font-medium">Settings</span>
                   </Link>
                 </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={handleLogout} className="text-red-600">
-                  <LogOut className="mr-2 h-4 w-4" />
+                <DropdownMenuSeparator className="my-2" />
+                <DropdownMenuItem onClick={handleLogout} className="text-red-600 p-2 rounded-md hover:bg-red-50 transition-colors font-medium">
+                  <LogOut className="mr-3 h-4 w-4" />
                   Log out
                 </DropdownMenuItem>
               </DropdownMenuContent>

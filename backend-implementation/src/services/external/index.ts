@@ -19,6 +19,7 @@ export { default as SamsaraService } from "./SamsaraService";
 export { default as AirtableService } from "./AirtableService";
 export { default as MapsService } from "./MapsService";
 export { default as WebhookSecurityService } from "./WebhookSecurityService";
+export { default as ApiKeyRotationService, apiKeyRotationService } from "./ApiKeyRotationService";
 export {
   ExternalServicesManager,
   externalServicesManager,

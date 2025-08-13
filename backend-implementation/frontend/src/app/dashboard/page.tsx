@@ -73,13 +73,25 @@ export default function Dashboard() {
     <ProtectedRoute>
       <DashboardLayout>
         <div className="space-y-8">
-          <div>
-            <h2 className="text-3xl font-bold tracking-tight">
-              Welcome back, {user?.first_name}!
-            </h2>
-            <p className="text-muted-foreground">
-              Here's what's happening with your waste management operations.
-            </p>
+          <div className="animate-slide-up">
+            <div className="flex items-center justify-between">
+              <div>
+                <h1 className="text-4xl font-bold text-gray-900 mb-2">
+                  Welcome back, {user?.first_name}!
+                </h1>
+                <p className="text-lg text-gray-600">
+                  Here's what's happening with your waste management operations.
+                </p>
+              </div>
+              <div className="hidden md:flex items-center space-x-4">
+                <div className="bg-white/80 backdrop-blur-sm border border-green-200 rounded-lg px-4 py-2">
+                  <div className="flex items-center space-x-2">
+                    <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+                    <span className="text-sm font-medium text-gray-700">All Systems Operational</span>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
 
           {getDashboardContent()}
@@ -94,119 +106,168 @@ function DriverDashboard({ stats }: { stats: DashboardStats }) {
   return (
     <div className="space-y-6">
       {/* Quick Stats */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Today's Routes</CardTitle>
-            <MapPin className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">3</div>
-            <p className="text-xs text-muted-foreground">2 completed, 1 in progress</p>
-          </CardContent>
-        </Card>
+      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+        <div className="metric-card interactive">
+          <div className="flex items-center justify-between mb-4">
+            <div className="p-2 bg-blue-100 rounded-lg">
+              <MapPin className="h-5 w-5 text-blue-600" />
+            </div>
+            <div className="text-xs font-medium text-green-600 bg-green-100 px-2 py-1 rounded-full">
+              +2 today
+            </div>
+          </div>
+          <div className="metric-value">3</div>
+          <div className="metric-label">Today's Routes</div>
+          <p className="text-xs text-gray-500 mt-1">2 completed, 1 in progress</p>
+        </div>
         
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Bins Collected</CardTitle>
-            <Trash2 className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">47</div>
-            <p className="text-xs text-muted-foreground">+12 from yesterday</p>
-          </CardContent>
-        </Card>
+        <div className="metric-card interactive">
+          <div className="flex items-center justify-between mb-4">
+            <div className="p-2 bg-green-100 rounded-lg">
+              <Trash2 className="h-5 w-5 text-green-600" />
+            </div>
+            <div className="text-xs font-medium text-green-600 bg-green-100 px-2 py-1 rounded-full">
+              +12
+            </div>
+          </div>
+          <div className="metric-value">47</div>
+          <div className="metric-label">Bins Collected</div>
+          <p className="text-xs text-green-600 font-medium mt-1">+12 from yesterday</p>
+        </div>
 
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Next Collection</CardTitle>
-            <Clock className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">2:30 PM</div>
-            <p className="text-xs text-muted-foreground">Downtown Plaza - Bin #D-447</p>
-          </CardContent>
-        </Card>
+        <div className="metric-card interactive">
+          <div className="flex items-center justify-between mb-4">
+            <div className="p-2 bg-orange-100 rounded-lg">
+              <Clock className="h-5 w-5 text-orange-600" />
+            </div>
+            <div className="text-xs font-medium text-orange-600 bg-orange-100 px-2 py-1 rounded-full">
+              30 min
+            </div>
+          </div>
+          <div className="metric-value">2:30 PM</div>
+          <div className="metric-label">Next Collection</div>
+          <p className="text-xs text-gray-500 mt-1">Downtown Plaza - Bin #D-447</p>
+        </div>
 
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Route Progress</CardTitle>
-            <TrendingUp className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">78%</div>
-            <p className="text-xs text-muted-foreground">Estimated finish: 4:45 PM</p>
-          </CardContent>
-        </Card>
+        <div className="metric-card interactive">
+          <div className="flex items-center justify-between mb-4">
+            <div className="p-2 bg-purple-100 rounded-lg">
+              <TrendingUp className="h-5 w-5 text-purple-600" />
+            </div>
+            <div className="text-xs font-medium text-green-600 bg-green-100 px-2 py-1 rounded-full">
+              On track
+            </div>
+          </div>
+          <div className="metric-value">78%</div>
+          <div className="metric-label">Route Progress</div>
+          <div className="w-full bg-gray-200 rounded-full h-2 mt-2">
+            <div className="bg-purple-600 h-2 rounded-full transition-all duration-300" style={{width: '78%'}}></div>
+          </div>
+          <p className="text-xs text-gray-500 mt-1">Estimated finish: 4:45 PM</p>
+        </div>
       </div>
 
       {/* Current Route */}
-      <div className="grid gap-4 md:grid-cols-2">
-        <Card>
-          <CardHeader>
-            <CardTitle>Current Route</CardTitle>
-            <CardDescription>Today's collection schedule</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="flex items-center space-x-4">
+      <div className="grid gap-6 md:grid-cols-2">
+        <div className="card-enhanced p-6">
+          <div className="flex items-center justify-between mb-6">
+            <div>
+              <h3 className="text-lg font-semibold text-gray-900">Current Route</h3>
+              <p className="text-sm text-gray-600">Today's collection schedule</p>
+            </div>
+            <div className="p-2 bg-blue-100 rounded-lg">
+              <MapPin className="h-5 w-5 text-blue-600" />
+            </div>
+          </div>
+          <div className="space-y-4">
+            <div className="flex items-center space-x-4 p-3 bg-green-50 rounded-lg border border-green-200">
               <div className="flex-shrink-0">
-                <CheckCircle className="h-5 w-5 text-green-500" />
+                <CheckCircle className="h-6 w-6 text-green-600" />
               </div>
               <div className="flex-1">
-                <p className="font-medium">Main Street Plaza</p>
-                <p className="text-sm text-muted-foreground">Bin #M-223 • Completed at 10:30 AM</p>
+                <p className="font-semibold text-gray-900">Main Street Plaza</p>
+                <p className="text-sm text-gray-600">Bin #M-223 • Completed at 10:30 AM</p>
+              </div>
+              <div className="text-xs font-medium text-green-700 bg-green-100 px-2 py-1 rounded-full">
+                Completed
               </div>
             </div>
             
-            <div className="flex items-center space-x-4">
+            <div className="flex items-center space-x-4 p-3 bg-green-50 rounded-lg border border-green-200">
               <div className="flex-shrink-0">
-                <CheckCircle className="h-5 w-5 text-green-500" />
+                <CheckCircle className="h-6 w-6 text-green-600" />
               </div>
               <div className="flex-1">
-                <p className="font-medium">City Center Mall</p>
-                <p className="text-sm text-muted-foreground">Bin #C-445 • Completed at 11:15 AM</p>
+                <p className="font-semibold text-gray-900">City Center Mall</p>
+                <p className="text-sm text-gray-600">Bin #C-445 • Completed at 11:15 AM</p>
+              </div>
+              <div className="text-xs font-medium text-green-700 bg-green-100 px-2 py-1 rounded-full">
+                Completed
               </div>
             </div>
             
-            <div className="flex items-center space-x-4">
+            <div className="flex items-center space-x-4 p-3 bg-blue-50 rounded-lg border border-blue-200 animate-pulse">
               <div className="flex-shrink-0">
-                <div className="h-5 w-5 rounded-full bg-blue-500 flex items-center justify-center">
+                <div className="h-6 w-6 rounded-full bg-blue-500 flex items-center justify-center animate-pulse">
                   <div className="h-2 w-2 rounded-full bg-white"></div>
                 </div>
               </div>
               <div className="flex-1">
-                <p className="font-medium">Downtown Plaza</p>
-                <p className="text-sm text-muted-foreground">Bin #D-447 • Next collection</p>
+                <p className="font-semibold text-gray-900">Downtown Plaza</p>
+                <p className="text-sm text-gray-600">Bin #D-447 • Next collection</p>
               </div>
-              <Badge variant="outline" className="text-blue-600">Current</Badge>
+              <div className="text-xs font-medium text-blue-700 bg-blue-100 px-2 py-1 rounded-full animate-pulse">
+                Current
+              </div>
             </div>
-          </CardContent>
-        </Card>
+          </div>
+        </div>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Vehicle Status</CardTitle>
-            <CardDescription>Truck #TRK-007</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="flex items-center justify-between">
-              <span className="text-sm font-medium">Fuel Level</span>
-              <span className="text-sm">78%</span>
+        <div className="card-enhanced p-6">
+          <div className="flex items-center justify-between mb-6">
+            <div>
+              <h3 className="text-lg font-semibold text-gray-900">Vehicle Status</h3>
+              <p className="text-sm text-gray-600">Truck #TRK-007</p>
             </div>
-            <div className="flex items-center justify-between">
-              <span className="text-sm font-medium">Load Capacity</span>
-              <span className="text-sm">45% Full</span>
+            <div className="p-2 bg-orange-100 rounded-lg">
+              <Truck className="h-5 w-5 text-orange-600" />
             </div>
-            <div className="flex items-center justify-between">
-              <span className="text-sm font-medium">Next Maintenance</span>
-              <span className="text-sm">In 5 days</span>
+          </div>
+          <div className="space-y-4">
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="text-sm font-medium text-gray-700">Fuel Level</span>
+                <span className="text-sm font-semibold text-gray-900">78%</span>
+              </div>
+              <div className="w-full bg-gray-200 rounded-full h-2">
+                <div className="bg-green-500 h-2 rounded-full transition-all duration-300" style={{width: '78%'}}></div>
+              </div>
             </div>
-            <div className="flex items-center justify-between">
-              <span className="text-sm font-medium">Status</span>
-              <Badge variant="outline" className="text-green-600">Active</Badge>
+            
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="text-sm font-medium text-gray-700">Load Capacity</span>
+                <span className="text-sm font-semibold text-gray-900">45% Full</span>
+              </div>
+              <div className="w-full bg-gray-200 rounded-full h-2">
+                <div className="bg-orange-500 h-2 rounded-full transition-all duration-300" style={{width: '45%'}}></div>
+              </div>
             </div>
-          </CardContent>
-        </Card>
+            
+            <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+              <span className="text-sm font-medium text-gray-700">Next Maintenance</span>
+              <span className="text-sm font-semibold text-gray-900">In 5 days</span>
+            </div>
+            
+            <div className="flex items-center justify-between p-3 bg-green-50 rounded-lg border border-green-200">
+              <span className="text-sm font-medium text-gray-700">Status</span>
+              <div className="flex items-center space-x-2">
+                <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+                <span className="text-sm font-semibold text-green-700">Active</span>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );
