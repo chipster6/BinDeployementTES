@@ -23,9 +23,12 @@
 import { Router, Request, Response } from "express";
 import { errorMonitoring } from "@/services/ErrorMonitoringService";
 import { databaseRecovery } from "@/services/DatabaseRecoveryService";
+import { databaseMonitoring } from "@/services/DatabaseMonitoringService";
+import { databasePerformanceMonitor } from "@/services/DatabasePerformanceMonitor";
+import { databaseOptimizationService } from "@/services/DatabaseOptimizationService";
 import { logger } from "@/utils/logger";
-import { database } from "@/config/database";
-import { redisClient } from "@/config/redis";
+import { database, getConnectionPoolStats, checkDatabaseHealth } from "@/config/database";
+import { redisClient, checkRedisHealth } from "@/config/redis";
 import { asyncHandler } from "@/middleware/errorHandler";
 
 const router = Router();
@@ -205,13 +208,20 @@ router.get(
     try {
       const dbHealth = databaseRecovery.getHealthStatus();
       const connectionTest = await databaseRecovery.checkConnection();
+      const enhancedDbHealth = await checkDatabaseHealth();
+      const connectionPoolStats = await getConnectionPoolStats();
+      const performanceMetrics = databasePerformanceMonitor.getCurrentMetrics();
+      const optimizationStatus = await databaseOptimizationService.getOptimizationStatus();
 
       res.json({
         status: "success",
         timestamp: new Date().toISOString(),
         connectionTest,
         health: dbHealth,
-        recommendations: generateDatabaseRecommendations(dbHealth),
+        connectionPool: connectionPoolStats,
+        performance: performanceMetrics,
+        optimization: optimizationStatus,
+        recommendations: generateDatabaseRecommendations(dbHealth, performanceMetrics),
       });
     } catch (error) {
       logger.error("Database health check failed", { error: error.message });
@@ -219,6 +229,148 @@ router.get(
       res.status(500).json({
         status: "error",
         message: "Failed to retrieve database health information",
+        error: error.message,
+      });
+    }
+  }),
+);
+
+/**
+ * DATABASE PERFORMANCE MONITORING ENDPOINTS
+ * Critical for 72-hour emergency deployment monitoring
+ */
+
+/**
+ * Real-time database performance metrics
+ */
+router.get(
+  "/health/database/performance",
+  asyncHandler(async (req: Request, res: Response) => {
+    try {
+      const currentMetrics = databasePerformanceMonitor.getCurrentMetrics();
+      const performanceSummary = databasePerformanceMonitor.getPerformanceSummary();
+      const slowQueries = databasePerformanceMonitor.getSlowQueries(10);
+      
+      res.json({
+        status: "success",
+        timestamp: new Date().toISOString(),
+        current: currentMetrics,
+        summary: performanceSummary,
+        slowQueries: slowQueries.map(query => ({
+          duration: query.duration,
+          timestamp: query.timestamp,
+          query: query.query.length > 200 ? query.query.substring(0, 200) + "..." : query.query,
+        })),
+        alerts: currentMetrics ? {
+          connectionPoolCritical: currentMetrics.connectionPool.utilization > 90,
+          slowQueryAlert: currentMetrics.queryPerformance.avgResponseTime > 1000,
+          healthCritical: currentMetrics.health.overall === "critical",
+        } : {},
+      });
+    } catch (error) {
+      logger.error("Database performance metrics failed", { error: error.message });
+      res.status(500).json({
+        status: "error",
+        message: "Failed to retrieve database performance metrics",
+        error: error.message,
+      });
+    }
+  }),
+);
+
+/**
+ * Database optimization analysis and recommendations
+ */
+router.get(
+  "/health/database/optimization",
+  asyncHandler(async (req: Request, res: Response) => {
+    try {
+      const analysis = await databaseOptimizationService.analyzePerformance();
+      const status = await databaseOptimizationService.getOptimizationStatus();
+      
+      res.json({
+        status: "success",
+        timestamp: new Date().toISOString(),
+        analysis,
+        optimizationStatus: status,
+        criticalRecommendations: analysis.recommendations.filter(r => r.priority === "high"),
+      });
+    } catch (error) {
+      logger.error("Database optimization analysis failed", { error: error.message });
+      res.status(500).json({
+        status: "error",
+        message: "Failed to retrieve database optimization analysis",
+        error: error.message,
+      });
+    }
+  }),
+);
+
+/**
+ * Force database performance metrics collection
+ */
+router.post(
+  "/health/database/performance/collect",
+  asyncHandler(async (req: Request, res: Response) => {
+    try {
+      const metrics = await databasePerformanceMonitor.forceMetricsCollection();
+      
+      res.json({
+        status: "success",
+        timestamp: new Date().toISOString(),
+        message: "Performance metrics collected successfully",
+        metrics,
+      });
+    } catch (error) {
+      logger.error("Forced metrics collection failed", { error: error.message });
+      res.status(500).json({
+        status: "error",
+        message: "Failed to collect performance metrics",
+        error: error.message,
+      });
+    }
+  }),
+);
+
+/**
+ * Database connection pool health check
+ */
+router.get(
+  "/health/database/connection-pool",
+  asyncHandler(async (req: Request, res: Response) => {
+    try {
+      const poolStats = await getConnectionPoolStats();
+      const currentMetrics = databasePerformanceMonitor.getCurrentMetrics();
+      
+      const healthStatus = {
+        status: poolStats.status,
+        utilization: poolStats.pool.utilization,
+        connections: {
+          total: poolStats.pool.total,
+          active: poolStats.pool.active,
+          idle: poolStats.pool.idle,
+          waiting: poolStats.pool.waiting,
+        },
+        configuration: poolStats.config,
+        alerts: {
+          highUtilization: poolStats.pool.utilization > 75,
+          criticalUtilization: poolStats.pool.utilization > 90,
+          waitingConnections: poolStats.pool.waiting > 0,
+        },
+        recommendations: generateConnectionPoolRecommendations(poolStats),
+      };
+      
+      res.json({
+        status: "success",
+        timestamp: new Date().toISOString(),
+        connectionPool: healthStatus,
+        recentPerformance: currentMetrics?.connectionPool,
+      });
+    } catch (error) {
+      logger.error("Connection pool health check failed", { error: error.message });
+      res.status(500).json({
+        status: "error",
+        message: "Failed to retrieve connection pool health",
         error: error.message,
       });
     }
@@ -515,7 +667,7 @@ function generateErrorRecommendations(errorStats: any, healthStatus: any) {
   return recommendations;
 }
 
-function generateDatabaseRecommendations(dbHealth: any) {
+function generateDatabaseRecommendations(dbHealth: any, performanceMetrics?: any) {
   const recommendations = [];
 
   if (dbHealth.state === "degraded") {
@@ -540,6 +692,72 @@ function generateDatabaseRecommendations(dbHealth: any) {
     recommendations.push(
       "Database error rate is elevated. Review recent changes and query patterns.",
     );
+  }
+
+  // Enhanced recommendations based on performance metrics
+  if (performanceMetrics?.connectionPool?.utilization > 90) {
+    recommendations.push(
+      "Critical connection pool utilization detected. Consider scaling database connections.",
+    );
+  }
+
+  if (performanceMetrics?.queryPerformance?.avgResponseTime > 1000) {
+    recommendations.push(
+      "Slow query performance detected. Review query optimization and indexes.",
+    );
+  }
+
+  if (performanceMetrics?.health?.overall === "critical") {
+    recommendations.push(
+      "Database health is critical. Immediate investigation required.",
+    );
+  }
+
+  return recommendations;
+}
+
+/**
+ * Generate connection pool specific recommendations
+ */
+function generateConnectionPoolRecommendations(poolStats: any) {
+  const recommendations = [];
+
+  if (poolStats.pool.utilization > 90) {
+    recommendations.push({
+      priority: "critical",
+      message: "Connection pool utilization is critical. Increase max pool size or optimize connection usage.",
+      action: "Scale DB_POOL_MAX above current value or investigate connection leaks",
+    });
+  } else if (poolStats.pool.utilization > 75) {
+    recommendations.push({
+      priority: "warning",
+      message: "Connection pool utilization is high. Monitor for potential scaling needs.",
+      action: "Prepare to increase DB_POOL_MAX if utilization continues to grow",
+    });
+  }
+
+  if (poolStats.pool.waiting > 0) {
+    recommendations.push({
+      priority: "high",
+      message: "Connections are waiting in queue. This indicates pool exhaustion.",
+      action: "Increase DB_POOL_MAX immediately or investigate slow queries holding connections",
+    });
+  }
+
+  if (poolStats.pool.active > poolStats.pool.total * 0.8) {
+    recommendations.push({
+      priority: "medium",
+      message: "High number of active connections. Monitor query performance.",
+      action: "Review long-running queries and optimize database operations",
+    });
+  }
+
+  if (poolStats.pool.idle < poolStats.config.min) {
+    recommendations.push({
+      priority: "low",
+      message: "Idle connections below minimum threshold. Pool may be under pressure.",
+      action: "Monitor connection creation patterns and consider adjusting DB_POOL_MIN",
+    });
   }
 
   return recommendations;

@@ -12,7 +12,7 @@
  */
 
 import { Request, Response, NextFunction } from "express";
-import jwt from "jsonwebtoken";
+import jwt, { Algorithm } from "jsonwebtoken";
 import { config } from "@/config";
 import { logger } from "@/utils/logger";
 import { User, UserModel, UserRole, UserStatus } from "@/models/User";
@@ -78,11 +78,13 @@ const extractToken = (req: Request): string | null => {
 };
 
 /**
- * Verify JWT token and extract payload
+ * Verify JWT token and extract payload with explicit algorithm validation
  */
 const verifyToken = (token: string): JWTPayload => {
   try {
+    // Explicitly specify algorithm to prevent algorithm confusion attacks
     const payload = jwt.verify(token, config.jwt.secret, {
+      algorithms: [config.jwt.algorithm as Algorithm], // Explicit algorithm validation
       issuer: config.jwt.issuer,
       audience: config.jwt.audience,
     }) as JWTPayload;
@@ -392,7 +394,7 @@ export const customerOnly = requireRole(
 );
 
 /**
- * Generate JWT access token
+ * Generate JWT access token with explicit algorithm specification
  */
 export function generateToken(payload: {
   id: string;
@@ -409,6 +411,7 @@ export function generateToken(payload: {
     },
     config.jwt.secret,
     {
+      algorithm: config.jwt.algorithm as Algorithm, // Explicit algorithm specification
       expiresIn: config.jwt.expiresIn,
       issuer: config.jwt.issuer,
       audience: config.jwt.audience,
@@ -417,7 +420,7 @@ export function generateToken(payload: {
 }
 
 /**
- * Generate JWT refresh token
+ * Generate JWT refresh token with explicit algorithm specification
  */
 export function generateRefreshToken(payload: {
   id: string;
@@ -430,6 +433,7 @@ export function generateRefreshToken(payload: {
     },
     config.jwt.refreshSecret,
     {
+      algorithm: config.jwt.algorithm as Algorithm, // Explicit algorithm specification
       expiresIn: config.jwt.refreshExpiresIn,
       issuer: config.jwt.issuer,
       audience: config.jwt.audience,
@@ -438,14 +442,16 @@ export function generateRefreshToken(payload: {
 }
 
 /**
- * Verify refresh token and extract payload
+ * Verify refresh token and extract payload with explicit algorithm validation
  */
 export function verifyRefreshToken(token: string): {
   userId: string;
   sessionId?: string;
 } {
   try {
+    // Explicitly specify algorithm to prevent algorithm confusion attacks
     const payload = jwt.verify(token, config.jwt.refreshSecret, {
+      algorithms: [config.jwt.algorithm as Algorithm], // Explicit algorithm validation
       issuer: config.jwt.issuer,
       audience: config.jwt.audience,
     }) as any;

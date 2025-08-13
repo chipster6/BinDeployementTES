@@ -1,0 +1,269 @@
+# ============================================================================
+# WASTE MANAGEMENT SYSTEM - PRODUCTION ALERTING RULES
+# ============================================================================
+#
+# Critical production alerts for system health, performance, and business metrics
+# Configured for $2M+ MRR business operations
+#
+# Created by: Infrastructure Agent
+# Date: 2025-08-12
+# Version: 1.0.0
+# ============================================================================
+
+groups:
+  # Critical System Health Alerts
+  - name: system.critical
+    rules:
+      - alert: SystemDown
+        expr: up == 0
+        for: 1m
+        labels:
+          severity: critical
+          category: system
+        annotations:
+          summary: "System component is down"
+          description: "{{ $labels.job }} has been down for more than 1 minute"
+          runbook_url: "https://docs.waste-mgmt.com/runbooks/system-down"
+
+      - alert: HighCPUUsage
+        expr: 100 - (avg by(instance) (irate(node_cpu_seconds_total{mode="idle"}[5m])) * 100) > 80
+        for: 5m
+        labels:
+          severity: warning
+          category: system
+        annotations:
+          summary: "High CPU usage detected"
+          description: "CPU usage is {{ $value }}% on {{ $labels.instance }}"
+
+      - alert: HighMemoryUsage
+        expr: (node_memory_MemTotal_bytes - node_memory_MemAvailable_bytes) / node_memory_MemTotal_bytes * 100 > 85
+        for: 5m
+        labels:
+          severity: warning
+          category: system
+        annotations:
+          summary: "High memory usage detected"
+          description: "Memory usage is {{ $value }}% on {{ $labels.instance }}"
+
+      - alert: DiskSpaceRunningOut
+        expr: (node_filesystem_avail_bytes{fstype!="tmpfs"} / node_filesystem_size_bytes{fstype!="tmpfs"} * 100) < 10
+        for: 5m
+        labels:
+          severity: critical
+          category: system
+        annotations:
+          summary: "Disk space running out"
+          description: "Only {{ $value }}% disk space remaining on {{ $labels.instance }}:{{ $labels.mountpoint }}"
+
+  # Database Critical Alerts
+  - name: database.critical
+    rules:
+      - alert: PostgreSQLDown
+        expr: pg_up == 0
+        for: 1m
+        labels:
+          severity: critical
+          category: database
+        annotations:
+          summary: "PostgreSQL database is down"
+          description: "PostgreSQL database has been down for more than 1 minute"
+          runbook_url: "https://docs.waste-mgmt.com/runbooks/postgres-down"
+
+      - alert: PostgreSQLTooManyConnections
+        expr: sum(pg_stat_activity_count) > 80
+        for: 2m
+        labels:
+          severity: warning
+          category: database
+        annotations:
+          summary: "PostgreSQL has too many connections"
+          description: "PostgreSQL has {{ $value }} active connections (threshold: 80)"
+
+      - alert: PostgreSQLSlowQueries
+        expr: rate(pg_stat_database_tup_fetched[5m]) / rate(pg_stat_database_tup_returned[5m]) > 1000
+        for: 5m
+        labels:
+          severity: warning
+          category: database
+        annotations:
+          summary: "PostgreSQL slow queries detected"
+          description: "PostgreSQL query performance degraded: {{ $value }} fetched/returned ratio"
+
+      - alert: RedisDown
+        expr: redis_up == 0
+        for: 1m
+        labels:
+          severity: critical
+          category: cache
+        annotations:
+          summary: "Redis is down"
+          description: "Redis has been down for more than 1 minute"
+          runbook_url: "https://docs.waste-mgmt.com/runbooks/redis-down"
+
+      - alert: RedisHighMemoryUsage
+        expr: redis_memory_used_bytes / redis_memory_max_bytes * 100 > 90
+        for: 5m
+        labels:
+          severity: warning
+          category: cache
+        annotations:
+          summary: "Redis high memory usage"
+          description: "Redis memory usage is {{ $value }}%"
+
+  # Application Critical Alerts
+  - name: application.critical
+    rules:
+      - alert: BackendAPIDown
+        expr: up{job="waste-mgmt-backend"} == 0
+        for: 2m
+        labels:
+          severity: critical
+          category: application
+        annotations:
+          summary: "Backend API is down"
+          description: "Waste management backend API has been down for more than 2 minutes"
+          runbook_url: "https://docs.waste-mgmt.com/runbooks/backend-down"
+
+      - alert: HighErrorRate
+        expr: rate(http_requests_total{status=~"5.."}[5m]) / rate(http_requests_total[5m]) * 100 > 5
+        for: 3m
+        labels:
+          severity: critical
+          category: application
+        annotations:
+          summary: "High error rate detected"
+          description: "Error rate is {{ $value }}% for {{ $labels.job }}"
+          runbook_url: "https://docs.waste-mgmt.com/runbooks/high-error-rate"
+
+      - alert: HighResponseTime
+        expr: histogram_quantile(0.95, rate(http_request_duration_seconds_bucket[5m])) > 2
+        for: 3m
+        labels:
+          severity: warning
+          category: application
+        annotations:
+          summary: "High response time detected"
+          description: "95th percentile response time is {{ $value }}s for {{ $labels.job }}"
+
+      - alert: FrontendDown
+        expr: up{job="waste-mgmt-frontend"} == 0
+        for: 3m
+        labels:
+          severity: warning
+          category: application
+        annotations:
+          summary: "Frontend application is down"
+          description: "Frontend has been down for more than 3 minutes"
+
+  # Business Critical Alerts
+  - name: business.critical
+    rules:
+      - alert: RevenueProcessingFailure
+        expr: increase(payment_processing_failures_total[5m]) > 3
+        for: 1m
+        labels:
+          severity: critical
+          category: business
+        annotations:
+          summary: "Payment processing failures detected"
+          description: "{{ $value }} payment processing failures in the last 5 minutes"
+          runbook_url: "https://docs.waste-mgmt.com/runbooks/payment-failures"
+
+      - alert: HighCustomerChurn
+        expr: rate(customer_cancellations_total[1h]) > 0.05
+        for: 10m
+        labels:
+          severity: warning
+          category: business
+        annotations:
+          summary: "High customer churn rate detected"
+          description: "Customer churn rate is {{ $value }} per hour"
+
+      - alert: RouteOptimizationDown
+        expr: up{job="route-optimization"} == 0
+        for: 5m
+        labels:
+          severity: warning
+          category: business
+        annotations:
+          summary: "Route optimization service is down"
+          description: "Route optimization has been down for more than 5 minutes"
+
+      - alert: BinCollectionDelays
+        expr: increase(bin_collection_delays_total[1h]) > 50
+        for: 5m
+        labels:
+          severity: warning
+          category: business
+        annotations:
+          summary: "High number of bin collection delays"
+          description: "{{ $value }} bin collection delays in the last hour"
+
+  # Security Alerts
+  - name: security.critical
+    rules:
+      - alert: UnauthorizedAccessAttempts
+        expr: increase(auth_failures_total[5m]) > 20
+        for: 1m
+        labels:
+          severity: warning
+          category: security
+        annotations:
+          summary: "High number of authentication failures"
+          description: "{{ $value }} authentication failures in the last 5 minutes"
+          runbook_url: "https://docs.waste-mgmt.com/runbooks/security-incident"
+
+      - alert: SQLInjectionAttempt
+        expr: increase(sql_injection_attempts_total[1m]) > 0
+        for: 0m
+        labels:
+          severity: critical
+          category: security
+        annotations:
+          summary: "SQL injection attempt detected"
+          description: "{{ $value }} SQL injection attempts detected"
+          runbook_url: "https://docs.waste-mgmt.com/runbooks/sql-injection"
+
+      - alert: SuspiciousAPIUsage
+        expr: rate(http_requests_total[5m]) by (source_ip) > 100
+        for: 2m
+        labels:
+          severity: warning
+          category: security
+        annotations:
+          summary: "Suspicious API usage pattern"
+          description: "High request rate from {{ $labels.source_ip }}: {{ $value }} requests/second"
+
+  # Infrastructure Alerts
+  - name: infrastructure.critical
+    rules:
+      - alert: DockerContainerKilled
+        expr: increase(container_killed_total[1m]) > 0
+        for: 0m
+        labels:
+          severity: warning
+          category: infrastructure
+        annotations:
+          summary: "Docker container was killed"
+          description: "Container {{ $labels.container_label_com_docker_compose_service }} was killed"
+
+      - alert: NginxDown
+        expr: up{job="nginx"} == 0
+        for: 2m
+        labels:
+          severity: critical
+          category: infrastructure
+        annotations:
+          summary: "Nginx load balancer is down"
+          description: "Nginx has been down for more than 2 minutes"
+          runbook_url: "https://docs.waste-mgmt.com/runbooks/nginx-down"
+
+      - alert: SSLCertificateExpiring
+        expr: (ssl_certificate_expiry_seconds - time()) / 86400 < 30
+        for: 1h
+        labels:
+          severity: warning
+          category: infrastructure
+        annotations:
+          summary: "SSL certificate expiring soon"
+          description: "SSL certificate for {{ $labels.instance }} expires in {{ $value }} days"

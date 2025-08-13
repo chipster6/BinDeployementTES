@@ -1,0 +1,77 @@
+# ============================================================================
+# DOCKER COMPOSE OVERRIDE - DEVELOPMENT CONFIGURATION
+# ============================================================================
+#
+# Development-specific overrides for Docker Compose
+# Provides hot reload, debugging tools, and development optimizations
+#
+# Created by: Infrastructure Agent
+# Date: 2025-08-12
+# Version: 1.0.0
+# ============================================================================
+
+version: '3.8'
+
+services:
+  # Backend Development Overrides
+  backend:
+    build:
+      target: development
+    environment:
+      NODE_ENV: development
+      DEBUG_SQL: true
+      LOG_LEVEL: debug
+      ENABLE_SWAGGER_UI: true
+      MOCK_EXTERNAL_SERVICES: true
+    volumes:
+      - .:/app
+      - /app/node_modules
+      - ./logs:/app/logs
+      - ./uploads:/app/uploads
+    command: npm run dev:ts
+    stdin_open: true
+    tty: true
+
+  # Frontend Development Overrides
+  frontend:
+    build:
+      target: development
+    environment:
+      NODE_ENV: development
+      NEXT_PUBLIC_API_URL: http://localhost:3001
+      FAST_REFRESH: true
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+      - /app/.next
+    command: npm run dev
+    stdin_open: true
+    tty: true
+
+  # PostgreSQL Development Overrides
+  postgres:
+    environment:
+      POSTGRES_DB: waste_management
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres123
+    ports:
+      - "5432:5432"
+    volumes:
+      - ./docker/data/postgres:/var/lib/postgresql/data
+      - ./docker/postgres/init:/docker-entrypoint-initdb.d
+      - ./docker/postgres/config/postgresql.conf:/etc/postgresql/postgresql.conf
+
+  # Redis Development Overrides
+  redis:
+    command: redis-server /usr/local/etc/redis/redis.conf --appendonly yes --requirepass redis123
+    ports:
+      - "6379:6379"
+    volumes:
+      - ./docker/data/redis:/data
+
+  # Enable admin tools for development
+  redis-commander:
+    profiles: []  # Remove profile restriction for development
+
+  pgadmin:
+    profiles: []  # Remove profile restriction for development

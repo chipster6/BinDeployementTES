@@ -41,13 +41,24 @@ export const sequelize = new Sequelize({
     typeCast: true,
   },
 
-  // Connection Pool
+  // PRODUCTION-READY CONNECTION POOL CONFIGURATION
+  // Scaled from 20 to 120+ connections for enterprise production load
   pool: {
     min: config.database.pool.min,
     max: config.database.pool.max,
     idle: config.database.pool.idle,
     acquire: config.database.pool.acquire,
-    evict: 1000,
+    evict: config.database.pool.evict,
+    validate: config.database.pool.validate,
+    handleDisconnects: config.database.pool.handleDisconnects,
+    // Enhanced connection health monitoring
+    testOnBorrow: true,
+    acquireTimeoutMillis: config.database.pool.acquire,
+    createTimeoutMillis: 10000,
+    destroyTimeoutMillis: 5000,
+    idleTimeoutMillis: config.database.pool.idle,
+    reapIntervalMillis: 1000,
+    createRetryIntervalMillis: 200,
   },
 
   // Logging
@@ -121,11 +132,86 @@ export const sequelize = new Sequelize({
 });
 
 /**
+ * ENHANCED DATABASE CONNECTION POOL MONITORING
+ * Critical for production load support and performance optimization
+ */
+export const getConnectionPoolStats = async (): Promise<{
+  status: "healthy" | "warning" | "critical";
+  pool: {
+    total: number;
+    active: number;
+    idle: number;
+    waiting: number;
+    utilization: number;
+  };
+  performance: {
+    avgResponseTime: number;
+    slowQueries: number;
+    connectionErrors: number;
+  };
+  config: {
+    min: number;
+    max: number;
+    acquire: number;
+    idle: number;
+  };
+}> => {
+  try {
+    const pool = sequelize.connectionManager.pool;
+    const poolStats = {
+      total: pool.size,
+      active: pool.borrowed,
+      idle: pool.available,
+      waiting: pool.pending,
+      utilization: pool.size > 0 ? Math.round((pool.borrowed / pool.size) * 100) : 0,
+    };
+
+    // Determine pool health status
+    let status: "healthy" | "warning" | "critical" = "healthy";
+    if (poolStats.utilization > 90) {
+      status = "critical";
+    } else if (poolStats.utilization > 75) {
+      status = "warning";
+    }
+
+    return {
+      status,
+      pool: poolStats,
+      performance: {
+        avgResponseTime: 0, // Would track in production metrics
+        slowQueries: 0,     // Would track in production metrics
+        connectionErrors: 0, // Would track in production metrics
+      },
+      config: {
+        min: config.database.pool.min,
+        max: config.database.pool.max,
+        acquire: config.database.pool.acquire,
+        idle: config.database.pool.idle,
+      },
+    };
+  } catch (error) {
+    logger.error("Connection pool stats failed:", error);
+    return {
+      status: "critical",
+      pool: { total: 0, active: 0, idle: 0, waiting: 0, utilization: 0 },
+      performance: { avgResponseTime: 0, slowQueries: 0, connectionErrors: 0 },
+      config: {
+        min: config.database.pool.min,
+        max: config.database.pool.max,
+        acquire: config.database.pool.acquire,
+        idle: config.database.pool.idle,
+      },
+    };
+  }
+};
+
+/**
  * Database connection health check
  */
 export const checkDatabaseHealth = async (): Promise<{
   status: "healthy" | "unhealthy";
   details: Record<string, any>;
+  connectionPool?: any;
 }> => {
   try {
     const startTime = Date.now();
@@ -139,8 +225,11 @@ export const checkDatabaseHealth = async (): Promise<{
     )) as [any[], any];
     const connectionTime = Date.now() - startTime;
 
+    // Get connection pool stats
+    const poolStats = await getConnectionPoolStats();
+
     return {
-      status: "healthy",
+      status: poolStats.status === "critical" ? "unhealthy" : "healthy",
       details: {
         connectionTime: `${connectionTime}ms`,
         version: results[0]?.version,
@@ -149,6 +238,7 @@ export const checkDatabaseHealth = async (): Promise<{
         port: config.database.port,
         database: config.database.database,
       },
+      connectionPool: poolStats,
     };
   } catch (error) {
     logger.error("Database health check failed:", error);

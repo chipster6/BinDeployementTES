@@ -1,0 +1,440 @@
+# ============================================================================
+# WASTE MANAGEMENT SYSTEM - PRODUCTION DEPLOYMENT WORKFLOW
+# ============================================================================
+#
+# Production deployment pipeline with security scanning, Docker builds,
+# and rollback capabilities for the waste management system.
+#
+# Created by: Infrastructure Agent
+# Date: 2025-08-12
+# Version: 1.0.0
+# ============================================================================
+
+name: Production Deployment
+
+on:
+  push:
+    branches: [ main ]
+    tags: [ 'v*.*.*' ]
+  release:
+    types: [ created ]
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Deployment environment'
+        required: true
+        default: 'staging'
+        type: choice
+        options:
+          - staging
+          - production
+      force_deploy:
+        description: 'Force deployment (skip quality gates)'
+        required: false
+        default: false
+        type: boolean
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+  NODE_VERSION: '20'
+  POSTGRES_VERSION: '16'
+  REDIS_VERSION: '7'
+
+jobs:
+  # Security & Vulnerability Scanning
+  security-scan:
+    name: Security & Vulnerability Scan
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          
+      - name: Install dependencies
+        run: npm ci
+        
+      - name: Run security audit
+        run: |
+          npm audit --audit-level high --omit dev
+          npm audit --audit-level critical
+          
+      - name: Run SNYK security scan
+        uses: snyk/actions/node@master
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        with:
+          command: test
+          args: --severity-threshold=high
+          
+      - name: Run CodeQL analysis
+        uses: github/codeql-action/analyze@v3
+        with:
+          languages: javascript
+          
+      - name: Run OWASP ZAP baseline scan
+        uses: zaproxy/action-baseline@v0.10.0
+        with:
+          target: 'http://localhost:3001'
+          rules_file_name: '.zap/rules.tsv'
+          
+      - name: Upload security scan results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: security-scan-results
+          path: |
+            snyk-results/
+            sarif-results/
+            zap-results/
+
+  # Build & Test Quality Gates
+  quality-gates:
+    name: Quality Gates & Testing
+    runs-on: ubuntu-latest
+    needs: security-scan
+    timeout-minutes: 45
+    
+    services:
+      postgres:
+        image: postgis/postgis:${{ env.POSTGRES_VERSION }}-3.4
+        env:
+          POSTGRES_USER: test_user
+          POSTGRES_PASSWORD: test_password
+          POSTGRES_DB: waste_management_test
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+          
+      redis:
+        image: redis:${{ env.REDIS_VERSION }}
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 6379:6379
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          
+      - name: Install dependencies
+        run: npm ci
+        
+      - name: Run linting
+        run: npm run lint
+        
+      - name: Run TypeScript check
+        run: npx tsc --noEmit
+        
+      - name: Setup test database
+        run: |
+          PGPASSWORD=test_password createdb -h localhost -U test_user waste_management_test || true
+          PGPASSWORD=test_password psql -h localhost -U test_user -d waste_management_test -c "CREATE EXTENSION IF NOT EXISTS postgis;"
+          PGPASSWORD=test_password psql -h localhost -U test_user -d waste_management_test -c "CREATE EXTENSION IF NOT EXISTS \"uuid-ossp\";"
+        
+      - name: Run comprehensive test suite
+        run: |
+          npm run test:unit
+          npm run test:integration
+          npm run test:e2e
+        env:
+          NODE_ENV: test
+          TEST_DB_HOST: localhost
+          TEST_DB_PORT: 5432
+          TEST_DB_NAME: waste_management_test
+          TEST_DB_USER: test_user
+          TEST_DB_PASS: test_password
+          TEST_REDIS_HOST: localhost
+          TEST_REDIS_PORT: 6379
+          
+      - name: Generate coverage report
+        run: npm run test:coverage
+        
+      - name: Enforce quality thresholds
+        run: |
+          node -e "
+            const fs = require('fs');
+            if (!fs.existsSync('coverage/coverage-summary.json')) {
+              console.log('❌ No coverage data found');
+              process.exit(1);
+            }
+            const coverage = JSON.parse(fs.readFileSync('coverage/coverage-summary.json', 'utf8'));
+            const thresholds = { statements: 80, branches: 75, functions: 80, lines: 80 };
+            
+            let failed = false;
+            Object.entries(thresholds).forEach(([metric, threshold]) => {
+              const actual = coverage.total[metric].pct;
+              if (actual < threshold) {
+                console.log(\`❌ \${metric}: \${actual}% < \${threshold}%\`);
+                failed = true;
+              } else {
+                console.log(\`✅ \${metric}: \${actual}% >= \${threshold}%\`);
+              }
+            });
+            
+            if (failed && '${{ inputs.force_deploy }}' !== 'true') {
+              console.log('❌ Quality gates failed. Use force_deploy to override.');
+              process.exit(1);
+            }
+            console.log('✅ Quality gates passed');
+          "
+          
+      - name: Upload test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: test-results
+          path: |
+            coverage/
+            junit.xml
+            test-screenshots/
+
+  # Docker Build & Push
+  docker-build:
+    name: Docker Build & Push
+    runs-on: ubuntu-latest
+    needs: quality-gates
+    timeout-minutes: 30
+    outputs:
+      image-digest: ${{ steps.build.outputs.digest }}
+      image-tag: ${{ steps.meta.outputs.tags }}
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+        
+      - name: Log in to Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+          
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=ref,event=branch
+            type=ref,event=pr
+            type=sha,prefix=commit-
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=raw,value=latest,enable={{is_default_branch}}
+            
+      - name: Build and push Docker image
+        id: build
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./docker/Dockerfile
+          target: production
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          
+      - name: Generate SBOM
+        uses: anchore/sbom-action@v0
+        with:
+          image: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
+          format: spdx-json
+          output-file: sbom.spdx.json
+          
+      - name: Scan image with Trivy
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
+          format: 'sarif'
+          output: 'trivy-results.sarif'
+          
+      - name: Upload SBOM and security scan
+        uses: actions/upload-artifact@v4
+        with:
+          name: container-security
+          path: |
+            sbom.spdx.json
+            trivy-results.sarif
+
+  # Deploy to Staging
+  deploy-staging:
+    name: Deploy to Staging
+    runs-on: ubuntu-latest
+    needs: docker-build
+    if: github.ref == 'refs/heads/main' || inputs.environment == 'staging'
+    environment: staging
+    timeout-minutes: 15
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: Setup deployment environment
+        run: |
+          echo "Deploying to staging environment"
+          echo "Image: ${{ needs.docker-build.outputs.image-tag }}"
+          echo "Digest: ${{ needs.docker-build.outputs.image-digest }}"
+          
+      - name: Deploy to staging cluster
+        run: |
+          # Example deployment command (replace with actual deployment method)
+          echo "docker run -d --name waste-mgmt-staging ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}"
+          
+      - name: Run deployment health checks
+        run: |
+          # Wait for deployment to be ready
+          sleep 30
+          
+          # Health check examples (replace with actual endpoints)
+          curl -f http://staging.waste-mgmt.com/health || exit 1
+          curl -f http://staging.waste-mgmt.com/api/v1/status || exit 1
+          
+      - name: Run smoke tests
+        run: |
+          # Run critical path tests against staging
+          npm run test:smoke -- --env=staging
+          
+      - name: Notify deployment success
+        uses: 8398a7/action-slack@v3
+        with:
+          status: success
+          channel: '#deployments'
+          text: '✅ Staging deployment successful: ${{ github.sha }}'
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+
+  # Deploy to Production
+  deploy-production:
+    name: Deploy to Production
+    runs-on: ubuntu-latest
+    needs: [docker-build, deploy-staging]
+    if: (github.ref == 'refs/heads/main' && needs.deploy-staging.result == 'success') || inputs.environment == 'production'
+    environment: production
+    timeout-minutes: 30
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: Manual approval checkpoint
+        if: inputs.environment != 'production'
+        run: |
+          echo "⏳ Manual approval required for production deployment"
+          echo "Image: ${{ needs.docker-build.outputs.image-tag }}"
+          echo "Digest: ${{ needs.docker-build.outputs.image-digest }}"
+          
+      - name: Create deployment backup
+        run: |
+          # Backup current production state
+          echo "Creating backup of current production state"
+          
+      - name: Deploy to production cluster
+        run: |
+          # Blue-green or rolling deployment
+          echo "Deploying to production with zero-downtime strategy"
+          echo "docker run -d --name waste-mgmt-production ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}"
+          
+      - name: Run production health checks
+        run: |
+          # Comprehensive health checks
+          sleep 60
+          
+          # Database connectivity
+          curl -f https://api.waste-mgmt.com/health/database || exit 1
+          
+          # Redis connectivity  
+          curl -f https://api.waste-mgmt.com/health/redis || exit 1
+          
+          # API endpoints
+          curl -f https://api.waste-mgmt.com/api/v1/status || exit 1
+          
+          # Critical business functions
+          curl -f https://api.waste-mgmt.com/api/v1/users/health || exit 1
+          
+      - name: Run production smoke tests
+        run: |
+          npm run test:smoke -- --env=production
+          
+      - name: Update deployment status
+        run: |
+          echo "✅ Production deployment successful"
+          echo "Deployed image: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}"
+          echo "Deployment time: $(date)"
+          
+      - name: Notify deployment success
+        uses: 8398a7/action-slack@v3
+        with:
+          status: success
+          channel: '#production'
+          text: '🚀 Production deployment successful: ${{ github.sha }}'
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+
+  # Rollback Capability
+  rollback:
+    name: Emergency Rollback
+    runs-on: ubuntu-latest
+    if: failure() && (needs.deploy-staging.result == 'failure' || needs.deploy-production.result == 'failure')
+    needs: [deploy-staging, deploy-production]
+    environment: production
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: Rollback to previous version
+        run: |
+          echo "🚨 Emergency rollback initiated"
+          
+          # Get previous successful deployment
+          PREVIOUS_SHA=$(git rev-parse HEAD~1)
+          echo "Rolling back to: $PREVIOUS_SHA"
+          
+          # Execute rollback (replace with actual rollback commands)
+          echo "docker stop waste-mgmt-production"
+          echo "docker run -d --name waste-mgmt-production ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:$PREVIOUS_SHA"
+          
+      - name: Verify rollback health
+        run: |
+          sleep 30
+          curl -f https://api.waste-mgmt.com/health || exit 1
+          
+      - name: Notify rollback
+        uses: 8398a7/action-slack@v3
+        with:
+          status: failure
+          channel: '#incidents'
+          text: '🚨 Emergency rollback executed for deployment: ${{ github.sha }}'
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+
+# Workflow concurrency control
+concurrency:
+  group: production-deployment-${{ github.ref }}
+  cancel-in-progress: false

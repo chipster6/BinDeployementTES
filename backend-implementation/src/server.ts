@@ -14,6 +14,9 @@ import { errorHandler } from "@/middleware/errorHandler";
 import { errorRecoveryMiddleware } from "@/middleware/errorRecoveryMiddleware";
 import { errorMonitoring } from "@/services/ErrorMonitoringService";
 import { databaseRecovery } from "@/services/DatabaseRecoveryService";
+import { databaseMonitoring } from "@/services/DatabaseMonitoringService";
+import { databaseInitializationService } from "@/services/DatabaseInitializationService";
+import { databasePerformanceMonitor } from "@/services/DatabasePerformanceMonitor";
 
 class Application {
   public async start(): Promise<void> {
@@ -39,6 +42,9 @@ class Application {
       jobService,
     );
 
+    // CRITICAL: Initialize database infrastructure for production load
+    await databaseInitializationService.initializeAll();
+    
     // Connect to dependencies
     await databaseService.connect();
     await jobService.initialize();
@@ -52,6 +58,9 @@ class Application {
 
     // Initialize error monitoring and recovery
     this.initializeErrorSystems();
+
+    // CRITICAL: Initialize database monitoring for production connection pool management
+    this.initializeDatabaseMonitoring();
 
     // Initialize final error handlers (order matters)
     app.use(errorRecoveryMiddleware.middleware);
@@ -169,21 +178,100 @@ class Application {
   }
 
   /**
+   * Initialize database monitoring and performance systems
+   * CRITICAL for production load management and 72-hour emergency deployment
+   */
+  private initializeDatabaseMonitoring(): void {
+    logger.info("🚀 Initializing database performance monitoring systems");
+
+    // Set up database performance monitoring event handlers
+    databasePerformanceMonitor.on("alert", (alert) => {
+      const logLevel = alert.severity === "critical" ? "error" : "warn";
+      logger[logLevel]("Database performance alert", {
+        type: alert.type,
+        severity: alert.severity,
+        message: alert.message,
+        timestamp: alert.timestamp,
+      });
+
+      // Track performance alerts in error monitoring system
+      if (alert.severity === "critical") {
+        errorMonitoring.trackError(
+          new Error(`Database Performance Alert: ${alert.message}`),
+          {
+            ip: "system",
+            url: "database",
+            method: "MONITOR",
+          },
+          {
+            type: "database_performance",
+            alertType: alert.type,
+            severity: alert.severity,
+            metrics: alert.metrics,
+          },
+        );
+      }
+    });
+
+    // Monitor database initialization status
+    const initStatus = databaseInitializationService.getInitializationStatus();
+    if (initStatus.overall !== "completed") {
+      logger.warn("Database initialization not completed", {
+        status: initStatus.overall,
+        database: initStatus.database,
+        redis: initStatus.redis,
+        monitoring: initStatus.monitoring,
+        optimization: initStatus.optimization,
+      });
+    }
+
+    // Log database health summary
+    const healthSummary = databaseInitializationService.getHealthSummary();
+    logger.info("Database infrastructure health summary", healthSummary);
+
+    if (!healthSummary.readyForProduction) {
+      logger.error("⚠️ Database infrastructure not ready for production", {
+        status: healthSummary.status,
+        components: healthSummary.components,
+      });
+    }
+
+    logger.info("✅ Database monitoring systems initialized successfully");
+  }
+
+  /**
    * Graceful shutdown handler
    */
-  private gracefulShutdown(exitCode: number): void {
-    logger.info("Starting graceful shutdown process");
+  private async gracefulShutdown(exitCode: number): Promise<void> {
+    logger.info("🔄 Starting graceful shutdown process");
 
-    // Stop accepting new connections
-    // Clean up database connections
-    // Clean up Redis connections
-    // Stop background jobs
-    // Clean up error monitoring
+    try {
+      // Stop database performance monitoring
+      databasePerformanceMonitor.stopMonitoring();
+      logger.info("✅ Database performance monitoring stopped");
 
-    setTimeout(() => {
-      logger.info("Graceful shutdown completed");
+      // Shutdown database initialization service
+      await databaseInitializationService.shutdown();
+      logger.info("✅ Database infrastructure services stopped");
+
+      // Stop accepting new connections
+      // Clean up database connections
+      // Clean up Redis connections
+      // Stop background jobs
+      // Clean up error monitoring
+
+      logger.info("✅ Graceful shutdown completed successfully");
       process.exit(exitCode);
-    }, 10000); // 10 second timeout for shutdown
+
+    } catch (error) {
+      logger.error("❌ Error during graceful shutdown:", error);
+      
+      // Force exit after timeout
+      setTimeout(() => {
+        logger.error("🚫 Forced shutdown due to timeout");
+        process.exit(1);
+      }, 5000);
+    }
   }
 }
 
