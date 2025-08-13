@@ -368,14 +368,14 @@ export class AuthController {
         throw new AuthenticationError("Invalid credentials");
       }
 
-      // Check MFA if enabled
-      if (user.mfa_enabled && !mfaToken) {
-        throw new AuthenticationError("MFA token required", {
-          requiresMFA: true,
-        });
-      }
+      // Enforce MFA validation for MFA-enabled accounts
+      if (user.mfa_enabled) {
+        if (!mfaToken) {
+          throw new AuthenticationError("MFA token required", {
+            requiresMFA: true,
+          });
+        }
 
-      if (user.mfa_enabled && mfaToken) {
         const isValidMFA = user.verifyMfaToken(mfaToken);
         if (!isValidMFA) {
           await user.incrementFailedLoginAttempts();

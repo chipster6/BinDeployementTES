@@ -228,7 +228,7 @@ export abstract class BaseRepository<T extends Model = Model> {
   }
 
   /**
-   * Clear all cache for this repository
+   * Clear all cache for this repository (use sparingly)
    */
   protected async clearCache(): Promise<void> {
     if (!this.cacheEnabled) return;
@@ -247,6 +247,67 @@ export abstract class BaseRepository<T extends Model = Model> {
     } catch (error) {
       logger.warn("Cache clear failed", {
         repository: this.modelName,
+        error: error.message,
+      });
+    }
+  }
+
+  /**
+   * Clear specific cache keys (granular invalidation)
+   */
+  protected async clearCacheKeys(keys: string[]): Promise<void> {
+    if (!this.cacheEnabled || keys.length === 0) return;
+
+    try {
+      const fullKeys = keys.map(key => key.startsWith(this.cachePrefix) ? key : `${this.cachePrefix}:${key}`);
+      await redisClient.del(...fullKeys);
+      logger.debug("Repository cache keys cleared", {
+        repository: this.modelName,
+        keysCleared: fullKeys.length,
+        keys: fullKeys,
+      });
+    } catch (error) {
+      logger.warn("Cache key clear failed", {
+        repository: this.modelName,
+        keys,
+        error: error.message,
+      });
+    }
+  }
+
+  /**
+   * Clear cache for specific record ID
+   */
+  protected async clearCacheForId(id: string | number): Promise<void> {
+    if (!this.cacheEnabled) return;
+
+    try {
+      const patterns = [
+        `findById:*${id}*`,
+        `findOne:*${id}*`,
+        `findAll:*`,
+        `findAndCountAll:*`,
+        `count:*`,
+      ];
+
+      const keysToDelete: string[] = [];
+      for (const pattern of patterns) {
+        const keys = await redisClient.keys(`${this.cachePrefix}:${pattern}`);
+        keysToDelete.push(...keys);
+      }
+
+      if (keysToDelete.length > 0) {
+        await redisClient.del(...keysToDelete);
+        logger.debug("Repository cache cleared for ID", {
+          repository: this.modelName,
+          id,
+          keysCleared: keysToDelete.length,
+        });
+      }
+    } catch (error) {
+      logger.warn("Cache clear for ID failed", {
+        repository: this.modelName,
+        id,
         error: error.message,
       });
     }
@@ -514,9 +575,14 @@ export abstract class BaseRepository<T extends Model = Model> {
           transaction,
         });
 
-        // Clear cache
+        // Granular cache invalidation instead of clearing all cache
         if (clearCache) {
-          await this.clearCache();
+          const invalidationKeys = [
+            "findAll:*",
+            "findAndCountAll:*", 
+            "count:*",
+          ];
+          await this.clearCacheKeys(invalidationKeys);
         }
 
         return created;
@@ -573,9 +639,9 @@ export abstract class BaseRepository<T extends Model = Model> {
           transaction,
         });
 
-        // Clear cache
+        // Granular cache invalidation for specific ID
         if (clearCache) {
-          await this.clearCache();
+          await this.clearCacheForId(id);
         }
 
         return updated;
@@ -686,9 +752,9 @@ export abstract class BaseRepository<T extends Model = Model> {
           throw new NotFoundError(`${this.modelName} not found`);
         }
 
-        // Clear cache
+        // Granular cache invalidation for specific ID
         if (clearCache) {
-          await this.clearCache();
+          await this.clearCacheForId(id);
         }
 
         return deleted > 0;

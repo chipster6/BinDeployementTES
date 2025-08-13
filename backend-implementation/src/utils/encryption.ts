@@ -163,9 +163,9 @@ export async function decryptSensitiveData(
       throw new Error("Invalid encrypted data structure");
     }
 
-    // For backwards compatibility, handle missing tag field
+    // Validate required authentication tag for AES-256-GCM security
     if (!encryptedData.tag) {
-      encryptedData.tag = "";
+      throw new Error("Missing authentication tag - encrypted data may be corrupted or tampered with");
     }
 
     // Get encryption key

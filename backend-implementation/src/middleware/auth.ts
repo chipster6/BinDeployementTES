@@ -83,7 +83,7 @@ const extractToken = (req: Request): string | null => {
 const verifyToken = (token: string): JWTPayload => {
   try {
     // Explicitly specify algorithm to prevent algorithm confusion attacks
-    const payload = jwt.verify(token, config.jwt.secret, {
+    const payload = jwt.verify(token, config.jwt.publicKey, {
       algorithms: [config.jwt.algorithm as Algorithm], // Explicit algorithm validation
       issuer: config.jwt.issuer,
       audience: config.jwt.audience,
@@ -409,7 +409,7 @@ export function generateToken(payload: {
       role: payload.role,
       sessionId: payload.sessionId,
     },
-    config.jwt.secret,
+    config.jwt.privateKey,
     {
       algorithm: config.jwt.algorithm as Algorithm, // Explicit algorithm specification
       expiresIn: config.jwt.expiresIn,
@@ -431,7 +431,7 @@ export function generateRefreshToken(payload: {
       userId: payload.id,
       sessionId: payload.sessionId,
     },
-    config.jwt.refreshSecret,
+    config.jwt.refreshPrivateKey,
     {
       algorithm: config.jwt.algorithm as Algorithm, // Explicit algorithm specification
       expiresIn: config.jwt.refreshExpiresIn,

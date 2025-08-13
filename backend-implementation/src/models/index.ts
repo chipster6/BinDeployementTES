@@ -29,6 +29,8 @@ import Vehicle, { VehicleType, FuelType, VehicleStatus } from "./Vehicle";
 import Driver, { EmploymentStatus, LicenseClass } from "./Driver";
 import Route, { RouteType, RouteStatus, ServiceDay } from "./Route";
 import Bin, { BinType, BinStatus, BinMaterial } from "./Bin";
+import Permission, { PermissionAction } from "./Permission";
+import RolePermission from "./RolePermission";
 
 // Import additional models (will be created)
 // import ServiceEvent from './ServiceEvent';
@@ -268,6 +270,11 @@ export async function initializeModels(): Promise<void> {
       // Use alter: true to update existing tables without dropping them
       await database.sync({ alter: true });
       console.log("✅ Database models synchronized successfully");
+
+      // Initialize default permissions and role permissions
+      await Permission.initializeDefaultPermissions();
+      await RolePermission.initializeDefaultRolePermissions();
+      console.log("✅ Default permissions and role permissions initialized");
     }
 
     console.log("✅ All models initialized successfully");
@@ -287,6 +294,8 @@ export {
   Driver,
   Route,
   Bin,
+  Permission,
+  RolePermission,
 
   // User enums
   UserRole,
@@ -321,6 +330,9 @@ export {
   BinStatus,
   BinMaterial,
 
+  // Permission enums
+  PermissionAction,
+
   // Database instance
   database,
 };
@@ -334,6 +346,8 @@ export default {
   Driver,
   Route,
   Bin,
+  Permission,
+  RolePermission,
   database,
   initializeModels,
 };

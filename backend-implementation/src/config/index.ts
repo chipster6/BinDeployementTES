@@ -47,12 +47,14 @@ const envSchema = Joi.object({
   REDIS_KEY_PREFIX: Joi.string().default("waste_mgmt:"),
   REDIS_TTL_DEFAULT: Joi.number().default(3600),
 
-  // JWT
-  JWT_SECRET: Joi.string().min(32).required(),
-  JWT_REFRESH_SECRET: Joi.string().min(32).required(),
+  // JWT - RS256 requires public/private key pairs
+  JWT_PRIVATE_KEY: Joi.string().required(),
+  JWT_PUBLIC_KEY: Joi.string().required(),
+  JWT_REFRESH_PRIVATE_KEY: Joi.string().required(),
+  JWT_REFRESH_PUBLIC_KEY: Joi.string().required(),
   JWT_EXPIRES_IN: Joi.string().default("15m"),
   JWT_REFRESH_EXPIRES_IN: Joi.string().default("7d"),
-  JWT_ALGORITHM: Joi.string().default("HS256"),
+  JWT_ALGORITHM: Joi.string().default("RS256"),
 
   // Encryption
   ENCRYPTION_KEY: Joi.string().length(32).required(),
@@ -227,8 +229,10 @@ export const config = {
   },
 
   jwt: {
-    secret: envVars.JWT_SECRET,
-    refreshSecret: envVars.JWT_REFRESH_SECRET,
+    privateKey: envVars.JWT_PRIVATE_KEY.replace(/\\n/g, '\n'), // Handle escaped newlines
+    publicKey: envVars.JWT_PUBLIC_KEY.replace(/\\n/g, '\n'),
+    refreshPrivateKey: envVars.JWT_REFRESH_PRIVATE_KEY.replace(/\\n/g, '\n'),
+    refreshPublicKey: envVars.JWT_REFRESH_PUBLIC_KEY.replace(/\\n/g, '\n'),
     expiresIn: envVars.JWT_EXPIRES_IN,
     refreshExpiresIn: envVars.JWT_REFRESH_EXPIRES_IN,
     algorithm: envVars.JWT_ALGORITHM,

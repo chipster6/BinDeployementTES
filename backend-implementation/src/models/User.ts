@@ -240,53 +240,21 @@ export class User extends Model<
     return `${this.first_name} ${this.last_name}`.trim();
   }
 
-  public canAccess(resource: string, action: string): boolean {
-    if (this.role === UserRole.SUPER_ADMIN) {
-      return true;
+  public async canAccess(resource: string, action: string): Promise<boolean> {
+    // Use database-backed RBAC for security
+    const { RolePermission } = await import('./RolePermission');
+    const { PermissionAction } = await import('./Permission');
+    
+    // Convert string action to PermissionAction enum
+    const permissionAction = Object.values(PermissionAction).find(
+      (pa) => pa === action
+    ) as PermissionAction;
+    
+    if (!permissionAction) {
+      return false;
     }
 
-    const permissions: Record<UserRole, Record<string, string[]>> = {
-      [UserRole.SUPER_ADMIN]: {},
-      [UserRole.ADMIN]: {
-        users: ["read", "create", "update"],
-        customers: ["read", "create", "update", "delete"],
-        routes: ["read", "create", "update", "delete"],
-        vehicles: ["read", "create", "update", "delete"],
-        drivers: ["read", "create", "update"],
-        invoices: ["read", "create", "update"],
-        analytics: ["read"],
-      },
-      [UserRole.DISPATCHER]: {
-        routes: ["read", "update"],
-        vehicles: ["read"],
-        drivers: ["read"],
-        service_events: ["read", "create", "update"],
-        customers: ["read"],
-      },
-      [UserRole.OFFICE_STAFF]: {
-        customers: ["read", "create", "update"],
-        invoices: ["read", "create", "update"],
-        service_events: ["read", "update"],
-      },
-      [UserRole.DRIVER]: {
-        routes: ["read"],
-        service_events: ["read", "update"],
-        vehicles: ["read"],
-      },
-      [UserRole.CUSTOMER]: {
-        invoices: ["read"],
-        service_events: ["read"],
-      },
-      [UserRole.CUSTOMER_STAFF]: {
-        invoices: ["read"],
-        service_events: ["read"],
-      },
-    };
-
-    const rolePermissions = permissions[this.role] || {};
-    const resourcePermissions = rolePermissions[resource] || [];
-
-    return resourcePermissions.includes(action);
+    return await RolePermission.hasPermission(this.role, resource, permissionAction);
   }
 
   public isPasswordExpired(): boolean {

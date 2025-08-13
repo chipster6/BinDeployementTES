@@ -36,6 +36,7 @@ import {
 import { User } from "../User";
 import bcrypt from "bcrypt";
 import speakeasy from "speakeasy";
+import { encryptDatabaseField, decryptDatabaseField } from "@/utils/encryption";
 
 /**
  * MFA Methods Enum
@@ -466,7 +467,8 @@ export class UserSecurity extends Model<UserSecurity> {
       issuer: "Waste Management System",
     });
 
-    this.mfaSecret = secret.base32; // Should be encrypted in production
+    // Encrypt MFA secret before storing in database for security
+    this.mfaSecret = await encryptDatabaseField(secret.base32);
     this.mfaMethod = MfaMethod.TOTP;
 
     await this.save();
@@ -480,15 +482,24 @@ export class UserSecurity extends Model<UserSecurity> {
   /**
    * Verify TOTP code
    */
-  verifyTotp(token: string): boolean {
+  async verifyTotp(token: string): Promise<boolean> {
     if (!this.mfaSecret) return false;
 
-    return speakeasy.totp.verify({
-      secret: this.mfaSecret,
-      encoding: "base32",
-      token,
-      window: 1,
-    });
+    try {
+      // Decrypt the MFA secret for verification
+      const decryptedSecret = await decryptDatabaseField(this.mfaSecret);
+      if (!decryptedSecret) return false;
+
+      return speakeasy.totp.verify({
+        secret: decryptedSecret,
+        encoding: "base32",
+        token,
+        window: 1,
+      });
+    } catch (error) {
+      console.error("MFA secret decryption failed:", error);
+      return false;
+    }
   }
 
   /**

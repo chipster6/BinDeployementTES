@@ -102,15 +102,15 @@ interface PasswordChangeData {
  * User service class
  */
 export class UserService extends BaseService<User> {
-  private readonly JWT_SECRET: string;
+  private readonly JWT_PRIVATE_KEY: string;
   private readonly JWT_EXPIRES_IN: string;
   private readonly REFRESH_TOKEN_EXPIRES_IN: string;
 
   constructor() {
     super(User, "UserService");
-    this.JWT_SECRET = config.auth.jwtSecret;
-    this.JWT_EXPIRES_IN = config.auth.jwtExpiresIn;
-    this.REFRESH_TOKEN_EXPIRES_IN = config.auth.refreshTokenExpiresIn;
+    this.JWT_PRIVATE_KEY = config.jwt.privateKey;
+    this.JWT_EXPIRES_IN = config.jwt.expiresIn;
+    this.REFRESH_TOKEN_EXPIRES_IN = config.jwt.refreshExpiresIn;
   }
 
   /**
@@ -710,8 +710,11 @@ export class UserService extends BaseService<User> {
       organizationId: user.organizationId,
     };
 
-    const token = jwt.sign(payload, this.JWT_SECRET, {
+    const token = jwt.sign(payload, this.JWT_PRIVATE_KEY, {
+      algorithm: 'RS256',
       expiresIn: this.JWT_EXPIRES_IN,
+      issuer: config.jwt.issuer,
+      audience: config.jwt.audience,
     });
 
     const refreshToken = generateSecureToken(64);
