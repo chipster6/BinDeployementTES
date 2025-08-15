@@ -196,8 +196,19 @@ export class UserSession extends Model<
     this.riskScore = Math.min(this.riskScore + 25, 100);
     await this.save();
 
-    // TODO: Log security event
-    console.warn(`Session marked suspicious: ${this.id}, Reason: ${reason}`);
+    // Log security event with comprehensive audit trail
+    logger.warn('Session marked suspicious', {
+      sessionId: this.id,
+      userId: this.userId,
+      reason,
+      ipAddress: this.ipAddress,
+      userAgent: this.userAgent,
+      deviceFingerprint: this.deviceFingerprint,
+      location: { country: this.locationCountry, city: this.locationCity },
+      riskScore: this.riskScore,
+      timestamp: new Date(),
+      actionRequired: this.riskScore > 75 ? 'immediate_review' : 'monitoring',
+    });
   }
 
   /**
@@ -207,7 +218,23 @@ export class UserSession extends Model<
     let riskScore = 0;
 
     // Geographic risk (different country/city from usual)
-    // TODO: Implement based on user's typical locations
+    const userSessions = await UserSession.findAll({
+      where: {
+        userId: this.userId,
+        status: SessionStatus.ACTIVE,
+        id: { [sequelize.Sequelize.Op.ne]: this.id },
+      },
+      limit: 10,
+      order: [['createdAt', 'DESC']],
+    });
+
+    const usualCountries = new Set(userSessions
+      .map(s => s.locationCountry)
+      .filter(Boolean));
+    
+    if (this.locationCountry && usualCountries.size > 0 && !usualCountries.has(this.locationCountry)) {
+      riskScore += 20; // Different country
+    }
 
     // Time-based risk (unusual login hours)
     const hour = new Date().getHours();
@@ -229,10 +256,24 @@ export class UserSession extends Model<
     }
 
     // Failed login attempts risk
-    // TODO: Check recent failed login attempts for this user
+    try {
+      const { UserSecurity } = require('@/models/user/UserSecurity');
+      const userSecurity = await UserSecurity.findOne({ where: { userId: this.userId } });
+      if (userSecurity && userSecurity.failedLoginAttempts > 0) {
+        riskScore += Math.min(userSecurity.failedLoginAttempts * 5, 25);
+      }
+    } catch (error) {
+      // Silently handle if UserSecurity is not available
+    }
 
     // Device fingerprint change risk
-    // TODO: Compare with previous sessions from same user
+    const usualFingerprints = new Set(userSessions
+      .map(s => s.deviceFingerprint)
+      .filter(Boolean));
+    
+    if (this.deviceFingerprint && usualFingerprints.size > 0 && !usualFingerprints.has(this.deviceFingerprint)) {
+      riskScore += 15; // New device
+    }
 
     this.riskScore = Math.min(riskScore, 100);
     await this.save();

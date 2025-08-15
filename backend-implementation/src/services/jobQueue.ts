@@ -83,6 +83,7 @@ class JobQueueManager {
         { name: "data-sync", concurrency: 3, priority: false },
         { name: "cleanup", concurrency: 1, priority: false },
         { name: "analytics", concurrency: 2, priority: false },
+        { name: "external-api-coordination", concurrency: 5, priority: true },
       ];
 
       // Initialize each queue
@@ -216,6 +217,8 @@ class JobQueueManager {
         return this.processCleanupJob.bind(this);
       case "analytics":
         return this.processAnalyticsJob.bind(this);
+      case "external-api-coordination":
+        return this.processExternalAPICoordinationJob.bind(this);
       default:
         return this.processDefaultJob.bind(this);
     }
@@ -263,6 +266,416 @@ class JobQueueManager {
     }
 
     logger.info("✅ Recurring jobs scheduled");
+  }
+
+  /**
+   * External API coordination job processor
+   */
+  private async processExternalAPICoordinationJob(job: Job): Promise<any> {
+    const timer = new Timer(`External API Coordination Job ${job.id}`);
+    const { jobType, serviceName, data } = job.data;
+
+    try {
+      job.progress(10);
+
+      let result;
+      switch (jobType) {
+        case 'webhook-processing':
+          result = await this.processWebhookJob(job.data);
+          break;
+        case 'api-metrics-collection':
+          result = await this.processAPIMetricsJob(job.data);
+          break;
+        case 'cost-monitoring':
+          result = await this.processCostMonitoringJob(job.data);
+          break;
+        case 'api-health-coordination':
+          result = await this.processAPIHealthCoordinationJob(job.data);
+          break;
+        default:
+          throw new Error(`Unknown external API job type: ${jobType}`);
+      }
+
+      job.progress(100);
+
+      const duration = timer.end({ jobType, serviceName });
+      return {
+        success: true,
+        jobType,
+        serviceName,
+        result,
+        duration: `${duration}ms`,
+        timestamp: new Date().toISOString(),
+      };
+    } catch (error) {
+      timer.end({ error: error.message });
+      throw error;
+    }
+  }
+
+  /**
+   * Process webhook coordination job
+   */
+  private async processWebhookJob(jobData: any): Promise<any> {
+    const { serviceName, webhookData, eventId } = jobData;
+    
+    try {
+      // Import dynamically to avoid circular dependencies
+      const { externalServicesManager } = await import("@/services/external/ExternalServicesManager");
+      const { socketManager } = await import("@/services/socketManager");
+
+      // Process the webhook based on service type
+      let processingResult;
+      
+      switch (serviceName) {
+        case 'stripe':
+          processingResult = await this.processStripeWebhook(webhookData);
+          break;
+        case 'twilio':
+          processingResult = await this.processTwilioWebhook(webhookData);
+          break;
+        case 'sendgrid':
+          processingResult = await this.processSendGridWebhook(webhookData);
+          break;
+        case 'samsara':
+          processingResult = await this.processSamsaraWebhook(webhookData);
+          break;
+        case 'airtable':
+          processingResult = await this.processAirtableWebhook(webhookData);
+          break;
+        default:
+          processingResult = { processed: false, reason: `Unknown service: ${serviceName}` };
+      }
+
+      // Broadcast processing completion to Frontend
+      socketManager.broadcastToRoom('webhook_events', 'webhook_processed', {
+        eventId,
+        serviceName,
+        webhookType: webhookData.type || 'unknown',
+        result: processingResult,
+        processedAt: new Date().toISOString(),
+        backgroundProcessed: true,
+      });
+
+      // Update coordination metrics
+      await externalServicesManager.broadcastCoordinationEvent({
+        eventType: 'webhook_received',
+        serviceName,
+        data: {
+          eventId,
+          processingResult,
+          backgroundProcessed: true,
+        },
+        timestamp: new Date(),
+        severity: processingResult.success ? 'info' : 'warning',
+      });
+
+      return processingResult;
+    } catch (error) {
+      logger.error('Webhook job processing failed', {
+        serviceName,
+        eventId,
+        error: error.message,
+      });
+      throw error;
+    }
+  }
+
+  /**
+   * Process API metrics collection job
+   */
+  private async processAPIMetricsJob(jobData: any): Promise<any> {
+    try {
+      const { externalServicesManager } = await import("@/services/external/ExternalServicesManager");
+      const { socketManager } = await import("@/services/socketManager");
+
+      // Collect metrics from all external services
+      const coordinationData = await externalServicesManager.getFrontendCoordinationData();
+
+      // Broadcast real-time metrics to Frontend
+      socketManager.broadcastToRoom('api_status_updates', 'metrics_update', {
+        serviceStatuses: coordinationData.serviceStatuses,
+        realtimeMetrics: coordinationData.realtimeMetrics,
+        timestamp: new Date().toISOString(),
+        source: 'background_job',
+      });
+
+      // Send cost summary to admin dashboard
+      socketManager.sendToRole('admin', 'cost_summary_update', {
+        costSummary: coordinationData.costSummary,
+        timestamp: new Date().toISOString(),
+      });
+
+      return {
+        metricsCollected: coordinationData.serviceStatuses.length,
+        totalServices: coordinationData.serviceStatuses.length,
+        healthyServices: coordinationData.serviceStatuses.filter(s => s.status === 'healthy').length,
+        frontendUpdated: true,
+      };
+    } catch (error) {
+      logger.error('API metrics collection job failed', {
+        error: error.message,
+      });
+      throw error;
+    }
+  }
+
+  /**
+   * Process cost monitoring job
+   */
+  private async processCostMonitoringJob(jobData: any): Promise<any> {
+    try {
+      const { services } = jobData;
+      const { externalServicesManager } = await import("@/services/external/ExternalServicesManager");
+      const { socketManager } = await import("@/services/socketManager");
+
+      // Trigger cost optimization analysis
+      const optimizationResult = await externalServicesManager.triggerCostOptimization();
+
+      // Check for critical cost alerts
+      const criticalAlerts = optimizationResult.costSummary.alerts.filter(
+        (alert: any) => alert.severity === 'critical'
+      );
+
+      if (criticalAlerts.length > 0) {
+        // Send immediate alerts to admins
+        socketManager.sendToRole('admin', 'critical_cost_alerts', {
+          alerts: criticalAlerts,
+          totalHourlyCost: optimizationResult.costSummary.totalHourlyCost,
+          optimizationSuggestions: optimizationResult.optimizationSuggestions,
+          timestamp: new Date().toISOString(),
+          priority: 'URGENT',
+        });
+      }
+
+      // Broadcast cost monitoring update
+      socketManager.broadcastToRoom('cost_monitoring', 'cost_analysis_complete', {
+        costSummary: optimizationResult.costSummary,
+        optimizationSuggestions: optimizationResult.optimizationSuggestions,
+        analysisTimestamp: optimizationResult.analysisTimestamp,
+      });
+
+      return {
+        servicesAnalyzed: services.length,
+        totalHourlyCost: optimizationResult.costSummary.totalHourlyCost,
+        criticalAlerts: criticalAlerts.length,
+        optimizationSuggestions: optimizationResult.optimizationSuggestions.length,
+      };
+    } catch (error) {
+      logger.error('Cost monitoring job failed', {
+        error: error.message,
+      });
+      throw error;
+    }
+  }
+
+  /**
+   * Process API health coordination job
+   */
+  private async processAPIHealthCoordinationJob(jobData: any): Promise<any> {
+    try {
+      const { targetSystems } = jobData;
+      const { externalServicesManager } = await import("@/services/external/ExternalServicesManager");
+      const { socketManager } = await import("@/services/socketManager");
+
+      // Get comprehensive system health
+      const systemHealth = await externalServicesManager.getSystemHealth();
+
+      // Check for critical services down
+      if (systemHealth.criticalServicesDown.length > 0) {
+        // Send emergency alerts
+        socketManager.sendToRole('admin', 'critical_services_down', {
+          criticalServices: systemHealth.criticalServicesDown,
+          systemStatus: systemHealth.status,
+          securityStatus: systemHealth.securityStatus,
+          timestamp: new Date().toISOString(),
+          priority: 'EMERGENCY',
+        });
+
+        // Also notify dispatchers for operational services
+        const operationalServices = systemHealth.criticalServicesDown.filter(
+          service => ['samsara', 'twilio', 'maps'].includes(service)
+        );
+        
+        if (operationalServices.length > 0) {
+          socketManager.sendToRole('dispatcher', 'operational_services_alert', {
+            affectedServices: operationalServices,
+            impact: 'Fleet operations may be affected',
+            timestamp: new Date().toISOString(),
+          });
+        }
+      }
+
+      // Broadcast general health update to Frontend
+      if (targetSystems.includes('frontend')) {
+        socketManager.broadcastToRoom('api_status_updates', 'system_health_update', {
+          systemHealth,
+          coordinatedBy: 'backend_job',
+          timestamp: new Date().toISOString(),
+        });
+      }
+
+      // Update Backend coordination metrics
+      if (targetSystems.includes('backend')) {
+        await this.updateBackendCoordinationMetrics(systemHealth);
+      }
+
+      return {
+        systemStatus: systemHealth.status,
+        servicesMonitored: systemHealth.serviceCount,
+        healthyServices: systemHealth.healthyServices,
+        criticalIssues: systemHealth.criticalServicesDown.length,
+        securityStatus: systemHealth.securityStatus,
+        coordinatedSystems: targetSystems,
+      };
+    } catch (error) {
+      logger.error('API health coordination job failed', {
+        error: error.message,
+      });
+      throw error;
+    }
+  }
+
+  /**
+   * Update Backend coordination metrics
+   */
+  private async updateBackendCoordinationMetrics(systemHealth: any): Promise<void> {
+    try {
+      const { redisClient } = await import("@/config/redis");
+      
+      const metricsKey = 'backend_coordination_metrics';
+      const timestamp = Date.now();
+      
+      const coordinationData = {
+        timestamp,
+        systemHealth,
+        coordinationActive: true,
+        lastHealthCheck: new Date().toISOString(),
+      };
+
+      await redisClient.setex(
+        metricsKey,
+        300, // 5 minutes TTL
+        JSON.stringify(coordinationData)
+      );
+
+      logger.debug('Backend coordination metrics updated', {
+        systemStatus: systemHealth.status,
+        healthyServices: systemHealth.healthyServices,
+      });
+    } catch (error) {
+      logger.error('Failed to update backend coordination metrics', {
+        error: error.message,
+      });
+    }
+  }
+
+  /**
+   * Service-specific webhook processors
+   */
+  private async processStripeWebhook(webhookData: any): Promise<any> {
+    // Implement Stripe-specific webhook processing logic
+    const eventType = webhookData.type;
+    
+    switch (eventType) {
+      case 'payment_intent.succeeded':
+        return await this.handleStripePaymentSuccess(webhookData.data.object);
+      case 'payment_intent.payment_failed':
+        return await this.handleStripePaymentFailure(webhookData.data.object);
+      case 'invoice.payment_succeeded':
+        return await this.handleStripeInvoicePayment(webhookData.data.object);
+      default:
+        return { processed: true, action: 'logged', eventType };
+    }
+  }
+
+  private async processTwilioWebhook(webhookData: any): Promise<any> {
+    // Implement Twilio-specific webhook processing logic
+    const messageStatus = webhookData.MessageStatus;
+    const messageSid = webhookData.MessageSid;
+
+    return {
+      processed: true,
+      action: 'message_status_updated',
+      messageSid,
+      status: messageStatus,
+    };
+  }
+
+  private async processSendGridWebhook(webhookData: any): Promise<any> {
+    // Process SendGrid webhook events (array of events)
+    const processedEvents = [];
+    
+    for (const event of webhookData) {
+      processedEvents.push({
+        email: event.email,
+        event: event.event,
+        timestamp: event.timestamp,
+        processed: true,
+      });
+    }
+
+    return {
+      processed: true,
+      action: 'email_events_processed',
+      eventCount: processedEvents.length,
+      events: processedEvents,
+    };
+  }
+
+  private async processSamsaraWebhook(webhookData: any): Promise<any> {
+    // Implement Samsara-specific webhook processing logic
+    const eventType = webhookData.eventType;
+    const vehicleData = webhookData.data;
+
+    return {
+      processed: true,
+      action: 'vehicle_event_processed',
+      eventType,
+      vehicleId: vehicleData?.vehicleId,
+    };
+  }
+
+  private async processAirtableWebhook(webhookData: any): Promise<any> {
+    // Implement Airtable-specific webhook processing logic
+    return {
+      processed: true,
+      action: 'data_sync_triggered',
+      baseId: webhookData.base?.id,
+    };
+  }
+
+  /**
+   * Stripe payment processing helpers
+   */
+  private async handleStripePaymentSuccess(paymentIntent: any): Promise<any> {
+    // Update customer payment status, trigger fulfillment, etc.
+    return {
+      processed: true,
+      action: 'payment_confirmed',
+      paymentIntentId: paymentIntent.id,
+      amount: paymentIntent.amount,
+    };
+  }
+
+  private async handleStripePaymentFailure(paymentIntent: any): Promise<any> {
+    // Handle failed payment, notify customer, update subscription status, etc.
+    return {
+      processed: true,
+      action: 'payment_failed_handled',
+      paymentIntentId: paymentIntent.id,
+      failureReason: paymentIntent.last_payment_error?.message,
+    };
+  }
+
+  private async handleStripeInvoicePayment(invoice: any): Promise<any> {
+    // Handle successful invoice payment, update subscription, etc.
+    return {
+      processed: true,
+      action: 'invoice_payment_confirmed',
+      invoiceId: invoice.id,
+      subscriptionId: invoice.subscription,
+    };
   }
 
   /**

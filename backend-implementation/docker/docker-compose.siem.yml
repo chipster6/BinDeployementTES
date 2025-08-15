@@ -1,0 +1,477 @@
+# ============================================================================
+# ENTERPRISE SIEM/IDS INFRASTRUCTURE DEPLOYMENT
+# ============================================================================
+#
+# Complete Security Information and Event Management (SIEM) system
+# Intrusion Detection System (IDS) deployment
+# Coordinated for TIER 1 Advanced Threat Protection
+#
+# DevOps-Agent SIEM/IDS Infrastructure for 100% Security Grade Achievement
+# Parallel Coordination: Innovation-Architect + Backend-Agent + External-API + Frontend-Agent
+#
+# Security Components: ELK Stack + Suricata + Wazuh + Falco + OSQuery
+# Target: 2-3% security grade improvement for 100% security achievement
+#
+# Created by: DEVOPS-AGENT
+# Date: 2025-08-14
+# Version: 1.0.0 - Production SIEM/IDS Infrastructure
+# ============================================================================
+
+version: '3.8'
+
+services:
+  # ========================================
+  # ELASTICSEARCH - SIEM DATA STORAGE
+  # ========================================
+  elasticsearch:
+    image: elasticsearch:8.11.0
+    container_name: siem-elasticsearch
+    restart: unless-stopped
+    environment:
+      - node.name=siem-elasticsearch
+      - cluster.name=waste-mgmt-siem-cluster
+      - discovery.type=single-node
+      - bootstrap.memory_lock=true
+      - "ES_JAVA_OPTS=-Xms1g -Xmx1g"
+      - xpack.security.enabled=true
+      - xpack.security.enrollment.enabled=true
+      - xpack.security.http.ssl.enabled=false
+      - xpack.security.transport.ssl.enabled=false
+      - ELASTIC_PASSWORD=${ELASTICSEARCH_PASSWORD:-SecureElastic2025!}
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+    volumes:
+      - elasticsearch_data:/usr/share/elasticsearch/data
+      - ./siem/elasticsearch/config/elasticsearch.yml:/usr/share/elasticsearch/config/elasticsearch.yml:ro
+      - ./siem/elasticsearch/logs:/usr/share/elasticsearch/logs
+    ports:
+      - "9200:9200"
+    networks:
+      - siem-network
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+          cpus: '1.0'
+        reservations:
+          memory: 1G
+          cpus: '0.5'
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:9200/_cluster/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+  # ========================================
+  # LOGSTASH - LOG PROCESSING ENGINE
+  # ========================================
+  logstash:
+    image: logstash:8.11.0
+    container_name: siem-logstash
+    restart: unless-stopped
+    environment:
+      - "LS_JAVA_OPTS=-Xmx512m -Xms512m"
+      - ELASTICSEARCH_URL=http://elasticsearch:9200
+      - ELASTICSEARCH_USER=elastic
+      - ELASTICSEARCH_PASSWORD=${ELASTICSEARCH_PASSWORD:-SecureElastic2025!}
+    volumes:
+      - ./siem/logstash/config:/usr/share/logstash/config:ro
+      - ./siem/logstash/pipeline:/usr/share/logstash/pipeline:ro
+      - ./siem/logstash/logs:/usr/share/logstash/logs
+      - /var/log:/var/log:ro
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+    ports:
+      - "5044:5044"  # Beats input
+      - "5000:5000"  # TCP input
+      - "9600:9600"  # Logstash monitoring
+    networks:
+      - siem-network
+    depends_on:
+      - elasticsearch
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+          cpus: '0.5'
+        reservations:
+          memory: 512M
+          cpus: '0.25'
+
+  # ========================================
+  # KIBANA - SIEM VISUALIZATION DASHBOARD
+  # ========================================
+  kibana:
+    image: kibana:8.11.0
+    container_name: siem-kibana
+    restart: unless-stopped
+    environment:
+      - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
+      - ELASTICSEARCH_USERNAME=elastic
+      - ELASTICSEARCH_PASSWORD=${ELASTICSEARCH_PASSWORD:-SecureElastic2025!}
+      - SERVER_NAME=waste-mgmt-siem
+      - SERVER_BASEPATH=/siem
+      - XPACK_SECURITY_ENABLED=true
+      - XPACK_ENCRYPTEDSAVEDOBJECTS_ENCRYPTIONKEY=${KIBANA_ENCRYPTION_KEY:-32CharacterKibanaEncryptionKey123}
+    volumes:
+      - ./siem/kibana/config/kibana.yml:/usr/share/kibana/config/kibana.yml:ro
+      - kibana_data:/usr/share/kibana/data
+    ports:
+      - "5601:5601"
+    networks:
+      - siem-network
+    depends_on:
+      - elasticsearch
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+          cpus: '0.5'
+
+  # ========================================
+  # SURICATA - NETWORK INTRUSION DETECTION
+  # ========================================
+  suricata:
+    image: jasonish/suricata:latest
+    container_name: siem-suricata
+    restart: unless-stopped
+    network_mode: host
+    cap_add:
+      - NET_ADMIN
+      - SYS_NICE
+    environment:
+      - SURICATA_OPTIONS=-i any
+    volumes:
+      - ./siem/suricata/config/suricata.yaml:/etc/suricata/suricata.yaml:ro
+      - ./siem/suricata/rules:/var/lib/suricata/rules
+      - ./siem/suricata/logs:/var/log/suricata
+      - /var/log/suricata:/var/log/suricata
+    command: ["/usr/bin/suricata", "-c", "/etc/suricata/suricata.yaml", "-i", "any", "--init-errors-fatal"]
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: '0.5'
+
+  # ========================================
+  # WAZUH MANAGER - SECURITY MONITORING
+  # ========================================
+  wazuh-manager:
+    image: wazuh/wazuh-manager:4.8.0
+    container_name: siem-wazuh-manager
+    restart: unless-stopped
+    environment:
+      - INDEXER_URL=https://elasticsearch:9200
+      - INDEXER_USERNAME=elastic
+      - INDEXER_PASSWORD=${ELASTICSEARCH_PASSWORD:-SecureElastic2025!}
+      - FILEBEAT_SSL_VERIFICATION_MODE=none
+    volumes:
+      - ./siem/wazuh/config/ossec.conf:/wazuh-config-mount/etc/ossec.conf:ro
+      - ./siem/wazuh/config/rules:/var/ossec/etc/rules
+      - ./siem/wazuh/logs:/var/ossec/logs
+      - wazuh_api_configuration:/var/ossec/api/configuration
+      - wazuh_etc:/var/ossec/etc
+      - wazuh_logs:/var/ossec/logs
+      - wazuh_queue:/var/ossec/queue
+      - wazuh_var_multigroups:/var/ossec/var/multigroups
+      - wazuh_integrations:/var/ossec/integrations-store
+      - wazuh_active_response:/var/ossec/active-response/bin
+      - wazuh_agentless:/var/ossec/agentless
+      - wazuh_wodles:/var/ossec/wodles
+    ports:
+      - "1514:1514"  # Wazuh agent connections
+      - "1515:1515"  # Wazuh agent enrollment
+      - "55000:55000"  # Wazuh API
+    networks:
+      - siem-network
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+          cpus: '0.5'
+
+  # ========================================
+  # FALCO - RUNTIME SECURITY MONITORING
+  # ========================================
+  falco:
+    image: falcosecurity/falco:latest
+    container_name: siem-falco
+    restart: unless-stopped
+    privileged: true
+    volumes:
+      - /var/run/docker.sock:/host/var/run/docker.sock
+      - /dev:/host/dev
+      - /proc:/host/proc:ro
+      - /boot:/host/boot:ro
+      - /lib/modules:/host/lib/modules:ro
+      - /usr:/host/usr:ro
+      - /etc:/host/etc:ro
+      - ./siem/falco/config/falco.yaml:/etc/falco/falco.yaml:ro
+      - ./siem/falco/rules:/etc/falco/rules.d
+      - ./siem/falco/logs:/var/log/falco
+    environment:
+      - FALCO_GRPC_ENABLED=true
+      - FALCO_GRPC_BIND_ADDRESS=0.0.0.0:5060
+      - FALCO_GRPC_THREADINESS=0
+      - FALCO_LOG_LEVEL=info
+    ports:
+      - "5060:5060"  # Falco gRPC API
+    networks:
+      - siem-network
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: '0.25'
+
+  # ========================================
+  # OSQUERY - HOST-BASED MONITORING
+  # ========================================
+  osquery:
+    image: osquery/osquery:latest
+    container_name: siem-osquery
+    restart: unless-stopped
+    privileged: true
+    volumes:
+      - /var/log:/var/log:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./siem/osquery/config/osquery.conf:/etc/osquery/osquery.conf:ro
+      - ./siem/osquery/logs:/var/log/osquery
+    environment:
+      - OSQUERY_ENROLL_SECRET=${OSQUERY_ENROLL_SECRET:-WasteManagementOSQuerySecret2025}
+    networks:
+      - siem-network
+    command: ["osqueryd", "--flagfile=/etc/osquery/osquery.conf", "--disable_events=false"]
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          cpus: '0.25'
+
+  # ========================================
+  # FILEBEAT - LOG SHIPPING AGENT
+  # ========================================
+  filebeat:
+    image: elastic/filebeat:8.11.0
+    container_name: siem-filebeat
+    restart: unless-stopped
+    user: root
+    volumes:
+      - ./siem/filebeat/config/filebeat.yml:/usr/share/filebeat/filebeat.yml:ro
+      - /var/log:/var/log:ro
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - filebeat_data:/usr/share/filebeat/data
+    environment:
+      - ELASTICSEARCH_HOST=elasticsearch:9200
+      - ELASTICSEARCH_USERNAME=elastic
+      - ELASTICSEARCH_PASSWORD=${ELASTICSEARCH_PASSWORD:-SecureElastic2025!}
+      - LOGSTASH_HOST=logstash:5044
+    networks:
+      - siem-network
+    depends_on:
+      - elasticsearch
+      - logstash
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          cpus: '0.25'
+
+  # ========================================
+  # SECURITY ORCHESTRATION PLATFORM
+  # ========================================
+  security-orchestrator:
+    build:
+      context: ./siem/orchestrator
+      dockerfile: Dockerfile
+    container_name: siem-security-orchestrator
+    restart: unless-stopped
+    environment:
+      - ELASTICSEARCH_URL=http://elasticsearch:9200
+      - ELASTICSEARCH_USER=elastic
+      - ELASTICSEARCH_PASSWORD=${ELASTICSEARCH_PASSWORD:-SecureElastic2025!}
+      - WAZUH_API_URL=https://wazuh-manager:55000
+      - WAZUH_API_USER=${WAZUH_API_USER:-wazuh}
+      - WAZUH_API_PASSWORD=${WAZUH_API_PASSWORD:-SecureWazuh2025!}
+      - SLACK_WEBHOOK_URL=${SLACK_WEBHOOK_URL}
+      - EMAIL_SMTP_HOST=${EMAIL_SMTP_HOST}
+      - EMAIL_FROM=${EMAIL_FROM}
+    volumes:
+      - ./siem/orchestrator/config:/app/config:ro
+      - ./siem/orchestrator/playbooks:/app/playbooks:ro
+      - ./siem/orchestrator/logs:/app/logs
+    ports:
+      - "8080:8080"  # Orchestrator API
+    networks:
+      - siem-network
+    depends_on:
+      - elasticsearch
+      - wazuh-manager
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: '0.25'
+
+  # ========================================
+  # PROMETHEUS SECURITY METRICS
+  # ========================================
+  prometheus-security:
+    image: prom/prometheus:latest
+    container_name: siem-prometheus-security
+    restart: unless-stopped
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--storage.tsdb.retention.time=30d'
+      - '--web.enable-lifecycle'
+      - '--web.route-prefix=/security-metrics'
+    volumes:
+      - ./siem/prometheus/config/prometheus-security.yml:/etc/prometheus/prometheus.yml:ro
+      - ./siem/prometheus/rules:/etc/prometheus/rules:ro
+      - prometheus_security_data:/prometheus
+    ports:
+      - "9091:9090"
+    networks:
+      - siem-network
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: '0.25'
+
+  # ========================================
+  # GRAFANA SECURITY DASHBOARDS
+  # ========================================
+  grafana-security:
+    image: grafana/grafana:latest
+    container_name: siem-grafana-security
+    restart: unless-stopped
+    environment:
+      - GF_SECURITY_ADMIN_USER=${GRAFANA_SECURITY_USER:-admin}
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_SECURITY_PASSWORD:-SecureGrafana2025!}
+      - GF_SECURITY_SECRET_KEY=${GRAFANA_SECURITY_SECRET:-32CharSecretKeyForGrafanaAuth123}
+      - GF_SECURITY_DISABLE_GRAVATAR=true
+      - GF_ANALYTICS_REPORTING_ENABLED=false
+      - GF_ANALYTICS_CHECK_FOR_UPDATES=false
+      - GF_SERVER_ROOT_URL=%(protocol)s://%(domain)s:%(http_port)s/security-dashboards/
+      - GF_SERVER_SERVE_FROM_SUB_PATH=true
+    volumes:
+      - ./siem/grafana/config/grafana.ini:/etc/grafana/grafana.ini:ro
+      - ./siem/grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - ./siem/grafana/provisioning:/etc/grafana/provisioning:ro
+      - grafana_security_data:/var/lib/grafana
+    ports:
+      - "3001:3000"
+    networks:
+      - siem-network
+    depends_on:
+      - prometheus-security
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: '0.25'
+
+  # ========================================
+  # ALERTMANAGER SECURITY
+  # ========================================
+  alertmanager-security:
+    image: prom/alertmanager:latest
+    container_name: siem-alertmanager
+    restart: unless-stopped
+    command:
+      - '--config.file=/etc/alertmanager/alertmanager.yml'
+      - '--storage.path=/alertmanager'
+      - '--web.external-url=http://localhost:9093/alerts'
+      - '--web.route-prefix=/alerts'
+    volumes:
+      - ./siem/alertmanager/config/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
+      - alertmanager_data:/alertmanager
+    ports:
+      - "9093:9093"
+    networks:
+      - siem-network
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+          cpus: '0.1'
+
+# ========================================
+# VOLUMES FOR PERSISTENT DATA
+# ========================================
+volumes:
+  elasticsearch_data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: /data/waste-mgmt/siem/elasticsearch
+  
+  kibana_data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: /data/waste-mgmt/siem/kibana
+      
+  filebeat_data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: /data/waste-mgmt/siem/filebeat
+      
+  prometheus_security_data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: /data/waste-mgmt/siem/prometheus
+      
+  grafana_security_data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: /data/waste-mgmt/siem/grafana
+      
+  alertmanager_data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: /data/waste-mgmt/siem/alertmanager
+
+  # Wazuh persistent volumes
+  wazuh_api_configuration:
+  wazuh_etc:
+  wazuh_logs:
+  wazuh_queue:
+  wazuh_var_multigroups:
+  wazuh_integrations:
+  wazuh_active_response:
+  wazuh_agentless:
+  wazuh_wodles:
+
+# ========================================
+# NETWORKS FOR SIEM INFRASTRUCTURE
+# ========================================
+networks:
+  siem-network:
+    driver: bridge
+    ipam:
+      driver: default
+      config:
+        - subnet: 172.30.0.0/16
+          gateway: 172.30.0.1
+  # Connect to main application network
+  default:
+    external:
+      name: waste-mgmt-network

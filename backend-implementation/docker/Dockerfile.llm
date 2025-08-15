@@ -1,0 +1,242 @@
+# ============================================================================
+# LOCAL LLM SERVICE DOCKERFILE (LLAMA 3.1 8B)
+# ============================================================================
+#
+# GPU-enabled Dockerfile for local LLM inference using Llama 3.1 8B
+# Supports customer service automation and business intelligence generation
+# Optimized for production deployment with resource management
+#
+# Created by: DevOps-Agent (MESH Coordination coord-ai-ml-mesh-001)
+# Date: 2025-08-13
+# Version: 1.0.0 - Production Ready LLM Infrastructure
+# ============================================================================
+
+# ============================================================================
+# Stage 1: CUDA base image for GPU acceleration
+# ============================================================================
+ARG CUDA_VERSION=11.8
+FROM nvidia/cuda:${CUDA_VERSION}-runtime-ubuntu20.04 AS llm-base
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+    python3 \
+    python3-pip \
+    python3-dev \
+    git \
+    curl \
+    wget \
+    build-essential \
+    && rm -rf /var/lib/apt/lists/*
+
+# Create LLM user for security
+RUN useradd --create-home --shell /bin/bash llmuser \
+    && mkdir -p /app /app/models /app/cache /app/logs /app/config \
+    && chown -R llmuser:llmuser /app
+
+WORKDIR /app
+
+# ============================================================================
+# Stage 2: Python LLM dependencies
+# ============================================================================
+FROM llm-base AS llm-deps
+
+# Install Python dependencies for LLM inference
+RUN pip3 install --upgrade pip setuptools wheel
+
+# Install PyTorch with CUDA support
+RUN pip3 install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu118
+
+# Install Transformers and related libraries
+RUN pip3 install \
+    transformers==4.35.0 \
+    accelerate==0.24.0 \
+    bitsandbytes==0.41.1 \
+    sentencepiece==0.1.99 \
+    protobuf==4.24.4 \
+    safetensors==0.4.0
+
+# Install LLM serving dependencies
+RUN pip3 install \
+    fastapi==0.103.0 \
+    uvicorn==0.23.2 \
+    pydantic==2.4.2 \
+    python-multipart==0.0.6 \
+    sse-starlette==1.6.5
+
+# Install additional utilities
+RUN pip3 install \
+    huggingface-hub==0.17.3 \
+    datasets==2.14.5 \
+    tokenizers==0.14.1 \
+    psutil==5.9.5 \
+    redis==4.6.0
+
+# ============================================================================
+# Stage 3: Model download and preparation
+# ============================================================================
+FROM llm-deps AS llm-models
+
+# Set HuggingFace cache directory
+ENV HF_HOME=/app/cache/huggingface
+ENV TRANSFORMERS_CACHE=/app/cache/transformers
+
+# Create cache directories
+RUN mkdir -p $HF_HOME $TRANSFORMERS_CACHE \
+    && chown -R llmuser:llmuser /app/cache
+
+# Switch to LLM user for model download
+USER llmuser
+
+# Download Llama 3.1 8B Instruct model
+# Note: This requires HuggingFace authentication for gated models
+RUN python3 -c "
+from transformers import AutoTokenizer, AutoModelForCausalLM
+import torch
+
+model_name = 'meta-llama/Llama-3.1-8B-Instruct'
+cache_dir = '/app/models/llama-3.1-8b'
+
+print('Downloading Llama 3.1 8B model...')
+tokenizer = AutoTokenizer.from_pretrained(
+    model_name,
+    cache_dir=cache_dir,
+    trust_remote_code=True
+)
+
+model = AutoModelForCausalLM.from_pretrained(
+    model_name,
+    cache_dir=cache_dir,
+    torch_dtype=torch.float16,
+    device_map='auto',
+    trust_remote_code=True,
+    low_cpu_mem_usage=True
+)
+
+print('Model downloaded successfully')
+"
+
+# ============================================================================
+# Stage 4: LLM Service Application
+# ============================================================================
+FROM llm-models AS llm-service
+
+# Copy LLM service code
+COPY llm-service/ ./llm-service/
+COPY requirements-llm.txt .
+
+# Install any additional requirements
+RUN pip3 install --no-cache-dir -r requirements-llm.txt
+
+# Create LLM service configuration
+COPY llm-config/ ./config/
+
+# Create LLM service startup script
+RUN cat > start-llm-service.sh << 'EOF'
+#!/bin/bash
+set -e
+
+echo "🚀 Starting Local LLM Service (Llama 3.1 8B)..."
+
+# Check GPU availability
+if nvidia-smi > /dev/null 2>&1; then
+    echo "✅ GPU detected"
+    export CUDA_VISIBLE_DEVICES=${CUDA_VISIBLE_DEVICES:-0}
+    export ENABLE_GPU_ACCELERATION=true
+else
+    echo "⚠️  No GPU detected, running on CPU"
+    export ENABLE_GPU_ACCELERATION=false
+fi
+
+# Set memory management
+export PYTORCH_CUDA_ALLOC_CONF=max_split_size_mb:512
+export CUDA_LAUNCH_BLOCKING=1
+
+# Start LLM service
+cd /app/llm-service
+python3 -m uvicorn main:app \
+    --host 0.0.0.0 \
+    --port 8000 \
+    --workers 1 \
+    --timeout-keep-alive 300 \
+    --access-log \
+    --log-level info
+EOF
+
+RUN chmod +x start-llm-service.sh
+
+# Create health check script
+RUN cat > health-check.py << 'EOF'
+#!/usr/bin/env python3
+import requests
+import sys
+import time
+
+def check_health():
+    try:
+        response = requests.get('http://localhost:8000/health', timeout=10)
+        if response.status_code == 200:
+            print("✅ LLM service is healthy")
+            return True
+        else:
+            print(f"❌ LLM service unhealthy: {response.status_code}")
+            return False
+    except Exception as e:
+        print(f"❌ Health check failed: {e}")
+        return False
+
+if __name__ == "__main__":
+    sys.exit(0 if check_health() else 1)
+EOF
+
+RUN chmod +x health-check.py
+
+# Set environment variables
+ENV MODEL_PATH=/app/models/llama-3.1-8b
+ENV MODEL_NAME=llama-3.1-8b-instruct
+ENV MAX_CONTEXT_LENGTH=8192
+ENV MAX_BATCH_SIZE=8
+ENV TEMPERATURE=0.1
+ENV TOP_P=0.9
+ENV REPETITION_PENALTY=1.1
+ENV MAX_CONCURRENT_REQUESTS=20
+ENV REQUEST_TIMEOUT=30000
+ENV ENABLE_MODEL_CACHING=true
+
+# Health check with extended timeout for model loading
+HEALTHCHECK --interval=30s --timeout=15s --start-period=300s --retries=3 \
+    CMD python3 health-check.py
+
+# Expose LLM service port
+EXPOSE 8000
+
+# Start LLM service
+CMD ["./start-llm-service.sh"]
+
+# ============================================================================
+# Stage 5: Production LLM optimizations
+# ============================================================================
+FROM llm-service AS llm-production
+
+# Production environment variables
+ENV NODE_ENV=production
+ENV PYTHON_ENV=production
+ENV HF_DATASETS_OFFLINE=1
+ENV TRANSFORMERS_OFFLINE=1
+
+# Optimize for production
+RUN python3 -m compileall /app/llm-service
+
+# Clean up unnecessary files
+RUN rm -rf /tmp/* /var/tmp/* /root/.cache /home/llmuser/.cache
+
+# Production resource limits
+ENV GPU_MEMORY_FRACTION=0.8
+ENV MAX_MEMORY_GB=16
+ENV ENABLE_METRICS=true
+ENV METRICS_PORT=8001
+ENV ENABLE_REQUEST_LOGGING=true
+
+USER llmuser
+
+# Production startup with monitoring
+CMD ["./start-llm-service.sh"]

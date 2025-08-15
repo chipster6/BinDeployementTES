@@ -25,6 +25,28 @@ export {
   externalServicesManager,
 } from "./ExternalServicesManager";
 
+export {
+  WebhookCoordinationService,
+  webhookCoordinationService,
+} from "./WebhookCoordinationService";
+
+export {
+  ApiStatusMonitoringService,
+  apiStatusMonitoringService,
+} from "./ApiStatusMonitoringService";
+
+export {
+  CostOptimizationService,
+  costOptimizationService,
+} from "./CostOptimizationService";
+
+// Threat Intelligence Services
+export { default as VirusTotalService, virusTotalService } from "./VirusTotalService";
+export { default as AbuseIPDBService, abuseIPDBService } from "./AbuseIPDBService";
+export { default as MISPIntegrationService, mispIntegrationService } from "./MISPIntegrationService";
+export { default as ThreatIntelligenceService, threatIntelligenceService } from "./ThreatIntelligenceService";
+export { default as IPReputationService, ipReputationService } from "./IPReputationService";
+
 // Type exports
 export type {
   ExternalServiceConfig,
@@ -96,3 +118,37 @@ export type {
   ServiceConfiguration,
   ServiceMetrics,
 } from "./ExternalServicesManager";
+
+// Threat Intelligence Types
+export type {
+  ThreatIntelligenceResult,
+  VirusTotalIPReport,
+  VirusTotalDomainReport,
+  VirusTotalFileReport,
+  VirusTotalURLReport,
+} from "./VirusTotalService";
+
+export type {
+  AbuseIPDBReport,
+  AbuseIPDBBatchResult,
+} from "./AbuseIPDBService";
+
+export type {
+  MISPEvent,
+  MISPAttribute,
+  MISPObject,
+  MISPTag,
+  IOCSearchRequest,
+} from "./MISPIntegrationService";
+
+export type {
+  UnifiedThreatResult,
+  ThreatFeedUpdate,
+  ThreatIntelligenceMetrics,
+} from "./ThreatIntelligenceService";
+
+export type {
+  IPReputationResult,
+  IPBatchResult,
+  IPReputationMetrics,
+} from "./IPReputationService";

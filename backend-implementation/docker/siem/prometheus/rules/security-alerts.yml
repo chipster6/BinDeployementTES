@@ -1,0 +1,360 @@
+# ============================================================================
+# SECURITY ALERTING RULES FOR PROMETHEUS
+# ============================================================================
+#
+# Advanced security alerting rules for SIEM infrastructure
+# Real-time threat detection and automated alerting
+#
+# Created by: DEVOPS-AGENT - TIER 1 Advanced Threat Protection
+# Date: 2025-08-14
+# Version: 1.0.0
+# ============================================================================
+
+groups:
+  # Critical Security Threats
+  - name: security.critical_threats
+    rules:
+      - alert: SQLInjectionAttackDetected
+        expr: increase(sql_injection_attempts_total[1m]) > 0
+        for: 0m
+        labels:
+          severity: critical
+          category: data_attack
+          attack_type: sql_injection
+          security_grade_impact: "high"
+        annotations:
+          summary: "SQL injection attack detected"
+          description: "{{ $value }} SQL injection attempts detected in the last minute from {{ $labels.source_ip }}"
+          runbook_url: "https://docs.waste-mgmt.com/security/sql-injection-response"
+          response: "immediate_block"
+
+      - alert: MalwareDetected
+        expr: increase(malware_detections_total[1m]) > 0
+        for: 0m
+        labels:
+          severity: critical
+          category: malware
+          attack_type: malware
+          security_grade_impact: "critical"
+        annotations:
+          summary: "Malware detected in production environment"
+          description: "Malware detected on {{ $labels.instance }} - {{ $labels.malware_type }}"
+          runbook_url: "https://docs.waste-mgmt.com/security/malware-response"
+          response: "isolate_host"
+
+      - alert: PrivilegeEscalationAttempt
+        expr: increase(privilege_escalation_attempts_total[1m]) > 0
+        for: 0m
+        labels:
+          severity: critical
+          category: privilege_escalation
+          attack_type: privilege_escalation
+          security_grade_impact: "high"
+        annotations:
+          summary: "Privilege escalation attempt detected"
+          description: "Privilege escalation attempt by {{ $labels.user }} on {{ $labels.instance }}"
+          runbook_url: "https://docs.waste-mgmt.com/security/privilege-escalation-response"
+          response: "disable_user"
+
+      - alert: EncryptionBypassAttempt
+        expr: increase(encryption_bypass_attempts_total[1m]) > 0
+        for: 0m
+        labels:
+          severity: critical
+          category: encryption_attack
+          attack_type: encryption_bypass
+          security_grade_impact: "critical"
+        annotations:
+          summary: "Encryption bypass attempt detected"
+          description: "AES-256-GCM encryption bypass attempt detected on {{ $labels.instance }}"
+          runbook_url: "https://docs.waste-mgmt.com/security/encryption-breach"
+          response: "immediate_investigation"
+
+      - alert: JWTTokenForgeryAttempt
+        expr: increase(jwt_forgery_attempts_total[1m]) > 0
+        for: 0m
+        labels:
+          severity: critical
+          category: authentication_attack
+          attack_type: jwt_forgery
+          security_grade_impact: "high"
+        annotations:
+          summary: "JWT token forgery attempt detected"
+          description: "RS256 JWT token forgery attempt from {{ $labels.source_ip }}"
+          runbook_url: "https://docs.waste-mgmt.com/security/jwt-security"
+          response: "revoke_tokens"
+
+      - alert: ContainerEscapeDetected
+        expr: increase(container_escapes_total[1m]) > 0
+        for: 0m
+        labels:
+          severity: critical
+          category: container_security
+          attack_type: container_escape
+          security_grade_impact: "critical"
+        annotations:
+          summary: "Container escape detected"
+          description: "Container escape attempt detected in {{ $labels.container_name }}"
+          runbook_url: "https://docs.waste-mgmt.com/security/container-escape"
+          response: "isolate_container"
+
+      - alert: DataExfiltrationAttempt
+        expr: increase(data_exfiltration_attempts_total[5m]) > 0
+        for: 1m
+        labels:
+          severity: critical
+          category: data_security
+          attack_type: data_exfiltration
+          security_grade_impact: "critical"
+        annotations:
+          summary: "Data exfiltration attempt detected"
+          description: "Large data transfer detected: {{ $value }} MB from {{ $labels.source }}"
+          runbook_url: "https://docs.waste-mgmt.com/security/data-exfiltration"
+          response: "block_transfer"
+
+  # High Priority Security Events
+  - name: security.high_priority
+    rules:
+      - alert: CriticalAuthenticationFailures
+        expr: rate(authentication_failures_total[5m]) > 0.5
+        for: 2m
+        labels:
+          severity: high
+          category: authentication
+          attack_type: brute_force
+          security_grade_impact: "medium"
+        annotations:
+          summary: "High rate of authentication failures"
+          description: "{{ $value }} authentication failures per second from {{ $labels.source_ip }}"
+          runbook_url: "https://docs.waste-mgmt.com/security/brute-force-response"
+          response: "rate_limit"
+
+      - alert: SuspiciousNetworkActivity
+        expr: rate(suspicious_network_connections_total[5m]) > 0.1
+        for: 3m
+        labels:
+          severity: high
+          category: network_security
+          attack_type: suspicious_traffic
+          security_grade_impact: "medium"
+        annotations:
+          summary: "Suspicious network activity detected"
+          description: "{{ $value }} suspicious connections per second to {{ $labels.destination }}"
+          runbook_url: "https://docs.waste-mgmt.com/security/network-security"
+          response: "analyze_traffic"
+
+      - alert: FileIntegrityViolation
+        expr: increase(file_integrity_violations_total[5m]) > 5
+        for: 2m
+        labels:
+          severity: high
+          category: file_security
+          attack_type: file_tampering
+          security_grade_impact: "medium"
+        annotations:
+          summary: "File integrity violations detected"
+          description: "{{ $value }} file integrity violations in critical directories"
+          runbook_url: "https://docs.waste-mgmt.com/security/file-integrity"
+          response: "investigate_changes"
+
+      - alert: UnauthorizedAPIAccess
+        expr: rate(unauthorized_access_attempts_total[5m]) > 0.2
+        for: 3m
+        labels:
+          severity: high
+          category: api_security
+          attack_type: unauthorized_access
+          security_grade_impact: "medium"
+        annotations:
+          summary: "Unauthorized API access attempts"
+          description: "{{ $value }} unauthorized access attempts per second to {{ $labels.endpoint }}"
+          runbook_url: "https://docs.waste-mgmt.com/security/api-security"
+          response: "restrict_access"
+
+      - alert: DatabaseSecurityAlert
+        expr: rate(database_security_violations_total[5m]) > 0.1
+        for: 5m
+        labels:
+          severity: high
+          category: database_security
+          attack_type: database_attack
+          security_grade_impact: "high"
+        annotations:
+          summary: "Database security violations detected"
+          description: "{{ $value }} database security violations per second"
+          runbook_url: "https://docs.waste-mgmt.com/security/database-security"
+          response: "audit_database"
+
+      - alert: MFABypassAttempt
+        expr: increase(mfa_bypass_attempts_total[5m]) > 0
+        for: 1m
+        labels:
+          severity: high
+          category: authentication
+          attack_type: mfa_bypass
+          security_grade_impact: "high"
+        annotations:
+          summary: "MFA bypass attempt detected"
+          description: "Multi-factor authentication bypass attempt by {{ $labels.user }}"
+          runbook_url: "https://docs.waste-mgmt.com/security/mfa-breach"
+          response: "enforce_mfa"
+
+  # Medium Priority Security Events
+  - name: security.medium_priority
+    rules:
+      - alert: SecurityGradeDegradation
+        expr: security_grade_current < 90
+        for: 10m
+        labels:
+          severity: warning
+          category: security_metrics
+          security_grade_impact: "medium"
+        annotations:
+          summary: "Security grade degradation detected"
+          description: "Security grade dropped to {{ $value }}% (threshold: 90%)"
+          runbook_url: "https://docs.waste-mgmt.com/security/grade-monitoring"
+          response: "review_security"
+
+      - alert: AbnormalUserBehavior
+        expr: rate(abnormal_user_activities_total[15m]) > 0.1
+        for: 5m
+        labels:
+          severity: warning
+          category: user_behavior
+          attack_type: anomalous_activity
+        annotations:
+          summary: "Abnormal user behavior detected"
+          description: "User {{ $labels.user }} showing abnormal activity patterns"
+          runbook_url: "https://docs.waste-mgmt.com/security/user-behavior"
+          response: "monitor_user"
+
+      - alert: FailedSecurityUpdates
+        expr: increase(security_update_failures_total[1h]) > 0
+        for: 5m
+        labels:
+          severity: warning
+          category: system_security
+          security_grade_impact: "low"
+        annotations:
+          summary: "Security update failures detected"
+          description: "{{ $value }} security updates failed on {{ $labels.instance }}"
+          runbook_url: "https://docs.waste-mgmt.com/security/update-management"
+          response: "retry_updates"
+
+      - alert: ConfigurationDrift
+        expr: increase(security_config_drift_total[1h]) > 0
+        for: 10m
+        labels:
+          severity: warning
+          category: configuration_security
+        annotations:
+          summary: "Security configuration drift detected"
+          description: "Security configuration changes detected on {{ $labels.instance }}"
+          runbook_url: "https://docs.waste-mgmt.com/security/config-management"
+          response: "validate_config"
+
+      - alert: CertificateExpiringSoon
+        expr: (ssl_certificate_expiry_seconds - time()) / 86400 < 30
+        for: 1h
+        labels:
+          severity: warning
+          category: certificate_management
+        annotations:
+          summary: "SSL certificate expiring soon"
+          description: "Certificate for {{ $labels.instance }} expires in {{ $value }} days"
+          runbook_url: "https://docs.waste-mgmt.com/security/certificate-management"
+          response: "renew_certificate"
+
+  # SIEM Infrastructure Health
+  - name: security.siem_health
+    rules:
+      - alert: SIEMComponentDown
+        expr: up{job=~"elasticsearch|kibana|logstash|suricata|wazuh-manager|falco"} == 0
+        for: 2m
+        labels:
+          severity: critical
+          category: siem_infrastructure
+          security_grade_impact: "critical"
+        annotations:
+          summary: "SIEM component is down"
+          description: "{{ $labels.job }} on {{ $labels.instance }} has been down for more than 2 minutes"
+          runbook_url: "https://docs.waste-mgmt.com/siem/component-health"
+          response: "restart_component"
+
+      - alert: SecurityLogIngestionFailure
+        expr: rate(log_ingestion_errors_total[5m]) > 0.1
+        for: 3m
+        labels:
+          severity: high
+          category: log_management
+          security_grade_impact: "high"
+        annotations:
+          summary: "Security log ingestion failures"
+          description: "{{ $value }} log ingestion errors per second"
+          runbook_url: "https://docs.waste-mgmt.com/siem/log-ingestion"
+          response: "fix_ingestion"
+
+      - alert: SecurityAnalyticsDown
+        expr: security_analytics_processing_rate == 0
+        for: 5m
+        labels:
+          severity: critical
+          category: analytics
+          security_grade_impact: "critical"
+        annotations:
+          summary: "Security analytics processing stopped"
+          description: "No security events being processed for 5 minutes"
+          runbook_url: "https://docs.waste-mgmt.com/siem/analytics-health"
+          response: "restart_analytics"
+
+      - alert: ThreatIntelligenceFeedDown
+        expr: threat_intelligence_last_update > 3600
+        for: 0m
+        labels:
+          severity: warning
+          category: threat_intelligence
+        annotations:
+          summary: "Threat intelligence feed outdated"
+          description: "Threat intelligence hasn't been updated for {{ $value }} seconds"
+          runbook_url: "https://docs.waste-mgmt.com/siem/threat-intelligence"
+          response: "update_feed"
+
+  # Security Metrics and KPIs
+  - name: security.metrics
+    rules:
+      - alert: SecurityEventVolumeSpike
+        expr: rate(security_events_total[5m]) > rate(security_events_total[1h] offset 1h) * 5
+        for: 3m
+        labels:
+          severity: warning
+          category: security_metrics
+        annotations:
+          summary: "Security event volume spike detected"
+          description: "Security event rate increased by {{ $value }}x compared to baseline"
+          runbook_url: "https://docs.waste-mgmt.com/security/event-analysis"
+          response: "investigate_spike"
+
+      - alert: ThreatScoreElevated
+        expr: security:threat_score > 50
+        for: 5m
+        labels:
+          severity: high
+          category: threat_assessment
+          security_grade_impact: "high"
+        annotations:
+          summary: "Elevated threat score detected"
+          description: "Current threat score: {{ $value }} (threshold: 50)"
+          runbook_url: "https://docs.waste-mgmt.com/security/threat-assessment"
+          response: "enhance_monitoring"
+
+      - alert: SecurityComplianceAlert
+        expr: security_compliance_score < 85
+        for: 15m
+        labels:
+          severity: warning
+          category: compliance
+        annotations:
+          summary: "Security compliance score below threshold"
+          description: "Compliance score: {{ $value }}% (threshold: 85%)"
+          runbook_url: "https://docs.waste-mgmt.com/security/compliance"
+          response: "review_compliance"

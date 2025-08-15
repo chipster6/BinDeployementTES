@@ -1,0 +1,431 @@
+# ============================================================================
+# ALERTMANAGER SECURITY CONFIGURATION
+# ============================================================================
+#
+# Alert routing and notification configuration for security events
+# Multi-channel alerting with escalation procedures
+#
+# Created by: DEVOPS-AGENT - TIER 1 Advanced Threat Protection
+# Date: 2025-08-14
+# Version: 1.0.0
+# ============================================================================
+
+global:
+  smtp_smarthost: '${SMTP_HOST}:587'
+  smtp_from: 'security@waste-mgmt.com'
+  smtp_auth_username: '${SMTP_USERNAME}'
+  smtp_auth_password: '${SMTP_PASSWORD}'
+  smtp_require_tls: true
+  
+  slack_api_url: '${SLACK_WEBHOOK_URL}'
+  
+  pagerduty_url: 'https://events.pagerduty.com/v2/enqueue'
+  
+  resolve_timeout: 5m
+
+# Inhibition rules to prevent duplicate alerts
+inhibit_rules:
+  # Inhibit any warning-level alerts if there's a critical alert for the same service
+  - source_match:
+      severity: 'critical'
+    target_match:
+      severity: 'warning'
+    equal: ['instance', 'service']
+
+  # Inhibit SQL injection warnings if there's already a critical data attack
+  - source_match:
+      category: 'data_attack'
+      severity: 'critical'
+    target_match:
+      category: 'data_attack'
+      severity: 'high'
+    equal: ['source_ip']
+
+  # Inhibit authentication failure warnings during active brute force attacks
+  - source_match:
+      attack_type: 'brute_force'
+      severity: 'critical'
+    target_match:
+      category: 'authentication'
+      severity: 'warning'
+    equal: ['source_ip']
+
+# Alert routing tree
+route:
+  group_by: ['alertname', 'cluster', 'service']
+  group_wait: 5s
+  group_interval: 30s
+  repeat_interval: 1h
+  receiver: 'security-team'
+  
+  routes:
+    # Critical Security Incidents (Immediate Response)
+    - match:
+        severity: critical
+      receiver: 'critical-security-incidents'
+      group_wait: 0s
+      group_interval: 10s
+      repeat_interval: 5m
+      routes:
+        # SQL Injection - Immediate escalation
+        - match:
+            attack_type: sql_injection
+          receiver: 'sql-injection-response'
+          group_wait: 0s
+          repeat_interval: 2m
+        
+        # Malware Detection - Immediate isolation
+        - match:
+            attack_type: malware
+          receiver: 'malware-response-team'
+          group_wait: 0s
+          repeat_interval: 1m
+        
+        # Data Exfiltration - Executive notification
+        - match:
+            attack_type: data_exfiltration
+          receiver: 'executive-security-team'
+          group_wait: 0s
+          repeat_interval: 30s
+        
+        # Container Escape - Platform security team
+        - match:
+            attack_type: container_escape
+          receiver: 'platform-security-team'
+          group_wait: 0s
+          repeat_interval: 2m
+
+    # High Priority Security Events
+    - match:
+        severity: high
+      receiver: 'high-priority-security'
+      group_wait: 30s
+      group_interval: 1m
+      repeat_interval: 15m
+      routes:
+        # Authentication attacks
+        - match:
+            category: authentication
+          receiver: 'authentication-security-team'
+        
+        # Network security events
+        - match:
+            category: network_security
+          receiver: 'network-security-team'
+        
+        # Database security events
+        - match:
+            category: database_security
+          receiver: 'database-security-team'
+
+    # SIEM Infrastructure Alerts
+    - match:
+        category: siem_infrastructure
+      receiver: 'siem-operations-team'
+      group_wait: 1m
+      group_interval: 5m
+      repeat_interval: 30m
+
+    # Security Compliance Alerts
+    - match:
+        category: compliance
+      receiver: 'compliance-team'
+      group_wait: 5m
+      group_interval: 1h
+      repeat_interval: 24h
+
+    # Security Grade Monitoring
+    - match_re:
+        security_grade_impact: 'critical|high'
+      receiver: 'security-grade-monitoring'
+      group_wait: 2m
+      group_interval: 10m
+      repeat_interval: 1h
+
+# Receiver configurations
+receivers:
+  # Default security team
+  - name: 'security-team'
+    slack_configs:
+      - api_url: '${SLACK_WEBHOOK_URL}'
+        channel: '#security-alerts'
+        title: 'Security Alert'
+        text: |
+          *Alert:* {{ .GroupLabels.alertname }}
+          *Severity:* {{ .GroupLabels.severity }}
+          *Instance:* {{ .GroupLabels.instance }}
+          *Description:* {{ range .Alerts }}{{ .Annotations.description }}{{ end }}
+        color: 'warning'
+        send_resolved: true
+
+  # Critical security incidents (multi-channel)
+  - name: 'critical-security-incidents'
+    email_configs:
+      - to: 'security-team@waste-mgmt.com,ciso@waste-mgmt.com'
+        subject: 'CRITICAL SECURITY INCIDENT: {{ .GroupLabels.alertname }}'
+        body: |
+          CRITICAL SECURITY INCIDENT DETECTED
+          
+          Alert: {{ .GroupLabels.alertname }}
+          Severity: {{ .GroupLabels.severity }}
+          Category: {{ .GroupLabels.category }}
+          Attack Type: {{ .GroupLabels.attack_type }}
+          
+          Details:
+          {{ range .Alerts }}
+          - Instance: {{ .Labels.instance }}
+          - Description: {{ .Annotations.description }}
+          - Runbook: {{ .Annotations.runbook_url }}
+          - Response Required: {{ .Annotations.response }}
+          {{ end }}
+          
+          Immediate action required. Please follow incident response procedures.
+        headers:
+          X-Priority: '1'
+          X-MSMail-Priority: 'High'
+          Importance: 'high'
+    
+    slack_configs:
+      - api_url: '${SLACK_WEBHOOK_URL}'
+        channel: '#critical-security'
+        title: '🚨 CRITICAL SECURITY INCIDENT'
+        text: |
+          <!channel> CRITICAL SECURITY INCIDENT
+          
+          *Alert:* {{ .GroupLabels.alertname }}
+          *Severity:* {{ .GroupLabels.severity }}
+          *Category:* {{ .GroupLabels.category }}
+          *Attack Type:* {{ .GroupLabels.attack_type }}
+          
+          {{ range .Alerts }}
+          *Instance:* {{ .Labels.instance }}
+          *Description:* {{ .Annotations.description }}
+          *Runbook:* {{ .Annotations.runbook_url }}
+          *Response:* {{ .Annotations.response }}
+          {{ end }}
+        color: 'danger'
+        send_resolved: true
+    
+    pagerduty_configs:
+      - routing_key: '${PAGERDUTY_ROUTING_KEY}'
+        description: 'Critical Security Incident: {{ .GroupLabels.alertname }}'
+        severity: 'critical'
+        details:
+          category: '{{ .GroupLabels.category }}'
+          attack_type: '{{ .GroupLabels.attack_type }}'
+          instance: '{{ .GroupLabels.instance }}'
+
+  # SQL Injection response team
+  - name: 'sql-injection-response'
+    email_configs:
+      - to: 'database-security@waste-mgmt.com,incident-response@waste-mgmt.com'
+        subject: 'URGENT: SQL Injection Attack Detected'
+        body: |
+          SQL INJECTION ATTACK DETECTED - IMMEDIATE ACTION REQUIRED
+          
+          {{ range .Alerts }}
+          - Source IP: {{ .Labels.source_ip }}
+          - Target: {{ .Labels.instance }}
+          - Attack Pattern: {{ .Annotations.description }}
+          - Time: {{ .StartsAt.Format "2006-01-02 15:04:05" }}
+          {{ end }}
+          
+          Automatic blocking has been initiated. Please verify and investigate.
+    
+    slack_configs:
+      - api_url: '${SLACK_WEBHOOK_URL}'
+        channel: '#sql-injection-alerts'
+        title: '⚠️ SQL INJECTION ATTACK'
+        text: |
+          SQL INJECTION ATTACK DETECTED
+          {{ range .Alerts }}
+          *Source IP:* {{ .Labels.source_ip }}
+          *Target:* {{ .Labels.instance }}
+          *Description:* {{ .Annotations.description }}
+          {{ end }}
+        color: 'danger'
+
+  # Malware response team
+  - name: 'malware-response-team'
+    email_configs:
+      - to: 'malware-response@waste-mgmt.com,security-operations@waste-mgmt.com'
+        subject: 'CRITICAL: Malware Detected in Production'
+        body: |
+          MALWARE DETECTED - ISOLATION INITIATED
+          
+          {{ range .Alerts }}
+          - Affected System: {{ .Labels.instance }}
+          - Malware Type: {{ .Labels.malware_type }}
+          - Detection Time: {{ .StartsAt.Format "2006-01-02 15:04:05" }}
+          - Status: {{ .Annotations.description }}
+          {{ end }}
+          
+          System isolation has been initiated. Begin incident response procedures.
+    
+    slack_configs:
+      - api_url: '${SLACK_WEBHOOK_URL}'
+        channel: '#malware-alerts'
+        title: '🦠 MALWARE DETECTED'
+        text: |
+          MALWARE DETECTED IN PRODUCTION
+          {{ range .Alerts }}
+          *System:* {{ .Labels.instance }}
+          *Type:* {{ .Labels.malware_type }}
+          *Status:* {{ .Annotations.description }}
+          {{ end }}
+        color: 'danger'
+
+  # Executive security team (for data exfiltration)
+  - name: 'executive-security-team'
+    email_configs:
+      - to: 'ciso@waste-mgmt.com,ceo@waste-mgmt.com,legal@waste-mgmt.com'
+        subject: 'URGENT EXECUTIVE NOTIFICATION: Data Exfiltration Attempt'
+        body: |
+          DATA EXFILTRATION ATTEMPT DETECTED
+          
+          This is an urgent executive notification regarding a potential data breach.
+          
+          {{ range .Alerts }}
+          - Data Source: {{ .Labels.source }}
+          - Volume: {{ .Annotations.description }}
+          - Time: {{ .StartsAt.Format "2006-01-02 15:04:05" }}
+          {{ end }}
+          
+          Please contact the incident response team immediately.
+        headers:
+          X-Priority: '1'
+          Importance: 'high'
+
+  # Platform security team
+  - name: 'platform-security-team'
+    email_configs:
+      - to: 'platform-security@waste-mgmt.com,devops-security@waste-mgmt.com'
+        subject: 'Container Security Breach: {{ .GroupLabels.alertname }}'
+        body: |
+          CONTAINER SECURITY INCIDENT
+          
+          {{ range .Alerts }}
+          - Container: {{ .Labels.container_name }}
+          - Instance: {{ .Labels.instance }}
+          - Incident: {{ .Annotations.description }}
+          - Time: {{ .StartsAt.Format "2006-01-02 15:04:05" }}
+          {{ end }}
+
+  # High priority security alerts
+  - name: 'high-priority-security'
+    slack_configs:
+      - api_url: '${SLACK_WEBHOOK_URL}'
+        channel: '#security-alerts'
+        title: 'High Priority Security Alert'
+        text: |
+          *Alert:* {{ .GroupLabels.alertname }}
+          *Category:* {{ .GroupLabels.category }}
+          {{ range .Alerts }}
+          *Instance:* {{ .Labels.instance }}
+          *Description:* {{ .Annotations.description }}
+          {{ end }}
+        color: 'warning'
+
+  # Authentication security team
+  - name: 'authentication-security-team'
+    email_configs:
+      - to: 'auth-security@waste-mgmt.com'
+        subject: 'Authentication Security Alert: {{ .GroupLabels.alertname }}'
+        body: |
+          AUTHENTICATION SECURITY EVENT
+          
+          {{ range .Alerts }}
+          - Source IP: {{ .Labels.source_ip }}
+          - User: {{ .Labels.user }}
+          - Event: {{ .Annotations.description }}
+          - Time: {{ .StartsAt.Format "2006-01-02 15:04:05" }}
+          {{ end }}
+
+  # Network security team
+  - name: 'network-security-team'
+    email_configs:
+      - to: 'network-security@waste-mgmt.com'
+        subject: 'Network Security Alert: {{ .GroupLabels.alertname }}'
+        body: |
+          NETWORK SECURITY EVENT
+          
+          {{ range .Alerts }}
+          - Source: {{ .Labels.source_ip }}
+          - Destination: {{ .Labels.destination }}
+          - Event: {{ .Annotations.description }}
+          - Time: {{ .StartsAt.Format "2006-01-02 15:04:05" }}
+          {{ end }}
+
+  # Database security team
+  - name: 'database-security-team'
+    email_configs:
+      - to: 'database-security@waste-mgmt.com'
+        subject: 'Database Security Alert: {{ .GroupLabels.alertname }}'
+        body: |
+          DATABASE SECURITY EVENT
+          
+          {{ range .Alerts }}
+          - Database: {{ .Labels.database }}
+          - Instance: {{ .Labels.instance }}
+          - Event: {{ .Annotations.description }}
+          - Time: {{ .StartsAt.Format "2006-01-02 15:04:05" }}
+          {{ end }}
+
+  # SIEM operations team
+  - name: 'siem-operations-team'
+    email_configs:
+      - to: 'siem-ops@waste-mgmt.com'
+        subject: 'SIEM Infrastructure Alert: {{ .GroupLabels.alertname }}'
+        body: |
+          SIEM INFRASTRUCTURE ALERT
+          
+          {{ range .Alerts }}
+          - Component: {{ .Labels.job }}
+          - Instance: {{ .Labels.instance }}
+          - Status: {{ .Annotations.description }}
+          - Time: {{ .StartsAt.Format "2006-01-02 15:04:05" }}
+          {{ end }}
+    
+    slack_configs:
+      - api_url: '${SLACK_WEBHOOK_URL}'
+        channel: '#siem-operations'
+        title: 'SIEM Infrastructure Alert'
+        text: |
+          {{ range .Alerts }}
+          *Component:* {{ .Labels.job }}
+          *Instance:* {{ .Labels.instance }}
+          *Status:* {{ .Annotations.description }}
+          {{ end }}
+        color: 'warning'
+
+  # Compliance team
+  - name: 'compliance-team'
+    email_configs:
+      - to: 'compliance@waste-mgmt.com'
+        subject: 'Security Compliance Alert: {{ .GroupLabels.alertname }}'
+        body: |
+          SECURITY COMPLIANCE ALERT
+          
+          {{ range .Alerts }}
+          - Compliance Issue: {{ .Annotations.description }}
+          - Impact: {{ .Labels.security_grade_impact }}
+          - Time: {{ .StartsAt.Format "2006-01-02 15:04:05" }}
+          {{ end }}
+
+  # Security grade monitoring
+  - name: 'security-grade-monitoring'
+    slack_configs:
+      - api_url: '${SLACK_WEBHOOK_URL}'
+        channel: '#security-metrics'
+        title: 'Security Grade Alert'
+        text: |
+          *Alert:* {{ .GroupLabels.alertname }}
+          *Impact:* {{ .GroupLabels.security_grade_impact }}
+          {{ range .Alerts }}
+          *Description:* {{ .Annotations.description }}
+          {{ end }}
+        color: 'warning'
+
+# Template definitions
+templates:
+  - '/etc/alertmanager/templates/*.tmpl'

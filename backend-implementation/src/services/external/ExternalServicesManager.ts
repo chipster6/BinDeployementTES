@@ -35,6 +35,35 @@ import MapsService from "./MapsService";
 import WebhookSecurityService from "./WebhookSecurityService";
 import ApiKeyRotationService, { apiKeyRotationService } from "./ApiKeyRotationService";
 import { CustomerService } from "@/services/CustomerService";
+import { socketManager } from "@/services/socketManager";
+import { jobQueue } from "@/services/jobQueue";
+import { threatIntelligenceService } from "./ThreatIntelligenceService";
+import { ipReputationService } from "./IPReputationService";
+import { virusTotalService } from "./VirusTotalService";
+import { abuseIPDBService } from "./AbuseIPDBService";
+import { mispIntegrationService } from "./MISPIntegrationService";
+
+/**
+ * Real-time coordination interface for Backend-Frontend integration
+ */
+export interface RealTimeCoordinationEvent {
+  eventType: "api_status_change" | "webhook_received" | "service_error" | "cost_alert" | "rate_limit_warning";
+  serviceName: string;
+  data: any;
+  timestamp: Date;
+  severity: "info" | "warning" | "error" | "critical";
+}
+
+/**
+ * Frontend coordination interface
+ */
+export interface FrontendCoordinationData {
+  serviceStatuses: ServiceStatus[];
+  realtimeMetrics: ServiceMetrics[];
+  activeAlerts: any[];
+  costSummary: any;
+  lastUpdate: Date;
+}
 
 /**
  * Service status interface
@@ -92,6 +121,10 @@ export class ExternalServicesManager {
   private apiKeyRotationService: ApiKeyRotationService;
   private isInitialized: boolean = false;
   private securityMonitoringInterval: NodeJS.Timeout | null = null;
+  private coordinationEnabled: boolean = true;
+  private realtimeEventsQueue: RealTimeCoordinationEvent[] = [];
+  private costAlertThresholds: Map<string, number> = new Map();
+  private lastCoordinationUpdate: Date = new Date();
 
   constructor() {
     this.webhookSecurity = new WebhookSecurityService();
@@ -109,6 +142,7 @@ export class ExternalServicesManager {
       await this.initializeServices();
       await this.startHealthMonitoring();
       await this.startSecurityMonitoring();
+      await this.initializeRealTimeCoordination();
 
       this.isInitialized = true;
 
@@ -228,6 +262,59 @@ export class ExternalServicesManager {
       },
     });
 
+    // Threat Intelligence Services
+    this.configurations.set("threat_intelligence", {
+      enabled: true, // Always enabled for security
+      priority: 9, // Very high priority for security
+      fallbackEnabled: false, // Critical security service
+      monitoringEnabled: true,
+      alertingEnabled: true,
+      config: {},
+    });
+
+    this.configurations.set("ip_reputation", {
+      enabled: true, // Always enabled for security
+      priority: 9, // Very high priority for security
+      fallbackEnabled: false, // Critical security service
+      monitoringEnabled: true,
+      alertingEnabled: true,
+      config: {},
+    });
+
+    this.configurations.set("virustotal", {
+      enabled: !!process.env.VIRUSTOTAL_API_KEY,
+      priority: 7, // High priority for threat intelligence
+      fallbackEnabled: true, // Can operate without VirusTotal
+      monitoringEnabled: true,
+      alertingEnabled: true,
+      config: {
+        apiKey: process.env.VIRUSTOTAL_API_KEY,
+      },
+    });
+
+    this.configurations.set("abuseipdb", {
+      enabled: !!process.env.ABUSEIPDB_API_KEY,
+      priority: 7, // High priority for threat intelligence
+      fallbackEnabled: true, // Can operate without AbuseIPDB
+      monitoringEnabled: true,
+      alertingEnabled: true,
+      config: {
+        apiKey: process.env.ABUSEIPDB_API_KEY,
+      },
+    });
+
+    this.configurations.set("misp", {
+      enabled: !!(process.env.MISP_URL && process.env.MISP_API_KEY),
+      priority: 6, // Medium-high priority for threat intelligence
+      fallbackEnabled: true, // Can operate without MISP
+      monitoringEnabled: true,
+      alertingEnabled: false, // MISP alerts handled separately
+      config: {
+        url: process.env.MISP_URL,
+        apiKey: process.env.MISP_API_KEY,
+      },
+    });
+
     logger.info("Service configurations loaded", {
       totalConfigs: this.configurations.size,
       enabledServices: Array.from(this.configurations.entries()).filter(
@@ -308,6 +395,26 @@ export class ExternalServicesManager {
                   : "https://maps.googleapis.com/maps/api",
               ...config.config,
             });
+            break;
+
+          case "threat_intelligence":
+            service = threatIntelligenceService;
+            break;
+
+          case "ip_reputation":
+            service = ipReputationService;
+            break;
+
+          case "virustotal":
+            service = virusTotalService;
+            break;
+
+          case "abuseipdb":
+            service = abuseIPDBService;
+            break;
+
+          case "misp":
+            service = mispIntegrationService;
             break;
 
           default:
@@ -972,6 +1079,479 @@ export class ExternalServicesManager {
     this.isInitialized = false;
 
     logger.info("External Services Manager shutdown complete");
+  }
+
+  /**
+   * Initialize real-time coordination with Frontend-Agent and Backend-Agent
+   */
+  private async initializeRealTimeCoordination(): Promise<void> {
+    try {
+      logger.info('Initializing real-time API coordination');
+
+      // Setup cost alert thresholds
+      this.costAlertThresholds.set('stripe', 1000); // $10.00 per hour
+      this.costAlertThresholds.set('twilio', 500);  // $5.00 per hour
+      this.costAlertThresholds.set('sendgrid', 200); // $2.00 per hour
+      this.costAlertThresholds.set('samsara', 800);  // $8.00 per hour
+      this.costAlertThresholds.set('maps', 300);     // $3.00 per hour
+
+      // Setup real-time coordination job for Background processing
+      await this.scheduleCoordinationJobs();
+
+      // Initialize WebSocket coordination channels
+      await this.setupWebSocketCoordination();
+
+      logger.info('Real-time API coordination initialized successfully');
+    } catch (error) {
+      logger.error('Failed to initialize real-time coordination', {
+        error: error.message,
+      });
+      throw error;
+    }
+  }
+
+  /**
+   * Schedule background jobs for real-time coordination
+   */
+  private async scheduleCoordinationJobs(): Promise<void> {
+    try {
+      // Real-time metrics collection job (every 30 seconds)
+      await jobQueue.addJob(
+        'analytics',
+        'api-metrics-collection',
+        {
+          type: 'external_services_metrics',
+          interval: 'realtime',
+        },
+        {
+          repeat: { every: 30000 }, // 30 seconds
+          removeOnComplete: 5,
+          removeOnFail: 3,
+        }
+      );
+
+      // Cost monitoring job (every 5 minutes)
+      await jobQueue.addJob(
+        'analytics',
+        'cost-monitoring',
+        {
+          type: 'cost_analysis',
+          services: Array.from(this.services.keys()),
+        },
+        {
+          repeat: { every: 300000 }, // 5 minutes
+          removeOnComplete: 12, // Keep 1 hour of history
+          removeOnFail: 5,
+        }
+      );
+
+      // API health coordination job (every minute)
+      await jobQueue.addJob(
+        'notifications',
+        'api-health-coordination',
+        {
+          type: 'health_coordination',
+          targetSystems: ['frontend', 'backend'],
+        },
+        {
+          repeat: { every: 60000 }, // 1 minute
+          removeOnComplete: 10,
+          removeOnFail: 5,
+        }
+      );
+
+      logger.info('API coordination background jobs scheduled');
+    } catch (error) {
+      logger.error('Failed to schedule coordination jobs', {
+        error: error.message,
+      });
+    }
+  }
+
+  /**
+   * Setup WebSocket coordination channels for Frontend integration
+   */
+  private async setupWebSocketCoordination(): Promise<void> {
+    try {
+      // Create coordination rooms for real-time updates
+      const coordinationRooms = [
+        'api_status_updates',
+        'cost_monitoring',
+        'webhook_events',
+        'service_errors',
+        'rate_limit_alerts'
+      ];
+
+      // Notify all admin and dispatcher roles about coordination setup
+      socketManager.sendToRole('admin', 'api_coordination_initialized', {
+        message: 'External API real-time coordination is now active',
+        coordinationRooms,
+        timestamp: new Date().toISOString(),
+      });
+
+      socketManager.sendToRole('dispatcher', 'api_coordination_initialized', {
+        message: 'Real-time API monitoring is now available',
+        coordinationRooms: ['api_status_updates', 'service_errors'],
+        timestamp: new Date().toISOString(),
+      });
+
+      logger.info('WebSocket coordination channels established', {
+        rooms: coordinationRooms,
+      });
+    } catch (error) {
+      logger.error('Failed to setup WebSocket coordination', {
+        error: error.message,
+      });
+    }
+  }
+
+  /**
+   * Broadcast real-time coordination event to Frontend
+   */
+  public async broadcastCoordinationEvent(event: RealTimeCoordinationEvent): Promise<void> {
+    if (!this.coordinationEnabled) {
+      return;
+    }
+
+    try {
+      // Add to events queue for processing
+      this.realtimeEventsQueue.push(event);
+
+      // Keep only last 100 events
+      if (this.realtimeEventsQueue.length > 100) {
+        this.realtimeEventsQueue = this.realtimeEventsQueue.slice(-100);
+      }
+
+      // Broadcast to appropriate WebSocket rooms
+      switch (event.eventType) {
+        case 'api_status_change':
+          socketManager.broadcastToRoom('api_status_updates', 'status_change', {
+            service: event.serviceName,
+            data: event.data,
+            timestamp: event.timestamp,
+            severity: event.severity,
+          });
+          break;
+
+        case 'webhook_received':
+          socketManager.broadcastToRoom('webhook_events', 'webhook_received', {
+            service: event.serviceName,
+            data: event.data,
+            timestamp: event.timestamp,
+          });
+          break;
+
+        case 'service_error':
+          socketManager.broadcastToRoom('service_errors', 'service_error', {
+            service: event.serviceName,
+            error: event.data,
+            timestamp: event.timestamp,
+            severity: event.severity,
+          });
+          // Also notify admins directly
+          socketManager.sendToRole('admin', 'critical_service_error', {
+            service: event.serviceName,
+            error: event.data,
+            timestamp: event.timestamp,
+          });
+          break;
+
+        case 'cost_alert':
+          socketManager.broadcastToRoom('cost_monitoring', 'cost_alert', {
+            service: event.serviceName,
+            costData: event.data,
+            timestamp: event.timestamp,
+            severity: event.severity,
+          });
+          // High-priority alert to admins
+          if (event.severity === 'critical') {
+            socketManager.sendToRole('admin', 'critical_cost_alert', {
+              service: event.serviceName,
+              costData: event.data,
+              recommendedActions: event.data.recommendedActions || [],
+              timestamp: event.timestamp,
+            });
+          }
+          break;
+
+        case 'rate_limit_warning':
+          socketManager.broadcastToRoom('rate_limit_alerts', 'rate_limit_warning', {
+            service: event.serviceName,
+            rateLimitData: event.data,
+            timestamp: event.timestamp,
+            severity: event.severity,
+          });
+          break;
+      }
+
+      this.lastCoordinationUpdate = new Date();
+
+      logger.debug('Coordination event broadcasted', {
+        eventType: event.eventType,
+        service: event.serviceName,
+        severity: event.severity,
+      });
+    } catch (error) {
+      logger.error('Failed to broadcast coordination event', {
+        error: error.message,
+        event,
+      });
+    }
+  }
+
+  /**
+   * Get comprehensive Frontend coordination data
+   */
+  public async getFrontendCoordinationData(): Promise<FrontendCoordinationData> {
+    try {
+      const serviceStatuses = await this.getAllServiceStatuses();
+      const realtimeMetrics = [];
+      
+      // Collect real-time metrics for all services
+      for (const serviceName of this.services.keys()) {
+        const metrics = await this.getServiceMetrics(serviceName);
+        realtimeMetrics.push({
+          serviceName,
+          ...metrics,
+        });
+      }
+
+      // Generate cost summary
+      const costSummary = await this.generateCostSummary();
+
+      // Get active alerts from recent events
+      const activeAlerts = this.realtimeEventsQueue
+        .filter(event => 
+          event.severity === 'error' || event.severity === 'critical'
+        )
+        .filter(event => 
+          Date.now() - event.timestamp.getTime() < 3600000 // Last hour
+        )
+        .slice(-20); // Last 20 alerts
+
+      return {
+        serviceStatuses,
+        realtimeMetrics,
+        activeAlerts,
+        costSummary,
+        lastUpdate: this.lastCoordinationUpdate,
+      };
+    } catch (error) {
+      logger.error('Failed to get Frontend coordination data', {
+        error: error.message,
+      });
+      throw error;
+    }
+  }
+
+  /**
+   * Generate cost summary for all external services
+   */
+  private async generateCostSummary(): Promise<any> {
+    try {
+      const costSummary = {
+        totalHourlyCost: 0,
+        totalDailyCost: 0,
+        totalMonthlyCost: 0,
+        serviceBreakdown: {} as Record<string, any>,
+        alerts: [] as any[],
+        recommendations: [] as string[],
+      };
+
+      for (const [serviceName, config] of this.configurations.entries()) {
+        if (!config.enabled) continue;
+
+        const metrics = await this.getServiceMetrics(serviceName);
+        const estimatedHourlyCost = this.calculateEstimatedCost(serviceName, metrics);
+        
+        costSummary.serviceBreakdown[serviceName] = {
+          hourlyCost: estimatedHourlyCost,
+          dailyCost: estimatedHourlyCost * 24,
+          monthlyCost: estimatedHourlyCost * 24 * 30,
+          requestsPerHour: Math.round(metrics.requestsPerMinute * 60),
+          errorRate: metrics.errorRate,
+          priority: config.priority,
+        };
+
+        costSummary.totalHourlyCost += estimatedHourlyCost;
+
+        // Check against thresholds
+        const threshold = this.costAlertThresholds.get(serviceName) || 1000;
+        if (estimatedHourlyCost * 100 > threshold) { // Convert to cents
+          costSummary.alerts.push({
+            service: serviceName,
+            currentCost: estimatedHourlyCost,
+            threshold: threshold / 100,
+            severity: estimatedHourlyCost * 100 > threshold * 2 ? 'critical' : 'warning',
+          });
+        }
+      }
+
+      costSummary.totalDailyCost = costSummary.totalHourlyCost * 24;
+      costSummary.totalMonthlyCost = costSummary.totalHourlyCost * 24 * 30;
+
+      // Generate cost optimization recommendations
+      if (costSummary.totalHourlyCost > 50) {
+        costSummary.recommendations.push('Consider implementing request caching to reduce API calls');
+      }
+      if (costSummary.alerts.length > 0) {
+        costSummary.recommendations.push('Review high-cost services and implement rate limiting');
+      }
+
+      return costSummary;
+    } catch (error) {
+      logger.error('Failed to generate cost summary', {
+        error: error.message,
+      });
+      return {
+        totalHourlyCost: 0,
+        totalDailyCost: 0,
+        totalMonthlyCost: 0,
+        serviceBreakdown: {},
+        alerts: [],
+        recommendations: ['Cost calculation temporarily unavailable'],
+      };
+    }
+  }
+
+  /**
+   * Calculate estimated cost for a service based on usage
+   */
+  private calculateEstimatedCost(serviceName: string, metrics: ServiceMetrics): number {
+    // Rough cost estimates per 1000 requests (in dollars)
+    const costPer1000Requests = {
+      stripe: 0.05,    // Payment processing
+      twilio: 2.00,    // SMS messages
+      sendgrid: 0.10,  // Email sending
+      samsara: 0.02,   // GPS tracking
+      airtable: 0.01,  // Database operations
+      maps: 0.50,      // Map/routing requests
+    };
+
+    const baseCost = costPer1000Requests[serviceName as keyof typeof costPer1000Requests] || 0.01;
+    const requestsPerHour = metrics.requestsPerMinute * 60;
+    
+    return (requestsPerHour / 1000) * baseCost;
+  }
+
+  /**
+   * Handle webhook coordination for real-time updates
+   */
+  public async handleWebhookCoordination(
+    serviceName: string,
+    webhookData: any,
+    processingResult: any
+  ): Promise<void> {
+    try {
+      // Broadcast webhook event for real-time coordination
+      await this.broadcastCoordinationEvent({
+        eventType: 'webhook_received',
+        serviceName,
+        data: {
+          webhookType: webhookData.type || 'unknown',
+          processingResult,
+          dataSize: JSON.stringify(webhookData).length,
+        },
+        timestamp: new Date(),
+        severity: 'info',
+      });
+
+      // Update service metrics with webhook processing
+      await this.updateServiceMetrics(serviceName, {
+        responseTime: processingResult.processingTime || 0,
+        success: processingResult.success || false,
+      });
+
+      logger.debug('Webhook coordination completed', {
+        service: serviceName,
+        webhookType: webhookData.type,
+        success: processingResult.success,
+      });
+    } catch (error) {
+      logger.error('Failed to handle webhook coordination', {
+        error: error.message,
+        service: serviceName,
+      });
+    }
+  }
+
+  /**
+   * Trigger cost optimization analysis
+   */
+  public async triggerCostOptimization(): Promise<any> {
+    try {
+      logger.info('Starting cost optimization analysis');
+
+      const costSummary = await this.generateCostSummary();
+      const optimizationSuggestions = [];
+
+      // Analyze each service for optimization opportunities
+      for (const [serviceName, costData] of Object.entries(costSummary.serviceBreakdown)) {
+        const serviceData = costData as any;
+        
+        if (serviceData.errorRate > 5) {
+          optimizationSuggestions.push({
+            service: serviceName,
+            type: 'error_reduction',
+            suggestion: `High error rate (${serviceData.errorRate.toFixed(1)}%) - implement circuit breakers`,
+            potentialSavings: serviceData.hourlyCost * 0.1, // 10% potential savings
+          });
+        }
+
+        if (serviceData.requestsPerHour > 1000) {
+          optimizationSuggestions.push({
+            service: serviceName,
+            type: 'caching',
+            suggestion: `High request volume (${serviceData.requestsPerHour}/hour) - implement response caching`,
+            potentialSavings: serviceData.hourlyCost * 0.3, // 30% potential savings
+          });
+        }
+      }
+
+      // Broadcast cost optimization results
+      await this.broadcastCoordinationEvent({
+        eventType: 'cost_alert',
+        serviceName: 'system',
+        data: {
+          currentCosts: costSummary,
+          optimizationSuggestions,
+          potentialSavings: optimizationSuggestions.reduce((sum, s) => sum + s.potentialSavings, 0),
+        },
+        timestamp: new Date(),
+        severity: costSummary.totalHourlyCost > 100 ? 'critical' : 'warning',
+      });
+
+      logger.info('Cost optimization analysis completed', {
+        totalHourlyCost: costSummary.totalHourlyCost,
+        suggestionCount: optimizationSuggestions.length,
+      });
+
+      return {
+        costSummary,
+        optimizationSuggestions,
+        analysisTimestamp: new Date(),
+      };
+    } catch (error) {
+      logger.error('Cost optimization analysis failed', {
+        error: error.message,
+      });
+      throw error;
+    }
+  }
+
+  /**
+   * Enable/disable real-time coordination
+   */
+  public setCoordinationEnabled(enabled: boolean): void {
+    this.coordinationEnabled = enabled;
+    logger.info(`Real-time coordination ${enabled ? 'enabled' : 'disabled'}`);
+  }
+
+  /**
+   * Get recent coordination events for debugging
+   */
+  public getRecentCoordinationEvents(limit: number = 50): RealTimeCoordinationEvent[] {
+    return this.realtimeEventsQueue.slice(-limit);
   }
 
   /**

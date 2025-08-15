@@ -23,7 +23,8 @@ import {
   Home,
   Package,
   MapPin,
-  Calendar
+  Calendar,
+  Shield
 } from 'lucide-react';
 
 interface NavigationItem {
@@ -86,6 +87,13 @@ const navigationItems: NavigationItem[] = [
     href: '/users',
     icon: Users,
     allowedRoles: [UserRole.SUPER_ADMIN, UserRole.ADMIN],
+  },
+  {
+    name: 'Security',
+    href: '/soc',
+    icon: Shield,
+    allowedRoles: [UserRole.SUPER_ADMIN, UserRole.ADMIN],
+    badge: 'SOC',
   },
 ];
 

@@ -1,0 +1,77 @@
+# ============================================================================
+# SQL INJECTION ATTACK RESPONSE PLAYBOOK
+# ============================================================================
+#
+# Automated response playbook for SQL injection attacks
+# Critical security threat requiring immediate response
+#
+# Created by: DEVOPS-AGENT - TIER 1 Advanced Threat Protection
+# Date: 2025-08-14
+# Version: 1.0.0
+# ============================================================================
+
+name: "SQL Injection Attack Response"
+description: "Automated response to SQL injection attempts"
+enabled: true
+severity_threshold: "high"
+
+triggers:
+  - "sql_injection"
+  - "SQL_INJECTION"
+  - "union select"
+  - "drop table"
+  - "delete from"
+  - "insert into"
+
+actions:
+  - type: "block_ip"
+    params:
+      duration: "24h"
+      reason: "SQL injection attempt detected"
+      
+  - type: "send_alert"
+    params:
+      channels: ["slack", "email"]
+      priority: "critical"
+      message: "SQL injection attack detected and blocked"
+      
+  - type: "create_ticket"
+    params:
+      assigned_to: "security-team"
+      priority: "critical"
+      category: "data-security"
+      
+  - type: "isolate_host"
+    params:
+      type: "network"
+      duration: "1h"
+      
+  - type: "disable_user"
+    params:
+      duration: "pending-investigation"
+      reason: "Potential SQL injection attack"
+
+escalation:
+  - condition: "repeat_offense"
+    threshold: 3
+    timeframe: "1h"
+    action: "permanent_block"
+    
+  - condition: "multiple_sources"
+    threshold: 5
+    timeframe: "10m"
+    action: "alert_ciso"
+
+recovery:
+  - action: "review_logs"
+    params:
+      timeframe: "24h"
+      
+  - action: "check_data_integrity"
+    params:
+      databases: ["waste_management"]
+      
+  - action: "generate_report"
+    params:
+      format: "detailed"
+      include_forensics: true

@@ -4,10 +4,11 @@
 #
 # Multi-stage Dockerfile for production-ready Node.js TypeScript application
 # Optimized for security, performance, and minimal attack surface
+# Security-Agent Coordinated: Comprehensive security hardening implemented
 #
-# Created by: Infrastructure Agent
-# Date: 2025-08-12
-# Version: 1.0.0
+# Created by: DevOps-Agent coordinated with Security-Agent
+# Date: 2025-08-13
+# Version: 2.0.0 - Production Security Hardened
 # ============================================================================
 
 # ============================================================================
@@ -15,17 +16,25 @@
 # ============================================================================
 FROM node:20-alpine AS base
 
-# Install security updates and required dependencies
+# Security-Agent Coordination: Comprehensive security hardening
 RUN apk update && apk upgrade && \
     apk add --no-cache \
     dumb-init \
     curl \
     ca-certificates \
-    && rm -rf /var/cache/apk/*
+    tini \
+    su-exec \
+    && rm -rf /var/cache/apk/* /tmp/* /var/tmp/* \
+    && addgroup -g 1001 -S nodejs \
+    && adduser -S -D -H -u 1001 -s /sbin/nologin -G nodejs nodejs \
+    && mkdir -p /app /app/logs /app/uploads /app/tmp \
+    && chown -R nodejs:nodejs /app
 
-# Create non-root user for security
-RUN addgroup -g 1001 -S nodejs && \
-    adduser -S nextjs -u 1001
+# Security hardening: Set secure permissions and environment
+ENV NODE_ENV=production \
+    NPM_CONFIG_CACHE=/tmp/.npm \
+    NODE_OPTIONS="--max-old-space-size=512" \
+    TINI_SUBREAPER=1
 
 # Set working directory
 WORKDIR /app
@@ -89,38 +98,63 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
 CMD ["dumb-init", "npm", "run", "dev:ts"]
 
 # ============================================================================
-# Stage 5: Production runtime (minimal and secure)
+# Stage 5: Production runtime (Security-Agent Hardened)
 # ============================================================================
 FROM base AS production
 
-# Copy built application and production dependencies
+# Security-Agent Coordination: Enhanced production security
+ARG BUILD_DATE
+ARG VERSION
+ARG SECURITY_GRADE
+LABEL maintainer="DevOps-Agent + Security-Agent <infrastructure@waste-mgmt.com>" \
+      version="${VERSION}" \
+      build-date="${BUILD_DATE}" \
+      security-grade="${SECURITY_GRADE}" \
+      description="Security-hardened Waste Management Backend API"
+
+# Copy built application and production dependencies with secure permissions
 COPY --from=builder --chown=nodejs:nodejs /app/dist ./dist
 COPY --from=builder --chown=nodejs:nodejs /app/node_modules ./node_modules
 COPY --from=builder --chown=nodejs:nodejs /app/package*.json ./
 
-# Copy configuration files
+# Copy configuration files with restricted permissions
 COPY --chown=nodejs:nodejs ./src/config ./src/config
 
-# Set production environment
-ENV NODE_ENV=production
-ENV PORT=3001
+# Security hardening: File permissions and directory structure
+RUN chmod -R 755 /app && \
+    chmod -R 700 /app/logs /app/uploads && \
+    chmod 644 /app/package*.json && \
+    chmod -R 755 /app/dist && \
+    chmod -R 644 /app/src/config && \
+    find /app -type f -name "*.js" -exec chmod 644 {} \; && \
+    find /app -type f -name "*.json" -exec chmod 644 {} \; && \
+    rm -rf /tmp/* /var/tmp/* /root/.npm /home/nodejs/.npm
 
-# Expose port
+# Production environment with security configurations
+ENV NODE_ENV=production \
+    PORT=3001 \
+    NODE_OPTIONS="--max-old-space-size=512 --no-warnings" \
+    NPM_CONFIG_AUDIT=false \
+    NPM_CONFIG_FUND=false \
+    NPM_CONFIG_UPDATE_NOTIFIER=false \
+    FORCE_COLOR=0
+
+# Security: Remove unnecessary packages and files
+RUN apk del curl && \
+    rm -rf /var/cache/apk/* /tmp/* /var/tmp/*
+
+# Expose port (non-privileged)
 EXPOSE 3001
 
-# Create directories for logs and uploads
-RUN mkdir -p /app/logs /app/uploads && \
-    chown -R nodejs:nodejs /app/logs /app/uploads
-
-# Switch to non-root user
+# Switch to non-root user early
 USER nodejs
 
-# Health check
+# Security-enhanced health check (internal only, no curl needed)
 HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
-    CMD curl -f http://localhost:${PORT}/health || exit 1
+    CMD node -e "const http=require('http'); const options={hostname:'localhost',port:process.env.PORT||3001,path:'/health',timeout:5000}; const req=http.request(options,(res)=>{process.exit(res.statusCode===200?0:1)}); req.on('error',()=>process.exit(1)); req.end();"
 
-# Start application
-CMD ["dumb-init", "node", "dist/server.js"]
+# Security-Agent Coordinated: Secure application startup
+CMD ["tini", "-s", "--", "node", "--unhandled-rejections=strict", "dist/server.js"]
 
 # ============================================================================
 # Stage 6: Testing environment

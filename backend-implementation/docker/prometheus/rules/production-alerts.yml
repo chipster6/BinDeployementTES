@@ -199,7 +199,7 @@ groups:
           summary: "High number of bin collection delays"
           description: "{{ $value }} bin collection delays in the last hour"
 
-  # Security Alerts
+  # Security-Agent Coordinated: Enhanced Security Alerts
   - name: security.critical
     rules:
       - alert: UnauthorizedAccessAttempts
@@ -208,10 +208,23 @@ groups:
         labels:
           severity: warning
           category: security
+          security_agent_coordinated: "true"
         annotations:
           summary: "High number of authentication failures"
           description: "{{ $value }} authentication failures in the last 5 minutes"
           runbook_url: "https://docs.waste-mgmt.com/runbooks/security-incident"
+
+      - alert: CriticalAuthenticationFailures
+        expr: increase(auth_failures_total[1m]) > 10
+        for: 0m
+        labels:
+          severity: critical
+          category: security
+          priority: "immediate"
+        annotations:
+          summary: "CRITICAL: Potential security breach detected"
+          description: "{{ $value }} authentication failures in 1 minute - possible attack"
+          runbook_url: "https://docs.waste-mgmt.com/runbooks/security-breach"
 
       - alert: SQLInjectionAttempt
         expr: increase(sql_injection_attempts_total[1m]) > 0
@@ -224,6 +237,54 @@ groups:
           description: "{{ $value }} SQL injection attempts detected"
           runbook_url: "https://docs.waste-mgmt.com/runbooks/sql-injection"
 
+      - alert: EncryptionBypassAttempt
+        expr: increase(encryption_bypass_attempts_total[1m]) > 0
+        for: 0m
+        labels:
+          severity: critical
+          category: security
+          security_critical: "aes256_gcm"
+        annotations:
+          summary: "CRITICAL: Encryption bypass attempt detected"
+          description: "AES-256-GCM encryption bypass attempt detected"
+          runbook_url: "https://docs.waste-mgmt.com/runbooks/encryption-breach"
+
+      - alert: JWTTokenForgeryAttempt
+        expr: increase(jwt_forgery_attempts_total[1m]) > 0
+        for: 0m
+        labels:
+          severity: critical
+          category: security
+          jwt_security: "rs256"
+        annotations:
+          summary: "CRITICAL: JWT token forgery attempt"
+          description: "RS256 JWT token forgery attempt detected"
+          runbook_url: "https://docs.waste-mgmt.com/runbooks/jwt-security"
+
+      - alert: PrivilegeEscalationAttempt
+        expr: increase(privilege_escalation_attempts_total[1m]) > 0
+        for: 0m
+        labels:
+          severity: critical
+          category: security
+          rbac_violation: "true"
+        annotations:
+          summary: "CRITICAL: Privilege escalation attempt"
+          description: "RBAC privilege escalation attempt detected"
+          runbook_url: "https://docs.waste-mgmt.com/runbooks/rbac-violation"
+
+      - alert: MFABypassAttempt
+        expr: increase(mfa_bypass_attempts_total[1m]) > 0
+        for: 0m
+        labels:
+          severity: critical
+          category: security
+          mfa_security: "encrypted_secrets"
+        annotations:
+          summary: "CRITICAL: MFA bypass attempt detected"
+          description: "Multi-factor authentication bypass attempt"
+          runbook_url: "https://docs.waste-mgmt.com/runbooks/mfa-breach"
+
       - alert: SuspiciousAPIUsage
         expr: rate(http_requests_total[5m]) by (source_ip) > 100
         for: 2m
@@ -233,6 +294,18 @@ groups:
         annotations:
           summary: "Suspicious API usage pattern"
           description: "High request rate from {{ $labels.source_ip }}: {{ $value }} requests/second"
+
+      - alert: SecurityGradeDegradation
+        expr: security_grade_current < 85
+        for: 5m
+        labels:
+          severity: warning
+          category: security
+          compliance_impact: "true"
+        annotations:
+          summary: "Security grade degradation detected"
+          description: "Current security grade: {{ $value }}% (threshold: 85%)"
+          runbook_url: "https://docs.waste-mgmt.com/runbooks/security-grade"
 
   # Infrastructure Alerts
   - name: infrastructure.critical

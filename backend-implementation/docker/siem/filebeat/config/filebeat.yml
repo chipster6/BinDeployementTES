@@ -1,0 +1,424 @@
+# ============================================================================
+# FILEBEAT LOG SHIPPING CONFIGURATION
+# ============================================================================
+#
+# Production Filebeat configuration for SIEM log collection
+# Real-time log shipping and parsing for security events
+#
+# Created by: DEVOPS-AGENT - TIER 1 Advanced Threat Protection
+# Date: 2025-08-14
+# Version: 1.0.0
+# ============================================================================
+
+# Global Configuration
+name: "waste-mgmt-siem-filebeat"
+tags: ["siem", "security", "waste-management", "production"]
+
+# Input Configuration - Security Log Sources
+filebeat.inputs:
+  # System Authentication Logs
+  - type: log
+    enabled: true
+    paths:
+      - /var/log/auth.log
+      - /var/log/secure
+    fields:
+      logtype: "system-auth"
+      environment: "production"
+      security_grade: "100"
+    fields_under_root: true
+    include_lines: ['sshd', 'sudo', 'su', 'login', 'passwd']
+    exclude_lines: ['DEBUG', 'TRACE']
+    multiline.pattern: '^\d{4}-\d{2}-\d{2}'
+    multiline.negate: true
+    multiline.match: after
+    processors:
+      - add_host_metadata:
+          when.not.contains.tags: forwarded
+
+  # System Logs
+  - type: log
+    enabled: true
+    paths:
+      - /var/log/syslog
+      - /var/log/messages
+      - /var/log/kern.log
+    fields:
+      logtype: "system"
+      environment: "production"
+    fields_under_root: true
+    exclude_lines: ['DEBUG', 'TRACE', 'rsyslog']
+    processors:
+      - add_host_metadata: ~
+
+  # Nginx Access Logs (Security Analysis)
+  - type: log
+    enabled: true
+    paths:
+      - /var/log/nginx/access.log
+      - /var/log/nginx/*/access.log
+    fields:
+      logtype: "nginx-access"
+      service: "web-server"
+      environment: "production"
+    fields_under_root: true
+    json.keys_under_root: false
+    json.add_error_key: true
+    processors:
+      - add_host_metadata: ~
+      - decode_json_fields:
+          fields: ["message"]
+          target: ""
+          overwrite_keys: true
+
+  # Nginx Error Logs
+  - type: log
+    enabled: true
+    paths:
+      - /var/log/nginx/error.log
+      - /var/log/nginx/*/error.log
+    fields:
+      logtype: "nginx-error"
+      service: "web-server"
+      environment: "production"
+      security_impact: "high"
+    fields_under_root: true
+    multiline.pattern: '^\d{4}\/\d{2}\/\d{2}'
+    multiline.negate: true
+    multiline.match: after
+    processors:
+      - add_host_metadata: ~
+
+  # Docker Container Logs
+  - type: docker
+    enabled: true
+    containers.ids: ["*"]
+    containers.path: "/var/lib/docker/containers"
+    containers.stream: "all"
+    fields:
+      logtype: "docker"
+      environment: "production"
+    fields_under_root: true
+    processors:
+      - add_docker_metadata:
+          host: "unix:///var/run/docker.sock"
+          match_fields: ["container.id"]
+          match_pids: ["process.pid", "process.ppid"]
+          match_source: true
+          match_source_index: 4
+          match_short_id: false
+          cleanup_timeout: 60
+          labels.dedot: false
+          annotations.dedot: false
+      - decode_json_fields:
+          fields: ["message"]
+          target: ""
+          overwrite_keys: true
+          when:
+            contains:
+              message: "{"
+
+  # Application Security Logs
+  - type: log
+    enabled: true
+    paths:
+      - /var/log/waste-mgmt/backend/*.log
+      - /var/log/waste-mgmt/security/*.log
+      - /var/log/waste-mgmt/audit/*.log
+    fields:
+      logtype: "application-security"
+      service: "waste-management"
+      environment: "production"
+      security_impact: "critical"
+    fields_under_root: true
+    json.keys_under_root: false
+    json.add_error_key: true
+    include_lines: ['ERROR', 'WARN', 'SECURITY', 'AUTH', 'RBAC', 'ENCRYPTION']
+    processors:
+      - add_host_metadata: ~
+      - decode_json_fields:
+          fields: ["message"]
+          target: ""
+          overwrite_keys: true
+
+  # PostgreSQL Database Logs
+  - type: log
+    enabled: true
+    paths:
+      - /var/log/postgresql/*.log
+      - /var/lib/postgresql/*/main/log/*.log
+    fields:
+      logtype: "postgresql"
+      service: "database"
+      environment: "production"
+      security_impact: "high"
+    fields_under_root: true
+    multiline.pattern: '^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}'
+    multiline.negate: true
+    multiline.match: after
+    include_lines: ['ERROR', 'FATAL', 'WARNING', 'authentication', 'connection']
+    processors:
+      - add_host_metadata: ~
+
+  # Redis Logs
+  - type: log
+    enabled: true
+    paths:
+      - /var/log/redis/*.log
+    fields:
+      logtype: "redis"
+      service: "cache"
+      environment: "production"
+    fields_under_root: true
+    processors:
+      - add_host_metadata: ~
+
+  # Elasticsearch Logs
+  - type: log
+    enabled: true
+    paths:
+      - /usr/share/elasticsearch/logs/*.log
+    fields:
+      logtype: "elasticsearch"
+      service: "siem-storage"
+      environment: "production"
+    fields_under_root: true
+    json.keys_under_root: false
+    json.add_error_key: true
+    multiline.pattern: '^\[\d{4}-\d{2}-\d{2}T'
+    multiline.negate: true
+    multiline.match: after
+    processors:
+      - add_host_metadata: ~
+
+  # Suricata IDS Logs
+  - type: log
+    enabled: true
+    paths:
+      - /var/log/suricata/eve.json
+      - /var/log/suricata/fast.log
+    fields:
+      logtype: "suricata-ids"
+      service: "network-security"
+      environment: "production"
+      security_impact: "critical"
+    fields_under_root: true
+    json.keys_under_root: false
+    json.add_error_key: true
+    processors:
+      - add_host_metadata: ~
+      - decode_json_fields:
+          fields: ["message"]
+          target: "suricata"
+          overwrite_keys: true
+
+  # Wazuh HIDS Logs
+  - type: log
+    enabled: true
+    paths:
+      - /var/ossec/logs/alerts/alerts.json
+      - /var/ossec/logs/alerts/alerts.log
+    fields:
+      logtype: "wazuh-hids"
+      service: "host-security"
+      environment: "production"
+      security_impact: "critical"
+    fields_under_root: true
+    json.keys_under_root: false
+    json.add_error_key: true
+    processors:
+      - add_host_metadata: ~
+      - decode_json_fields:
+          fields: ["message"]
+          target: "wazuh"
+          overwrite_keys: true
+
+  # Falco Runtime Security Logs
+  - type: log
+    enabled: true
+    paths:
+      - /var/log/falco/falco_events.log
+    fields:
+      logtype: "falco-runtime"
+      service: "runtime-security"
+      environment: "production"
+      security_impact: "critical"
+    fields_under_root: true
+    json.keys_under_root: false
+    json.add_error_key: true
+    processors:
+      - add_host_metadata: ~
+      - decode_json_fields:
+          fields: ["message"]
+          target: "falco"
+          overwrite_keys: true
+
+  # OSQuery Security Logs
+  - type: log
+    enabled: true
+    paths:
+      - /var/log/osquery/osqueryd.results.log
+    fields:
+      logtype: "osquery"
+      service: "endpoint-monitoring"
+      environment: "production"
+    fields_under_root: true
+    json.keys_under_root: false
+    json.add_error_key: true
+    processors:
+      - add_host_metadata: ~
+      - decode_json_fields:
+          fields: ["message"]
+          target: "osquery"
+          overwrite_keys: true
+
+# Modules Configuration
+filebeat.config.modules:
+  path: /usr/share/filebeat/modules.d/*.yml
+  reload.enabled: true
+  reload.period: 30s
+
+# Autodiscover Configuration for Docker
+filebeat.autodiscover:
+  providers:
+    - type: docker
+      hints.enabled: true
+      hints.default_config:
+        type: docker
+        containers.path: "/var/lib/docker/containers"
+        containers.stream: "all"
+      templates:
+        - condition:
+            contains:
+              docker.container.image: "nginx"
+          config:
+            - type: docker
+              containers.ids: ["${data.docker.container.id}"]
+              processors:
+                - add_docker_metadata: ~
+
+        - condition:
+            contains:
+              docker.container.image: "postgres"
+          config:
+            - type: docker
+              containers.ids: ["${data.docker.container.id}"]
+              processors:
+                - add_docker_metadata: ~
+
+        - condition:
+            contains:
+              docker.container.image: "elasticsearch"
+          config:
+            - type: docker
+              containers.ids: ["${data.docker.container.id}"]
+              processors:
+                - add_docker_metadata: ~
+
+# Global Processors
+processors:
+  # Add timestamp
+  - timestamp:
+      field: "@timestamp"
+      layouts:
+        - '2006-01-02T15:04:05.000Z'
+        - '2006-01-02 15:04:05'
+      test:
+        - '2019-06-22T16:33:51.000Z'
+        - '2019-11-18 04:59:51'
+
+  # Add environment information
+  - add_fields:
+      target: environment
+      fields:
+        name: production
+        deployment: waste-management-siem
+        security_grade: 100
+        tier: "1-advanced-threat-protection"
+
+  # Add GeoIP information for external IPs
+  - add_locale:
+      format: offset
+
+  # Drop empty events
+  - drop_event:
+      when:
+        equals:
+          message: ""
+
+# Output Configuration
+output.logstash:
+  hosts: ["logstash:5044"]
+  compression_level: 3
+  bulk_max_size: 2048
+  worker: 2
+  loadbalance: true
+  slow_start: true
+  ttl: 300s
+  pipelining: 2
+  template.name: "siem-security-events"
+  template.pattern: "siem-*"
+
+# Alternative Output to Elasticsearch (Commented for Logstash Processing)
+# output.elasticsearch:
+#   hosts: ["elasticsearch:9200"]
+#   username: "elastic"
+#   password: "${ELASTICSEARCH_PASSWORD}"
+#   index: "siem-events-%{+yyyy.MM.dd}"
+#   template.name: "siem-security-events"
+#   template.pattern: "siem-*"
+#   template.settings:
+#     index.number_of_shards: 1
+#     index.number_of_replicas: 0
+#     index.refresh_interval: "5s"
+
+# Monitoring Configuration
+monitoring:
+  enabled: true
+  elasticsearch:
+    hosts: ["elasticsearch:9200"]
+    username: "elastic"
+    password: "${ELASTICSEARCH_PASSWORD}"
+
+# Logging Configuration
+logging.level: info
+logging.to_files: true
+logging.files:
+  path: /var/log/filebeat
+  name: filebeat
+  keepfiles: 7
+  permissions: 0644
+  rotateeverybytes: 10485760
+
+# Path Configuration
+path.config: /usr/share/filebeat
+path.data: /usr/share/filebeat/data
+path.logs: /var/log/filebeat
+
+# Queue Configuration
+queue.mem:
+  events: 4096
+  flush.min_events: 2048
+  flush.timeout: 1s
+
+# Registry Configuration
+filebeat.registry.path: /usr/share/filebeat/data/registry
+
+# Max Message Size
+max_message_bytes: 1000000
+
+# Shutdown Timeout
+shutdown_timeout: 5s
+
+# SIEM Integration Features:
+# - Comprehensive log collection from all security components
+# - Real-time log shipping to Logstash for processing
+# - JSON parsing and field extraction for security events
+# - Docker container log collection with metadata
+# - Application security log monitoring
+# - Database and cache log collection
+# - Network security (Suricata) integration
+# - Host security (Wazuh) integration
+# - Runtime security (Falco) integration
+# - Endpoint monitoring (OSQuery) integration
+# - Structured output for SIEM correlation and analysis

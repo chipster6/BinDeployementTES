@@ -1,0 +1,749 @@
+# ============================================================================
+# ENHANCED AI/ML INFRASTRUCTURE DOCKER COMPOSE
+# ============================================================================
+#
+# Complete infrastructure deployment for AI/ML integration
+# Includes GPU allocation, memory scaling, and production monitoring
+# Coordinates with existing infrastructure while providing ML-specific resources
+#
+# Created by: DevOps-Agent (MESH Coordination coord-ai-ml-mesh-001)
+# Coordination: System-Architecture-Lead + Database-Architect + All Agents
+# Date: 2025-08-13
+# Version: 1.0.0 - Production Ready AI/ML Infrastructure
+# ============================================================================
+
+version: '3.8'
+
+services:
+  # ============================================================================
+  # ENHANCED POSTGRESQL FOR AI/ML WORKLOADS
+  # Connection pool scaled from 120 → 180 connections (Database-Architect requirement)
+  # ============================================================================
+  postgres-ml:
+    image: postgis/postgis:16-3.4
+    container_name: waste-mgmt-postgres-ml
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: waste_management
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-postgres123}
+      POSTGRES_INITDB_ARGS: "--encoding=UTF-8 --lc-collate=C --lc-ctype=C"
+      
+      # AI/ML optimizations
+      POSTGRES_MAX_CONNECTIONS: 200  # Enhanced from 120 → 200
+      POSTGRES_SHARED_BUFFERS: 512MB  # Enhanced from 256MB
+      POSTGRES_EFFECTIVE_CACHE_SIZE: 2GB  # Enhanced from 1GB
+      POSTGRES_WORK_MEM: 32MB  # Enhanced from 16MB
+      POSTGRES_MAINTENANCE_WORK_MEM: 128MB  # Enhanced from 64MB
+      
+    ports:
+      - "${DB_PORT:-5432}:5432"
+      
+    volumes:
+      - postgres_ml_data:/var/lib/postgresql/data
+      - ./docker/postgres/init:/docker-entrypoint-initdb.d
+      - ./docker/postgres/config/postgresql-ml.conf:/etc/postgresql/postgresql.conf
+      - ./database/migrations:/docker-entrypoint-initdb.d/migrations
+      
+    networks:
+      - ai_ml_network
+      - backend_network
+      
+    deploy:
+      resources:
+        limits:
+          memory: 4G
+          cpus: '2.0'
+        reservations:
+          memory: 2G
+          cpus: '1.0'
+          
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d waste_management"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+      
+    command: ["postgres", "-c", "config_file=/etc/postgresql/postgresql.conf"]
+
+  # ============================================================================
+  # ENHANCED REDIS FOR AI/ML CACHING
+  # ============================================================================
+  redis-ml:
+    image: redis:7-alpine
+    container_name: waste-mgmt-redis-ml
+    restart: unless-stopped
+    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD:-redis123} --maxmemory 2gb --maxmemory-policy allkeys-lru
+    
+    ports:
+      - "${REDIS_ML_PORT:-6380}:6379"
+      
+    volumes:
+      - redis_ml_data:/data
+      - ./docker/redis/redis-ml.conf:/usr/local/etc/redis/redis.conf
+      
+    networks:
+      - ai_ml_network
+      - backend_network
+      
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+          cpus: '1.0'
+        reservations:
+          memory: 1G
+          cpus: '0.5'
+          
+    healthcheck:
+      test: ["CMD", "redis-cli", "--raw", "incr", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 10s
+
+  # ============================================================================
+  # WEAVIATE VECTOR DATABASE
+  # Vector Intelligence Foundation (Innovation-Architect specifications)
+  # ============================================================================
+  weaviate:
+    image: semitechnologies/weaviate:1.21.2
+    container_name: weaviate-vector-db
+    restart: unless-stopped
+    environment:
+      # Authentication and Security (Security-Agent coordination)
+      - AUTHENTICATION_ANONYMOUS_ACCESS_ENABLED=false
+      - AUTHENTICATION_API_KEY_ENABLED=true
+      - AUTHENTICATION_API_KEY_ALLOWED_KEYS=${WEAVIATE_API_KEY}
+      - AUTHENTICATION_API_KEY_USERS=waste-management-ml
+      
+      # Data Persistence
+      - PERSISTENCE_DATA_PATH=/var/lib/weaviate
+      - BACKUP_FILESYSTEM_PATH=/var/lib/weaviate/backups
+      
+      # Query Configuration
+      - QUERY_DEFAULTS_LIMIT=25
+      - QUERY_MAXIMUM_RESULTS=1000
+      - QUERY_SLOW_LOG_ENABLED=true
+      
+      # Vector Module Configuration (Innovation-Architect requirements)
+      - DEFAULT_VECTORIZER_MODULE=text2vec-openai
+      - ENABLE_MODULES=text2vec-openai,generative-openai,qna-openai
+      - TEXT2VEC_OPENAI_APIKEY=${OPENAI_API_KEY}
+      - GENERATIVE_OPENAI_APIKEY=${OPENAI_API_KEY}
+      
+      # Cluster Configuration
+      - CLUSTER_HOSTNAME=weaviate-node-1
+      - CLUSTER_GOSSIP_BIND_PORT=7000
+      - CLUSTER_DATA_BIND_PORT=7001
+      
+      # Performance Optimization (Performance-Optimization-Specialist coordination)
+      - TRACK_VECTOR_DIMENSIONS=true
+      - REPLICATION_FACTOR=1
+      - ASYNC_INDEXING=true
+      
+      # Monitoring and Logging
+      - LOG_LEVEL=info
+      - PROMETHEUS_MONITORING_ENABLED=true
+      - PROMETHEUS_MONITORING_PORT=2112
+      
+    ports:
+      - "8080:8080"      # Main API port
+      - "2112:2112"      # Prometheus metrics
+      - "7000:7000"      # Gossip protocol
+      - "7001:7001"      # Data replication
+      
+    volumes:
+      - weaviate_data:/var/lib/weaviate
+      - weaviate_backups:/var/lib/weaviate/backups
+      - ./weaviate/config:/weaviate/config:ro
+      
+    networks:
+      - ai_ml_network
+      - backend_network
+      
+    deploy:
+      resources:
+        limits:
+          memory: 4G
+          cpus: '2.0'
+        reservations:
+          memory: 2G
+          cpus: '1.0'
+      
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/v1/meta"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+      
+    labels:
+      - "monitoring.enable=true"
+      - "backup.enable=true"
+
+  # ============================================================================
+  # ML SERVICES CONTAINER
+  # OR-Tools + GraphHopper + Prophet + LightGBM (Innovation-Architect specifications)
+  # ============================================================================
+  ml-services:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.ml
+      args:
+        - NODE_VERSION=20-alpine
+        - PYTHON_VERSION=3.11
+    container_name: ml-services
+    restart: unless-stopped
+    environment:
+      # Database Configuration (Database-Architect coordination)
+      - DATABASE_URL=postgresql://postgres:${DB_PASSWORD:-postgres123}@postgres-ml:5432/waste_management
+      - DB_POOL_MAX=60  # Dedicated pool for ML services
+      
+      # Redis Configuration
+      - REDIS_URL=redis://:${REDIS_PASSWORD:-redis123}@redis-ml:6379/0
+      - REDIS_ML_NAMESPACE=ml:
+      
+      # Vector Database Integration (Innovation-Architect requirements)
+      - WEAVIATE_URL=http://weaviate:8080
+      - WEAVIATE_API_KEY=${WEAVIATE_API_KEY}
+      - WEAVIATE_BATCH_SIZE=100
+      - WEAVIATE_TIMEOUT=30000
+      
+      # OpenAI Integration
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - OPENAI_MODEL=text-embedding-ada-002
+      - OPENAI_MAX_TOKENS=8192
+      - OPENAI_TEMPERATURE=0.1
+      
+      # Route Optimization (OR-Tools + GraphHopper)
+      - ORTOOLS_LICENSE_KEY=${ORTOOLS_LICENSE_KEY}
+      - ORTOOLS_SOLVER_TIMEOUT=30000
+      - ORTOOLS_MAX_VEHICLES=50
+      - GRAPHHOPPER_API_KEY=${GRAPHHOPPER_API_KEY}
+      - GRAPHHOPPER_BASE_URL=https://graphhopper.com/api/1
+      - GRAPHHOPPER_TIMEOUT=15000
+      
+      # ML Training Configuration
+      - ML_TRAINING_DATA_PATH=/app/data/training
+      - ML_MODEL_STORAGE_PATH=/app/models
+      - ML_CACHE_PATH=/app/cache
+      - ML_BATCH_SIZE=1000
+      - ML_VALIDATION_SPLIT=0.2
+      - ML_TEST_SPLIT=0.1
+      
+      # Performance Configuration (Performance-Optimization-Specialist coordination)
+      - ML_VECTOR_SEARCH_CACHE_TTL=3600
+      - ML_PREDICTION_CACHE_TTL=1800
+      - ML_MODEL_REFRESH_INTERVAL=86400000
+      - ML_PERFORMANCE_MONITORING=true
+      
+      # Monitoring and Logging
+      - LOG_LEVEL=info
+      - ENABLE_PROMETHEUS_METRICS=true
+      - PROMETHEUS_PORT=9090
+      
+    ports:
+      - "3010:3000"     # ML Services API
+      - "9090:9090"     # Prometheus metrics
+      - "8000:8000"     # Python ML backend
+      
+    volumes:
+      - ml_models:/app/models
+      - ml_training_data:/app/data/training
+      - ml_cache:/app/cache
+      - ml_logs:/app/logs
+      - ./config/ml:/app/config:ro
+      
+    networks:
+      - ai_ml_network
+      - backend_network
+      
+    depends_on:
+      weaviate:
+        condition: service_healthy
+      postgres-ml:
+        condition: service_healthy
+      redis-ml:
+        condition: service_healthy
+        
+    deploy:
+      resources:
+        limits:
+          memory: 8G  # System-Architecture-Lead requirement
+          cpus: '4.0'
+        reservations:
+          memory: 4G
+          cpus: '2.0'
+          
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/health/ml"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 120s
+      
+    labels:
+      - "monitoring.enable=true"
+      - "scaling.enable=true"
+
+  # ============================================================================
+  # LOCAL LLM SERVICE (LLAMA 3.1 8B)
+  # GPU-enabled customer service automation (Innovation-Architect specifications)
+  # ============================================================================
+  llm-service:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.llm
+      args:
+        - CUDA_VERSION=11.8
+        - PYTHON_VERSION=3.11
+    container_name: llm-service
+    restart: unless-stopped
+    environment:
+      # Model Configuration (Innovation-Architect specifications)
+      - MODEL_PATH=/app/models/llama-3.1-8b
+      - MODEL_NAME=llama-3.1-8b-instruct
+      - MAX_CONTEXT_LENGTH=8192
+      - MAX_BATCH_SIZE=8
+      - TEMPERATURE=0.1
+      - TOP_P=0.9
+      - REPETITION_PENALTY=1.1
+      
+      # GPU Configuration (System-Architecture-Lead requirements)
+      - CUDA_VISIBLE_DEVICES=0
+      - GPU_MEMORY_FRACTION=0.8
+      - ENABLE_GPU_ACCELERATION=true
+      
+      # Performance Configuration
+      - MAX_CONCURRENT_REQUESTS=20
+      - REQUEST_TIMEOUT=30000
+      - MODEL_LOAD_TIMEOUT=300000
+      - ENABLE_MODEL_CACHING=true
+      
+      # Security and Access (Security-Agent coordination)
+      - API_KEY=${LLM_API_KEY}
+      - ENABLE_API_KEY_AUTH=true
+      - CORS_ORIGINS=http://localhost:3001,http://ml-services:3000
+      
+      # Monitoring and Logging
+      - LOG_LEVEL=info
+      - ENABLE_METRICS=true
+      - METRICS_PORT=8001
+      - ENABLE_REQUEST_LOGGING=true
+      
+    ports:
+      - "8001:8000"     # LLM API port
+      - "8002:8001"     # Metrics port
+      
+    volumes:
+      - llm_models:/app/models
+      - llm_cache:/app/cache
+      - llm_logs:/app/logs
+      - ./config/llm:/app/config:ro
+      
+    networks:
+      - ai_ml_network
+      
+    deploy:
+      resources:
+        limits:
+          memory: 16G  # System-Architecture-Lead requirement
+          cpus: '8.0'
+        reservations:
+          memory: 8G
+          cpus: '4.0'
+      placement:
+        constraints:
+          - node.role == manager
+      update_config:
+        parallelism: 1
+        delay: 10s
+        
+    # GPU support (Enable if GPU available)
+    # runtime: nvidia
+    # environment:
+    #   - NVIDIA_VISIBLE_DEVICES=0
+        
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 15s
+      retries: 3
+      start_period: 300s  # Allow time for model loading
+      
+    labels:
+      - "monitoring.enable=true"
+      - "gpu.required=true"
+
+  # ============================================================================
+  # ENHANCED BACKEND API WITH ML INTEGRATION
+  # ============================================================================
+  backend-ml:
+    build:
+      context: .
+      dockerfile: ./docker/Dockerfile
+      target: development
+    container_name: waste-mgmt-backend-ml
+    restart: unless-stopped
+    environment:
+      NODE_ENV: ${NODE_ENV:-development}
+      PORT: ${PORT:-3001}
+      
+      # Enhanced Database Configuration (Database-Architect coordination)
+      DB_HOST: postgres-ml
+      DB_PORT: 5432
+      DB_NAME: waste_management
+      DB_USERNAME: postgres
+      DB_PASSWORD: ${DB_PASSWORD:-postgres123}
+      DB_SSL: false
+      DB_POOL_MIN: 30  # Enhanced from 20
+      DB_POOL_MAX: 180  # Enhanced from 120 (Database-Architect requirement)
+      
+      # Enhanced Redis Configuration
+      REDIS_HOST: redis-ml
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-redis123}
+      REDIS_DB: 0
+      REDIS_KEY_PREFIX: "waste_mgmt:"
+      REDIS_TTL_DEFAULT: 3600
+      
+      # AI/ML Service Integration
+      ML_SERVICES_URL: http://ml-services:3000
+      ML_SERVICES_API_KEY: ${ML_SERVICES_API_KEY}
+      LLM_SERVICE_URL: http://llm-service:8000
+      LLM_SERVICE_API_KEY: ${LLM_API_KEY}
+      WEAVIATE_URL: http://weaviate:8080
+      WEAVIATE_API_KEY: ${WEAVIATE_API_KEY}
+      
+      # ML Feature Flags
+      ENABLE_ML_ROUTE_OPTIMIZATION: true
+      ENABLE_ML_PREDICTIVE_ANALYTICS: true
+      ENABLE_ML_VECTOR_SEARCH: true
+      ENABLE_ML_LLM_ASSISTANT: true
+      
+      # JWT Configuration
+      JWT_SECRET: ${JWT_SECRET:-dev-jwt-secret-change-in-production}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:-dev-refresh-secret-change-in-production}
+      JWT_EXPIRES_IN: 15m
+      JWT_REFRESH_EXPIRES_IN: 7d
+      
+      # Encryption & Security
+      ENCRYPTION_KEY: ${ENCRYPTION_KEY:-dev-encryption-key-32-chars-long}
+      HASH_ROUNDS: 12
+      SESSION_SECRET: ${SESSION_SECRET:-dev-session-secret}
+      
+      # Enhanced Performance Settings
+      DEBUG_SQL: false
+      ENABLE_SWAGGER_UI: true
+      ENABLE_API_DOCS: true
+      LOG_LEVEL: debug
+      
+      # Enhanced Health Check Configuration
+      HEALTH_CHECK_ENABLED: true
+      HEALTH_CHECK_DATABASE: true
+      HEALTH_CHECK_REDIS: true
+      HEALTH_CHECK_EXTERNAL_APIS: true
+      HEALTH_CHECK_ML_SERVICES: true
+      
+      # Enhanced Background Jobs
+      QUEUE_REDIS_HOST: redis-ml
+      QUEUE_REDIS_PORT: 6379
+      QUEUE_REDIS_DB: 1
+      ENABLE_QUEUE_DASHBOARD: true
+      QUEUE_DASHBOARD_PORT: 3003
+      
+    ports:
+      - "${PORT:-3001}:${PORT:-3001}"
+      - "${QUEUE_DASHBOARD_PORT:-3003}:${QUEUE_DASHBOARD_PORT:-3003}"
+      
+    volumes:
+      - .:/app
+      - /app/node_modules
+      - backend_uploads:/app/uploads
+      - backend_logs:/app/logs
+      
+    networks:
+      - ai_ml_network
+      - backend_network
+      
+    depends_on:
+      postgres-ml:
+        condition: service_healthy
+      redis-ml:
+        condition: service_healthy
+      weaviate:
+        condition: service_healthy
+      ml-services:
+        condition: service_healthy
+        
+    deploy:
+      resources:
+        limits:
+          memory: 4G  # Enhanced for ML integration
+          cpus: '2.0'
+        reservations:
+          memory: 2G
+          cpus: '1.0'
+          
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:${PORT:-3001}/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+  # ============================================================================
+  # AI/ML MONITORING AND OBSERVABILITY
+  # ============================================================================
+  ml-monitoring:
+    image: prom/prometheus:v2.45.0
+    container_name: ml-monitoring
+    restart: unless-stopped
+    environment:
+      - PROMETHEUS_RETENTION_TIME=30d
+      - PROMETHEUS_RETENTION_SIZE=10GB
+      
+    ports:
+      - "9091:9090"     # Prometheus UI
+      
+    volumes:
+      - ./monitoring/prometheus-ml.yml:/etc/prometheus/prometheus.yml:ro
+      - ./monitoring/rules:/etc/prometheus/rules:ro
+      - prometheus_ml_data:/prometheus
+      
+    networks:
+      - ai_ml_network
+      - monitoring
+      
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--storage.tsdb.retention.time=30d'
+      - '--storage.tsdb.retention.size=10GB'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--web.enable-lifecycle'
+      - '--web.enable-admin-api'
+      
+    depends_on:
+      - ml-services
+      - weaviate
+      - llm-service
+      
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+          cpus: '1.0'
+        reservations:
+          memory: 1G
+          cpus: '0.5'
+
+  # ============================================================================
+  # AI/ML GRAFANA DASHBOARDS
+  # ============================================================================
+  ml-grafana:
+    image: grafana/grafana:10.0.0
+    container_name: ml-grafana
+    restart: unless-stopped
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD:-admin}
+      - GF_USERS_ALLOW_SIGN_UP=false
+      - GF_PATHS_PROVISIONING=/etc/grafana/provisioning
+      - GF_INSTALL_PLUGINS=grafana-piechart-panel,grafana-polystat-panel
+      
+    ports:
+      - "3005:3000"     # Grafana UI (separate from main Grafana)
+      
+    volumes:
+      - ./monitoring/grafana/dashboards:/etc/grafana/provisioning/dashboards:ro
+      - ./monitoring/grafana/datasources:/etc/grafana/provisioning/datasources:ro
+      - grafana_ml_data:/var/lib/grafana
+      
+    networks:
+      - ai_ml_network
+      - monitoring
+      
+    depends_on:
+      - ml-monitoring
+      
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+          cpus: '0.5'
+        reservations:
+          memory: 512M
+          cpus: '0.25'
+
+# ============================================================================
+# ENHANCED VOLUMES FOR AI/ML DATA
+# ============================================================================
+volumes:
+  # Enhanced Database Storage
+  postgres_ml_data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${DATA_PATH:-./docker/data}/postgres-ml
+      
+  redis_ml_data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${DATA_PATH:-./docker/data}/redis-ml
+
+  # Vector Database Storage
+  weaviate_data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${DATA_PATH:-./docker/data}/weaviate
+      
+  weaviate_backups:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${DATA_PATH:-./docker/data}/weaviate/backups
+
+  # ML Services Storage
+  ml_models:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${DATA_PATH:-./docker/data}/ml/models
+      
+  ml_training_data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${DATA_PATH:-./docker/data}/ml/training
+      
+  ml_cache:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${DATA_PATH:-./docker/data}/ml/cache
+      
+  ml_logs:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${DATA_PATH:-./docker/data}/logs/ml
+
+  # LLM Service Storage
+  llm_models:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${DATA_PATH:-./docker/data}/llm/models
+      
+  llm_cache:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${DATA_PATH:-./docker/data}/llm/cache
+      
+  llm_logs:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${DATA_PATH:-./docker/data}/logs/llm
+
+  # Enhanced Backend Storage
+  backend_uploads:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${DATA_PATH:-./docker/data}/uploads
+      
+  backend_logs:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${DATA_PATH:-./docker/data}/logs
+
+  # Monitoring Storage
+  prometheus_ml_data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${DATA_PATH:-./docker/data}/prometheus/ml
+      
+  grafana_ml_data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${DATA_PATH:-./docker/data}/grafana/ml
+
+# ============================================================================
+# ENHANCED NETWORKS FOR AI/ML INFRASTRUCTURE
+# ============================================================================
+networks:
+  # AI/ML Services Network
+  ai_ml_network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16
+    labels:
+      - "com.waste-management.network.type=ai-ml"
+      - "com.waste-management.network.environment=${NODE_ENV:-development}"
+
+  # Backend Integration Network
+  backend_network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.19.0.0/16
+    labels:
+      - "com.waste-management.network.type=backend"
+
+  # Monitoring Network
+  monitoring:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.21.0.0/16
+    labels:
+      - "com.waste-management.network.type=monitoring"
+
+# ============================================================================
+# PRODUCTION CONFIGURATION EXTENSIONS
+# ============================================================================
+x-logging: &default-logging
+  driver: "json-file"
+  options:
+    max-size: "10m"
+    max-file: "3"
+    labels: "service"
+
+x-restart-policy: &restart-policy
+  restart_policy:
+    condition: unless-stopped
+    delay: 5s
+    max_attempts: 3
+    window: 120s
+
+# Apply logging and restart policies to all services
+x-common-config: &common-config
+  logging: *default-logging
+  deploy:
+    <<: *restart-policy

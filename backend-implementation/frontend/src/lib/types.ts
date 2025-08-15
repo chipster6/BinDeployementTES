@@ -288,3 +288,159 @@ export interface Notification {
   actionUrl?: string;
   createdAt: string;
 }
+
+// Security Operations Center (SOC) Types
+export enum ThreatLevel {
+  LOW = "low",
+  MEDIUM = "medium",
+  HIGH = "high",
+  CRITICAL = "critical",
+}
+
+export enum IncidentStatus {
+  OPEN = "open",
+  IN_PROGRESS = "in_progress",
+  RESOLVED = "resolved",
+  CLOSED = "closed",
+}
+
+export enum ThreatType {
+  MALWARE = "malware",
+  PHISHING = "phishing",
+  UNAUTHORIZED_ACCESS = "unauthorized_access",
+  DATA_BREACH = "data_breach",
+  DDOS = "ddos",
+  SUSPICIOUS_ACTIVITY = "suspicious_activity",
+}
+
+export interface ThreatDetection {
+  id: string;
+  threatType: ThreatType;
+  level: ThreatLevel;
+  sourceIp: string;
+  targetAsset: string;
+  description: string;
+  detectedAt: string;
+  resolvedAt?: string;
+  status: IncidentStatus;
+  confidence: number;
+  location?: {
+    country: string;
+    city: string;
+    latitude: number;
+    longitude: number;
+  };
+}
+
+export interface SecurityIncident {
+  id: string;
+  title: string;
+  description: string;
+  threatLevel: ThreatLevel;
+  incidentType: ThreatType;
+  status: IncidentStatus;
+  assignedTo?: string;
+  reportedBy: string;
+  reportedAt: string;
+  resolvedAt?: string;
+  timeline: IncidentTimelineEvent[];
+  affectedAssets: string[];
+  responseActions: ResponseAction[];
+}
+
+export interface IncidentTimelineEvent {
+  id: string;
+  timestamp: string;
+  event: string;
+  description: string;
+  actor: string;
+  severity: ThreatLevel;
+}
+
+export interface ResponseAction {
+  id: string;
+  action: string;
+  description: string;
+  status: "pending" | "in_progress" | "completed" | "failed";
+  executedBy?: string;
+  executedAt?: string;
+  automated: boolean;
+}
+
+export interface SecurityMetrics {
+  threatsDetected: number;
+  threatsBlocked: number;
+  incidentsOpen: number;
+  incidentsResolved: number;
+  averageResponseTime: number;
+  systemHealth: number;
+  complianceScore: number;
+  riskScore: number;
+}
+
+export interface IOC {
+  id: string;
+  type: "ip" | "domain" | "hash" | "url" | "email";
+  value: string;
+  threatLevel: ThreatLevel;
+  description: string;
+  source: string;
+  firstSeen: string;
+  lastSeen: string;
+  confidence: number;
+  tags: string[];
+}
+
+export interface ComplianceStatus {
+  framework: "GDPR" | "PCI_DSS" | "SOC2" | "HIPAA" | "ISO27001";
+  status: "compliant" | "non_compliant" | "partial" | "unknown";
+  score: number;
+  lastAudit: string;
+  nextAudit: string;
+  issues: ComplianceIssue[];
+}
+
+export interface ComplianceIssue {
+  id: string;
+  control: string;
+  description: string;
+  severity: ThreatLevel;
+  status: "open" | "in_progress" | "resolved";
+  dueDate: string;
+}
+
+export interface ThreatIntelligence {
+  ipReputation: {
+    ip: string;
+    reputation: number;
+    category: string;
+    country: string;
+    lastSeen: string;
+  }[];
+  activeCampaigns: {
+    name: string;
+    description: string;
+    threatLevel: ThreatLevel;
+    indicators: IOC[];
+  }[];
+  emergingThreats: {
+    name: string;
+    description: string;
+    cveId?: string;
+    threatLevel: ThreatLevel;
+    affectedSystems: string[];
+  }[];
+}
+
+export interface SecurityAuditLog {
+  id: string;
+  timestamp: string;
+  userId: string;
+  userEmail: string;
+  action: string;
+  resource: string;
+  ipAddress: string;
+  userAgent: string;
+  result: "success" | "failure" | "blocked";
+  details: Record<string, any>;
+}

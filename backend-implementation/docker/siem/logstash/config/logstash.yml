@@ -1,0 +1,138 @@
+# ============================================================================
+# LOGSTASH SIEM CONFIGURATION
+# ============================================================================
+#
+# Production Logstash configuration for SIEM log processing
+# Real-time security event processing and normalization
+#
+# Created by: DEVOPS-AGENT - TIER 1 Advanced Threat Protection
+# Date: 2025-08-14
+# Version: 1.0.0
+# ============================================================================
+
+# Node Configuration
+node.name: siem-logstash-processor
+
+# Path Configuration
+path.data: /usr/share/logstash/data
+path.logs: /usr/share/logstash/logs
+path.settings: /usr/share/logstash/config
+
+# Pipeline Configuration
+path.config: /usr/share/logstash/pipeline
+config.reload.automatic: true
+config.reload.interval: 30s
+
+# HTTP API Configuration
+http.host: "0.0.0.0"
+http.port: 9600
+
+# Performance Configuration
+pipeline.workers: 4
+pipeline.batch.size: 2000
+pipeline.batch.delay: 50
+
+# Memory Configuration
+pipeline.ecs_compatibility: v8
+
+# Queue Configuration
+queue.type: memory
+queue.max_bytes: 1gb
+queue.max_events: 0
+
+# Dead Letter Queue
+dead_letter_queue.enable: true
+dead_letter_queue.max_bytes: 1024mb
+
+# Monitoring Configuration
+monitoring.enabled: true
+monitoring.elasticsearch.hosts: ["http://elasticsearch:9200"]
+monitoring.elasticsearch.username: "elastic"
+monitoring.elasticsearch.password: "${ELASTICSEARCH_PASSWORD}"
+
+# X-Pack Configuration
+xpack.monitoring.enabled: true
+xpack.monitoring.collection.interval: 10s
+
+# Log Configuration
+log.level: info
+log.format: json
+
+# Slow Log Configuration
+slowlog.threshold.warn: 2s
+slowlog.threshold.info: 1s
+slowlog.threshold.debug: 500ms
+slowlog.threshold.trace: 100ms
+
+# Security Event Processing Pipeline
+pipeline.id: siem-security-events
+
+# JVM Configuration
+config.string: |
+  -Xms512m
+  -Xmx512m
+
+# API Settings
+api.enabled: true
+api.http.host: 0.0.0.0
+api.http.port: 9600
+api.environment: production
+
+# Module Configuration
+modules:
+  - name: netflow
+    var.elasticsearch.hosts: "http://elasticsearch:9200"
+    var.elasticsearch.username: "elastic"
+    var.elasticsearch.password: "${ELASTICSEARCH_PASSWORD}"
+  
+  - name: azure
+    var.elasticsearch.hosts: "http://elasticsearch:9200"
+    var.elasticsearch.username: "elastic"
+    var.elasticsearch.password: "${ELASTICSEARCH_PASSWORD}"
+
+# Security Configuration
+allow_env_var_expansion: true
+
+# Persistent Queue Configuration (Disabled for Memory Queue)
+queue.drain: true
+queue.checkpoint.writes: 1024
+
+# Plugin Configuration
+plugin_classpath: []
+
+# Field Reference Parser Configuration
+config.field_reference.parser: STRICT
+
+# SIEM-Specific Configuration
+config.support_escapes: true
+config.debug: false
+
+# Performance Monitoring
+metric.collect: true
+
+# Pipeline Configuration Validation
+config.test_and_exit: false
+config.check_config: false
+
+# Auto Reload Configuration
+config.reload.automatic: true
+config.reload.interval: 30s
+
+# Log Shipping Configuration for SIEM Sources:
+# - Application logs from waste management backend
+# - System logs from Docker containers  
+# - Security logs from authentication services
+# - Network logs from Nginx and load balancers
+# - Database logs from PostgreSQL
+# - Cache logs from Redis
+# - External API logs from integrations
+# - Error logs from all system components
+
+# Processing Pipeline Features:
+# - Real-time log normalization
+# - Security event correlation
+# - Threat intelligence enrichment
+# - Geolocation enrichment for IP addresses
+# - User behavior analysis
+# - Anomaly detection preprocessing
+# - Alert generation for security events

@@ -21,6 +21,10 @@ import customerRoutes from "./customers";
 import binRoutes from "./bins";
 import healthRoutes from "./health";
 import webhookRoutes from "./webhooks";
+import performanceCoordinationRoutes from "./performanceCoordination";
+import securityRoutes from "./security";
+import threatIntelligenceRoutes from "./threatIntelligence";
+import securityDashboardRoutes from "./securityDashboard";
 // import vehicleRoutes from './vehicles';
 // import routeRoutes from './routes';
 // import driverRoutes from './drivers';
@@ -49,6 +53,8 @@ const router = Router();
  * /api/v1/analytics     - Analytics and reporting
  * /api/v1/webhooks      - External webhook handlers
  * /api/v1/admin         - Administrative endpoints
+ * /api/v1/performance   - Performance coordination with Database-Architect
+ * /api/v1/security      - Security services (threats, monitoring, incidents, audit)
  */
 
 // Temporary placeholder endpoints until actual route modules are created
@@ -72,6 +78,8 @@ router.get("/", (req, res) => {
       analytics: "/api/v1/analytics",
       webhooks: "/api/v1/webhooks",
       admin: "/api/v1/admin",
+      performance: "/api/v1/performance",
+      security: "/api/v1/security",
       docs: "/api/docs",
       health: "/health",
     },
@@ -93,6 +101,10 @@ router.use("/users", userRoutes);
 router.use("/customers", customerRoutes);
 router.use("/bins", binRoutes);
 router.use("/webhooks", webhookRoutes);
+router.use("/performance", performanceCoordinationRoutes);
+router.use("/security", securityRoutes);
+router.use("/threat-intelligence", threatIntelligenceRoutes);
+router.use("/security-dashboard", securityDashboardRoutes);
 
 // Health and monitoring routes (not under /api/v1 prefix)
 router.use("/health", healthRoutes);

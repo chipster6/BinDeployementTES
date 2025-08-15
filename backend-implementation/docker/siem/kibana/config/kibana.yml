@@ -1,0 +1,200 @@
+# ============================================================================
+# KIBANA SIEM CONFIGURATION
+# ============================================================================
+#
+# Production Kibana configuration for SIEM dashboards and visualization
+# Security operations center (SOC) interface configuration
+#
+# Created by: DEVOPS-AGENT - TIER 1 Advanced Threat Protection
+# Date: 2025-08-14
+# Version: 1.0.0
+# ============================================================================
+
+# Server Configuration
+server.name: "waste-mgmt-siem-kibana"
+server.host: "0.0.0.0"
+server.port: 5601
+server.basePath: "/siem"
+server.rewriteBasePath: true
+
+# Elasticsearch Configuration
+elasticsearch.hosts: ["http://elasticsearch:9200"]
+elasticsearch.username: "elastic"
+elasticsearch.password: "${ELASTICSEARCH_PASSWORD}"
+
+# Security Configuration
+xpack.security.enabled: true
+xpack.encryptedSavedObjects.encryptionKey: "${KIBANA_ENCRYPTION_KEY}"
+
+# Security Features
+xpack.security.audit.enabled: true
+xpack.security.session.idleTimeout: "1h"
+xpack.security.session.lifespan: "8h"
+
+# SIEM App Configuration
+xpack.securitySolution.enabled: true
+xpack.securitySolution.defaultIndex: ["siem-events-*", "security-alerts-*"]
+
+# Machine Learning (Disabled for Resource Conservation)
+xpack.ml.enabled: false
+
+# Monitoring Configuration
+monitoring.enabled: true
+monitoring.kibana.collection.enabled: true
+monitoring.ui.enabled: true
+
+# Alerting Configuration
+xpack.actions.enabled: true
+xpack.alerts.enabled: true
+
+# Reporting (Disabled for Resource Conservation)
+xpack.reporting.enabled: false
+
+# Graph (Disabled for Resource Conservation)
+xpack.graph.enabled: false
+
+# Canvas (Disabled for Resource Conservation)
+xpack.canvas.enabled: false
+
+# Maps Configuration
+xpack.maps.enabled: true
+xpack.maps.showMapVisualizationTypes: true
+
+# Spaces Configuration
+xpack.spaces.enabled: true
+xpack.spaces.maxSpaces: 10
+
+# License Configuration
+xpack.license_management.enabled: true
+
+# Index Management
+xpack.index_management.enabled: true
+xpack.index_lifecycle_management.enabled: true
+
+# Snapshot and Restore
+xpack.snapshot_restore.enabled: true
+
+# Cross Cluster Replication (Disabled)
+xpack.cross_cluster_replication.enabled: false
+
+# Remote Clusters (Disabled)
+xpack.remote_clusters.enabled: false
+
+# Fleet (Disabled)
+xpack.fleet.enabled: false
+
+# Osquery (Disabled)
+xpack.osquery.enabled: false
+
+# Logging Configuration
+logging.appenders:
+  file:
+    type: file
+    fileName: /usr/share/kibana/logs/kibana.log
+    layout:
+      type: json
+  console:
+    type: console
+    layout:
+      type: pattern
+      pattern: "[%date] [%level] [%logger] %message"
+
+logging.loggers:
+  - name: elasticsearch
+    level: warn
+  - name: elasticsearch.query
+    level: warn
+  - name: plugins
+    level: info
+  - name: plugin
+    level: info
+
+logging.root:
+  appenders: [file, console]
+  level: info
+
+# Server Configuration
+server.maxPayload: 1048576
+server.compression.enabled: true
+
+# Elasticsearch Request Timeout
+elasticsearch.requestTimeout: 30000
+elasticsearch.shardTimeout: 30000
+
+# UI Configuration
+server.publicBaseUrl: "http://localhost:5601/siem"
+
+# Saved Objects Configuration
+savedObjects.maxImportPayloadBytes: 26214400
+
+# Dashboard Configuration
+dashboard.defaultDarkMode: false
+
+# SIEM-Specific Index Patterns
+# Default Index Patterns for Security Data:
+# - siem-events-*: Real-time security events
+# - security-alerts-*: Security alerts and incidents
+# - logs-application-*: Application security logs  
+# - wazuh-alerts-*: Wazuh HIDS alerts
+# - suricata-*: Network intrusion detection alerts
+# - falco-*: Runtime security monitoring events
+
+# SIEM Dashboard Configuration
+xpack.securitySolution.signalsIndex: ".siem-signals"
+xpack.securitySolution.defaultRulesSilenceAll: false
+
+# Advanced Settings for Security Operations
+advanced_settings:
+  "securitySolution:defaultIndex": ["siem-events-*", "security-alerts-*"]
+  "securitySolution:enableExperimental": ["ruleRegistryEnabled"]
+  "securitySolution:defaultRefreshInterval": 5000
+  "securitySolution:timeDefaults": '{ "from": "now-24h", "to": "now" }'
+
+# Security Features Configuration
+xpack.securitySolution.enableExperimental: ["ruleRegistryEnabled"]
+
+# Data Views Configuration for SIEM
+data.search.timeout: 60000
+
+# Telemetry Configuration (Disabled for Security)
+telemetry.enabled: false
+telemetry.allowChangingOptInStatus: false
+
+# Usage Collection (Disabled for Security)
+usageCollection.uiCounters.enabled: false
+
+# News Feed (Disabled for Security)
+newsfeed.enabled: false
+
+# Home App Configuration
+home.disableWelcomeScreen: true
+
+# CSV Configuration
+xpack.reporting.csv.maxSizeBytes: 10485760
+
+# Visualization Configuration
+visualizations.enabled: true
+
+# Dev Tools (Enabled for Security Analysis)
+console.enabled: true
+
+# Management Configuration
+management.enabled: true
+
+# Stack Alerts Configuration
+xpack.stack_alerts.enabled: true
+
+# Task Manager Configuration
+xpack.task_manager.max_workers: 10
+xpack.task_manager.poll_interval: 3000
+
+# Event Log Configuration
+xpack.eventLog.enabled: true
+xpack.eventLog.logEntries: true
+
+# Features Configuration
+xpack.features.enabled: true
+
+# Security Solution Specific Settings
+xpack.securitySolution.enableExperimental: []
+xpack.securitySolution.packagerTaskInterval: "60s"

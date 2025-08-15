@@ -24,20 +24,27 @@ const envSchema = Joi.object({
   API_VERSION: Joi.string().default("v1"),
   APP_NAME: Joi.string().default("waste-management-api"),
 
-  // Database
+  // Database - Enhanced for AI/ML workloads
   DB_HOST: Joi.string().default("localhost"),
   DB_PORT: Joi.number().default(5432),
   DB_NAME: Joi.string().required(),
   DB_USERNAME: Joi.string().required(),
   DB_PASSWORD: Joi.string().required(),
   DB_SSL: Joi.boolean().default(false),
-  DB_POOL_MIN: Joi.number().default(10),
-  DB_POOL_MAX: Joi.number().default(120),
+  DB_POOL_MIN: Joi.number().default(25), // Increased for ML workloads
+  DB_POOL_MAX: Joi.number().default(180), // Scaled for AI/ML integration (50% increase)
   DB_POOL_IDLE: Joi.number().default(30000),
   DB_POOL_ACQUIRE: Joi.number().default(30000),
   DB_POOL_EVICT: Joi.number().default(5000),
   DB_POOL_VALIDATE: Joi.boolean().default(true),
   DB_POOL_HANDLE_DISCONNECTS: Joi.boolean().default(true),
+  
+  // AI/ML Database Configuration
+  DB_ML_DEDICATED_CONNECTIONS: Joi.number().default(30), // Reserved for ML operations
+  DB_VECTOR_OPERATION_CONNECTIONS: Joi.number().default(15), // Reserved for vector operations
+  DB_TRAINING_JOB_CONNECTIONS: Joi.number().default(10), // Reserved for model training
+  DB_ML_QUERY_TIMEOUT: Joi.number().default(300000), // 5 minutes for ML operations
+  DB_ENABLE_ML_ROUTING: Joi.boolean().default(true), // Enable intelligent query routing
 
   // Redis
   REDIS_HOST: Joi.string().default("localhost"),
@@ -108,6 +115,68 @@ const envSchema = Joi.object({
 
   MAPBOX_ACCESS_TOKEN: Joi.string().optional(),
   MAPBOX_STYLE_URL: Joi.string().default("mapbox://styles/mapbox/streets-v11"),
+
+  // Threat Intelligence Services
+  VIRUSTOTAL_API_KEY: Joi.string().optional(),
+  ABUSEIPDB_API_KEY: Joi.string().optional(),
+  SHODAN_API_KEY: Joi.string().optional(),
+  MISP_URL: Joi.string().optional(),
+  MISP_API_KEY: Joi.string().optional(),
+  CROWDSTRIKE_CLIENT_ID: Joi.string().optional(),
+  CROWDSTRIKE_CLIENT_SECRET: Joi.string().optional(),
+  SPLUNK_HOST: Joi.string().optional(),
+  SPLUNK_TOKEN: Joi.string().optional(),
+
+  // AI/ML Services Configuration
+  // Weaviate Vector Database
+  WEAVIATE_URL: Joi.string().default("http://localhost:8080"),
+  WEAVIATE_API_KEY: Joi.string().optional(),
+  WEAVIATE_BATCH_SIZE: Joi.number().default(100),
+  WEAVIATE_TIMEOUT: Joi.number().default(30000),
+  
+  // OpenAI Integration for Vector Generation
+  OPENAI_API_KEY: Joi.string().optional(),
+  OPENAI_MODEL: Joi.string().default("text-embedding-ada-002"),
+  OPENAI_MAX_TOKENS: Joi.number().default(8192),
+  OPENAI_TEMPERATURE: Joi.number().default(0.1),
+  
+  // OR-Tools Route Optimization
+  ORTOOLS_LICENSE_KEY: Joi.string().optional(),
+  ORTOOLS_SOLVER_TIMEOUT: Joi.number().default(30000), // 30 seconds
+  ORTOOLS_MAX_VEHICLES: Joi.number().default(50),
+  
+  // GraphHopper Traffic API
+  GRAPHHOPPER_API_KEY: Joi.string().optional(),
+  GRAPHHOPPER_BASE_URL: Joi.string().default("https://graphhopper.com/api/1"),
+  GRAPHHOPPER_TIMEOUT: Joi.number().default(15000),
+  
+  // Local LLM Configuration (Llama 3.1 8B)
+  LLM_SERVICE_URL: Joi.string().default("http://localhost:8001"),
+  LLM_MODEL_PATH: Joi.string().default("/app/models/llama-3.1-8b"),
+  LLM_MAX_CONTEXT_LENGTH: Joi.number().default(8192),
+  LLM_MAX_BATCH_SIZE: Joi.number().default(8),
+  LLM_TIMEOUT: Joi.number().default(30000),
+  
+  // ML Training Configuration
+  ML_TRAINING_DATA_PATH: Joi.string().default("/app/data/training"),
+  ML_MODEL_STORAGE_PATH: Joi.string().default("/app/models"),
+  ML_CACHE_PATH: Joi.string().default("/app/cache"),
+  ML_BATCH_SIZE: Joi.number().default(1000),
+  ML_VALIDATION_SPLIT: Joi.number().default(0.2),
+  ML_TEST_SPLIT: Joi.number().default(0.1),
+  
+  // AI/ML Feature Flags
+  ENABLE_VECTOR_SEARCH: Joi.boolean().default(false), // Disabled by default until deployment
+  ENABLE_ROUTE_OPTIMIZATION_ML: Joi.boolean().default(false),
+  ENABLE_PREDICTIVE_ANALYTICS: Joi.boolean().default(false),
+  ENABLE_LLM_ASSISTANCE: Joi.boolean().default(false),
+  ENABLE_ML_AUDIT_LOGGING: Joi.boolean().default(true),
+  
+  // ML Performance Configuration
+  ML_VECTOR_SEARCH_CACHE_TTL: Joi.number().default(3600), // 1 hour
+  ML_PREDICTION_CACHE_TTL: Joi.number().default(1800), // 30 minutes
+  ML_MODEL_REFRESH_INTERVAL: Joi.number().default(86400000), // 24 hours
+  ML_PERFORMANCE_MONITORING: Joi.boolean().default(true),
 
   // Application Features
   ENABLE_SWAGGER_UI: Joi.boolean().default(true),
@@ -210,6 +279,14 @@ export const config = {
       evict: envVars.DB_POOL_EVICT,
       validate: envVars.DB_POOL_VALIDATE,
       handleDisconnects: envVars.DB_POOL_HANDLE_DISCONNECTS,
+    },
+    // AI/ML Enhanced Database Configuration
+    mlWorkloads: {
+      dedicatedConnections: envVars.DB_ML_DEDICATED_CONNECTIONS,
+      vectorOperationConnections: envVars.DB_VECTOR_OPERATION_CONNECTIONS,
+      trainingJobConnections: envVars.DB_TRAINING_JOB_CONNECTIONS,
+      queryTimeout: envVars.DB_ML_QUERY_TIMEOUT,
+      enableIntelligentRouting: envVars.DB_ENABLE_ML_ROUTING,
     },
     logging: envVars.DEBUG_SQL ? console.log : false,
   },
@@ -333,6 +410,39 @@ export const config = {
     styleUrl: envVars.MAPBOX_STYLE_URL,
   },
 
+  // Threat Intelligence Services Configuration
+  threatIntelligence: {
+    virusTotal: {
+      apiKey: envVars.VIRUSTOTAL_API_KEY,
+      baseUrl: "https://www.virustotal.com/vtapi/v2",
+      v3BaseUrl: "https://www.virustotal.com/api/v3",
+    },
+    abuseIPDB: {
+      apiKey: envVars.ABUSEIPDB_API_KEY,
+      baseUrl: "https://api.abuseipdb.com/api/v2",
+    },
+    shodan: {
+      apiKey: envVars.SHODAN_API_KEY,
+      baseUrl: "https://api.shodan.io",
+    },
+    misp: {
+      url: envVars.MISP_URL,
+      apiKey: envVars.MISP_API_KEY,
+      verifyCert: true,
+    },
+    crowdstrike: {
+      clientId: envVars.CROWDSTRIKE_CLIENT_ID,
+      clientSecret: envVars.CROWDSTRIKE_CLIENT_SECRET,
+      baseUrl: "https://api.crowdstrike.com",
+    },
+    splunk: {
+      host: envVars.SPLUNK_HOST,
+      token: envVars.SPLUNK_TOKEN,
+      port: 8089,
+      protocol: "https",
+    },
+  },
+
   logging: {
     level: envVars.LOG_LEVEL,
     file: {
@@ -409,6 +519,75 @@ export const config = {
     },
     pci: {
       enabled: envVars.PCI_COMPLIANCE_ENABLED,
+    },
+  },
+
+  // AI/ML Services Configuration
+  aiMl: {
+    // Vector Intelligence Foundation
+    weaviate: {
+      url: envVars.WEAVIATE_URL,
+      apiKey: envVars.WEAVIATE_API_KEY,
+      batchSize: envVars.WEAVIATE_BATCH_SIZE,
+      timeout: envVars.WEAVIATE_TIMEOUT,
+    },
+    
+    // OpenAI Integration
+    openai: {
+      apiKey: envVars.OPENAI_API_KEY,
+      model: envVars.OPENAI_MODEL,
+      maxTokens: envVars.OPENAI_MAX_TOKENS,
+      temperature: envVars.OPENAI_TEMPERATURE,
+    },
+    
+    // Route Optimization Engine
+    orTools: {
+      licenseKey: envVars.ORTOOLS_LICENSE_KEY,
+      solverTimeout: envVars.ORTOOLS_SOLVER_TIMEOUT,
+      maxVehicles: envVars.ORTOOLS_MAX_VEHICLES,
+    },
+    
+    // Traffic Integration
+    graphHopper: {
+      apiKey: envVars.GRAPHHOPPER_API_KEY,
+      baseUrl: envVars.GRAPHHOPPER_BASE_URL,
+      timeout: envVars.GRAPHHOPPER_TIMEOUT,
+    },
+    
+    // Local LLM Intelligence
+    llm: {
+      serviceUrl: envVars.LLM_SERVICE_URL,
+      modelPath: envVars.LLM_MODEL_PATH,
+      maxContextLength: envVars.LLM_MAX_CONTEXT_LENGTH,
+      maxBatchSize: envVars.LLM_MAX_BATCH_SIZE,
+      timeout: envVars.LLM_TIMEOUT,
+    },
+    
+    // ML Training Configuration
+    training: {
+      dataPath: envVars.ML_TRAINING_DATA_PATH,
+      modelStoragePath: envVars.ML_MODEL_STORAGE_PATH,
+      cachePath: envVars.ML_CACHE_PATH,
+      batchSize: envVars.ML_BATCH_SIZE,
+      validationSplit: envVars.ML_VALIDATION_SPLIT,
+      testSplit: envVars.ML_TEST_SPLIT,
+    },
+    
+    // Feature Flags
+    features: {
+      vectorSearch: envVars.ENABLE_VECTOR_SEARCH,
+      routeOptimizationML: envVars.ENABLE_ROUTE_OPTIMIZATION_ML,
+      predictiveAnalytics: envVars.ENABLE_PREDICTIVE_ANALYTICS,
+      llmAssistance: envVars.ENABLE_LLM_ASSISTANCE,
+      auditLogging: envVars.ENABLE_ML_AUDIT_LOGGING,
+    },
+    
+    // Performance Configuration
+    performance: {
+      vectorSearchCacheTTL: envVars.ML_VECTOR_SEARCH_CACHE_TTL,
+      predictionCacheTTL: envVars.ML_PREDICTION_CACHE_TTL,
+      modelRefreshInterval: envVars.ML_MODEL_REFRESH_INTERVAL,
+      monitoring: envVars.ML_PERFORMANCE_MONITORING,
     },
   },
 } as const;

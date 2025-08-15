@@ -1,0 +1,509 @@
+# ============================================================================
+# AI/ML SERVICES DOCKER COMPOSE CONFIGURATION
+# ============================================================================
+#
+# Production-ready Docker composition for AI/ML services integration
+# Coordinates with existing backend infrastructure while providing
+# dedicated resources for vector database, ML services, and LLM deployment
+#
+# Created by: Database-Architect
+# Coordination: AI/ML MESH Session coord-ai-ml-mesh-001
+# Date: 2025-08-13
+# Version: 1.0.0 - Production Ready
+# ============================================================================
+
+version: '3.8'
+
+services:
+  # ============================================================================
+  # WEAVIATE VECTOR DATABASE
+  # Vector Intelligence Foundation for semantic search and similarity operations
+  # ============================================================================
+  weaviate:
+    image: semitechnologies/weaviate:1.21.2
+    container_name: weaviate-vector-db
+    restart: unless-stopped
+    environment:
+      # Authentication and Security
+      - AUTHENTICATION_ANONYMOUS_ACCESS_ENABLED=false
+      - AUTHENTICATION_API_KEY_ENABLED=true
+      - AUTHENTICATION_API_KEY_ALLOWED_KEYS=${WEAVIATE_API_KEY}
+      - AUTHENTICATION_API_KEY_USERS=waste-management-ml
+      
+      # Data Persistence
+      - PERSISTENCE_DATA_PATH=/var/lib/weaviate
+      - BACKUP_FILESYSTEM_PATH=/var/lib/weaviate/backups
+      
+      # Query Configuration
+      - QUERY_DEFAULTS_LIMIT=25
+      - QUERY_MAXIMUM_RESULTS=1000
+      - QUERY_SLOW_LOG_ENABLED=true
+      
+      # Vector Module Configuration
+      - DEFAULT_VECTORIZER_MODULE=text2vec-openai
+      - ENABLE_MODULES=text2vec-openai,generative-openai,qna-openai
+      - TEXT2VEC_OPENAI_APIKEY=${OPENAI_API_KEY}
+      - GENERATIVE_OPENAI_APIKEY=${OPENAI_API_KEY}
+      
+      # Cluster Configuration
+      - CLUSTER_HOSTNAME=weaviate-node-1
+      - CLUSTER_GOSSIP_BIND_PORT=7000
+      - CLUSTER_DATA_BIND_PORT=7001
+      
+      # Performance Optimization
+      - TRACK_VECTOR_DIMENSIONS=true
+      - REPLICATION_FACTOR=1
+      - ASYNC_INDEXING=true
+      
+      # Monitoring and Logging
+      - LOG_LEVEL=info
+      - PROMETHEUS_MONITORING_ENABLED=true
+      - PROMETHEUS_MONITORING_PORT=2112
+      
+    ports:
+      - "8080:8080"      # Main API port
+      - "2112:2112"      # Prometheus metrics
+      - "7000:7000"      # Gossip protocol
+      - "7001:7001"      # Data replication
+      
+    volumes:
+      - weaviate_data:/var/lib/weaviate
+      - weaviate_backups:/var/lib/weaviate/backups
+      - ./weaviate/config:/weaviate/config:ro
+      
+    networks:
+      - ai_ml_network
+      - backend_network
+      
+    deploy:
+      resources:
+        limits:
+          memory: 4G
+          cpus: '2.0'
+        reservations:
+          memory: 2G
+          cpus: '1.0'
+      
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/v1/meta"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+      
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.weaviate.rule=Host(`weaviate.localhost`)"
+      - "traefik.http.services.weaviate.loadbalancer.server.port=8080"
+
+  # ============================================================================
+  # ML SERVICES CONTAINER
+  # Comprehensive ML processing including route optimization and predictive analytics
+  # ============================================================================
+  ml-services:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.ml
+      args:
+        - NODE_VERSION=20-alpine
+        - PYTHON_VERSION=3.11
+    container_name: ml-services
+    restart: unless-stopped
+    environment:
+      # Database Configuration
+      - DATABASE_URL=${DATABASE_URL}
+      - DB_POOL_MAX=50  # Dedicated pool for ML services
+      
+      # Redis Configuration
+      - REDIS_URL=${REDIS_URL}
+      - REDIS_ML_NAMESPACE=ml:
+      
+      # Vector Database Integration
+      - WEAVIATE_URL=http://weaviate:8080
+      - WEAVIATE_API_KEY=${WEAVIATE_API_KEY}
+      - WEAVIATE_BATCH_SIZE=100
+      - WEAVIATE_TIMEOUT=30000
+      
+      # OpenAI Integration
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - OPENAI_MODEL=text-embedding-ada-002
+      - OPENAI_MAX_TOKENS=8192
+      - OPENAI_TEMPERATURE=0.1
+      
+      # Route Optimization
+      - ORTOOLS_LICENSE_KEY=${ORTOOLS_LICENSE_KEY}
+      - ORTOOLS_SOLVER_TIMEOUT=30000
+      - ORTOOLS_MAX_VEHICLES=50
+      
+      # Traffic API Integration
+      - GRAPHHOPPER_API_KEY=${GRAPHHOPPER_API_KEY}
+      - GRAPHHOPPER_BASE_URL=https://graphhopper.com/api/1
+      - GRAPHHOPPER_TIMEOUT=15000
+      
+      # ML Training Configuration
+      - ML_TRAINING_DATA_PATH=/app/data/training
+      - ML_MODEL_STORAGE_PATH=/app/models
+      - ML_CACHE_PATH=/app/cache
+      - ML_BATCH_SIZE=1000
+      - ML_VALIDATION_SPLIT=0.2
+      - ML_TEST_SPLIT=0.1
+      
+      # Performance Configuration
+      - ML_VECTOR_SEARCH_CACHE_TTL=3600
+      - ML_PREDICTION_CACHE_TTL=1800
+      - ML_MODEL_REFRESH_INTERVAL=86400000
+      - ML_PERFORMANCE_MONITORING=true
+      
+      # Monitoring and Logging
+      - LOG_LEVEL=info
+      - ENABLE_PROMETHEUS_METRICS=true
+      - PROMETHEUS_PORT=9090
+      
+    ports:
+      - "3010:3000"     # ML Services API
+      - "9090:9090"     # Prometheus metrics
+      
+    volumes:
+      - ml_models:/app/models
+      - ml_training_data:/app/data/training
+      - ml_cache:/app/cache
+      - ml_logs:/app/logs
+      - ./config/ml:/app/config:ro
+      
+    networks:
+      - ai_ml_network
+      - backend_network
+      
+    depends_on:
+      weaviate:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+        
+    deploy:
+      resources:
+        limits:
+          memory: 8G
+          cpus: '4.0'
+        reservations:
+          memory: 4G
+          cpus: '2.0'
+          
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/health/ml"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 120s
+      
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.ml-services.rule=Host(`ml-api.localhost`)"
+      - "traefik.http.services.ml-services.loadbalancer.server.port=3000"
+
+  # ============================================================================
+  # LOCAL LLM SERVICE (LLAMA 3.1 8B)
+  # Customer service automation and business intelligence generation
+  # ============================================================================
+  llm-service:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.llm
+      args:
+        - CUDA_VERSION=11.8
+        - PYTHON_VERSION=3.11
+    container_name: llm-service
+    restart: unless-stopped
+    environment:
+      # Model Configuration
+      - MODEL_PATH=/app/models/llama-3.1-8b
+      - MODEL_NAME=llama-3.1-8b-instruct
+      - MAX_CONTEXT_LENGTH=8192
+      - MAX_BATCH_SIZE=8
+      - TEMPERATURE=0.1
+      - TOP_P=0.9
+      - REPETITION_PENALTY=1.1
+      
+      # GPU Configuration
+      - CUDA_VISIBLE_DEVICES=0
+      - GPU_MEMORY_FRACTION=0.8
+      - ENABLE_GPU_ACCELERATION=true
+      
+      # Performance Configuration
+      - MAX_CONCURRENT_REQUESTS=20
+      - REQUEST_TIMEOUT=30000
+      - MODEL_LOAD_TIMEOUT=300000
+      - ENABLE_MODEL_CACHING=true
+      
+      # Security and Access
+      - API_KEY=${LLM_API_KEY}
+      - ENABLE_API_KEY_AUTH=true
+      - CORS_ORIGINS=http://localhost:3001,http://ml-services:3000
+      
+      # Monitoring and Logging
+      - LOG_LEVEL=info
+      - ENABLE_METRICS=true
+      - METRICS_PORT=8001
+      - ENABLE_REQUEST_LOGGING=true
+      
+    ports:
+      - "8001:8000"     # LLM API port
+      - "8002:8001"     # Metrics port
+      
+    volumes:
+      - llm_models:/app/models
+      - llm_cache:/app/cache
+      - llm_logs:/app/logs
+      - ./config/llm:/app/config:ro
+      
+    networks:
+      - ai_ml_network
+      
+    deploy:
+      resources:
+        limits:
+          memory: 16G
+          cpus: '8.0'
+        reservations:
+          memory: 8G
+          cpus: '4.0'
+      placement:
+        constraints:
+          - node.role == manager
+      update_config:
+        parallelism: 1
+        delay: 10s
+        
+    # GPU support (uncomment if GPU available)
+    # runtime: nvidia
+    # environment:
+    #   - NVIDIA_VISIBLE_DEVICES=0
+        
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 15s
+      retries: 3
+      start_period: 300s  # Allow time for model loading
+      
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.llm-service.rule=Host(`llm.localhost`)"
+      - "traefik.http.services.llm-service.loadbalancer.server.port=8000"
+
+  # ============================================================================
+  # ML MONITORING AND OBSERVABILITY
+  # Comprehensive monitoring for AI/ML services performance and health
+  # ============================================================================
+  ml-monitoring:
+    image: prom/prometheus:v2.45.0
+    container_name: ml-monitoring
+    restart: unless-stopped
+    environment:
+      - PROMETHEUS_RETENTION_TIME=30d
+      - PROMETHEUS_RETENTION_SIZE=10GB
+      
+    ports:
+      - "9091:9090"     # Prometheus UI
+      
+    volumes:
+      - ./monitoring/prometheus-ml.yml:/etc/prometheus/prometheus.yml:ro
+      - ./monitoring/rules:/etc/prometheus/rules:ro
+      - prometheus_ml_data:/prometheus
+      
+    networks:
+      - ai_ml_network
+      - monitoring
+      
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--storage.tsdb.retention.time=30d'
+      - '--storage.tsdb.retention.size=10GB'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--web.enable-lifecycle'
+      - '--web.enable-admin-api'
+      
+    depends_on:
+      - ml-services
+      - weaviate
+      - llm-service
+      
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.ml-prometheus.rule=Host(`ml-metrics.localhost`)"
+
+  # ============================================================================
+  # ML GRAFANA DASHBOARDS
+  # Visualization and alerting for AI/ML metrics and performance
+  # ============================================================================
+  ml-grafana:
+    image: grafana/grafana:10.0.0
+    container_name: ml-grafana
+    restart: unless-stopped
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD:-admin}
+      - GF_USERS_ALLOW_SIGN_UP=false
+      - GF_PATHS_PROVISIONING=/etc/grafana/provisioning
+      - GF_INSTALL_PLUGINS=grafana-piechart-panel,grafana-polystat-panel
+      
+    ports:
+      - "3001:3000"     # Grafana UI
+      
+    volumes:
+      - ./monitoring/grafana/dashboards:/etc/grafana/provisioning/dashboards:ro
+      - ./monitoring/grafana/datasources:/etc/grafana/provisioning/datasources:ro
+      - grafana_ml_data:/var/lib/grafana
+      
+    networks:
+      - ai_ml_network
+      - monitoring
+      
+    depends_on:
+      - ml-monitoring
+      
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.ml-grafana.rule=Host(`ml-dashboard.localhost`)"
+
+# ============================================================================
+# VOLUMES
+# Persistent storage for AI/ML data, models, and monitoring
+# ============================================================================
+volumes:
+  # Vector Database Storage
+  weaviate_data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ./data/weaviate
+      
+  weaviate_backups:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ./backups/weaviate
+
+  # ML Services Storage
+  ml_models:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ./data/ml/models
+      
+  ml_training_data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ./data/ml/training
+      
+  ml_cache:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ./data/ml/cache
+      
+  ml_logs:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ./logs/ml
+
+  # LLM Service Storage
+  llm_models:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ./data/llm/models
+      
+  llm_cache:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ./data/llm/cache
+      
+  llm_logs:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ./logs/llm
+
+  # Monitoring Storage
+  prometheus_ml_data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ./data/prometheus/ml
+      
+  grafana_ml_data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ./data/grafana/ml
+
+# ============================================================================
+# NETWORKS
+# Isolated networks for AI/ML services with backend integration
+# ============================================================================
+networks:
+  # AI/ML Services Network
+  ai_ml_network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16
+    labels:
+      - "com.waste-management.network.type=ai-ml"
+      - "com.waste-management.network.environment=${NODE_ENV:-development}"
+
+  # Backend Integration Network (external)
+  backend_network:
+    external: true
+    name: waste_management_backend
+
+  # Monitoring Network
+  monitoring:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.21.0.0/16
+    labels:
+      - "com.waste-management.network.type=monitoring"
+
+# ============================================================================
+# CONFIGURATION
+# Production-ready settings and resource management
+# ============================================================================
+x-logging: &default-logging
+  driver: "json-file"
+  options:
+    max-size: "10m"
+    max-file: "3"
+    labels: "service"
+
+x-restart-policy: &restart-policy
+  restart_policy:
+    condition: unless-stopped
+    delay: 5s
+    max_attempts: 3
+    window: 120s
+
+# Apply logging to all services
+x-common-config: &common-config
+  logging: *default-logging
+  deploy:
+    <<: *restart-policy

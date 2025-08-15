@@ -1,0 +1,328 @@
+# ============================================================================
+# FALCO RUNTIME SECURITY MONITORING CONFIGURATION
+# ============================================================================
+#
+# Production Falco configuration for runtime security monitoring
+# Real-time detection of anomalous activity in containers and hosts
+#
+# Created by: DEVOPS-AGENT - TIER 1 Advanced Threat Protection
+# Date: 2025-08-14
+# Version: 1.0.0
+# ============================================================================
+
+# Rules Configuration
+rules_file:
+  - /etc/falco/falco_rules.yaml
+  - /etc/falco/falco_rules.local.yaml
+  - /etc/falco/k8s_audit_rules.yaml
+  - /etc/falco/rules.d/waste_management_rules.yaml
+  - /etc/falco/rules.d/docker_security_rules.yaml
+  - /etc/falco/rules.d/application_security_rules.yaml
+
+# Time Format for Output
+time_format_iso_8601: true
+
+# JSON Output Configuration
+json_output: true
+json_include_output_property: true
+json_include_tags_property: true
+
+# Log Timestamps
+log_stderr: true
+log_syslog: true
+log_level: info
+
+# Priority Configuration
+priority: debug
+
+# Buffered Outputs
+buffered_outputs: false
+
+# Syscall Event Drops Configuration
+syscall_event_drops:
+  actions:
+    - log
+    - alert
+  rate: 0.03333
+  max_burst: 1000
+
+# Syscall Event Buffer Size
+syscall_event_timeouts:
+  max_consecutives: 1000
+
+# Output Channels
+outputs:
+  rate: 1
+  max_burst: 1000
+
+# Stdout Output
+stdout_output:
+  enabled: true
+
+# Syslog Output
+syslog_output:
+  enabled: true
+
+# File Output for SIEM Integration
+file_output:
+  enabled: true
+  keep_alive: false
+  filename: /var/log/falco/falco_events.log
+
+# HTTP Output for Real-time Integration
+http_output:
+  enabled: false
+  url: http://logstash:8088/falco
+
+# gRPC Output Configuration
+grpc_output:
+  enabled: true
+
+# gRPC Server Configuration
+grpc:
+  enabled: true
+  bind_address: "0.0.0.0:5060"
+  threadiness: 0
+
+# Webserver Configuration
+webserver:
+  enabled: true
+  listen_port: 8765
+  k8s_healthz_endpoint: /healthz
+  ssl_enabled: false
+  ssl_certificate: /etc/falco/falco.pem
+
+# Rules Configuration
+# Load rules from files
+load_plugins:
+  - k8saudit
+  - json
+
+# Plugin Configuration
+plugins:
+  - name: k8saudit
+    library_path: libk8saudit.so
+    init_config:
+      "maxEventSize": 262144
+      "webhookMaxBatchSize": 12582912
+    open_params: "http://:9765/k8s-audit"
+
+  - name: json
+    library_path: libjson.so
+    init_config: ""
+
+# Syscall Inspection
+syscall_buf_size_preset: 4
+
+# Modern BPF Engine Configuration
+modern_bpf:
+  cpus_for_each_buffer: 2
+  online_dumping: false
+
+# Watch Configuration Files for Changes
+watch_config_files: true
+
+# Metadata Downloads
+metadata_download:
+  max_mb: 100
+  chunk_wait_us: 1000
+  watch_freq_sec: 1
+
+# Base64 Output for Binary Data
+base64_output: false
+
+# Container Information
+container_engines:
+  docker:
+    enabled: true
+    socket: /var/run/docker.sock
+
+# Kubernetes Configuration (if applicable)
+k8s_api: ""
+k8s_api_cert: ""
+k8s_api_ca: ""
+
+# Rules Override Configuration
+rules_matching:
+  enabled: true
+
+# Engine Configuration
+engine:
+  kind: modern_bpf
+  modern_bpf:
+    cpus_for_each_buffer: 2
+    online_dumping: false
+
+# Alerting Thresholds
+metrics:
+  enabled: false
+  interval: 15s
+  output_rule: true
+  output_file: false
+  resource_utilization_enabled: true
+  kernel_event_counters_enabled: true
+  libbpf_stats_enabled: true
+  convert_memory_to_mb: true
+  include_empty_values: false
+
+# Application-Specific Rules for Waste Management System
+rules_config:
+  # Monitor Backend Application
+  - rule: "Waste Management Backend Anomaly"
+    condition: >
+      spawned_process and 
+      container.name startswith "backend" and
+      (proc.name in (curl, wget, nc, netcat) or 
+       proc.cmdline contains "/bin/sh" or
+       proc.cmdline contains "/bin/bash")
+    output: "Suspicious process in backend container (user=%user.name command=%proc.cmdline container=%container.name)"
+    priority: WARNING
+    tags: [waste_management, backend, suspicious_process]
+
+  # Monitor Database Access
+  - rule: "Unauthorized Database Process"
+    condition: >
+      spawned_process and
+      container.name startswith "postgres" and
+      proc.name not in (postgres, pg_ctl, initdb, pg_basebackup, pg_dump, pg_restore, psql) and
+      not proc.pname in (postgres, pg_ctl)
+    output: "Unauthorized process in database container (user=%user.name command=%proc.cmdline container=%container.name)"
+    priority: CRITICAL
+    tags: [waste_management, database, unauthorized_access]
+
+  # Monitor File Access in Application Directories
+  - rule: "Sensitive File Access"
+    condition: >
+      open_read and
+      fd.name in (/etc/passwd, /etc/shadow, /etc/ssh/ssh_host_rsa_key, /root/.ssh/id_rsa) and
+      container.name startswith "waste-mgmt"
+    output: "Sensitive file accessed in application container (user=%user.name file=%fd.name container=%container.name)"
+    priority: HIGH
+    tags: [waste_management, sensitive_file, security]
+
+  # Monitor Network Connections
+  - rule: "Unexpected Outbound Connection"
+    condition: >
+      outbound and
+      container.name startswith "waste-mgmt" and
+      not fd.rip in (172.20.0.0/16, 172.30.0.0/16, 127.0.0.0/8) and
+      not fd.rport in (80, 443, 25, 587, 53)
+    output: "Unexpected outbound connection from application (user=%user.name connection=%fd.rip:%fd.rport container=%container.name)"
+    priority: WARNING
+    tags: [waste_management, network, outbound_connection]
+
+# List Configuration
+lists:
+  - list: waste_management_containers
+    items:
+      - waste-mgmt-backend
+      - waste-mgmt-frontend
+      - waste-mgmt-postgres
+      - waste-mgmt-redis
+      - siem-elasticsearch
+      - siem-kibana
+      - siem-logstash
+
+  - list: allowed_network_tools
+    items:
+      - nc
+      - netcat
+      - curl
+      - wget
+      - ping
+      - traceroute
+      - nslookup
+      - dig
+
+  - list: database_processes
+    items:
+      - postgres
+      - pg_ctl
+      - initdb
+      - pg_basebackup
+      - pg_dump
+      - pg_restore
+      - psql
+      - pg_isready
+
+  - list: web_server_processes
+    items:
+      - nginx
+      - apache2
+      - httpd
+      - node
+      - npm
+
+  - list: sensitive_files
+    items:
+      - /etc/passwd
+      - /etc/shadow
+      - /etc/ssh/ssh_host_rsa_key
+      - /etc/ssh/ssh_host_dsa_key
+      - /etc/ssh/ssh_host_ecdsa_key
+      - /etc/ssh/ssh_host_ed25519_key
+      - /root/.ssh/id_rsa
+      - /root/.ssh/id_dsa
+      - /root/.ssh/id_ecdsa
+      - /root/.ssh/id_ed25519
+
+# Macros Configuration
+macros:
+  - macro: waste_management_container
+    condition: container.name in (waste_management_containers)
+
+  - macro: database_container
+    condition: container.name contains "postgres"
+
+  - macro: web_container
+    condition: container.name contains "nginx" or container.name contains "frontend"
+
+  - macro: backend_container
+    condition: container.name contains "backend"
+
+  - macro: siem_container
+    condition: container.name startswith "siem-"
+
+  - macro: privileged_process
+    condition: proc.name in (sudo, su, doas)
+
+  - macro: network_tool_procs
+    condition: proc.name in (allowed_network_tools)
+
+  - macro: system_users
+    condition: user.name in (root, daemon, bin, sys, sync, games, man, lp, mail, news, uucp, proxy, www-data, backup, list, irc, gnats, nobody, systemd-network, systemd-resolve, syslog, messagebus, _apt, uuidd, avahi-autoipd, usbmux, dnsmasq, rtkit, pulse, speech-dispatcher, avahi, saned, colord, hplip, geoclue, Debian-gdm, systemd-coredump)
+
+# Exception Configuration
+exceptions:
+  - rule: "Terminal shell in container"
+    comps:
+      - container.name != ""
+      - proc.name in (bash, sh, zsh, fish, dash, ash)
+
+# Performance Configuration
+engine_config:
+  replay: false
+
+# Logging Configuration
+file_output:
+  enabled: true
+  keep_alive: false
+  filename: /var/log/falco/falco_events.log
+
+# Output Format
+output_format:
+  enabled: true
+  format: json
+
+# Engine Kind Selection
+engine:
+  kind: modern_bpf
+
+# SIEM Integration Features:
+# - Real-time container security monitoring
+# - Runtime threat detection for waste management applications
+# - File integrity monitoring for sensitive configurations
+# - Network anomaly detection for containers
+# - Process monitoring for unauthorized activities
+# - Integration with Elasticsearch via log forwarding
+# - Custom rules for application-specific security events

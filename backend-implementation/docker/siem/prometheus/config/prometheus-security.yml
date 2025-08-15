@@ -1,0 +1,246 @@
+# ============================================================================
+# PROMETHEUS SECURITY MONITORING CONFIGURATION
+# ============================================================================
+#
+# Security-focused Prometheus configuration for SIEM metrics
+# Real-time security metrics collection and alerting
+#
+# Created by: DEVOPS-AGENT - TIER 1 Advanced Threat Protection
+# Date: 2025-08-14
+# Version: 1.0.0
+# ============================================================================
+
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  external_labels:
+    cluster: 'waste-mgmt-siem'
+    environment: 'production'
+    security_monitoring: 'tier-1-advanced-threat-protection'
+
+# Security alerting rules
+rule_files:
+  - "rules/*.yml"
+
+# Alertmanager integration
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets:
+          - alertmanager-security:9093
+
+# Security monitoring targets
+scrape_configs:
+  # Prometheus self-monitoring
+  - job_name: 'prometheus-security'
+    static_configs:
+      - targets: ['localhost:9090']
+    scrape_interval: 30s
+
+  # Security Orchestrator Metrics
+  - job_name: 'security-orchestrator'
+    static_configs:
+      - targets: ['security-orchestrator:8080']
+    scrape_interval: 15s
+    metrics_path: /metrics
+    params:
+      format: ['prometheus']
+
+  # Elasticsearch Security Metrics
+  - job_name: 'elasticsearch-security'
+    static_configs:
+      - targets: ['elasticsearch:9200']
+    scrape_interval: 30s
+    metrics_path: /_prometheus/metrics
+
+  # Suricata IDS Metrics
+  - job_name: 'suricata-ids'
+    static_configs:
+      - targets: ['suricata:9200']
+    scrape_interval: 15s
+    metrics_path: /metrics
+
+  # Wazuh HIDS Metrics
+  - job_name: 'wazuh-hids'
+    static_configs:
+      - targets: ['wazuh-manager:55000']
+    scrape_interval: 30s
+    metrics_path: /metrics
+
+  # Falco Runtime Security Metrics
+  - job_name: 'falco-runtime'
+    static_configs:
+      - targets: ['falco:8765']
+    scrape_interval: 15s
+    metrics_path: /metrics
+
+  # Application Security Metrics (Backend)
+  - job_name: 'backend-security'
+    static_configs:
+      - targets: ['backend:3001']
+    scrape_interval: 15s
+    metrics_path: /metrics/security
+    params:
+      security_focus: ['true']
+
+  # Database Security Metrics
+  - job_name: 'postgres-security'
+    static_configs:
+      - targets: ['postgres-exporter:9187']
+    scrape_interval: 30s
+    metrics_path: /metrics
+
+  # Redis Security Metrics
+  - job_name: 'redis-security'
+    static_configs:
+      - targets: ['redis-exporter:9121']
+    scrape_interval: 30s
+    metrics_path: /metrics
+
+  # Container Security Metrics
+  - job_name: 'container-security'
+    static_configs:
+      - targets: ['cadvisor:8080']
+    scrape_interval: 30s
+    metrics_path: /metrics
+
+  # Network Security Metrics
+  - job_name: 'nginx-security'
+    static_configs:
+      - targets: ['nginx-exporter:9113']
+    scrape_interval: 30s
+    metrics_path: /metrics
+
+  # System Security Metrics
+  - job_name: 'node-security'
+    static_configs:
+      - targets: ['node-exporter:9100']
+    scrape_interval: 30s
+    metrics_path: /metrics
+
+  # SSL Certificate Monitoring
+  - job_name: 'ssl-certificate-monitor'
+    static_configs:
+      - targets: ['ssl-exporter:9219']
+    scrape_interval: 300s
+    metrics_path: /probe
+    params:
+      module: [https_2xx]
+      target: ['https://waste-mgmt.com']
+
+  # DNS Security Monitoring
+  - job_name: 'dns-security'
+    static_configs:
+      - targets: ['dns-exporter:9153']
+    scrape_interval: 60s
+
+  # Custom Security Metrics
+  - job_name: 'custom-security-metrics'
+    file_sd_configs:
+      - files:
+        - '/etc/prometheus/security_targets.json'
+    scrape_interval: 30s
+
+# Storage configuration for security metrics
+storage:
+  tsdb:
+    retention.time: 90d
+    retention.size: 50GB
+    wal-compression: true
+
+# Remote write for long-term storage
+remote_write:
+  - url: ${PROMETHEUS_REMOTE_WRITE_URL}
+    basic_auth:
+      username: ${PROMETHEUS_REMOTE_WRITE_USERNAME}
+      password: ${PROMETHEUS_REMOTE_WRITE_PASSWORD}
+    queue_config:
+      max_samples_per_send: 5000
+      max_shards: 100
+      capacity: 10000
+    write_relabel_configs:
+      - source_labels: [__name__]
+        regex: 'security_.*|auth_.*|attack_.*|threat_.*|incident_.*'
+        action: keep
+
+# Security-focused metric relabeling
+metric_relabel_configs:
+  - source_labels: [__name__]
+    regex: '(security_events_total|authentication_failures_total|sql_injection_attempts_total|malware_detections_total|privilege_escalation_attempts_total)'
+    target_label: __tmp_security_metric
+    replacement: 'true'
+
+# Query configuration for security analytics
+query:
+  timeout: 2m
+  max_concurrent: 20
+  max_samples: 50000000
+
+# Security-specific configuration
+security_config:
+  # High-priority security metrics
+  high_priority_metrics:
+    - 'security_events_total'
+    - 'authentication_failures_total'
+    - 'sql_injection_attempts_total'
+    - 'malware_detections_total'
+    - 'privilege_escalation_attempts_total'
+    - 'encryption_bypass_attempts_total'
+    - 'jwt_forgery_attempts_total'
+    - 'rbac_violations_total'
+    - 'mfa_bypass_attempts_total'
+    - 'container_escapes_total'
+    - 'suspicious_network_connections_total'
+    - 'file_integrity_violations_total'
+    - 'unauthorized_access_attempts_total'
+    - 'data_exfiltration_attempts_total'
+    - 'backdoor_activities_total'
+
+  # Real-time alerting thresholds
+  alert_thresholds:
+    critical_events_per_minute: 5
+    high_events_per_minute: 20
+    medium_events_per_minute: 100
+    authentication_failures_per_minute: 10
+    sql_injection_attempts_per_hour: 1
+    malware_detections_per_day: 1
+
+  # Metric aggregation windows
+  aggregation_windows:
+    real_time: '1m'
+    short_term: '5m'
+    medium_term: '1h'
+    long_term: '24h'
+
+# Recording rules for security analytics
+recording_rules:
+  - name: security_aggregations
+    interval: 30s
+    rules:
+      - record: security:events_rate5m
+        expr: rate(security_events_total[5m])
+      
+      - record: security:authentication_failure_rate
+        expr: rate(authentication_failures_total[5m])
+      
+      - record: security:attack_rate_by_type
+        expr: rate(security_events_total[5m]) by (attack_type)
+      
+      - record: security:threat_score
+        expr: |
+          (
+            rate(sql_injection_attempts_total[5m]) * 10 +
+            rate(malware_detections_total[5m]) * 10 +
+            rate(privilege_escalation_attempts_total[5m]) * 8 +
+            rate(authentication_failures_total[5m]) * 5 +
+            rate(unauthorized_access_attempts_total[5m]) * 6
+          )
+
+# Federation configuration for multi-cluster security monitoring
+federation:
+  enabled: false
+  clusters:
+    - name: 'production'
+      url: 'http://prometheus-prod:9090'
+    - name: 'staging'
+      url: 'http://prometheus-staging:9090'
