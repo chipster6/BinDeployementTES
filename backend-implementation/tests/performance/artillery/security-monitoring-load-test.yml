@@ -1,0 +1,275 @@
+# ============================================================================
+# WASTE MANAGEMENT SYSTEM - SECURITY MONITORING LOAD TESTING
+# ============================================================================
+#
+# Artillery configuration for Security Monitoring Service performance testing
+# Tests real-time security event processing and dashboard performance
+#
+# Created by: Testing Agent (Phase 3 Performance Validation)
+# Date: 2025-08-16
+# Target: Sub-100ms security event processing, <200ms dashboard generation
+
+config:
+  target: 'http://localhost:3001'
+  phases:
+    # Warm-up phase
+    - duration: 30
+      arrivalRate: 20
+      name: "Security monitoring warm-up"
+    
+    # Normal security load
+    - duration: 180
+      arrivalRate: 80
+      name: "Normal security event load"
+    
+    # High security alert load
+    - duration: 120
+      arrivalRate: 150
+      name: "High security alert load"
+    
+    # Security incident stress test
+    - duration: 60
+      arrivalRate: 300
+      name: "Security incident stress test"
+
+  defaults:
+    headers:
+      Authorization: 'Bearer {{ authToken }}'
+      Content-Type: 'application/json'
+      User-Agent: 'Security-Performance-Test/1.0'
+      X-Forwarded-For: '{{ $randomIP }}'
+
+  processor: './artillery-helpers.js'
+
+  variables:
+    securityEventTypes:
+      - 'authentication_failure'
+      - 'authorization_failure'
+      - 'suspicious_activity'
+      - 'brute_force_attempt'
+      - 'privilege_escalation'
+      - 'data_access_violation'
+      - 'threat_detected'
+      - 'compliance_violation'
+    
+    severityLevels:
+      - 'info'
+      - 'low'
+      - 'medium'
+      - 'high'
+      - 'critical'
+    
+    timeframes:
+      - 'hour'
+      - 'day'
+      - 'week'
+    
+    attackSources:
+      - '203.0.113.100'
+      - '198.51.100.50'
+      - '192.0.2.25'
+      - '10.0.0.100'
+
+scenarios:
+  # Security event processing performance
+  - name: "Security Event Processing"
+    weight: 50
+    flow:
+      - post:
+          url: '/api/internal/security/events'
+          beforeRequest: 'setAuthToken'
+          json:
+            type: '{{ securityEventTypes.$randomElement }}'
+            severity: '{{ severityLevels.$randomElement }}'
+            title: 'Performance test security event {{ $randomString() }}'
+            description: 'Automated security event for performance testing'
+            userId: 'user_{{ $randomInt(1, 10000) }}'
+            ipAddress: '{{ attackSources.$randomElement }}'
+            userAgent: 'TestAgent/{{ $randomFloat(1.0, 2.0) }}'
+            source: 'performance_test'
+            affectedResources:
+              - 'user_accounts'
+              - 'api_endpoints'
+            indicators:
+              - 'automated_test'
+              - 'performance_validation'
+            metadata:
+              testId: '{{ $randomString() }}'
+              timestamp: '{{ $isoTimestamp }}'
+          expect:
+            - statusCode: 200
+            - contentType: json
+            - hasProperty: 'success'
+            - jsonpath: '$.success'
+              value: true
+          capture:
+            - json: '$.data.id'
+              as: 'eventId'
+            - json: '$.data.timestamp'
+              as: 'eventTimestamp'
+      
+      - think: 0.1
+      
+      - function: 'validateSecurityEventPerformance'
+
+  # Real-time dashboard performance
+  - name: "Security Dashboard Performance"
+    weight: 25
+    flow:
+      - get:
+          url: '/api/internal/security/dashboard/{{ timeframes.$randomElement }}'
+          beforeRequest: 'setAuthToken'
+          expect:
+            - statusCode: 200
+            - contentType: json
+            - hasProperty: 'success'
+            - hasProperty: 'data'
+          capture:
+            - json: '$.data.summary.totalEvents'
+              as: 'totalEvents'
+            - json: '$.data.summary.criticalEvents'
+              as: 'criticalEvents'
+      
+      - function: 'validateDashboardPerformance'
+
+  # Security metrics calculation
+  - name: "Security Metrics Performance"
+    weight: 15
+    flow:
+      - get:
+          url: '/api/internal/security/metrics/{{ timeframes.$randomElement }}'
+          beforeRequest: 'setAuthToken'
+          expect:
+            - statusCode: 200
+            - contentType: json
+            - hasProperty: 'success'
+          capture:
+            - json: '$.data.eventVolume.total'
+              as: 'totalVolume'
+            - json: '$.data.responseMetrics.averageResponseTime'
+              as: 'avgResponseTime'
+      
+      - function: 'validateMetricsPerformance'
+
+  # High-priority security alerts
+  - name: "Critical Security Alerts"
+    weight: 10
+    flow:
+      - post:
+          url: '/api/internal/security/events'
+          beforeRequest: 'setAuthToken'
+          json:
+            type: 'threat_detected'
+            severity: 'critical'
+            title: 'Critical threat detected - {{ $randomString() }}'
+            description: 'High-priority security threat requiring immediate attention'
+            userId: 'target_user_{{ $randomInt(1, 100) }}'
+            ipAddress: '{{ attackSources.$randomElement }}'
+            userAgent: 'MaliciousBot/1.0'
+            source: 'threat_detection_system'
+            affectedResources:
+              - 'customer_database'
+              - 'payment_system'
+              - 'user_credentials'
+            indicators:
+              - 'data_exfiltration_attempt'
+              - 'sql_injection'
+              - 'unauthorized_access'
+            metadata:
+              attackVector: 'web_application'
+              confidenceLevel: 'high'
+              automatedResponse: true
+          expect:
+            - statusCode: 200
+            - contentType: json
+            - jsonpath: '$.success'
+              value: true
+          capture:
+            - json: '$.data.id'
+              as: 'criticalEventId'
+      
+      - function: 'validateCriticalAlertPerformance'
+
+# Security event filtering and querying
+  - name: "Security Event Querying"
+    weight: 10
+    flow:
+      - get:
+          url: '/api/internal/security/events'
+          beforeRequest: 'setAuthToken'
+          qs:
+            type: '{{ securityEventTypes.$randomElement }}'
+            severity: '{{ severityLevels.$randomElement }}'
+            limit: 50
+            offset: 0
+            since: '{{ $timestamp }}'
+          expect:
+            - statusCode: 200
+            - contentType: json
+            - hasProperty: 'data'
+          capture:
+            - json: '$.data.total'
+              as: 'queryTotal'
+            - json: '$.data.events'
+              as: 'queryEvents'
+      
+      - function: 'validateQueryPerformance'
+
+# Performance expectations for security monitoring
+expectations:
+  # Security event processing requirements
+  - http.response_time.security_events:
+      p95: 100   # 95th percentile < 100ms
+      p99: 200   # 99th percentile < 200ms
+      max: 500   # Maximum 500ms
+  
+  # Dashboard generation requirements
+  - http.response_time.dashboard:
+      p95: 200   # Dashboard < 200ms
+      p99: 500   # 99th percentile < 500ms
+      max: 1000  # Maximum 1 second
+  
+  # Security metrics calculation
+  - http.response_time.metrics:
+      p95: 300   # Metrics < 300ms
+      p99: 800   # 99th percentile < 800ms
+  
+  # Critical alert response time
+  - http.response_time.critical_alerts:
+      p95: 50    # Critical alerts < 50ms
+      p99: 100   # 99th percentile < 100ms
+  
+  # Success rates
+  - http.codes.200: 98  # 98% success rate minimum
+  - http.codes.500: 1   # < 1% server errors
+  
+  # Security-specific validations
+  - custom.event_processing_rate: 95     # 95% event processing success
+  - custom.dashboard_generation_rate: 98 # 98% dashboard generation success
+  - custom.alert_delivery_rate: 99       # 99% alert delivery success
+
+# Custom security metrics
+metrics:
+  - name: 'security_event_processing_time'
+    type: 'histogram'
+    unit: 'milliseconds'
+  
+  - name: 'dashboard_generation_time'
+    type: 'histogram'
+    unit: 'milliseconds'
+  
+  - name: 'critical_alert_response_time'
+    type: 'histogram'
+    unit: 'milliseconds'
+  
+  - name: 'event_processing_rate'
+    type: 'rate'
+    unit: 'percentage'
+  
+  - name: 'threat_detection_accuracy'
+    type: 'rate'
+    unit: 'percentage'
+  
+  - name: 'security_event_volume'
+    type: 'counter'
+    unit: 'events_per_second'

@@ -1,0 +1,241 @@
+{
+  "stripe": {
+    "payment_success": {
+      "id": "pi_test_1234567890",
+      "object": "payment_intent",
+      "amount": 25000,
+      "currency": "usd",
+      "status": "succeeded",
+      "client_secret": "pi_test_1234567890_secret_test",
+      "created": 1640995200,
+      "description": "Waste management service payment",
+      "metadata": {
+        "customer_id": "test-customer-1",
+        "service_id": "service-001"
+      }
+    },
+    "payment_failure": {
+      "error": {
+        "type": "card_error",
+        "code": "card_declined",
+        "message": "Your card was declined.",
+        "decline_code": "generic_decline"
+      }
+    }
+  },
+  "twilio": {
+    "sms_success": {
+      "sid": "SMtest1234567890",
+      "status": "sent",
+      "to": "+15550123456",
+      "from": "+15550987654",
+      "body": "Your service is scheduled for tomorrow at 8:00 AM",
+      "date_created": "2024-12-31T08:00:00Z"
+    },
+    "sms_failure": {
+      "code": 21211,
+      "message": "The 'To' number is not a valid phone number.",
+      "status": 400
+    }
+  },
+  "sendgrid": {
+    "email_success": {
+      "message": "success"
+    },
+    "email_failure": {
+      "errors": [
+        {
+          "message": "The provided authorization grant is invalid, expired, or revoked",
+          "field": "authorization",
+          "help": "Check your API key"
+        }
+      ]
+    }
+  },
+  "samsara": {
+    "vehicles": {
+      "data": [
+        {
+          "id": "212014918086169",
+          "name": "Truck 001",
+          "vehicleType": "truck",
+          "make": "Peterbilt",
+          "model": "320",
+          "year": 2022,
+          "vin": "1NP5DB9X93N123456",
+          "licensePlate": "WM001CA",
+          "location": {
+            "latitude": 37.7749,
+            "longitude": -122.4194,
+            "address": "123 Main St, San Francisco, CA 94105",
+            "timestamp": "2024-12-31T08:00:00Z"
+          },
+          "engineStates": [
+            {
+              "timeMs": 1640937600000,
+              "value": "Running"
+            }
+          ]
+        }
+      ]
+    },
+    "routes": {
+      "data": [
+        {
+          "id": "1234567890",
+          "name": "Route Alpha",
+          "vehicleId": "212014918086169",
+          "driverId": "8587969768918469",
+          "startLocation": {
+            "latitude": 37.7749,
+            "longitude": -122.4194,
+            "address": "Depot, San Francisco, CA"
+          },
+          "stops": [
+            {
+              "id": "stop-001",
+              "latitude": 37.7849,
+              "longitude": -122.4094,
+              "address": "123 Customer St, San Francisco, CA",
+              "estimatedArrival": "2024-12-31T09:00:00Z",
+              "serviceType": "pickup"
+            }
+          ],
+          "status": "active"
+        }
+      ]
+    }
+  },
+  "maps": {
+    "route_optimization": {
+      "routes": [
+        {
+          "legs": [
+            {
+              "distance": {
+                "text": "5.2 mi",
+                "value": 8369
+              },
+              "duration": {
+                "text": "18 mins",
+                "value": 1080
+              },
+              "start_location": {
+                "lat": 37.7749,
+                "lng": -122.4194
+              },
+              "end_location": {
+                "lat": 37.7849,
+                "lng": -122.4094
+              },
+              "steps": [
+                {
+                  "distance": {
+                    "text": "0.2 mi",
+                    "value": 322
+                  },
+                  "duration": {
+                    "text": "1 min",
+                    "value": 60
+                  },
+                  "html_instructions": "Head north on Main St",
+                  "polyline": {
+                    "points": "encodedPolylineString"
+                  }
+                }
+              ]
+            }
+          ],
+          "overview_polyline": {
+            "points": "overviewEncodedPolylineString"
+          },
+          "summary": "Main St and Highway 101",
+          "warnings": [],
+          "waypoint_order": [0, 1, 2]
+        }
+      ],
+      "status": "OK"
+    },
+    "geocoding": {
+      "results": [
+        {
+          "address_components": [
+            {
+              "long_name": "123",
+              "short_name": "123",
+              "types": ["street_number"]
+            },
+            {
+              "long_name": "Main Street",
+              "short_name": "Main St",
+              "types": ["route"]
+            }
+          ],
+          "formatted_address": "123 Main St, San Francisco, CA 94105, USA",
+          "geometry": {
+            "location": {
+              "lat": 37.7749,
+              "lng": -122.4194
+            },
+            "location_type": "ROOFTOP"
+          },
+          "place_id": "ChIJTest123456789",
+          "types": ["street_address"]
+        }
+      ],
+      "status": "OK"
+    }
+  },
+  "airtable": {
+    "records": {
+      "records": [
+        {
+          "id": "recTest123456789",
+          "fields": {
+            "Customer Name": "Test Customer Corp",
+            "Service Type": "Commercial Pickup",
+            "Frequency": "Weekly",
+            "Status": "Active",
+            "Last Service": "2024-12-30",
+            "Next Service": "2025-01-06"
+          },
+          "createdTime": "2024-01-01T00:00:00.000Z"
+        }
+      ]
+    },
+    "sync_success": {
+      "records": [
+        {
+          "id": "recTest123456789",
+          "fields": {
+            "Sync Status": "Updated",
+            "Last Sync": "2024-12-31T08:00:00.000Z"
+          }
+        }
+      ]
+    }
+  },
+  "weather": {
+    "current": {
+      "location": {
+        "name": "San Francisco",
+        "region": "California",
+        "country": "United States of America",
+        "lat": 37.77,
+        "lon": -122.42,
+        "tz_id": "America/Los_Angeles"
+      },
+      "current": {
+        "temp_f": 65.0,
+        "condition": {
+          "text": "Partly cloudy",
+          "icon": "//cdn.weatherapi.com/weather/64x64/day/116.png"
+        },
+        "wind_mph": 8.1,
+        "humidity": 72,
+        "vis_miles": 9.0,
+        "precip_in": 0.0
+      }
+    }
+  }
+}

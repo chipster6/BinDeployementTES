@@ -28,6 +28,7 @@ import Customer, {
 import Vehicle, { VehicleType, FuelType, VehicleStatus } from "./Vehicle";
 import Driver, { EmploymentStatus, LicenseClass } from "./Driver";
 import Route, { RouteType, RouteStatus, ServiceDay } from "./Route";
+import OptimizedRoute, { OptimizationAlgorithm, OptimizationStatus } from "./OptimizedRoute";
 import Bin, { BinType, BinStatus, BinMaterial } from "./Bin";
 import Permission, { PermissionAction } from "./Permission";
 import RolePermission from "./RolePermission";
@@ -251,6 +252,58 @@ function defineAssociations() {
     constraints: true,
   });
 
+  // OptimizedRoute associations
+  OptimizedRoute.belongsTo(Route, {
+    as: "baseRoute",
+    foreignKey: "baseRouteId",
+    constraints: true,
+  });
+
+  OptimizedRoute.belongsTo(Driver, {
+    as: "assignedDriver",
+    foreignKey: "assignedDriverId",
+    constraints: false,
+  });
+
+  OptimizedRoute.belongsTo(Vehicle, {
+    as: "assignedVehicle",
+    foreignKey: "assignedVehicleId",
+    constraints: false,
+  });
+
+  OptimizedRoute.belongsTo(User, {
+    as: "createdByUser",
+    foreignKey: "createdBy",
+    constraints: false,
+  });
+
+  OptimizedRoute.belongsTo(User, {
+    as: "updatedByUser",
+    foreignKey: "updatedBy",
+    constraints: false,
+  });
+
+  // Route has many optimized routes (reverse)
+  Route.hasMany(OptimizedRoute, {
+    as: "optimizedRoutes",
+    foreignKey: "baseRouteId",
+    constraints: true,
+  });
+
+  // Driver has many optimized route assignments (reverse)
+  Driver.hasMany(OptimizedRoute, {
+    as: "optimizedRouteAssignments",
+    foreignKey: "assignedDriverId",
+    constraints: false,
+  });
+
+  // Vehicle has many optimized route assignments (reverse)
+  Vehicle.hasMany(OptimizedRoute, {
+    as: "optimizedRouteAssignments",
+    foreignKey: "assignedVehicleId",
+    constraints: false,
+  });
+
   // TODO: Add more associations as models are created
   // ServiceEvent, Invoice, Payment, etc.
 }
@@ -293,6 +346,7 @@ export {
   Vehicle,
   Driver,
   Route,
+  OptimizedRoute,
   Bin,
   Permission,
   RolePermission,
@@ -325,6 +379,10 @@ export {
   RouteStatus,
   ServiceDay,
 
+  // OptimizedRoute enums
+  OptimizationAlgorithm,
+  OptimizationStatus,
+
   // Bin enums
   BinType,
   BinStatus,
@@ -345,6 +403,7 @@ export default {
   Vehicle,
   Driver,
   Route,
+  OptimizedRoute,
   Bin,
   Permission,
   RolePermission,

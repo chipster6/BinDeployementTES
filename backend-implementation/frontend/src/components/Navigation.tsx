@@ -95,6 +95,13 @@ const navigationItems: NavigationItem[] = [
     allowedRoles: [UserRole.SUPER_ADMIN, UserRole.ADMIN],
     badge: 'SOC',
   },
+  {
+    name: 'Admin',
+    href: '/admin',
+    icon: Settings,
+    allowedRoles: [UserRole.SUPER_ADMIN, UserRole.ADMIN],
+    badge: 'ADMIN',
+  },
 ];
 
 export function Navigation() {

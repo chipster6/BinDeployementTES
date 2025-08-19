@@ -47,6 +47,28 @@ export { default as MISPIntegrationService, mispIntegrationService } from "./MIS
 export { default as ThreatIntelligenceService, threatIntelligenceService } from "./ThreatIntelligenceService";
 export { default as IPReputationService, ipReputationService } from "./IPReputationService";
 
+// Enhanced Fallback and Business Continuity Services
+export { 
+  FallbackStrategyManager, 
+  fallbackStrategyManager,
+  ServicePriority,
+  FallbackStrategyType,
+  BusinessCriticality
+} from "./FallbackStrategyManager";
+
+export { 
+  ServiceMeshManager, 
+  serviceMeshManager,
+  LoadBalancingStrategy
+} from "./ServiceMeshManager";
+
+export { 
+  BusinessContinuityManager, 
+  businessContinuityManager,
+  IncidentLevel,
+  BusinessImpactSeverity
+} from "./BusinessContinuityManager";
+
 // Type exports
 export type {
   ExternalServiceConfig,
@@ -152,3 +174,29 @@ export type {
   IPBatchResult,
   IPReputationMetrics,
 } from "./IPReputationService";
+
+// Enhanced Fallback and Business Continuity Types
+export type {
+  FallbackProvider,
+  FallbackStrategy,
+  FallbackContext,
+  FallbackResult,
+  FallbackAnalytics
+} from "./FallbackStrategyManager";
+
+export type {
+  ServiceMeshNode,
+  ServiceMeshRoute,
+  ServiceMeshCircuitBreaker,
+  ServiceMeshHealthStatus,
+  ServiceMeshMetrics,
+  ServiceMeshTrafficPolicy,
+  ServiceDependency
+} from "./ServiceMeshManager";
+
+export type {
+  BusinessContinuityIncident,
+  BusinessContinuityPlan,
+  BusinessMetrics,
+  BusinessHealthStatus
+} from "./BusinessContinuityManager";

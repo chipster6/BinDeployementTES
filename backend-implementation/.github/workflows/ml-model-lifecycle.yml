@@ -1,0 +1,437 @@
+# ============================================================================
+# ML MODEL LIFECYCLE MANAGEMENT WORKFLOW
+# ============================================================================
+#
+# Automated ML model training, validation, deployment, and monitoring
+# Integrates with existing CI/CD pipeline for seamless ML operations
+#
+# Created by: DevOps-Agent MLOps Foundation
+# Coordination: System-Architecture-Lead + Innovation-Architect
+# Date: 2025-08-16
+# Version: 1.0.0 - Production Ready ML CI/CD
+# ============================================================================
+
+name: ML Model Lifecycle Management
+
+on:
+  push:
+    paths:
+      - 'src/services/ml/**'
+      - 'models/**'
+      - 'training/**'
+      - '.github/workflows/ml-model-lifecycle.yml'
+  schedule:
+    # Retrain models weekly on Sundays at 2 AM UTC
+    - cron: '0 2 * * 0'
+  workflow_dispatch:
+    inputs:
+      model_type:
+        description: 'Type of model to deploy'
+        required: true
+        type: choice
+        options:
+          - 'demand_forecasting'
+          - 'route_optimization'
+          - 'predictive_maintenance'
+          - 'churn_prediction'
+          - 'all'
+      deployment_stage:
+        description: 'Deployment stage'
+        required: true
+        type: choice
+        options:
+          - 'development'
+          - 'staging'
+          - 'production'
+        default: 'staging'
+
+env:
+  PYTHON_VERSION: '3.11'
+  NODE_VERSION: '20'
+  MLFLOW_TRACKING_URI: ${{ secrets.MLFLOW_TRACKING_URI }}
+  MODEL_REGISTRY_URI: ${{ secrets.MODEL_REGISTRY_URI }}
+  
+jobs:
+  # ============================================================================
+  # DATA VALIDATION AND PREPARATION
+  # ============================================================================
+  data-validation:
+    name: Data Validation & Preparation
+    runs-on: ubuntu-latest
+    outputs:
+      data-quality-score: ${{ steps.validate.outputs.quality_score }}
+      training-ready: ${{ steps.validate.outputs.training_ready }}
+      
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          
+      - name: Install dependencies
+        run: |
+          pip install -r requirements-ml-optimized.txt
+          pip install great-expectations pandas-profiling evidently
+          
+      - name: Validate data quality
+        id: validate
+        run: |
+          python scripts/validate-training-data.py \
+            --data-path ./data/training \
+            --output-dir ./reports/data-validation \
+            --min-quality-score 0.85
+            
+          # Set outputs
+          echo "quality_score=$(cat ./reports/data-validation/quality_score.txt)" >> $GITHUB_OUTPUT
+          echo "training_ready=$(cat ./reports/data-validation/training_ready.txt)" >> $GITHUB_OUTPUT
+          
+      - name: Upload data validation report
+        uses: actions/upload-artifact@v3
+        with:
+          name: data-validation-report
+          path: ./reports/data-validation/
+          retention-days: 30
+
+  # ============================================================================
+  # MODEL TRAINING AND VALIDATION
+  # ============================================================================
+  model-training:
+    name: Model Training & Validation
+    runs-on: self-hosted
+    needs: data-validation
+    if: needs.data-validation.outputs.training-ready == 'true'
+    
+    strategy:
+      matrix:
+        model_type: 
+          - demand_forecasting
+          - route_optimization
+          - predictive_maintenance
+          - churn_prediction
+          
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: Set up Python with GPU support
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          
+      - name: Install ML dependencies
+        run: |
+          pip install -r requirements-ml-optimized.txt
+          pip install mlflow torch tensorflow-gpu lightgbm prophet
+          
+      - name: Configure MLflow
+        run: |
+          export MLFLOW_TRACKING_URI=${{ env.MLFLOW_TRACKING_URI }}
+          export MLFLOW_EXPERIMENT_NAME="${{ matrix.model_type }}_$(date +%Y%m%d)"
+          
+      - name: Train model
+        id: train
+        run: |
+          python training/train_model.py \
+            --model-type ${{ matrix.model_type }} \
+            --data-path ./data/training \
+            --output-dir ./models/${{ matrix.model_type }} \
+            --mlflow-experiment ${{ matrix.model_type }}_$(date +%Y%m%d) \
+            --target-accuracy 0.85 \
+            --max-training-time 3600
+            
+          # Set model metadata
+          echo "model_version=$(cat ./models/${{ matrix.model_type }}/version.txt)" >> $GITHUB_OUTPUT
+          echo "model_accuracy=$(cat ./models/${{ matrix.model_type }}/accuracy.txt)" >> $GITHUB_OUTPUT
+          echo "training_time=$(cat ./models/${{ matrix.model_type }}/training_time.txt)" >> $GITHUB_OUTPUT
+          
+      - name: Validate model performance
+        id: validate
+        run: |
+          python scripts/validate-model-performance.py \
+            --model-path ./models/${{ matrix.model_type }} \
+            --test-data ./data/test \
+            --min-accuracy 0.85 \
+            --output-dir ./reports/model-validation
+            
+          echo "validation_passed=$(cat ./reports/model-validation/passed.txt)" >> $GITHUB_OUTPUT
+          echo "benchmark_score=$(cat ./reports/model-validation/benchmark.txt)" >> $GITHUB_OUTPUT
+          
+      - name: Model drift detection
+        run: |
+          python scripts/detect-model-drift.py \
+            --current-model ./models/${{ matrix.model_type }} \
+            --reference-data ./data/reference \
+            --current-data ./data/current \
+            --output-dir ./reports/drift-detection
+            
+      - name: Upload model artifacts
+        if: steps.validate.outputs.validation_passed == 'true'
+        uses: actions/upload-artifact@v3
+        with:
+          name: model-${{ matrix.model_type }}-${{ steps.train.outputs.model_version }}
+          path: ./models/${{ matrix.model_type }}/
+          retention-days: 90
+          
+      - name: Register model in MLflow
+        if: steps.validate.outputs.validation_passed == 'true'
+        run: |
+          python scripts/register-model.py \
+            --model-path ./models/${{ matrix.model_type }} \
+            --model-name ${{ matrix.model_type }} \
+            --version ${{ steps.train.outputs.model_version }} \
+            --accuracy ${{ steps.train.outputs.model_accuracy }} \
+            --stage staging
+
+  # ============================================================================
+  # MODEL TESTING AND INTEGRATION
+  # ============================================================================
+  model-testing:
+    name: Model Integration Testing
+    runs-on: ubuntu-latest
+    needs: model-training
+    
+    services:
+      postgres:
+        image: postgis/postgis:16-3.4
+        env:
+          POSTGRES_PASSWORD: postgres123
+          POSTGRES_DB: waste_management_test
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+          
+      redis:
+        image: redis:7-alpine
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          
+      - name: Install dependencies
+        run: npm ci
+        
+      - name: Download model artifacts
+        uses: actions/download-artifact@v3
+        with:
+          pattern: model-*
+          path: ./models/
+          
+      - name: Set up test environment
+        run: |
+          cp .env.test .env
+          echo "DB_HOST=localhost" >> .env
+          echo "REDIS_HOST=localhost" >> .env
+          echo "NODE_ENV=test" >> .env
+          
+      - name: Run ML integration tests
+        run: |
+          npm run test:ml-integration
+          
+      - name: Run performance benchmarks
+        run: |
+          npm run test:ml-performance
+          
+      - name: Test model serving endpoints
+        run: |
+          npm run test:model-endpoints
+          
+      - name: Upload test results
+        uses: actions/upload-artifact@v3
+        with:
+          name: ml-test-results
+          path: ./test-results/
+          retention-days: 30
+
+  # ============================================================================
+  # MODEL DEPLOYMENT
+  # ============================================================================
+  model-deployment:
+    name: Model Deployment
+    runs-on: ubuntu-latest
+    needs: [model-training, model-testing]
+    if: github.ref == 'refs/heads/main' || github.event.inputs.deployment_stage == 'production'
+    
+    environment:
+      name: ${{ github.event.inputs.deployment_stage || 'staging' }}
+      
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: Download model artifacts
+        uses: actions/download-artifact@v3
+        with:
+          pattern: model-*
+          path: ./models/
+          
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-west-2
+          
+      - name: Deploy to model serving infrastructure
+        run: |
+          # Update Triton model repository
+          aws s3 sync ./models/ s3://waste-mgmt-model-repository/
+          
+          # Update model configuration
+          python scripts/update-model-config.py \
+            --deployment-stage ${{ github.event.inputs.deployment_stage || 'staging' }} \
+            --models-path ./models/
+            
+      - name: Blue-Green Deployment
+        run: |
+          # Deploy to blue environment first
+          kubectl apply -f k8s/model-serving-blue.yaml
+          
+          # Wait for blue deployment to be ready
+          kubectl rollout status deployment/triton-blue
+          
+          # Run smoke tests
+          python scripts/smoke-test-models.py --endpoint blue
+          
+          # Switch traffic to blue
+          kubectl patch service triton-service -p '{"spec":{"selector":{"version":"blue"}}}'
+          
+          # Clean up green environment
+          kubectl delete deployment triton-green --ignore-not-found=true
+          
+      - name: Update model registry
+        run: |
+          python scripts/promote-model.py \
+            --stage production \
+            --deployment-id ${{ github.run_id }}
+
+  # ============================================================================
+  # MODEL MONITORING SETUP
+  # ============================================================================
+  model-monitoring:
+    name: Model Monitoring Setup
+    runs-on: ubuntu-latest
+    needs: model-deployment
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: Configure monitoring alerts
+        run: |
+          # Update Prometheus rules for ML monitoring
+          kubectl apply -f monitoring/prometheus-ml-rules.yaml
+          
+          # Update Grafana dashboards
+          kubectl apply -f monitoring/grafana-ml-dashboards.yaml
+          
+      - name: Setup model drift monitoring
+        run: |
+          python scripts/setup-drift-monitoring.py \
+            --models-path ./models/ \
+            --monitoring-interval 3600 \
+            --drift-threshold 0.1
+            
+      - name: Configure automated retraining
+        run: |
+          kubectl apply -f k8s/model-retraining-cronjob.yaml
+
+  # ============================================================================
+  # ROLLBACK CAPABILITY
+  # ============================================================================
+  setup-rollback:
+    name: Setup Model Rollback
+    runs-on: ubuntu-latest
+    needs: model-deployment
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: Create rollback configuration
+        run: |
+          python scripts/create-rollback-config.py \
+            --deployment-id ${{ github.run_id }} \
+            --models-path ./models/ \
+            --rollback-endpoint /api/ml/rollback
+            
+      - name: Test rollback mechanism
+        run: |
+          python scripts/test-rollback.py \
+            --deployment-id ${{ github.run_id }} \
+            --dry-run true
+
+  # ============================================================================
+  # NOTIFICATION AND REPORTING
+  # ============================================================================
+  notify-completion:
+    name: Notify Deployment Completion
+    runs-on: ubuntu-latest
+    needs: [model-deployment, model-monitoring, setup-rollback]
+    if: always()
+    
+    steps:
+      - name: Prepare notification
+        id: prepare
+        run: |
+          if [[ "${{ needs.model-deployment.result }}" == "success" ]]; then
+            echo "status=✅ SUCCESS" >> $GITHUB_OUTPUT
+            echo "color=good" >> $GITHUB_OUTPUT
+          else
+            echo "status=❌ FAILED" >> $GITHUB_OUTPUT
+            echo "color=danger" >> $GITHUB_OUTPUT
+          fi
+          
+      - name: Notify Slack
+        uses: 8398a7/action-slack@v3
+        with:
+          status: custom
+          custom_payload: |
+            {
+              "text": "ML Model Deployment ${{ steps.prepare.outputs.status }}",
+              "attachments": [{
+                "color": "${{ steps.prepare.outputs.color }}",
+                "fields": [{
+                  "title": "Repository",
+                  "value": "${{ github.repository }}",
+                  "short": true
+                }, {
+                  "title": "Deployment Stage",
+                  "value": "${{ github.event.inputs.deployment_stage || 'staging' }}",
+                  "short": true
+                }, {
+                  "title": "Commit",
+                  "value": "${{ github.sha }}",
+                  "short": true
+                }, {
+                  "title": "Workflow",
+                  "value": "${{ github.workflow }}",
+                  "short": true
+                }]
+              }]
+            }
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+        if: always()
+        
+      - name: Create deployment report
+        run: |
+          python scripts/create-deployment-report.py \
+            --deployment-id ${{ github.run_id }} \
+            --status "${{ needs.model-deployment.result }}" \
+            --output-dir ./reports/deployments/

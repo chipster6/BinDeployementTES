@@ -1,0 +1,225 @@
+# ============================================================================
+# DEPENDENCY MONITORING ALERT RULES
+# ============================================================================
+#
+# Critical dependency vulnerability alerts for maintaining zero known vulnerabilities
+# Designed for $2M+ MRR business operations with immediate security response
+#
+# Created by: Dependency Resolution Engineer
+# Date: 2025-08-15
+# Version: 1.0.0
+# ============================================================================
+
+groups:
+  # Critical Dependency Security Alerts
+  - name: dependency.critical
+    rules:
+      - alert: CriticalVulnerabilityDetected
+        expr: dependency_vulnerabilities_critical > 0
+        for: 0m
+        labels:
+          severity: critical
+          category: dependency-security
+          business_impact: "2M_MRR"
+          immediate_action: "required"
+        annotations:
+          summary: "CRITICAL: Dependency vulnerability detected"
+          description: "{{ $value }} critical vulnerabilities found in {{ $labels.component }} ({{ $labels.ecosystem }})"
+          impact: "$2M+ MRR operations at risk"
+          runbook_url: "https://docs.waste-mgmt.com/runbooks/critical-vulnerability"
+          remediation: "Apply security patches immediately"
+
+      - alert: HighVulnerabilityDetected
+        expr: dependency_vulnerabilities_high > 0
+        for: 1m
+        labels:
+          severity: critical
+          category: dependency-security
+          business_impact: "2M_MRR"
+        annotations:
+          summary: "HIGH: Dependency vulnerability detected"
+          description: "{{ $value }} high-severity vulnerabilities found in {{ $labels.component }} ({{ $labels.ecosystem }})"
+          impact: "Security grade degradation risk"
+          runbook_url: "https://docs.waste-mgmt.com/runbooks/high-vulnerability"
+          remediation: "Schedule immediate security update"
+
+      - alert: SecurityGradeDegradation
+        expr: dependency_security_grade < 90
+        for: 5m
+        labels:
+          severity: warning
+          category: dependency-security
+          compliance_impact: "true"
+        annotations:
+          summary: "Dependency security grade degradation"
+          description: "Security grade for {{ $labels.component }} is {{ $value }}% (threshold: 90%)"
+          impact: "May affect GDPR/PCI DSS compliance"
+          runbook_url: "https://docs.waste-mgmt.com/runbooks/security-grade-degradation"
+
+      - alert: DependencyMonitoringDown
+        expr: up{job="dependency-monitoring"} == 0
+        for: 2m
+        labels:
+          severity: critical
+          category: dependency-monitoring
+          service: "monitoring"
+        annotations:
+          summary: "Dependency monitoring service is down"
+          description: "Automated dependency vulnerability scanning is offline"
+          impact: "Security blind spot - vulnerabilities may go undetected"
+          runbook_url: "https://docs.waste-mgmt.com/runbooks/monitoring-down"
+          immediate_action: "Restore monitoring service"
+
+  # Dependency Management Warnings
+  - name: dependency.warning
+    rules:
+      - alert: ModerateVulnerabilitiesAccumulating
+        expr: dependency_vulnerabilities_moderate > 10
+        for: 10m
+        labels:
+          severity: warning
+          category: dependency-security
+        annotations:
+          summary: "Moderate vulnerabilities accumulating"
+          description: "{{ $value }} moderate vulnerabilities in {{ $labels.component }} (threshold: 10)"
+          impact: "Potential security grade degradation"
+          recommendation: "Plan vulnerability remediation"
+
+      - alert: OutdatedDependenciesAccumulating
+        expr: dependency_outdated_packages > 20
+        for: 1h
+        labels:
+          severity: warning
+          category: dependency-maintenance
+        annotations:
+          summary: "Outdated dependencies accumulating"
+          description: "{{ $value }} outdated packages in {{ $labels.component }} (threshold: 20)"
+          impact: "Increased vulnerability exposure risk"
+          recommendation: "Schedule dependency updates"
+
+      - alert: DependencyScanStale
+        expr: time() - dependency_last_scan_timestamp > 7200
+        for: 5m
+        labels:
+          severity: warning
+          category: dependency-monitoring
+        annotations:
+          summary: "Dependency scan is stale"
+          description: "Last dependency scan for {{ $labels.component }} was {{ $value }} seconds ago (threshold: 2 hours)"
+          impact: "May miss new vulnerabilities"
+          action: "Check monitoring service and trigger manual scan"
+
+  # System Health Alerts
+  - name: dependency.system
+    rules:
+      - alert: DependencySystemOverallDegradation
+        expr: dependency_system_vulnerabilities_total > 0
+        for: 2m
+        labels:
+          severity: warning
+          category: dependency-system
+          business_risk: "operational"
+        annotations:
+          summary: "System-wide dependency vulnerabilities detected"
+          description: "{{ $value }} total vulnerabilities across all components"
+          impact: "Overall system security posture degraded"
+          runbook_url: "https://docs.waste-mgmt.com/runbooks/system-vulnerability-response"
+          coordination: "Security Agent coordination required"
+
+      - alert: MultipleCriticalComponents
+        expr: count(dependency_vulnerabilities_critical > 0) > 1
+        for: 1m
+        labels:
+          severity: critical
+          category: dependency-system
+          business_impact: "2M_MRR"
+          emergency: "true"
+        annotations:
+          summary: "EMERGENCY: Multiple components with critical vulnerabilities"
+          description: "{{ $value }} components have critical vulnerabilities"
+          impact: "$2M+ MRR operations severely compromised"
+          immediate_action: "Emergency security response protocol"
+          escalation: "Immediate Security Agent and DevOps coordination"
+
+      - alert: SecurityGradeSystemWide
+        expr: avg(dependency_security_grade) < 85
+        for: 10m
+        labels:
+          severity: warning
+          category: dependency-system
+          compliance_impact: "true"
+        annotations:
+          summary: "System-wide security grade below threshold"
+          description: "Average dependency security grade is {{ $value }}% (threshold: 85%)"
+          impact: "Compliance requirements may be at risk"
+          action: "Comprehensive security audit required"
+
+  # Business Impact Alerts
+  - name: dependency.business
+    rules:
+      - alert: RevenueRiskFromVulnerabilities
+        expr: dependency_vulnerabilities_critical > 0 or dependency_vulnerabilities_high > 2
+        for: 5m
+        labels:
+          severity: critical
+          category: business-risk
+          revenue_impact: "2M_MRR"
+        annotations:
+          summary: "Revenue operations at risk from vulnerabilities"
+          description: "Critical/high vulnerabilities threaten $2M+ MRR operations"
+          business_impact: "Customer data, payment processing, operational systems at risk"
+          immediate_action: "Emergency security patch deployment"
+          stakeholder_notification: "CTO, Security Team, Operations Team"
+
+      - alert: ComplianceRiskFromVulnerabilities
+        expr: dependency_vulnerabilities_critical > 0 or dependency_security_grade < 80
+        for: 15m
+        labels:
+          severity: warning
+          category: compliance-risk
+          compliance_frameworks: "GDPR,PCI_DSS,SOC2"
+        annotations:
+          summary: "Compliance risk from dependency vulnerabilities"
+          description: "Vulnerabilities may impact GDPR, PCI DSS, SOC 2 compliance"
+          business_impact: "Regulatory compliance at risk"
+          action: "Accelerate vulnerability remediation"
+          documentation: "Update compliance evidence and remediation timeline"
+
+  # Monitoring and Alerting Health
+  - name: dependency.monitoring
+    rules:
+      - alert: DependencyAlertsSuppressionRisk
+        expr: absent(dependency_vulnerabilities_critical) and absent(dependency_vulnerabilities_high)
+        for: 30m
+        labels:
+          severity: warning
+          category: monitoring-health
+        annotations:
+          summary: "Dependency vulnerability metrics missing"
+          description: "No vulnerability metrics received for 30 minutes"
+          risk: "Security vulnerabilities may go undetected"
+          action: "Check dependency monitoring service health"
+
+      - alert: DependencyMonitoringHighLatency
+        expr: dependency_scan_duration_seconds > 300
+        for: 5m
+        labels:
+          severity: warning
+          category: monitoring-performance
+        annotations:
+          summary: "Dependency scan taking too long"
+          description: "Dependency scan duration is {{ $value }} seconds (threshold: 300s)"
+          impact: "Delayed vulnerability detection"
+          action: "Investigate scan performance and optimize"
+
+      - alert: FailedDependencyScans
+        expr: increase(dependency_scan_failures_total[1h]) > 3
+        for: 5m
+        labels:
+          severity: warning
+          category: monitoring-reliability
+        annotations:
+          summary: "Multiple dependency scan failures"
+          description: "{{ $value }} dependency scan failures in the last hour"
+          impact: "Reduced security monitoring coverage"
+          action: "Investigate scan failures and fix underlying issues"

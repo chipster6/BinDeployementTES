@@ -23,6 +23,8 @@ PURPLE='\033[0;35m'
 NC='\033[0m' # No Color
 
 # Configuration
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
 PROJECT_NAME="waste-management-system"
 DEPLOYMENT_ENV="${DEPLOYMENT_ENV:-production}"
 IMAGE_REGISTRY="${IMAGE_REGISTRY:-ghcr.io}"
@@ -188,7 +190,10 @@ deploy_services() {
     # Deploy infrastructure services
     log_info "Starting infrastructure services..."
     docker-compose -f docker-compose.yml -f docker-compose.prod.yml up -d nginx
-    docker-compose -f docker-compose.yml -f docker-compose.prod.yml --profile monitoring up -d
+    
+    # Deploy monitoring services with enhanced configuration
+    log_info "Deploying monitoring stack..."
+    docker-compose -f docker-compose.yml -f docker-compose.monitoring.yml --profile monitoring up -d
     
     log_success "All services deployed successfully"
 }
@@ -392,20 +397,22 @@ show_deployment_status() {
 setup_monitoring() {
     log_step "Setting up production monitoring..."
     
-    # Start monitoring stack
-    docker-compose --profile monitoring up -d
-    
-    # Wait for Prometheus
-    wait_for_service "prometheus" "Prometheus" 60
-    
-    # Configure Grafana dashboards
-    log_info "Importing Grafana dashboards..."
-    sleep 30  # Wait for Grafana to be ready
-    
-    # Import production dashboards (would need actual dashboard files)
-    # curl -X POST http://admin:admin123@localhost:3004/api/dashboards/db \
-    #      -H "Content-Type: application/json" \
-    #      -d @docker/grafana/dashboards/production-overview.json
+    # Use enhanced monitoring deployment script if available
+    if [[ -f "$PROJECT_ROOT/scripts/production-monitoring-deploy.sh" ]]; then
+        log_info "Using enhanced monitoring deployment..."
+        chmod +x "$PROJECT_ROOT/scripts/production-monitoring-deploy.sh"
+        "$PROJECT_ROOT/scripts/production-monitoring-deploy.sh" deploy
+    else
+        # Fallback to basic monitoring setup
+        log_info "Using basic monitoring setup..."
+        docker-compose -f docker-compose.yml -f docker-compose.monitoring.yml --profile monitoring up -d
+        
+        # Wait for Prometheus
+        wait_for_service "prometheus" "Prometheus" 60
+        
+        # Wait for Grafana
+        wait_for_service "grafana" "Grafana" 60
+    fi
     
     log_success "Monitoring setup completed"
 }

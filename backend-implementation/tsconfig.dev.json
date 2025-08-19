@@ -1,0 +1,25 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "sourceMap": true,
+    "declarationMap": true,
+    "preserveWatchOutput": true,
+    "pretty": true,
+    "listEmittedFiles": false,
+    "listFiles": false,
+    "traceResolution": false,
+    "diagnostics": false,
+    "extendedDiagnostics": false,
+    "generateCpuProfile": false,
+    "preserveSymlinks": false,
+    "assumeChangesOnlyAffectDirectDependencies": true
+  },
+  "watchOptions": {
+    "watchFile": "priorityPollingInterval",
+    "watchDirectory": "dynamicPriorityPolling",
+    "fallbackPolling": "dynamicPriority",
+    "synchronousWatchDirectory": true,
+    "excludeDirectories": ["**/node_modules", "dist", "coverage"],
+    "excludeFiles": ["**/*.test.ts", "**/*.spec.ts"]
+  }
+}

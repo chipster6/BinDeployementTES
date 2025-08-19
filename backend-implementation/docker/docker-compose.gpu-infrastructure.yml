@@ -1,0 +1,338 @@
+# ============================================================================
+# GPU INFRASTRUCTURE DEPLOYMENT
+# ============================================================================
+#
+# Cloud-first hybrid GPU infrastructure for AI/ML workloads
+# Supports A100 and dual L40S configurations with auto-scaling
+# Budget: $7-10k/month with cost optimization
+#
+# Created by: DevOps-Agent MLOps Foundation
+# Coordination: System-Architecture-Lead + Innovation-Architect
+# Date: 2025-08-16
+# Version: 1.0.0 - Production Ready GPU Infrastructure
+# ============================================================================
+
+version: '3.8'
+
+services:
+  # ============================================================================
+  # GPU CLUSTER ORCHESTRATOR
+  # ============================================================================
+  gpu-orchestrator:
+    image: nvcr.io/nvidia/k8s/cuda-sample:vectoradd-cuda11.8-ubuntu20.04
+    container_name: gpu-orchestrator
+    restart: unless-stopped
+    environment:
+      # GPU Configuration (System-Architecture-Lead requirements)
+      - CUDA_VISIBLE_DEVICES=all
+      - NVIDIA_DRIVER_CAPABILITIES=compute,utility
+      - GPU_MEMORY_FRACTION=0.8
+      - ENABLE_GPU_ACCELERATION=true
+      
+      # Performance Targets (Innovation-Architect specifications)
+      - TARGET_INFERENCE_LATENCY=200  # <200ms requirement
+      - MAX_BATCH_SIZE=8
+      - MODEL_QUANTIZATION=int8  # 8-bit quantization for Llama 3.1 8B
+      
+      # Resource Management
+      - MAX_CONCURRENT_REQUESTS=20
+      - GPU_MEMORY_LIMIT=40GB  # A100 configuration
+      - CPU_CORES=16
+      - MEMORY_LIMIT=128GB
+      
+      # Cost Optimization
+      - AUTO_SCALING_ENABLED=true
+      - COST_BUDGET_MONTHLY=8000  # $8k/month budget
+      - PREEMPTIBLE_INSTANCES=true
+      - SPOT_INSTANCE_BIDDING=true
+      
+    ports:
+      - "8100:8100"  # GPU orchestrator API
+      - "8101:8101"  # Resource monitoring
+      
+    volumes:
+      - gpu_models:/app/models
+      - gpu_cache:/app/cache
+      - gpu_logs:/app/logs
+      - ./gpu/config:/app/config:ro
+      
+    deploy:
+      resources:
+        limits:
+          memory: 128G
+          cpus: '16.0'
+        reservations:
+          memory: 64G
+          cpus: '8.0'
+          devices:
+            - driver: nvidia
+              count: 2  # Dual GPU setup
+              capabilities: [gpu]
+              
+    networks:
+      - gpu_network
+      - ai_ml_network
+      
+    runtime: nvidia
+    
+    healthcheck:
+      test: ["CMD", "nvidia-smi", "&&", "curl", "-f", "http://localhost:8100/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+  # ============================================================================
+  # MODEL SERVING INFRASTRUCTURE
+  # ============================================================================
+  model-server:
+    image: nvidia/triton-inference-server:23.10-py3
+    container_name: triton-model-server
+    restart: unless-stopped
+    environment:
+      # Triton Configuration
+      - TRITON_MODEL_REPOSITORY=/models
+      - TRITON_LOG_VERBOSE=1
+      - TRITON_STRICT_MODEL_CONFIG=false
+      - TRITON_HTTP_PORT=8000
+      - TRITON_GRPC_PORT=8001
+      - TRITON_METRICS_PORT=8002
+      
+      # Performance Optimization (Performance-Optimization-Specialist coordination)
+      - MODEL_CONTROL_MODE=explicit
+      - BACKEND_CONFIG_TensorRT_VERSION=8.5
+      - ENABLE_GPU_METRICS=true
+      - MAX_BATCH_DELAY_MICROSECONDS=1000
+      
+    ports:
+      - "8000:8000"  # HTTP inference
+      - "8001:8001"  # GRPC inference  
+      - "8002:8002"  # Metrics
+      
+    volumes:
+      - model_repository:/models
+      - triton_cache:/tmp/triton-cache
+      - ./triton/config:/config:ro
+      
+    depends_on:
+      gpu-orchestrator:
+        condition: service_healthy
+        
+    deploy:
+      resources:
+        limits:
+          memory: 32G
+          cpus: '8.0'
+        reservations:
+          memory: 16G
+          cpus: '4.0'
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+              
+    networks:
+      - gpu_network
+      - ai_ml_network
+      
+    runtime: nvidia
+    
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/v2/health/ready"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 120s
+
+  # ============================================================================
+  # GPU RESOURCE MONITOR
+  # ============================================================================
+  gpu-monitor:
+    image: nvidia/dcgm-exporter:3.1.8-3.1.4-ubuntu20.04
+    container_name: gpu-monitor
+    restart: unless-stopped
+    environment:
+      - DCGM_EXPORTER_LISTEN=:9400
+      - DCGM_EXPORTER_KUBERNETES=false
+      
+    ports:
+      - "9400:9400"  # DCGM metrics
+      
+    volumes:
+      - /usr/lib/x86_64-linux-gnu/libnvidia-ml.so.1:/usr/lib/x86_64-linux-gnu/libnvidia-ml.so.1:ro
+      
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+          cpus: '0.5'
+        reservations:
+          memory: 512M
+          cpus: '0.25'
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+              
+    networks:
+      - monitoring
+      - gpu_network
+      
+    runtime: nvidia
+    
+    privileged: true
+    
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9400/metrics"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  # ============================================================================
+  # COST OPTIMIZATION SERVICE
+  # ============================================================================
+  cost-optimizer:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.cost-optimizer
+    container_name: gpu-cost-optimizer
+    restart: unless-stopped
+    environment:
+      # Budget Management
+      - MONTHLY_BUDGET=8000
+      - COST_ALERT_THRESHOLD=0.8  # 80% of budget
+      - COST_EMERGENCY_THRESHOLD=0.95  # 95% of budget
+      
+      # Auto-Scaling Configuration
+      - MIN_GPU_INSTANCES=1
+      - MAX_GPU_INSTANCES=4
+      - SCALE_UP_THRESHOLD=0.8  # 80% GPU utilization
+      - SCALE_DOWN_THRESHOLD=0.3  # 30% GPU utilization
+      - SCALE_COOLDOWN_MINUTES=10
+      
+      # Spot Instance Management
+      - ENABLE_SPOT_INSTANCES=true
+      - SPOT_INSTANCE_PERCENTAGE=70  # 70% spot, 30% on-demand
+      - MAX_INTERRUPTION_TOLERANCE=15  # minutes
+      
+      # Cloud Provider APIs
+      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
+      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
+      - GCP_PROJECT_ID=${GCP_PROJECT_ID}
+      - AZURE_SUBSCRIPTION_ID=${AZURE_SUBSCRIPTION_ID}
+      
+    ports:
+      - "8300:8300"  # Cost optimization API
+      
+    volumes:
+      - cost_data:/app/data
+      - cost_logs:/app/logs
+      - ./cost-optimizer/config:/app/config:ro
+      
+    networks:
+      - gpu_network
+      - monitoring
+      
+    depends_on:
+      - gpu-monitor
+      
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+          cpus: '1.0'
+        reservations:
+          memory: 1G
+          cpus: '0.5'
+          
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8300/health"]
+      interval: 60s
+      timeout: 10s
+      retries: 3
+
+# ============================================================================
+# GPU INFRASTRUCTURE VOLUMES
+# ============================================================================
+volumes:
+  gpu_models:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${DATA_PATH:-./docker/data}/gpu/models
+      
+  gpu_cache:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${DATA_PATH:-./docker/data}/gpu/cache
+      
+  gpu_logs:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${DATA_PATH:-./docker/data}/gpu/logs
+      
+  model_repository:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${DATA_PATH:-./docker/data}/triton/models
+      
+  triton_cache:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${DATA_PATH:-./docker/data}/triton/cache
+      
+  cost_data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${DATA_PATH:-./docker/data}/cost-optimizer
+      
+  cost_logs:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${DATA_PATH:-./docker/data}/logs/cost-optimizer
+
+# ============================================================================
+# GPU INFRASTRUCTURE NETWORKS
+# ============================================================================
+networks:
+  gpu_network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.22.0.0/16
+    labels:
+      - "com.waste-management.network.type=gpu"
+      
+  ai_ml_network:
+    external: true  # Connect to existing AI/ML network
+    
+  monitoring:
+    external: true  # Connect to existing monitoring network
+
+# ============================================================================
+# GPU INFRASTRUCTURE CONFIGURATION
+# ============================================================================
+x-gpu-config: &gpu-config
+  runtime: nvidia
+  environment:
+    - NVIDIA_VISIBLE_DEVICES=all
+    - NVIDIA_DRIVER_CAPABILITIES=compute,utility
+  deploy:
+    resources:
+      reservations:
+        devices:
+          - driver: nvidia
+            capabilities: [gpu]

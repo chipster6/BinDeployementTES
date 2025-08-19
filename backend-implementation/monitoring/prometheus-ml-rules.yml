@@ -1,0 +1,439 @@
+# ============================================================================
+# ML/AI SPECIFIC PROMETHEUS MONITORING RULES
+# ============================================================================
+#
+# Comprehensive monitoring rules for AI/ML infrastructure
+# Integrates with existing Prometheus stack for unified monitoring
+#
+# Created by: DevOps-Agent MLOps Foundation
+# Coordination: System-Architecture-Lead + Innovation-Architect
+# Date: 2025-08-16
+# Version: 1.0.0 - Production Ready ML Monitoring
+# ============================================================================
+
+groups:
+  # ============================================================================
+  # GPU INFRASTRUCTURE MONITORING
+  # ============================================================================
+  - name: gpu_infrastructure
+    rules:
+      # GPU Utilization Monitoring
+      - alert: GPUUtilizationHigh
+        expr: DCGM_FI_DEV_GPU_UTIL > 90
+        for: 5m
+        labels:
+          severity: warning
+          component: gpu
+          category: performance
+        annotations:
+          summary: "High GPU utilization detected"
+          description: "GPU {{ $labels.gpu }} on {{ $labels.instance }} has been above 90% utilization for more than 5 minutes. Current: {{ $value }}%"
+          runbook_url: "https://docs.waste-mgmt.com/runbooks/gpu-high-utilization"
+          
+      - alert: GPUUtilizationCritical
+        expr: DCGM_FI_DEV_GPU_UTIL > 95
+        for: 2m
+        labels:
+          severity: critical
+          component: gpu
+          category: performance
+        annotations:
+          summary: "Critical GPU utilization detected"
+          description: "GPU {{ $labels.gpu }} on {{ $labels.instance }} has been above 95% utilization for more than 2 minutes. Immediate attention required. Current: {{ $value }}%"
+          
+      # GPU Memory Monitoring
+      - alert: GPUMemoryHigh
+        expr: (DCGM_FI_DEV_FB_USED / DCGM_FI_DEV_FB_TOTAL) * 100 > 85
+        for: 3m
+        labels:
+          severity: warning
+          component: gpu
+          category: memory
+        annotations:
+          summary: "High GPU memory usage detected"
+          description: "GPU {{ $labels.gpu }} memory usage is above 85% for more than 3 minutes. Current: {{ $value }}%"
+          
+      # GPU Temperature Monitoring
+      - alert: GPUTemperatureHigh
+        expr: DCGM_FI_DEV_GPU_TEMP > 80
+        for: 1m
+        labels:
+          severity: critical
+          component: gpu
+          category: hardware
+        annotations:
+          summary: "High GPU temperature detected"
+          description: "GPU {{ $labels.gpu }} temperature is above 80°C. Current: {{ $value }}°C. Check cooling system."
+          
+      # GPU Power Consumption
+      - alert: GPUPowerHigh
+        expr: DCGM_FI_DEV_POWER_USAGE > 250
+        for: 5m
+        labels:
+          severity: warning
+          component: gpu
+          category: power
+        annotations:
+          summary: "High GPU power consumption"
+          description: "GPU {{ $labels.gpu }} power consumption is above 250W for more than 5 minutes. Current: {{ $value }}W"
+
+  # ============================================================================
+  # MODEL PERFORMANCE MONITORING
+  # ============================================================================
+  - name: ml_model_performance
+    rules:
+      # Model Inference Latency
+      - alert: ModelInferenceLatencyHigh
+        expr: histogram_quantile(0.95, rate(ml_inference_duration_seconds_bucket[5m])) > 0.2
+        for: 2m
+        labels:
+          severity: warning
+          component: ml_inference
+          category: performance
+        annotations:
+          summary: "High model inference latency detected"
+          description: "95th percentile inference latency for model {{ $labels.model_name }} is above 200ms for more than 2 minutes. Current: {{ $value }}s"
+          
+      - alert: ModelInferenceLatencyCritical
+        expr: histogram_quantile(0.95, rate(ml_inference_duration_seconds_bucket[5m])) > 0.5
+        for: 1m
+        labels:
+          severity: critical
+          component: ml_inference
+          category: performance
+        annotations:
+          summary: "Critical model inference latency detected"
+          description: "95th percentile inference latency for model {{ $labels.model_name }} is above 500ms. Immediate attention required. Current: {{ $value }}s"
+          
+      # Model Accuracy Monitoring
+      - alert: ModelAccuracyDegraded
+        expr: ml_model_accuracy < 0.85
+        for: 10m
+        labels:
+          severity: warning
+          component: ml_model
+          category: accuracy
+        annotations:
+          summary: "Model accuracy degradation detected"
+          description: "Model {{ $labels.model_name }} accuracy has dropped below 85% for more than 10 minutes. Current: {{ $value }}"
+          
+      - alert: ModelAccuracyCritical
+        expr: ml_model_accuracy < 0.75
+        for: 5m
+        labels:
+          severity: critical
+          component: ml_model
+          category: accuracy
+        annotations:
+          summary: "Critical model accuracy degradation"
+          description: "Model {{ $labels.model_name }} accuracy has dropped below 75%. Model retraining required. Current: {{ $value }}"
+          
+      # Model Drift Detection
+      - alert: ModelDriftDetected
+        expr: ml_model_drift_score > 0.1
+        for: 30m
+        labels:
+          severity: warning
+          component: ml_model
+          category: drift
+        annotations:
+          summary: "Model drift detected"
+          description: "Model {{ $labels.model_name }} showing signs of drift. Drift score: {{ $value }}"
+          
+      # Prediction Confidence
+      - alert: PredictionConfidenceLow
+        expr: avg_over_time(ml_prediction_confidence[30m]) < 0.8
+        for: 15m
+        labels:
+          severity: warning
+          component: ml_prediction
+          category: confidence
+        annotations:
+          summary: "Low prediction confidence detected"
+          description: "Average prediction confidence for model {{ $labels.model_name }} is below 80%. Current: {{ $value }}"
+
+  # ============================================================================
+  # VECTOR DATABASE MONITORING
+  # ============================================================================
+  - name: vector_database
+    rules:
+      # Weaviate Query Performance
+      - alert: WeaviateQueryLatencyHigh
+        expr: histogram_quantile(0.95, rate(weaviate_query_duration_seconds_bucket[5m])) > 0.2
+        for: 3m
+        labels:
+          severity: warning
+          component: weaviate
+          category: performance
+        annotations:
+          summary: "High Weaviate query latency"
+          description: "95th percentile Weaviate query latency is above 200ms for more than 3 minutes. Current: {{ $value }}s"
+          
+      # Vector Search Accuracy
+      - alert: VectorSearchAccuracyLow
+        expr: vector_search_relevance_score < 0.85
+        for: 10m
+        labels:
+          severity: warning
+          component: vector_search
+          category: accuracy
+        annotations:
+          summary: "Low vector search accuracy"
+          description: "Vector search relevance score is below 85% for {{ $labels.search_type }}. Current: {{ $value }}"
+          
+      # Weaviate Storage Usage
+      - alert: WeaviateStorageHigh
+        expr: (weaviate_storage_used_bytes / weaviate_storage_total_bytes) * 100 > 85
+        for: 5m
+        labels:
+          severity: warning
+          component: weaviate
+          category: storage
+        annotations:
+          summary: "High Weaviate storage usage"
+          description: "Weaviate storage usage is above 85%. Current: {{ $value }}%"
+
+  # ============================================================================
+  # ROUTE OPTIMIZATION MONITORING
+  # ============================================================================
+  - name: route_optimization
+    rules:
+      # Route Optimization Performance
+      - alert: RouteOptimizationSlow
+        expr: histogram_quantile(0.95, rate(route_optimization_duration_seconds_bucket[5m])) > 30
+        for: 2m
+        labels:
+          severity: warning
+          component: route_optimization
+          category: performance
+        annotations:
+          summary: "Slow route optimization detected"
+          description: "95th percentile route optimization time is above 30 seconds. Current: {{ $value }}s"
+          
+      # Route Optimization Success Rate
+      - alert: RouteOptimizationFailureRate
+        expr: (rate(route_optimization_failures_total[5m]) / rate(route_optimization_requests_total[5m])) * 100 > 5
+        for: 5m
+        labels:
+          severity: warning
+          component: route_optimization
+          category: reliability
+        annotations:
+          summary: "High route optimization failure rate"
+          description: "Route optimization failure rate is above 5%. Current: {{ $value }}%"
+          
+      # Route Efficiency Metrics
+      - alert: RouteEfficiencyDegraded
+        expr: route_optimization_efficiency_improvement < 0.15
+        for: 15m
+        labels:
+          severity: warning
+          component: route_optimization
+          category: efficiency
+        annotations:
+          summary: "Route optimization efficiency degraded"
+          description: "Route optimization showing less than 15% improvement over baseline. Current: {{ $value }}"
+
+  # ============================================================================
+  # PREDICTIVE ANALYTICS MONITORING
+  # ============================================================================
+  - name: predictive_analytics
+    rules:
+      # Forecast Accuracy
+      - alert: ForecastAccuracyLow
+        expr: forecast_accuracy_score < 0.85
+        for: 1h
+        labels:
+          severity: warning
+          component: forecasting
+          category: accuracy
+        annotations:
+          summary: "Low forecast accuracy detected"
+          description: "Forecast accuracy for {{ $labels.forecast_type }} is below 85%. Current: {{ $value }}"
+          
+      # Prediction Pipeline Health
+      - alert: PredictionPipelineDown
+        expr: up{job="prediction-pipeline"} == 0
+        for: 2m
+        labels:
+          severity: critical
+          component: prediction_pipeline
+          category: availability
+        annotations:
+          summary: "Prediction pipeline is down"
+          description: "Prediction pipeline {{ $labels.instance }} is not responding"
+          
+      # Data Freshness
+      - alert: TrainingDataStale
+        expr: (time() - training_data_last_update_timestamp) > 86400
+        for: 1h
+        labels:
+          severity: warning
+          component: training_data
+          category: freshness
+        annotations:
+          summary: "Training data is stale"
+          description: "Training data for {{ $labels.model_type }} hasn't been updated for more than 24 hours"
+
+  # ============================================================================
+  # LLM SERVICE MONITORING
+  # ============================================================================
+  - name: llm_service
+    rules:
+      # LLM Response Time
+      - alert: LLMResponseTimeSlow
+        expr: histogram_quantile(0.95, rate(llm_response_duration_seconds_bucket[5m])) > 2
+        for: 3m
+        labels:
+          severity: warning
+          component: llm
+          category: performance
+        annotations:
+          summary: "Slow LLM response time"
+          description: "95th percentile LLM response time is above 2 seconds. Current: {{ $value }}s"
+          
+      # LLM Service Availability
+      - alert: LLMServiceDown
+        expr: up{job="llm-service"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          component: llm
+          category: availability
+        annotations:
+          summary: "LLM service is down"
+          description: "LLM service {{ $labels.instance }} is not responding"
+          
+      # Token Usage Monitoring
+      - alert: LLMTokenUsageHigh
+        expr: rate(llm_tokens_consumed_total[1h]) > 1000000
+        for: 10m
+        labels:
+          severity: warning
+          component: llm
+          category: usage
+        annotations:
+          summary: "High LLM token usage"
+          description: "LLM token consumption rate is above 1M tokens/hour. Current: {{ $value }} tokens/hour"
+
+  # ============================================================================
+  # COST MONITORING
+  # ============================================================================
+  - name: ml_cost_monitoring
+    rules:
+      # Monthly Budget Threshold
+      - alert: MLCostBudgetWarning
+        expr: (ml_infrastructure_cost_monthly / ml_budget_monthly) * 100 > 80
+        for: 1h
+        labels:
+          severity: warning
+          component: cost
+          category: budget
+        annotations:
+          summary: "ML infrastructure cost approaching budget limit"
+          description: "ML infrastructure costs have reached 80% of monthly budget. Current: {{ $value }}%"
+          
+      - alert: MLCostBudgetCritical
+        expr: (ml_infrastructure_cost_monthly / ml_budget_monthly) * 100 > 95
+        for: 30m
+        labels:
+          severity: critical
+          component: cost
+          category: budget
+        annotations:
+          summary: "ML infrastructure cost critically high"
+          description: "ML infrastructure costs have reached 95% of monthly budget. Immediate action required. Current: {{ $value }}%"
+          
+      # GPU Cost Efficiency
+      - alert: GPUCostEfficiencyLow
+        expr: (gpu_utilization_avg / gpu_cost_per_hour) < 0.7
+        for: 2h
+        labels:
+          severity: warning
+          component: gpu
+          category: cost_efficiency
+        annotations:
+          summary: "Low GPU cost efficiency"
+          description: "GPU cost efficiency is below 70%. Consider scaling down or optimizing workloads. Current efficiency: {{ $value }}"
+
+  # ============================================================================
+  # SECURITY MONITORING FOR ML INFRASTRUCTURE
+  # ============================================================================
+  - name: ml_security
+    rules:
+      # Unauthorized Model Access
+      - alert: UnauthorizedModelAccess
+        expr: increase(ml_unauthorized_access_attempts_total[5m]) > 10
+        for: 1m
+        labels:
+          severity: critical
+          component: ml_security
+          category: access
+        annotations:
+          summary: "Unauthorized ML model access attempts detected"
+          description: "More than 10 unauthorized access attempts to ML models in the last 5 minutes from {{ $labels.source_ip }}"
+          
+      # Model Data Integrity
+      - alert: ModelDataIntegrityCheck
+        expr: ml_model_checksum_validation_failed > 0
+        for: 1m
+        labels:
+          severity: critical
+          component: ml_security
+          category: integrity
+        annotations:
+          summary: "Model data integrity check failed"
+          description: "Model {{ $labels.model_name }} failed integrity check. Potential tampering detected."
+          
+      # Anomalous Inference Patterns
+      - alert: AnomalousInferencePattern
+        expr: ml_inference_anomaly_score > 0.9
+        for: 5m
+        labels:
+          severity: warning
+          component: ml_security
+          category: anomaly
+        annotations:
+          summary: "Anomalous inference pattern detected"
+          description: "Unusual inference patterns detected for model {{ $labels.model_name }}. Anomaly score: {{ $value }}"
+
+  # ============================================================================
+  # BUSINESS IMPACT MONITORING
+  # ============================================================================
+  - name: ml_business_impact
+    rules:
+      # Operational Efficiency Impact
+      - alert: OperationalEfficiencyDecline
+        expr: operational_efficiency_improvement < 0.25
+        for: 30m
+        labels:
+          severity: warning
+          component: business_impact
+          category: efficiency
+        annotations:
+          summary: "Operational efficiency improvement declining"
+          description: "AI/ML operational efficiency improvement is below 25%. Target: 30-50%. Current: {{ $value }}"
+          
+      # Customer Satisfaction Impact
+      - alert: CustomerSatisfactionImpact
+        expr: customer_satisfaction_ai_score < 0.9
+        for: 1h
+        labels:
+          severity: warning
+          component: business_impact
+          category: satisfaction
+        annotations:
+          summary: "AI/ML impact on customer satisfaction declining"
+          description: "Customer satisfaction related to AI/ML features is below 90%. Current: {{ $value }}"
+          
+      # Revenue Impact Monitoring
+      - alert: RevenueImpactDecline
+        expr: ml_revenue_impact_percentage < 0.1
+        for: 2h
+        labels:
+          severity: warning
+          component: business_impact
+          category: revenue
+        annotations:
+          summary: "ML revenue impact declining"
+          description: "ML-driven revenue improvement is below 10%. Target: 10-15%. Current: {{ $value }}"

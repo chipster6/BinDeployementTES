@@ -1,0 +1,240 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "description": "Automated dependency management for Waste Management System - Maintaining zero known vulnerabilities for $2M+ MRR operations",
+  "extends": [
+    "config:base",
+    "security:openssf-scorecard",
+    "workarounds:all"
+  ],
+  "timezone": "UTC",
+  "schedule": ["before 4am on Monday"],
+  "labels": ["dependencies", "automated"],
+  "reviewersFromCodeOwners": true,
+  "assigneesFromCodeOwners": true,
+  "prConcurrentLimit": 3,
+  "prHourlyLimit": 2,
+  "semanticCommits": "enabled",
+  "dependencyDashboard": true,
+  "dependencyDashboardTitle": "🔧 Dependency Management Dashboard",
+  "dependencyDashboardLabels": ["dependencies", "dashboard"],
+  "vulnerabilityAlerts": {
+    "enabled": true,
+    "labels": ["security", "vulnerability", "critical"],
+    "assignees": ["@security-team"],
+    "reviewers": ["@security-team"],
+    "schedule": ["at any time"],
+    "prPriority": 10
+  },
+  "osvVulnerabilityAlerts": true,
+  "lockFileMaintenance": {
+    "enabled": true,
+    "schedule": ["before 3am on Monday"]
+  },
+  "packageRules": [
+    {
+      "description": "Critical security packages - immediate updates required",
+      "matchPackageNames": [
+        "express",
+        "stripe",
+        "bcrypt",
+        "helmet",
+        "jsonwebtoken",
+        "redis",
+        "axios",
+        "sequelize",
+        "pg",
+        "ioredis",
+        "@aws-sdk/client-s3",
+        "nodemailer",
+        "twilio",
+        "@sendgrid/mail"
+      ],
+      "labels": ["security-update", "critical", "auto-merge-candidate"],
+      "reviewersFromCodeOwners": true,
+      "assigneesFromCodeOwners": true,
+      "prPriority": 10,
+      "schedule": ["at any time"],
+      "updateTypes": ["patch", "minor", "major"],
+      "vulnerabilityAlerts": {
+        "enabled": true,
+        "labels": ["security", "vulnerability", "critical-package"]
+      }
+    },
+    {
+      "description": "Production dependencies - conservative updates",
+      "matchDepTypes": ["dependencies"],
+      "matchUpdateTypes": ["major"],
+      "enabled": false,
+      "dependencyDashboardApproval": true,
+      "labels": ["major-update", "production", "manual-review"]
+    },
+    {
+      "description": "Production dependencies - minor and patch updates",
+      "matchDepTypes": ["dependencies"],
+      "matchUpdateTypes": ["minor", "patch"],
+      "automerge": false,
+      "labels": ["production-update", "review-required"],
+      "reviewersFromCodeOwners": true,
+      "minimumReleaseAge": "3 days",
+      "stabilityDays": 3
+    },
+    {
+      "description": "Development dependencies - auto-merge safe updates",
+      "matchDepTypes": ["devDependencies"],
+      "matchUpdateTypes": ["minor", "patch"],
+      "automerge": true,
+      "automergeType": "pr",
+      "labels": ["dev-dependency", "auto-merge"],
+      "minimumReleaseAge": "1 day",
+      "stabilityDays": 1
+    },
+    {
+      "description": "Development dependencies - major updates need review",
+      "matchDepTypes": ["devDependencies"],
+      "matchUpdateTypes": ["major"],
+      "automerge": false,
+      "labels": ["dev-dependency", "major-update", "review-needed"],
+      "dependencyDashboardApproval": true
+    },
+    {
+      "description": "TypeScript and related tooling",
+      "matchPackageNames": [
+        "typescript",
+        "@types/*",
+        "ts-node",
+        "ts-jest",
+        "@typescript-eslint/*"
+      ],
+      "groupName": "TypeScript",
+      "labels": ["typescript", "tooling"],
+      "automerge": false,
+      "reviewersFromCodeOwners": true
+    },
+    {
+      "description": "Testing framework updates",
+      "matchPackageNames": [
+        "jest",
+        "@types/jest",
+        "ts-jest",
+        "supertest",
+        "@types/supertest"
+      ],
+      "groupName": "Testing",
+      "labels": ["testing", "jest"],
+      "automerge": false,
+      "schedule": ["before 4am on Monday"]
+    },
+    {
+      "description": "ESLint and Prettier",
+      "matchPackageNames": [
+        "eslint",
+        "prettier",
+        "@typescript-eslint/*",
+        "eslint-*"
+      ],
+      "groupName": "Linting",
+      "labels": ["linting", "code-quality"],
+      "automerge": true,
+      "automergeType": "pr"
+    },
+    {
+      "description": "Docker base images",
+      "matchDatasources": ["docker"],
+      "matchPackageNames": [
+        "node",
+        "postgres",
+        "redis",
+        "nginx"
+      ],
+      "labels": ["docker", "infrastructure"],
+      "automerge": false,
+      "reviewersFromCodeOwners": true,
+      "schedule": ["before 4am on Monday"]
+    },
+    {
+      "description": "Python ML dependencies",
+      "matchFileNames": ["requirements-ml.txt", "requirements-llm.txt"],
+      "labels": ["python", "ml", "ai"],
+      "automerge": false,
+      "reviewersFromCodeOwners": true,
+      "schedule": ["before 4am on Monday"]
+    },
+    {
+      "description": "Frontend dependencies (if applicable)",
+      "matchFileNames": ["frontend/package.json"],
+      "labels": ["frontend", "ui"],
+      "automerge": false,
+      "reviewersFromCodeOwners": true,
+      "prConcurrentLimit": 2
+    },
+    {
+      "description": "High vulnerability fixes - immediate attention",
+      "matchCurrentValue": "/.*/",
+      "vulnerabilityAlerts": {
+        "enabled": true
+      },
+      "labels": ["security", "vulnerability", "high-priority"],
+      "prPriority": 10,
+      "schedule": ["at any time"],
+      "automerge": false,
+      "reviewersFromCodeOwners": true,
+      "assigneesFromCodeOwners": true
+    }
+  ],
+  "regexManagers": [
+    {
+      "description": "Update Docker image versions in docker-compose files",
+      "fileMatch": ["^docker-compose.*\\.ya?ml$"],
+      "matchStrings": [
+        "image:\\s*(?<depName>[^:\\s]+):(?<currentValue>[^\\s]+)"
+      ],
+      "datasourceTemplate": "docker"
+    }
+  ],
+  "customManagers": [
+    {
+      "customType": "regex",
+      "description": "Update version references in documentation",
+      "fileMatch": ["^README\\.md$", "^docs/.*\\.md$"],
+      "matchStrings": [
+        "(?<depName>node)@(?<currentValue>\\d+\\.\\d+\\.\\d+)",
+        "(?<depName>npm)@(?<currentValue>\\d+\\.\\d+\\.\\d+)"
+      ],
+      "datasourceTemplate": "npm"
+    }
+  ],
+  "ignorePaths": [
+    "node_modules/**",
+    "dist/**",
+    "build/**",
+    "coverage/**",
+    ".git/**",
+    "docker/data/**",
+    "logs/**"
+  ],
+  "ignoreDeps": [
+    "node",
+    "npm"
+  ],
+  "prTitle": "{{semanticPrefix}}{{#if isPin}}Pin{{else}}Update{{/if}} {{depName}} to {{#if isMajor}}{{prettyNewMajor}}{{else}}{{#if isSingleVersion}}{{prettyNewVersion}}{{else}}{{#if newValue}}{{{newValue}}}{{else}}{{{newDigest}}}{{/if}}{{/if}}{{/if}}",
+  "prBodyTemplate": "This PR contains the following updates:\n\n| Package | Change | Age | Adoption | Passing | Confidence |\n|---|---|---|---|---|---|\n{{#each upgrades as |upgrade|}}\n|{{upgrade.depName}}|{{upgrade.currentValue}} -> {{upgrade.newValue}}|{{upgrade.age}}|{{upgrade.adoption}}|{{upgrade.passing}}|{{upgrade.confidence}}|\n{{/each}}\n\n---\n\n### Release Notes\n\n{{#each upgrades as |upgrade|}}\n{{#if upgrade.hasReleaseNotes}}\n<details>\n<summary>{{upgrade.depName}}</summary>\n\n{{upgrade.releaseNotes}}\n</details>\n{{/if}}\n{{/each}}\n\n---\n\n### Configuration\n\n📅 **Schedule**: {{schedule}}\n\n🚦 **Automerge**: {{automerge}}\n\n♻ **Rebasing**: {{rebaseWhen}}\n\n🔕 **Ignore**: Close this PR and you won't be reminded about {{#if isSinglePackage}}this update{{else}}these updates{{/if}} again.\n\n---\n\n**Security Note**: This dependency update maintains zero known vulnerabilities for $2M+ MRR operations.\n\n**Testing Required**: Ensure all tests pass before merging production dependencies.\n\n**Coordination**: Critical security updates require Security Agent coordination.",
+  "postUpdateOptions": ["npmDedupe"],
+  "rangeStrategy": "bump",
+  "bumpVersion": "patch",
+  "gitAuthor": "Renovate Bot <renovate@waste-mgmt.com>",
+  "platformAutomerge": false,
+  "rebaseWhen": "behind-base-branch",
+  "includeForks": false,
+  "forkProcessing": "disabled",
+  "enabledManagers": [
+    "npm",
+    "dockerfile",
+    "docker-compose",
+    "pip_requirements"
+  ],
+  "constraints": {
+    "node": ">=18.0.0 <21.0.0",
+    "npm": ">=9.0.0",
+    "python": ">=3.11.0"
+  }
+}

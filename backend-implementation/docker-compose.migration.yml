@@ -1,0 +1,135 @@
+# ============================================================================
+# MIGRATION-SPECIFIC DOCKER COMPOSE CONFIGURATION
+# ============================================================================
+#
+# Docker Compose configuration for database migration operations.
+# Extends the main docker-compose.yml with migration-specific services
+# and configurations for production-safe migration deployments.
+#
+# Created by: Database-Architect
+# Date: 2025-08-15
+# Version: 1.0.0
+# ============================================================================
+
+version: '3.8'
+
+services:
+  # Database Migration Service
+  migration:
+    build:
+      context: .
+      dockerfile: ./docker/migration.Dockerfile
+    container_name: waste-mgmt-migration
+    restart: "no"  # Don't restart migration containers
+    environment:
+      NODE_ENV: ${NODE_ENV:-production}
+      
+      # Database Configuration
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: waste_management
+      DB_USERNAME: postgres
+      DB_PASSWORD: ${DB_PASSWORD:-postgres123}
+      DB_SSL: ${DB_SSL:-true}
+      
+      # Migration Configuration
+      MIGRATION_DIR: /app/src/database/migrations
+      BACKUP_DIR: /app/backups
+      VALIDATION_DIR: /app/src/database/validations
+      BACKUP_ENABLED: ${BACKUP_ENABLED:-true}
+      VALIDATION_ENABLED: ${VALIDATION_ENABLED:-true}
+      ZERO_DOWNTIME: ${ZERO_DOWNTIME:-false}
+      
+      # Backup Configuration
+      BACKUP_RETENTION_DAYS: ${BACKUP_RETENTION_DAYS:-30}
+      BACKUP_COMPRESSION_LEVEL: ${BACKUP_COMPRESSION_LEVEL:-6}
+      BACKUP_ENCRYPTION_ENABLED: ${BACKUP_ENCRYPTION_ENABLED:-false}
+      
+      # Cloud Storage (optional)
+      CLOUD_STORAGE_ENABLED: ${CLOUD_STORAGE_ENABLED:-false}
+      CLOUD_STORAGE_PROVIDER: ${CLOUD_STORAGE_PROVIDER:-aws}
+      CLOUD_STORAGE_BUCKET: ${CLOUD_STORAGE_BUCKET:-}
+      CLOUD_STORAGE_REGION: ${CLOUD_STORAGE_REGION:-us-east-1}
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:-}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-}
+      
+      # Notification Configuration
+      SLACK_WEBHOOK: ${SLACK_WEBHOOK:-}
+      
+      # Security
+      ENCRYPTION_KEY: ${ENCRYPTION_KEY:-}
+      
+      # Timeouts
+      MAX_MIGRATION_TIME: ${MAX_MIGRATION_TIME:-3600}
+      CONNECTION_TIMEOUT: ${CONNECTION_TIMEOUT:-30}
+      
+    volumes:
+      - migration_backups:/app/backups
+      - migration_logs:/app/logs
+      - ./src/database/migrations:/app/src/database/migrations:ro
+      - ./src/database/validations:/app/src/database/validations:ro
+      
+    networks:
+      - waste-mgmt-network
+      
+    depends_on:
+      postgres:
+        condition: service_healthy
+        
+    profiles:
+      - migration
+      - production
+
+  # Migration Monitoring Service
+  migration-monitor:
+    image: prom/node-exporter:latest
+    container_name: waste-mgmt-migration-monitor
+    restart: unless-stopped
+    command:
+      - '--path.rootfs=/host'
+      - '--collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc)($$|/)'
+    volumes:
+      - /:/host:ro,rslave
+      - migration_logs:/logs:ro
+    networks:
+      - waste-mgmt-network
+    profiles:
+      - migration
+      - monitoring
+
+  # Migration Log Aggregator
+  migration-logs:
+    image: fluent/fluent-bit:latest
+    container_name: waste-mgmt-migration-logs
+    restart: unless-stopped
+    volumes:
+      - migration_logs:/logs:ro
+      - ./docker/fluent-bit/migration.conf:/fluent-bit/etc/fluent-bit.conf:ro
+    networks:
+      - waste-mgmt-network
+    depends_on:
+      - migration
+    profiles:
+      - migration
+      - logging
+
+# Named volumes for migration data persistence
+volumes:
+  migration_backups:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${DATA_PATH:-./docker/data}/migration/backups
+      
+  migration_logs:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${DATA_PATH:-./docker/data}/migration/logs
+
+# Network configuration (extends main network)
+networks:
+  waste-mgmt-network:
+    external: true

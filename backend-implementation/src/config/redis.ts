@@ -11,7 +11,8 @@
  * Version: 1.0.0
  */
 
-import Redis, { RedisOptions } from "ioredis";
+import Redis from "ioredis";
+import type { RedisOptions } from "ioredis";
 import { config } from "@/config";
 import { logger } from "@/utils/logger";
 
@@ -21,7 +22,7 @@ import { logger } from "@/utils/logger";
 const redisOptions: RedisOptions = {
   host: config.redis.host,
   port: config.redis.port,
-  password: config.redis.password,
+  ...(config.redis.password && { password: config.redis.password }),
   db: config.redis.db,
   keyPrefix: config.redis.keyPrefix,
   enableReadyCheck: config.redis.enableReadyCheck,

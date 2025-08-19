@@ -1,0 +1,328 @@
+# ============================================================================
+# WASTE MANAGEMENT SYSTEM - ALERTMANAGER CONFIGURATION
+# ============================================================================
+#
+# Production-ready alerting configuration with multiple notification channels
+# and smart alert routing for operational excellence
+#
+# Created by: DevOps Infrastructure Orchestrator
+# Date: 2025-08-15
+# Version: 2.0.0
+# ============================================================================
+
+global:
+  # SMTP configuration for email alerts
+  smtp_smarthost: '${SMTP_HOST:-localhost:587}'
+  smtp_from: '${ALERTMANAGER_EMAIL_FROM:-alerts@waste-mgmt.com}'
+  smtp_auth_username: '${SMTP_USERNAME:-}'
+  smtp_auth_password: '${SMTP_PASSWORD:-}'
+  
+  # Slack API URL
+  slack_api_url: '${SLACK_API_URL:-}'
+  
+  # Default notification settings
+  resolve_timeout: 5m
+  http_config:
+    tls_config:
+      insecure_skip_verify: false
+
+# Template files for custom notification formatting
+templates:
+  - '/etc/alertmanager/templates/*.tmpl'
+
+# Route tree for alert routing
+route:
+  group_by: ['alertname', 'cluster', 'service']
+  group_wait: 10s
+  group_interval: 10s
+  repeat_interval: 1h
+  receiver: 'default-receiver'
+  
+  routes:
+    # Critical alerts - immediate notification
+    - match:
+        severity: 'critical'
+      receiver: 'critical-alerts'
+      group_wait: 5s
+      repeat_interval: 30m
+      continue: true
+    
+    # High priority alerts
+    - match:
+        severity: 'high'
+      receiver: 'high-priority-alerts'
+      group_wait: 10s
+      repeat_interval: 1h
+      continue: true
+    
+    # Infrastructure alerts
+    - match:
+        category: 'infrastructure'
+      receiver: 'infrastructure-team'
+      group_wait: 15s
+      repeat_interval: 2h
+    
+    # Application alerts
+    - match:
+        category: 'application'
+      receiver: 'dev-team'
+      group_wait: 15s
+      repeat_interval: 1h
+    
+    # Security alerts
+    - match:
+        category: 'security'
+      receiver: 'security-team'
+      group_wait: 5s
+      repeat_interval: 15m
+      continue: true
+    
+    # Business alerts (revenue impact)
+    - match:
+        category: 'business'
+      receiver: 'business-critical'
+      group_wait: 5s
+      repeat_interval: 30m
+      continue: true
+
+# Inhibition rules to reduce alert noise
+inhibit_rules:
+  # Inhibit warning alerts if critical alerts are firing
+  - source_match:
+      severity: 'critical'
+    target_match:
+      severity: 'warning'
+    equal: ['alertname', 'cluster', 'service']
+  
+  # Inhibit high alerts if critical alerts are firing
+  - source_match:
+      severity: 'critical'
+    target_match:
+      severity: 'high'
+    equal: ['alertname', 'cluster', 'service']
+  
+  # Inhibit individual service alerts if entire cluster is down
+  - source_match:
+      alertname: 'ClusterDown'
+    target_match_re:
+      alertname: '.*'
+    equal: ['cluster']
+
+# Notification receivers
+receivers:
+  # Default receiver for all alerts
+  - name: 'default-receiver'
+    email_configs:
+      - to: '${ALERTMANAGER_EMAIL_TO:-ops@waste-mgmt.com}'
+        subject: '[WASTE-MGMT] {{ .GroupLabels.alertname }} Alert'
+        body: |
+          {{ range .Alerts }}
+          Alert: {{ .Annotations.summary }}
+          Description: {{ .Annotations.description }}
+          Severity: {{ .Labels.severity }}
+          Instance: {{ .Labels.instance }}
+          Time: {{ .StartsAt }}
+          {{ end }}
+        html: |
+          <h3>Alert Summary</h3>
+          <table border="1">
+          <tr><th>Alert</th><th>Severity</th><th>Instance</th><th>Description</th></tr>
+          {{ range .Alerts }}
+          <tr>
+            <td>{{ .Annotations.summary }}</td>
+            <td>{{ .Labels.severity }}</td>
+            <td>{{ .Labels.instance }}</td>
+            <td>{{ .Annotations.description }}</td>
+          </tr>
+          {{ end }}
+          </table>
+  
+  # Critical alerts - multiple channels
+  - name: 'critical-alerts'
+    email_configs:
+      - to: '${CRITICAL_EMAIL_TO:-critical@waste-mgmt.com}'
+        subject: '[CRITICAL] {{ .GroupLabels.alertname }} - Immediate Action Required'
+        body: |
+          🚨 CRITICAL ALERT 🚨
+          
+          {{ range .Alerts }}
+          Alert: {{ .Annotations.summary }}
+          Description: {{ .Annotations.description }}
+          Severity: CRITICAL
+          Instance: {{ .Labels.instance }}
+          Time: {{ .StartsAt }}
+          
+          IMMEDIATE ACTION REQUIRED
+          {{ end }}
+    
+    slack_configs:
+      - api_url: '${ALERTMANAGER_SLACK_WEBHOOK:-}'
+        channel: '#critical-alerts'
+        title: '🚨 CRITICAL: {{ .GroupLabels.alertname }}'
+        text: |
+          {{ range .Alerts }}
+          **Alert:** {{ .Annotations.summary }}
+          **Description:** {{ .Annotations.description }}
+          **Instance:** {{ .Labels.instance }}
+          **Time:** {{ .StartsAt }}
+          {{ end }}
+        color: 'danger'
+        send_resolved: true
+  
+  # High priority alerts
+  - name: 'high-priority-alerts'
+    email_configs:
+      - to: '${HIGH_PRIORITY_EMAIL_TO:-high-priority@waste-mgmt.com}'
+        subject: '[HIGH] {{ .GroupLabels.alertname }} Alert'
+        body: |
+          ⚠️ HIGH PRIORITY ALERT ⚠️
+          
+          {{ range .Alerts }}
+          Alert: {{ .Annotations.summary }}
+          Description: {{ .Annotations.description }}
+          Severity: HIGH
+          Instance: {{ .Labels.instance }}
+          Time: {{ .StartsAt }}
+          {{ end }}
+    
+    slack_configs:
+      - api_url: '${ALERTMANAGER_SLACK_WEBHOOK:-}'
+        channel: '#alerts'
+        title: '⚠️ HIGH: {{ .GroupLabels.alertname }}'
+        text: |
+          {{ range .Alerts }}
+          **Alert:** {{ .Annotations.summary }}
+          **Description:** {{ .Annotations.description }}
+          **Instance:** {{ .Labels.instance }}
+          {{ end }}
+        color: 'warning'
+        send_resolved: true
+  
+  # Infrastructure team alerts
+  - name: 'infrastructure-team'
+    email_configs:
+      - to: '${INFRA_EMAIL_TO:-infra@waste-mgmt.com}'
+        subject: '[INFRA] {{ .GroupLabels.alertname }} Infrastructure Alert'
+        body: |
+          🔧 INFRASTRUCTURE ALERT
+          
+          {{ range .Alerts }}
+          Component: {{ .Annotations.summary }}
+          Issue: {{ .Annotations.description }}
+          Server: {{ .Labels.instance }}
+          Time: {{ .StartsAt }}
+          
+          Please investigate infrastructure component.
+          {{ end }}
+    
+    slack_configs:
+      - api_url: '${ALERTMANAGER_SLACK_WEBHOOK:-}'
+        channel: '#infrastructure'
+        title: '🔧 INFRA: {{ .GroupLabels.alertname }}'
+        color: 'good'
+  
+  # Development team alerts
+  - name: 'dev-team'
+    email_configs:
+      - to: '${DEV_EMAIL_TO:-dev@waste-mgmt.com}'
+        subject: '[APP] {{ .GroupLabels.alertname }} Application Alert'
+        body: |
+          💻 APPLICATION ALERT
+          
+          {{ range .Alerts }}
+          Application: {{ .Annotations.summary }}
+          Issue: {{ .Annotations.description }}
+          Service: {{ .Labels.service }}
+          Time: {{ .StartsAt }}
+          
+          Please check application logs and status.
+          {{ end }}
+    
+    slack_configs:
+      - api_url: '${ALERTMANAGER_SLACK_WEBHOOK:-}'
+        channel: '#development'
+        title: '💻 APP: {{ .GroupLabels.alertname }}'
+        color: '#36a64f'
+  
+  # Security team alerts
+  - name: 'security-team'
+    email_configs:
+      - to: '${SECURITY_EMAIL_TO:-security@waste-mgmt.com}'
+        subject: '[SECURITY] {{ .GroupLabels.alertname }} Security Alert'
+        body: |
+          🔒 SECURITY ALERT
+          
+          {{ range .Alerts }}
+          Security Issue: {{ .Annotations.summary }}
+          Details: {{ .Annotations.description }}
+          Source: {{ .Labels.instance }}
+          Time: {{ .StartsAt }}
+          
+          IMMEDIATE SECURITY REVIEW REQUIRED
+          {{ end }}
+    
+    slack_configs:
+      - api_url: '${ALERTMANAGER_SLACK_WEBHOOK:-}'
+        channel: '#security'
+        title: '🔒 SECURITY: {{ .GroupLabels.alertname }}'
+        text: |
+          {{ range .Alerts }}
+          **Security Alert:** {{ .Annotations.summary }}
+          **Details:** {{ .Annotations.description }}
+          **Source:** {{ .Labels.instance }}
+          **Time:** {{ .StartsAt }}
+          {{ end }}
+        color: 'danger'
+        send_resolved: true
+  
+  # Business critical alerts (revenue impact)
+  - name: 'business-critical'
+    email_configs:
+      - to: '${BUSINESS_EMAIL_TO:-business@waste-mgmt.com}'
+        subject: '[BUSINESS IMPACT] {{ .GroupLabels.alertname }} - Revenue Risk'
+        body: |
+          💰 BUSINESS CRITICAL ALERT 💰
+          
+          {{ range .Alerts }}
+          Business Impact: {{ .Annotations.summary }}
+          Revenue Risk: {{ .Annotations.description }}
+          Service: {{ .Labels.service }}
+          Estimated Loss: {{ .Annotations.revenue_impact | default "Unknown" }}
+          Time: {{ .StartsAt }}
+          
+          IMMEDIATE BUSINESS REVIEW REQUIRED
+          {{ end }}
+    
+    slack_configs:
+      - api_url: '${ALERTMANAGER_SLACK_WEBHOOK:-}'
+        channel: '#business-alerts'
+        title: '💰 BUSINESS: {{ .GroupLabels.alertname }}'
+        text: |
+          {{ range .Alerts }}
+          **Business Impact:** {{ .Annotations.summary }}
+          **Revenue Risk:** {{ .Annotations.description }}
+          **Service:** {{ .Labels.service }}
+          **Time:** {{ .StartsAt }}
+          {{ end }}
+        color: 'danger'
+        send_resolved: true
+
+# Time intervals for alert grouping and notifications
+time_intervals:
+  - name: 'weekdays'
+    time_intervals:
+      - times:
+          - start_time: '09:00'
+            end_time: '17:00'
+        weekdays: ['monday:friday']
+  
+  - name: 'business_hours'
+    time_intervals:
+      - times:
+          - start_time: '08:00'
+            end_time: '18:00'
+        weekdays: ['monday:friday']
+  
+  - name: 'weekend'
+    time_intervals:
+      - weekdays: ['saturday', 'sunday']

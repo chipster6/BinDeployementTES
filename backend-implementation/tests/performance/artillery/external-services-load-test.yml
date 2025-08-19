@@ -1,0 +1,316 @@
+# ============================================================================
+# WASTE MANAGEMENT SYSTEM - EXTERNAL SERVICES LOAD TESTING
+# ============================================================================
+#
+# Artillery configuration for External Services Manager performance testing
+# Tests 11-service coordination, health monitoring, and cost optimization
+#
+# Created by: Testing Agent (Phase 3 Performance Validation)
+# Date: 2025-08-16
+# Target: <2s service health monitoring, 20-40% cost optimization
+
+config:
+  target: 'http://localhost:3001'
+  phases:
+    # Service coordination warm-up
+    - duration: 45
+      arrivalRate: 15
+      name: "External services warm-up"
+    
+    # Normal service load
+    - duration: 240
+      arrivalRate: 40
+      name: "Normal service coordination load"
+    
+    # High coordination load
+    - duration: 120
+      arrivalRate: 80
+      name: "High service coordination load"
+    
+    # Service failover stress test
+    - duration: 60
+      arrivalRate: 120
+      name: "Service failover stress test"
+
+  defaults:
+    headers:
+      Authorization: 'Bearer {{ authToken }}'
+      Content-Type: 'application/json'
+      User-Agent: 'External-Services-Performance-Test/1.0'
+
+  processor: './artillery-helpers.js'
+
+  variables:
+    externalServices:
+      - 'stripe'
+      - 'twilio'
+      - 'sendgrid'
+      - 'samsara'
+      - 'airtable'
+      - 'mapbox'
+      - 'google_maps'
+      - 'openai'
+      - 'weaviate'
+      - 'webhook_service'
+      - 'notification_service'
+    
+    coordinationTypes:
+      - 'health_check'
+      - 'cost_optimization'
+      - 'rate_limit_status'
+      - 'service_metrics'
+      - 'failover_test'
+    
+    serviceOperations:
+      - 'payment_processing'
+      - 'sms_notification'
+      - 'email_delivery'
+      - 'fleet_tracking'
+      - 'data_sync'
+      - 'route_calculation'
+      - 'geocoding'
+      - 'ai_analysis'
+      - 'vector_search'
+
+scenarios:
+  # External service health monitoring
+  - name: "Service Health Monitoring"
+    weight: 30
+    flow:
+      - get:
+          url: '/api/internal/external-services/health'
+          beforeRequest: 'setAuthToken'
+          expect:
+            - statusCode: 200
+            - contentType: json
+            - hasProperty: 'services'
+            - hasProperty: 'overall'
+          capture:
+            - json: '$.overall.status'
+              as: 'overallHealth'
+            - json: '$.services'
+              as: 'serviceStatuses'
+            - json: '$.performance.responseTime'
+              as: 'healthCheckTime'
+      
+      - function: 'validateServiceHealthPerformance'
+
+  # Individual service coordination
+  - name: "Individual Service Operations"
+    weight: 25
+    flow:
+      - get:
+          url: '/api/internal/external-services/{{ externalServices.$randomElement }}/status'
+          beforeRequest: 'setAuthToken'
+          expect:
+            - statusCode: 200
+            - contentType: json
+            - hasProperty: 'status'
+          capture:
+            - json: '$.status'
+              as: 'serviceStatus'
+            - json: '$.responseTime'
+              as: 'serviceResponseTime'
+            - json: '$.lastCheck'
+              as: 'lastCheckTime'
+      
+      - think: 0.5
+      
+      - function: 'validateIndividualServicePerformance'
+
+  # Cost optimization performance
+  - name: "Cost Optimization Analysis"
+    weight: 20
+    flow:
+      - get:
+          url: '/api/internal/external-services/cost-optimization'
+          beforeRequest: 'setAuthToken'
+          expect:
+            - statusCode: 200
+            - contentType: json
+            - hasProperty: 'optimization'
+            - hasProperty: 'savings'
+          capture:
+            - json: '$.optimization.totalSavings'
+              as: 'totalSavings'
+            - json: '$.optimization.optimizationPercentage'
+              as: 'optimizationPercentage'
+            - json: '$.performance.calculationTime'
+              as: 'optimizationTime'
+      
+      - function: 'validateCostOptimizationPerformance'
+
+  # Service metrics aggregation
+  - name: "Service Metrics Collection"
+    weight: 15
+    flow:
+      - get:
+          url: '/api/internal/external-services/metrics'
+          beforeRequest: 'setAuthToken'
+          qs:
+            timeframe: 'hour'
+            services: '{{ externalServices.$randomElement }},{{ externalServices.$randomElement }}'
+          expect:
+            - statusCode: 200
+            - contentType: json
+            - hasProperty: 'metrics'
+          capture:
+            - json: '$.metrics.totalRequests'
+              as: 'totalRequests'
+            - json: '$.metrics.averageResponseTime'
+              as: 'avgResponseTime'
+            - json: '$.metrics.errorRate'
+              as: 'errorRate'
+      
+      - function: 'validateMetricsCollectionPerformance'
+
+  # Rate limiting coordination
+  - name: "Rate Limiting Status"
+    weight: 10
+    flow:
+      - get:
+          url: '/api/internal/external-services/rate-limits'
+          beforeRequest: 'setAuthToken'
+          expect:
+            - statusCode: 200
+            - contentType: json
+            - hasProperty: 'rateLimits'
+          capture:
+            - json: '$.rateLimits'
+              as: 'rateLimitData'
+            - json: '$.performance.checkTime'
+              as: 'rateLimitCheckTime'
+      
+      - function: 'validateRateLimitPerformance'
+
+# Service coordination scenarios for high-volume testing
+  - name: "Concurrent Service Coordination"
+    weight: 20
+    flow:
+      # Simulate concurrent operations across multiple services
+      - post:
+          url: '/api/internal/external-services/coordinate'
+          beforeRequest: 'setAuthToken'
+          json:
+            services:
+              - service: '{{ externalServices.$randomElement }}'
+                operation: '{{ serviceOperations.$randomElement }}'
+                priority: '{{ $randomInt(1, 5) }}'
+              - service: '{{ externalServices.$randomElement }}'
+                operation: '{{ serviceOperations.$randomElement }}'
+                priority: '{{ $randomInt(1, 5) }}'
+            coordinationType: '{{ coordinationTypes.$randomElement }}'
+            timeout: 5000
+            retryPolicy:
+              maxRetries: 3
+              backoffMultiplier: 1.5
+          expect:
+            - statusCode: 200
+            - contentType: json
+            - hasProperty: 'coordination'
+          capture:
+            - json: '$.coordination.totalTime'
+              as: 'coordinationTime'
+            - json: '$.coordination.successCount'
+              as: 'successCount'
+            - json: '$.coordination.failureCount'
+              as: 'failureCount'
+      
+      - function: 'validateCoordinationPerformance'
+
+# Service failover testing
+  - name: "Service Failover Performance"
+    weight: 10
+    flow:
+      - post:
+          url: '/api/internal/external-services/test-failover'
+          beforeRequest: 'setAuthToken'
+          json:
+            primaryService: '{{ externalServices.$randomElement }}'
+            operation: '{{ serviceOperations.$randomElement }}'
+            simulateFailure: true
+          expect:
+            - statusCode: 200
+            - contentType: json
+            - hasProperty: 'failover'
+          capture:
+            - json: '$.failover.switchTime'
+              as: 'failoverTime'
+            - json: '$.failover.fallbackService'
+              as: 'fallbackService'
+            - json: '$.failover.success'
+              as: 'failoverSuccess'
+      
+      - function: 'validateFailoverPerformance'
+
+# Performance expectations for external services
+expectations:
+  # Service health monitoring requirements
+  - http.response_time.health_monitoring:
+      p95: 2000  # All services health check < 2 seconds
+      p99: 3000  # 99th percentile < 3 seconds
+      max: 5000  # Maximum 5 seconds
+  
+  # Individual service operations
+  - http.response_time.individual_services:
+      p95: 1000  # Individual service check < 1 second
+      p99: 2000  # 99th percentile < 2 seconds
+  
+  # Cost optimization calculation
+  - http.response_time.cost_optimization:
+      p95: 500   # Cost optimization < 500ms
+      p99: 1000  # 99th percentile < 1 second
+  
+  # Service coordination
+  - http.response_time.coordination:
+      p95: 3000  # Service coordination < 3 seconds
+      p99: 5000  # 99th percentile < 5 seconds
+  
+  # Failover performance
+  - http.response_time.failover:
+      p95: 1000  # Failover switch < 1 second
+      p99: 2000  # 99th percentile < 2 seconds
+  
+  # Success rates
+  - http.codes.200: 96  # 96% success rate minimum
+  - http.codes.500: 2   # < 2% server errors
+  - http.codes.503: 1   # < 1% service unavailable
+  
+  # External service specific validations
+  - custom.service_coordination_success_rate: 94  # 94% coordination success
+  - custom.cost_optimization_improvement: 20      # 20% minimum cost optimization
+  - custom.failover_success_rate: 90              # 90% failover success
+
+# Custom external service metrics
+metrics:
+  - name: 'service_health_check_time'
+    type: 'histogram'
+    unit: 'milliseconds'
+  
+  - name: 'cost_optimization_calculation_time'
+    type: 'histogram'
+    unit: 'milliseconds'
+  
+  - name: 'service_coordination_time'
+    type: 'histogram'
+    unit: 'milliseconds'
+  
+  - name: 'failover_switch_time'
+    type: 'histogram'
+    unit: 'milliseconds'
+  
+  - name: 'service_coordination_success_rate'
+    type: 'rate'
+    unit: 'percentage'
+  
+  - name: 'cost_savings_percentage'
+    type: 'histogram'
+    unit: 'percentage'
+  
+  - name: 'external_service_availability'
+    type: 'rate'
+    unit: 'percentage'
+  
+  - name: 'api_call_volume'
+    type: 'counter'
+    unit: 'calls_per_second'

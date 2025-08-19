@@ -1,0 +1,91 @@
+# ============================================================================
+# WEAVIATE PROMETHEUS CONFIGURATION - PERFORMANCE MONITORING
+# ============================================================================
+#
+# Prometheus configuration for comprehensive Weaviate performance monitoring.
+# Collects metrics for SLA compliance, performance optimization, and alerting.
+#
+# MONITORING TARGETS:
+# - Weaviate instance metrics (search latency, throughput, errors)
+# - Node.js application metrics (API performance, cache efficiency)
+# - System metrics (CPU, memory, disk I/O)
+# - Custom business metrics (SLA compliance, user experience)
+#
+# Created by: Performance-Optimization-Specialist
+# Date: 2025-08-16
+# Version: 1.0.0 - Phase 1 Monitoring
+
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  external_labels:
+    monitor: 'weaviate-waste-mgmt'
+    environment: 'production'
+
+# Rule files for alerting
+rule_files:
+  - "rules/*.yml"
+
+# Scrape configurations
+scrape_configs:
+  # Weaviate Vector Database Metrics
+  - job_name: 'weaviate'
+    static_configs:
+      - targets: ['weaviate:2112']
+    scrape_interval: 10s
+    metrics_path: '/metrics'
+    params:
+      format: ['prometheus']
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: __param_target
+      - source_labels: [__param_target]
+        target_label: instance
+      - target_label: __address__
+        replacement: weaviate:2112
+
+  # Node.js Application Metrics (Waste Management API)
+  - job_name: 'waste-mgmt-api'
+    static_configs:
+      - targets: ['host.docker.internal:3001']
+    scrape_interval: 15s
+    metrics_path: '/metrics'
+    scrape_timeout: 10s
+
+  # Redis Cache Metrics
+  - job_name: 'weaviate-redis'
+    static_configs:
+      - targets: ['weaviate_redis:6379']
+    scrape_interval: 30s
+    metrics_path: '/metrics'
+
+  # System Metrics (Node Exporter)
+  - job_name: 'node-exporter'
+    static_configs:
+      - targets: ['host.docker.internal:9100']
+    scrape_interval: 30s
+
+  # Prometheus Self-Monitoring
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+    scrape_interval: 30s
+
+# Alerting configuration
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets: ['alertmanager:9093']
+
+# Storage configuration
+storage:
+  tsdb:
+    retention.time: 30d
+    retention.size: 10GB
+    
+# Remote write for long-term storage (optional)
+# remote_write:
+#   - url: "https://prometheus-remote-write-endpoint.com/api/v1/write"
+#     basic_auth:
+#       username: "username"
+#       password: "password"

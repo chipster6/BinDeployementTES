@@ -1,0 +1,113 @@
+{
+  "users": {
+    "super_admin": {
+      "email": "super.admin@test.com",
+      "password": "SuperAdmin123!",
+      "firstName": "Super",
+      "lastName": "Admin",
+      "role": "super_admin",
+      "mfaEnabled": true,
+      "mfaSecret": "JBSWY3DPEHPK3PXP"
+    },
+    "admin": {
+      "email": "admin@test.com",
+      "password": "Admin123!",
+      "firstName": "System",
+      "lastName": "Administrator",
+      "role": "admin",
+      "mfaEnabled": true,
+      "mfaSecret": "JBSWY3DPEHPK3PXQ"
+    },
+    "fleet_manager": {
+      "email": "fleet.manager@test.com",
+      "password": "FleetManager123!",
+      "firstName": "Fleet",
+      "lastName": "Manager",
+      "role": "fleet_manager",
+      "mfaEnabled": false,
+      "mfaSecret": null
+    },
+    "driver": {
+      "email": "driver@test.com",
+      "password": "Driver123!",
+      "firstName": "Test",
+      "lastName": "Driver",
+      "role": "driver",
+      "mfaEnabled": false,
+      "mfaSecret": null
+    },
+    "customer": {
+      "email": "customer@test.com",
+      "password": "Customer123!",
+      "firstName": "Test",
+      "lastName": "Customer",
+      "role": "customer",
+      "mfaEnabled": false,
+      "mfaSecret": null
+    },
+    "billing_admin": {
+      "email": "billing.admin@test.com",
+      "password": "BillingAdmin123!",
+      "firstName": "Billing",
+      "lastName": "Administrator",
+      "role": "billing_admin",
+      "mfaEnabled": true,
+      "mfaSecret": "JBSWY3DPEHPK3PXR"
+    },
+    "support": {
+      "email": "support@test.com",
+      "password": "Support123!",
+      "firstName": "Customer",
+      "lastName": "Support",
+      "role": "support",
+      "mfaEnabled": false,
+      "mfaSecret": null
+    }
+  },
+  "organizations": {
+    "test_org": {
+      "name": "Test Organization",
+      "contactEmail": "admin@testorg.com",
+      "contactPhone": "+1-555-0100",
+      "address": "123 Test Street",
+      "city": "San Francisco",
+      "state": "CA",
+      "zipCode": "94105"
+    }
+  },
+  "customers": {
+    "test_customer_1": {
+      "organizationName": "Test Customer Corp",
+      "contactEmail": "contact@testcustomer.com",
+      "contactPhone": "+1-555-0200",
+      "address": "456 Customer Lane",
+      "city": "San Francisco", 
+      "state": "CA",
+      "zipCode": "94107",
+      "serviceType": "commercial",
+      "billingCycle": "monthly"
+    }
+  },
+  "vehicles": {
+    "truck_001": {
+      "vehicleId": "TRUCK-001",
+      "type": "garbage_truck",
+      "make": "Peterbilt",
+      "model": "320",
+      "year": 2022,
+      "capacity": "25 cubic yards",
+      "fuelType": "diesel",
+      "status": "active"
+    }
+  },
+  "drivers": {
+    "driver_001": {
+      "employeeId": "DRV-001",
+      "firstName": "John",
+      "lastName": "Driver",
+      "licenseNumber": "D1234567",
+      "licenseExpiry": "2025-12-31",
+      "status": "active"
+    }
+  }
+}

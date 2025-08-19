@@ -1,0 +1,328 @@
+# ============================================================================
+# WASTE MANAGEMENT SYSTEM - DOCKER COMPOSE CONFIGURATION
+# ============================================================================
+#
+# Production-ready Docker environment with PostgreSQL 16 + PostGIS + Redis
+# Optimized for development environment parity and scalability
+#
+# Created by: Infrastructure Agent
+# Date: 2025-08-12
+# Version: 1.0.0
+# ============================================================================
+
+version: '3.8'
+
+services:
+  # PostgreSQL 16 with PostGIS for spatial data
+  postgres:
+    image: postgis/postgis:16-3.4
+    container_name: waste-mgmt-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: waste_management
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-postgres123}
+      POSTGRES_INITDB_ARGS: "--encoding=UTF-8 --lc-collate=C --lc-ctype=C"
+    ports:
+      - "${DB_PORT:-5432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./docker/postgres/init:/docker-entrypoint-initdb.d
+      - ./docker/postgres/config/postgresql.conf:/etc/postgresql/postgresql.conf
+    networks:
+      - waste-mgmt-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d waste_management"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    command: ["postgres", "-c", "config_file=/etc/postgresql/postgresql.conf"]
+
+  # Redis for caching, sessions, and background job queues
+  redis:
+    image: redis:7-alpine
+    container_name: waste-mgmt-redis
+    restart: unless-stopped
+    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD:-redis123}
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    volumes:
+      - redis_data:/data
+      - ./docker/redis/redis.conf:/usr/local/etc/redis/redis.conf
+    networks:
+      - waste-mgmt-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "--raw", "incr", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 10s
+
+  # Backend API Application
+  backend:
+    build:
+      context: .
+      dockerfile: ./docker/Dockerfile
+      target: development
+    container_name: waste-mgmt-backend
+    restart: unless-stopped
+    environment:
+      NODE_ENV: ${NODE_ENV:-development}
+      PORT: ${PORT:-3001}
+      
+      # Database Configuration
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: waste_management
+      DB_USERNAME: postgres
+      DB_PASSWORD: ${DB_PASSWORD:-postgres123}
+      DB_SSL: false
+      # Connection pool settings removed - using application defaults (120 max connections)
+      
+      # Redis Configuration
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-redis123}
+      REDIS_DB: 0
+      REDIS_KEY_PREFIX: "waste_mgmt:"
+      REDIS_TTL_DEFAULT: 3600
+      
+      # JWT Configuration
+      JWT_SECRET: ${JWT_SECRET:-dev-jwt-secret-change-in-production}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:-dev-refresh-secret-change-in-production}
+      JWT_EXPIRES_IN: 15m
+      JWT_REFRESH_EXPIRES_IN: 7d
+      
+      # Encryption & Security
+      ENCRYPTION_KEY: ${ENCRYPTION_KEY:-dev-encryption-key-32-chars-long}
+      HASH_ROUNDS: 12
+      SESSION_SECRET: ${SESSION_SECRET:-dev-session-secret}
+      
+      # Development Settings
+      DEBUG_SQL: false
+      ENABLE_SWAGGER_UI: true
+      ENABLE_API_DOCS: true
+      LOG_LEVEL: debug
+      
+      # Health Check Configuration
+      HEALTH_CHECK_ENABLED: true
+      HEALTH_CHECK_DATABASE: true
+      HEALTH_CHECK_REDIS: true
+      HEALTH_CHECK_EXTERNAL_APIS: false
+      
+      # Background Jobs
+      QUEUE_REDIS_HOST: redis
+      QUEUE_REDIS_PORT: 6379
+      QUEUE_REDIS_DB: 1
+      ENABLE_QUEUE_DASHBOARD: true
+      QUEUE_DASHBOARD_PORT: 3003
+      
+    ports:
+      - "${PORT:-3001}:${PORT:-3001}"
+      - "${QUEUE_DASHBOARD_PORT:-3003}:${QUEUE_DASHBOARD_PORT:-3003}"
+    volumes:
+      - .:/app
+      - /app/node_modules
+      - backend_uploads:/app/uploads
+      - backend_logs:/app/logs
+    networks:
+      - waste-mgmt-network
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:${PORT:-3001}/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    develop:
+      watch:
+        - action: sync
+          path: ./src
+          target: /app/src
+        - action: rebuild
+          path: ./package.json
+
+  # Frontend Application (Next.js)
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: ../docker/Dockerfile.frontend
+      target: development
+    container_name: waste-mgmt-frontend
+    restart: unless-stopped
+    environment:
+      NODE_ENV: ${NODE_ENV:-development}
+      NEXT_PUBLIC_API_URL: http://localhost:${PORT:-3001}
+      NEXT_PUBLIC_WEBSOCKET_URL: ws://localhost:${WEBSOCKET_PORT:-3002}
+    ports:
+      - "${FRONTEND_PORT:-3000}:3000"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+      - /app/.next
+    networks:
+      - waste-mgmt-network
+    depends_on:
+      backend:
+        condition: service_healthy
+    develop:
+      watch:
+        - action: sync
+          path: ./frontend/src
+          target: /app/src
+        - action: rebuild
+          path: ./frontend/package.json
+
+  # Redis Commander (Redis management UI)
+  redis-commander:
+    image: rediscommander/redis-commander:latest
+    container_name: waste-mgmt-redis-commander
+    restart: unless-stopped
+    environment:
+      REDIS_HOSTS: local:redis:6379:1:${REDIS_PASSWORD:-redis123}
+      HTTP_USER: admin
+      HTTP_PASSWORD: ${REDIS_COMMANDER_PASSWORD:-admin123}
+    ports:
+      - "${REDIS_COMMANDER_PORT:-8081}:8081"
+    networks:
+      - waste-mgmt-network
+    depends_on:
+      redis:
+        condition: service_healthy
+    profiles:
+      - tools
+
+  # pgAdmin (PostgreSQL management UI)
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: waste-mgmt-pgadmin
+    restart: unless-stopped
+    environment:
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_EMAIL:-admin@waste-mgmt.com}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_PASSWORD:-admin123}
+      PGADMIN_LISTEN_PORT: 80
+    ports:
+      - "${PGADMIN_PORT:-8080}:80"
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+      - ./docker/pgadmin/servers.json:/pgadmin4/servers.json
+    networks:
+      - waste-mgmt-network
+    depends_on:
+      postgres:
+        condition: service_healthy
+    profiles:
+      - tools
+
+  # Nginx (Reverse Proxy and Load Balancer)
+  nginx:
+    image: nginx:alpine
+    container_name: waste-mgmt-nginx
+    restart: unless-stopped
+    ports:
+      - "${NGINX_HTTP_PORT:-80}:80"
+      - "${NGINX_HTTPS_PORT:-443}:443"
+    volumes:
+      - ./docker/nginx/nginx.conf:/etc/nginx/nginx.conf
+      - ./docker/nginx/sites-enabled:/etc/nginx/sites-enabled
+      - ./docker/nginx/ssl:/etc/nginx/ssl
+      - nginx_logs:/var/log/nginx
+    networks:
+      - waste-mgmt-network
+    depends_on:
+      - backend
+      - frontend
+    profiles:
+      - production
+
+  # Prometheus (Metrics Collection)
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: waste-mgmt-prometheus
+    restart: unless-stopped
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--storage.tsdb.retention.time=30d'
+      - '--web.enable-lifecycle'
+    ports:
+      - "${PROMETHEUS_PORT:-9090}:9090"
+    volumes:
+      - ./docker/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus_data:/prometheus
+    networks:
+      - waste-mgmt-network
+    profiles:
+      - monitoring
+
+  # Grafana (Metrics Visualization)
+  grafana:
+    image: grafana/grafana:latest
+    container_name: waste-mgmt-grafana
+    restart: unless-stopped
+    environment:
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_USER:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_PASSWORD:-admin123}
+      GF_INSTALL_PLUGINS: grafana-clock-panel,grafana-simple-json-datasource
+    ports:
+      - "${GRAFANA_PORT:-3004}:3000"
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./docker/grafana/provisioning:/etc/grafana/provisioning
+      - ./docker/grafana/dashboards:/var/lib/grafana/dashboards
+    networks:
+      - waste-mgmt-network
+    depends_on:
+      - prometheus
+    profiles:
+      - monitoring
+
+# Persistent volumes for data persistence
+volumes:
+  postgres_data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${DATA_PATH:-./docker/data}/postgres
+  redis_data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${DATA_PATH:-./docker/data}/redis
+  backend_uploads:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${DATA_PATH:-./docker/data}/uploads
+  backend_logs:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${DATA_PATH:-./docker/data}/logs
+  pgadmin_data:
+    driver: local
+  grafana_data:
+    driver: local
+  prometheus_data:
+    driver: local
+  nginx_logs:
+    driver: local
+
+# Network configuration
+networks:
+  waste-mgmt-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16

@@ -1,0 +1,256 @@
+# ============================================================================
+# WEAVIATE VECTOR DATABASE - PHASE 1 DEPLOYMENT CONFIGURATION
+# ============================================================================
+#
+# COORDINATION SESSION: phase-1-weaviate-execution-parallel
+# 
+# Docker Compose configuration for Weaviate vector database deployment
+# with optimized settings for waste management operational intelligence.
+#
+# COORDINATION WITH:
+# - Backend-Agent: Service integration and API connectivity
+# - Performance-Optimization-Specialist: Performance tuning and optimization
+# - DevOps-Agent: Production deployment and monitoring
+#
+# Created by: Database-Architect
+# Date: 2025-08-16
+# Version: 1.0.0
+
+version: '3.8'
+
+services:
+  # ========================================================================
+  # WEAVIATE VECTOR DATABASE
+  # ========================================================================
+  weaviate:
+    image: semitechnologies/weaviate:1.23.2
+    container_name: waste_mgmt_weaviate
+    restart: unless-stopped
+    command:
+      - --host
+      - 0.0.0.0
+      - --port
+      - '8080'
+      - --scheme
+      - http
+    environment:
+      # Core Configuration
+      QUERY_DEFAULTS_LIMIT: 25
+      AUTHENTICATION_ANONYMOUS_ACCESS_ENABLED: 'true'
+      PERSISTENCE_DATA_PATH: '/var/lib/weaviate'
+      DEFAULT_VECTORIZER_MODULE: 'text2vec-openai'
+      ENABLE_MODULES: 'text2vec-openai,text2vec-huggingface,generative-openai,backup-filesystem'
+      CLUSTER_HOSTNAME: 'node1'
+      
+      # OpenAI Integration (for vectorization)
+      OPENAI_APIKEY: ${WEAVIATE_OPENAI_API_KEY:-}
+      
+      # Backup Configuration
+      BACKUP_FILESYSTEM_PATH: '/var/lib/weaviate/backups'
+      
+      # Performance Optimization
+      QUERY_MAXIMUM_RESULTS: 10000
+      TRACK_VECTOR_DIMENSIONS: 'true'
+      
+      # Logging Configuration
+      LOG_LEVEL: 'info'
+      LOG_FORMAT: 'text'
+      
+      # Resource Limits
+      GOMAXPROCS: '4'
+      GOMEMLIMIT: '2GiB'
+      
+      # Vector Index Configuration
+      PERSISTENCE_LSM_ACCESS_STRATEGY: 'mmap'
+      PERSISTENCE_LSM_MAX_SEGMENT_SIZE: '512mb'
+      
+      # Query Performance
+      QUERY_NESTED_CROSS_REFERENCE_LIMIT: 100
+      
+      # Security Configuration (for production)
+      AUTHENTICATION_APIKEY_ENABLED: 'false'  # Set to true in production
+      AUTHENTICATION_APIKEY_ALLOWED_KEYS: ${WEAVIATE_API_KEY:-}
+      AUTHENTICATION_APIKEY_USERS: ${WEAVIATE_API_USERS:-admin}
+      
+      # CORS Configuration
+      ORIGIN: '*'
+      
+      # Monitoring
+      PROMETHEUS_MONITORING_ENABLED: 'true'
+      PROMETHEUS_MONITORING_PORT: '2112'
+      
+    ports:
+      # Weaviate GraphQL/REST API
+      - "8080:8080"
+      # Prometheus metrics
+      - "2112:2112"
+      
+    volumes:
+      # Persistent data storage
+      - weaviate_data:/var/lib/weaviate
+      # Backup storage
+      - weaviate_backups:/var/lib/weaviate/backups
+      # Configuration
+      - ./docker/weaviate/config:/etc/weaviate:ro
+      
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=3", "--spider", "http://localhost:8080/v1/.well-known/ready"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+      
+    deploy:
+      resources:
+        limits:
+          # Production limits - adjust based on your hardware
+          memory: 4G
+          cpus: '2.0'
+        reservations:
+          memory: 2G
+          cpus: '1.0'
+          
+    networks:
+      - waste_mgmt_network
+      
+    labels:
+      - "com.waste-mgmt.service=weaviate"
+      - "com.waste-mgmt.description=Vector database for semantic search"
+      - "com.waste-mgmt.coordination=phase-1-weaviate-execution"
+
+  # ========================================================================
+  # WEAVIATE BACKUP SERVICE (Optional)
+  # ========================================================================
+  weaviate-backup:
+    image: alpine:3.18
+    container_name: waste_mgmt_weaviate_backup
+    restart: unless-stopped
+    environment:
+      - BACKUP_SCHEDULE=${WEAVIATE_BACKUP_SCHEDULE:-0 2 * * *}  # Daily at 2 AM
+      - BACKUP_RETENTION_DAYS=${WEAVIATE_BACKUP_RETENTION:-7}
+      - WEAVIATE_URL=http://weaviate:8080
+      
+    volumes:
+      - weaviate_backups:/backups
+      - ./scripts/weaviate-backup.sh:/usr/local/bin/backup.sh:ro
+      
+    command: >
+      sh -c "
+        apk add --no-cache curl dcron tzdata &&
+        echo '$${BACKUP_SCHEDULE} /usr/local/bin/backup.sh' > /etc/crontabs/root &&
+        echo 'Starting Weaviate backup service...' &&
+        crond -f -d 8
+      "
+      
+    depends_on:
+      weaviate:
+        condition: service_healthy
+        
+    networks:
+      - waste_mgmt_network
+      
+    labels:
+      - "com.waste-mgmt.service=weaviate-backup"
+      - "com.waste-mgmt.description=Automated backup service for Weaviate"
+
+  # ========================================================================
+  # VECTOR SYNC MONITORING (Optional)
+  # ========================================================================
+  vector-sync-monitor:
+    image: curlimages/curl:8.4.0
+    container_name: waste_mgmt_vector_sync_monitor
+    restart: unless-stopped
+    environment:
+      - BACKEND_URL=${BACKEND_URL:-http://backend:3001}
+      - MONITORING_INTERVAL=${VECTOR_SYNC_MONITORING_INTERVAL:-300}  # 5 minutes
+      
+    command: >
+      sh -c "
+        echo 'Starting vector sync monitoring...' &&
+        while true; do
+          echo 'Checking vector sync health...' &&
+          curl -f $${BACKEND_URL}/api/health/vector-sync || echo 'Vector sync health check failed' &&
+          sleep $${MONITORING_INTERVAL}
+        done
+      "
+      
+    depends_on:
+      weaviate:
+        condition: service_healthy
+        
+    networks:
+      - waste_mgmt_network
+      
+    labels:
+      - "com.waste-mgmt.service=vector-sync-monitor"
+      - "com.waste-mgmt.description=Health monitoring for vector synchronization"
+
+volumes:
+  # Weaviate persistent data
+  weaviate_data:
+    driver: local
+    name: waste_mgmt_weaviate_data
+    
+  # Weaviate backups
+  weaviate_backups:
+    driver: local
+    name: waste_mgmt_weaviate_backups
+
+networks:
+  waste_mgmt_network:
+    external: true
+
+# ============================================================================
+# PRODUCTION DEPLOYMENT NOTES
+# ============================================================================
+#
+# 1. Security Configuration:
+#    - Enable API key authentication in production
+#    - Set up proper CORS origins
+#    - Use HTTPS scheme in production
+#    - Configure proper backup encryption
+#
+# 2. Performance Tuning:
+#    - Adjust memory limits based on data volume
+#    - Configure appropriate GOMAXPROCS for CPU cores
+#    - Tune LSM settings based on workload
+#    - Monitor vector index performance
+#
+# 3. High Availability:
+#    - Deploy in cluster mode for production
+#    - Set up replication across availability zones
+#    - Configure load balancing
+#    - Implement proper backup strategies
+#
+# 4. Monitoring:
+#    - Enable Prometheus metrics collection
+#    - Set up alerting for health checks
+#    - Monitor query performance and response times
+#    - Track vector synchronization metrics
+#
+# 5. Backup Strategy:
+#    - Automated daily backups
+#    - Cross-region backup replication
+#    - Regular backup restoration testing
+#    - Point-in-time recovery capabilities
+#
+# ============================================================================
+# DEPLOYMENT COMMANDS
+# ============================================================================
+#
+# Start Weaviate:
+#   docker-compose -f docker-compose.weaviate.yml up -d
+#
+# View logs:
+#   docker-compose -f docker-compose.weaviate.yml logs -f weaviate
+#
+# Health check:
+#   curl http://localhost:8080/v1/.well-known/ready
+#
+# Stop Weaviate:
+#   docker-compose -f docker-compose.weaviate.yml down
+#
+# Full cleanup (removes data):
+#   docker-compose -f docker-compose.weaviate.yml down -v
+#
+# ============================================================================

@@ -47,3 +47,45 @@ export const authRateLimiter = rateLimit({
   keyGenerator,
   handler,
 });
+
+/**
+ * Configurable rate limiter factory for API endpoints
+ */
+export const rateLimiter = (options: {
+  windowMs: number;
+  max: number;
+  message: string;
+  standardHeaders?: boolean;
+  legacyHeaders?: boolean;
+}) => {
+  return rateLimit({
+    windowMs: options.windowMs,
+    max: options.max,
+    message: options.message,
+    standardHeaders: options.standardHeaders ?? true,
+    legacyHeaders: options.legacyHeaders ?? false,
+    store: createRedisStore(),
+    keyGenerator,
+    handler: (req, res, next, rateLimitOptions) => {
+      logSecurityEvent(
+        "rate_limit_exceeded",
+        {
+          identifier: keyGenerator(req),
+          url: req.originalUrl,
+          method: req.method,
+          limit: options.max,
+          window: options.windowMs
+        },
+        req.user?.id,
+        req.ip,
+        "medium",
+      );
+      res.status(429).json({
+        success: false,
+        message: options.message,
+        error: 'rate_limit_exceeded',
+        retryAfter: Math.round(options.windowMs / 1000)
+      });
+    }
+  });
+};

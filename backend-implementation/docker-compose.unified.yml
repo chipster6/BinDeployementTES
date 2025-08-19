@@ -1,0 +1,1202 @@
+# ============================================================================
+# UNIFIED WASTE MANAGEMENT SYSTEM - CONSOLIDATED DOCKER COMPOSE
+# ============================================================================
+#
+# DEVOPS AGENT INFRASTRUCTURE CONSOLIDATION
+# Consolidates 8+ separate compose files into unified deployment architecture
+# Coordinated with: Code Refactoring Analyst + System Architecture Lead
+# 
+# This configuration consolidates:
+# - docker-compose.yml (core services)
+# - docker-compose.monitoring.yml (monitoring stack)
+# - docker-compose.prod.yml (production overrides)
+# - docker-compose.secrets.yml (security integration)
+# - docker-compose.ai-ml-enhanced.yml (AI/ML infrastructure)
+# - docker-compose.migration.yml (database migrations)
+# - docker-compose.override.yml (development overrides)
+# - docker/docker-compose.*.yml (specialized services)
+#
+# Created by: DevOps Infrastructure Orchestrator
+# Coordination: System Architecture Lead + Code Refactoring Analyst
+# Date: 2025-08-16
+# Version: 3.0.0 - Unified Infrastructure Architecture
+# ============================================================================
+
+version: '3.8'
+
+# ============================================================================
+# DOCKER SECRETS FOR PRODUCTION SECURITY
+# ============================================================================
+secrets:
+  # Core Authentication Secrets
+  db_password:
+    file: ./secrets/db_password.txt
+  redis_password:
+    file: ./secrets/redis_password.txt
+  
+  # JWT RS256 Key Pairs (Security-Agent Coordinated)
+  jwt_private_key:
+    file: ./secrets/jwt_private_key.pem
+  jwt_public_key:
+    file: ./secrets/jwt_public_key.pem
+  jwt_refresh_private_key:
+    file: ./secrets/jwt_refresh_private_key.pem
+  jwt_refresh_public_key:
+    file: ./secrets/jwt_refresh_public_key.pem
+  
+  # Encryption & Session Management
+  encryption_key:
+    file: ./secrets/encryption_key.txt
+  session_secret:
+    file: ./secrets/session_secret.txt
+  
+  # External Service API Keys (External-API-Integration-Specialist Coordination)
+  stripe_secret_key:
+    file: ./secrets/stripe_secret_key.txt
+  stripe_webhook_secret:
+    file: ./secrets/stripe_webhook_secret.txt
+  twilio_auth_token:
+    file: ./secrets/twilio_auth_token.txt
+  sendgrid_api_key:
+    file: ./secrets/sendgrid_api_key.txt
+  samsara_api_token:
+    file: ./secrets/samsara_api_token.txt
+  mapbox_access_token:
+    file: ./secrets/mapbox_access_token.txt
+  airtable_api_key:
+    file: ./secrets/airtable_api_key.txt
+  
+  # AI/ML Service Keys (Innovation-Architect Coordination)
+  openai_api_key:
+    file: ./secrets/openai_api_key.txt
+  weaviate_api_key:
+    file: ./secrets/weaviate_api_key.txt
+  ortools_license_key:
+    file: ./secrets/ortools_license_key.txt
+  graphhopper_api_key:
+    file: ./secrets/graphhopper_api_key.txt
+  llm_api_key:
+    file: ./secrets/llm_api_key.txt
+  
+  # Administrative Interface Passwords
+  redis_commander_password:
+    file: ./secrets/redis_commander_password.txt
+  pgadmin_password:
+    file: ./secrets/pgadmin_password.txt
+  grafana_password:
+    file: ./secrets/grafana_password.txt
+  
+  # Cloud Provider Credentials
+  aws_access_key_id:
+    file: ./secrets/aws_access_key_id.txt
+  aws_secret_access_key:
+    file: ./secrets/aws_secret_access_key.txt
+
+services:
+  # ============================================================================
+  # CORE DATABASE LAYER
+  # Performance-Database-Architecture Coordination
+  # ============================================================================
+  
+  # Primary PostgreSQL with PostGIS for Production Workloads
+  postgres:
+    image: postgis/postgis:16-3.4
+    container_name: waste-mgmt-postgres-primary
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: waste_management
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD_FILE: /run/secrets/db_password
+      POSTGRES_INITDB_ARGS: "--encoding=UTF-8 --lc-collate=C --lc-ctype=C"
+      # Performance optimization (Database-Architect coordination)
+      POSTGRES_MAX_CONNECTIONS: 200
+      POSTGRES_SHARED_BUFFERS: 512MB
+      POSTGRES_EFFECTIVE_CACHE_SIZE: 2GB
+      POSTGRES_WORK_MEM: 32MB
+      POSTGRES_MAINTENANCE_WORK_MEM: 128MB
+    ports:
+      - "${DB_PORT:-5432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./docker/postgres/init:/docker-entrypoint-initdb.d
+      - ./docker/postgres/config/postgresql.conf:/etc/postgresql/postgresql.conf
+      - ./database/migrations:/docker-entrypoint-initdb.d/migrations
+    networks:
+      - backend_network
+      - monitoring_network
+    secrets:
+      - db_password
+    deploy:
+      resources:
+        limits:
+          memory: 4G
+          cpus: '2.0'
+        reservations:
+          memory: 2G
+          cpus: '1.0'
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d waste_management"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    command: ["postgres", "-c", "config_file=/etc/postgresql/postgresql.conf"]
+    labels:
+      - "monitoring.enable=true"
+      - "backup.enable=true"
+      - "service.tier=data"
+
+  # Enhanced Redis for Caching and Session Management
+  redis:
+    image: redis:7-alpine
+    container_name: waste-mgmt-redis-primary
+    restart: unless-stopped
+    command: |
+      sh -c '
+        REDIS_PASSWORD=$$(cat /run/secrets/redis_password)
+        redis-server --appendonly yes --requirepass "$$REDIS_PASSWORD" --maxmemory 2gb --maxmemory-policy allkeys-lru
+      '
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    volumes:
+      - redis_data:/data
+      - ./docker/redis/redis.conf:/usr/local/etc/redis/redis.conf
+    networks:
+      - backend_network
+      - monitoring_network
+    secrets:
+      - redis_password
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+          cpus: '1.0'
+        reservations:
+          memory: 1G
+          cpus: '0.5'
+    healthcheck:
+      test: |
+        sh -c '
+          REDIS_PASSWORD=$$(cat /run/secrets/redis_password)
+          redis-cli -a "$$REDIS_PASSWORD" ping
+        '
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 10s
+    labels:
+      - "monitoring.enable=true"
+      - "service.tier=cache"
+
+  # ============================================================================
+  # APPLICATION LAYER
+  # Backend-Agent + Frontend-Agent Coordination
+  # ============================================================================
+  
+  # Backend API Application with AI/ML Integration
+  backend:
+    build:
+      context: .
+      dockerfile: ./docker/Dockerfile
+      target: ${BUILD_TARGET:-development}
+    container_name: waste-mgmt-backend
+    restart: unless-stopped
+    environment:
+      NODE_ENV: ${NODE_ENV:-development}
+      PORT: ${PORT:-3001}
+      
+      # Database Configuration (Database-Architect coordination)
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: waste_management
+      DB_USERNAME: postgres
+      DB_SSL: ${DB_SSL:-false}
+      DB_POOL_MIN: ${DB_POOL_MIN:-30}
+      DB_POOL_MAX: ${DB_POOL_MAX:-180}
+      
+      # Redis Configuration
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_DB: 0
+      REDIS_KEY_PREFIX: "waste_mgmt:"
+      REDIS_TTL_DEFAULT: 3600
+      
+      # JWT Configuration (RS256 Algorithm)
+      JWT_EXPIRES_IN: 15m
+      JWT_REFRESH_EXPIRES_IN: 7d
+      JWT_ALGORITHM: RS256
+      JWT_ISSUER: waste-management-api
+      JWT_AUDIENCE: waste-management-users
+      
+      # Security Configuration (Security-Agent coordination)
+      HASH_ROUNDS: 12
+      FORCE_HTTPS: ${FORCE_HTTPS:-false}
+      TRUST_PROXY: ${TRUST_PROXY:-false}
+      SECURE_COOKIES: ${SECURE_COOKIES:-false}
+      
+      # Application Settings
+      DEBUG_SQL: ${DEBUG_SQL:-false}
+      ENABLE_SWAGGER_UI: ${ENABLE_SWAGGER_UI:-true}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      
+      # Health Check Configuration
+      HEALTH_CHECK_ENABLED: true
+      HEALTH_CHECK_DATABASE: true
+      HEALTH_CHECK_REDIS: true
+      HEALTH_CHECK_EXTERNAL_APIS: ${HEALTH_CHECK_EXTERNAL_APIS:-false}
+      HEALTH_CHECK_ML_SERVICES: ${HEALTH_CHECK_ML_SERVICES:-false}
+      
+      # Background Jobs
+      QUEUE_REDIS_HOST: redis
+      QUEUE_REDIS_PORT: 6379
+      QUEUE_REDIS_DB: 1
+      ENABLE_QUEUE_DASHBOARD: ${ENABLE_QUEUE_DASHBOARD:-true}
+      
+      # AI/ML Service Integration (Innovation-Architect coordination)
+      ML_SERVICES_URL: ${ML_SERVICES_URL:-http://ml-services:3000}
+      WEAVIATE_URL: ${WEAVIATE_URL:-http://weaviate:8080}
+      LLM_SERVICE_URL: ${LLM_SERVICE_URL:-http://llm-service:8000}
+      ENABLE_ML_ROUTE_OPTIMIZATION: ${ENABLE_ML_ROUTE_OPTIMIZATION:-false}
+      ENABLE_ML_PREDICTIVE_ANALYTICS: ${ENABLE_ML_PREDICTIVE_ANALYTICS:-false}
+      ENABLE_ML_VECTOR_SEARCH: ${ENABLE_ML_VECTOR_SEARCH:-false}
+      ENABLE_ML_LLM_ASSISTANT: ${ENABLE_ML_LLM_ASSISTANT:-false}
+      
+    ports:
+      - "${PORT:-3001}:${PORT:-3001}"
+      - "${QUEUE_DASHBOARD_PORT:-3003}:${QUEUE_DASHBOARD_PORT:-3003}"
+    volumes:
+      - .:/app
+      - /app/node_modules
+      - backend_uploads:/app/uploads
+      - backend_logs:/app/logs
+    networks:
+      - backend_network
+      - ai_ml_network
+      - monitoring_network
+    secrets:
+      - db_password
+      - redis_password
+      - jwt_private_key
+      - jwt_public_key
+      - jwt_refresh_private_key
+      - jwt_refresh_public_key
+      - encryption_key
+      - session_secret
+      - stripe_secret_key
+      - stripe_webhook_secret
+      - twilio_auth_token
+      - sendgrid_api_key
+      - samsara_api_token
+      - mapbox_access_token
+      - airtable_api_key
+      - openai_api_key
+      - weaviate_api_key
+      - llm_api_key
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          memory: ${BACKEND_MEMORY_LIMIT:-4G}
+          cpus: ${BACKEND_CPU_LIMIT:-2.0}
+        reservations:
+          memory: ${BACKEND_MEMORY_RESERVATION:-2G}
+          cpus: ${BACKEND_CPU_RESERVATION:-1.0}
+      replicas: ${BACKEND_REPLICAS:-1}
+      update_config:
+        parallelism: 1
+        delay: 10s
+        order: start-first
+      restart_policy:
+        condition: any
+        delay: 5s
+        max_attempts: 3
+        window: 120s
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:${PORT:-3001}/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    labels:
+      - "monitoring.enable=true"
+      - "service.tier=application"
+      - "service.type=backend"
+
+  # Frontend Application (Next.js)
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: ../docker/Dockerfile.frontend
+      target: ${BUILD_TARGET:-development}
+    container_name: waste-mgmt-frontend
+    restart: unless-stopped
+    environment:
+      NODE_ENV: ${NODE_ENV:-development}
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:3001}
+      NEXT_PUBLIC_WEBSOCKET_URL: ${NEXT_PUBLIC_WEBSOCKET_URL:-ws://localhost:3002}
+    ports:
+      - "${FRONTEND_PORT:-3000}:3000"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+      - /app/.next
+    networks:
+      - backend_network
+      - monitoring_network
+    depends_on:
+      backend:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+          cpus: '1.0'
+        reservations:
+          memory: 1G
+          cpus: '0.5'
+      replicas: ${FRONTEND_REPLICAS:-1}
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    labels:
+      - "monitoring.enable=true"
+      - "service.tier=application"
+      - "service.type=frontend"
+
+  # ============================================================================
+  # AI/ML SERVICES LAYER (Innovation-Architect Coordination)
+  # Enabled via profiles for optional deployment
+  # ============================================================================
+  
+  # Weaviate Vector Database
+  weaviate:
+    image: semitechnologies/weaviate:1.21.2
+    container_name: weaviate-vector-db
+    restart: unless-stopped
+    environment:
+      - AUTHENTICATION_ANONYMOUS_ACCESS_ENABLED=false
+      - AUTHENTICATION_API_KEY_ENABLED=true
+      - PERSISTENCE_DATA_PATH=/var/lib/weaviate
+      - DEFAULT_VECTORIZER_MODULE=text2vec-openai
+      - ENABLE_MODULES=text2vec-openai,generative-openai,qna-openai
+      - LOG_LEVEL=info
+      - PROMETHEUS_MONITORING_ENABLED=true
+    ports:
+      - "8080:8080"
+      - "2112:2112"
+    volumes:
+      - weaviate_data:/var/lib/weaviate
+      - weaviate_backups:/var/lib/weaviate/backups
+    networks:
+      - ai_ml_network
+      - monitoring_network
+    secrets:
+      - weaviate_api_key
+      - openai_api_key
+    deploy:
+      resources:
+        limits:
+          memory: 4G
+          cpus: '2.0'
+        reservations:
+          memory: 2G
+          cpus: '1.0'
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/v1/meta"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    profiles:
+      - ai-ml
+      - full
+    labels:
+      - "monitoring.enable=true"
+      - "service.tier=ai-ml"
+      - "service.type=vector-db"
+
+  # ML Services Container (OR-Tools + GraphHopper + Prophet + LightGBM)
+  ml-services:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.ml
+    container_name: ml-services
+    restart: unless-stopped
+    environment:
+      - DATABASE_URL=postgresql://postgres@postgres:5432/waste_management
+      - REDIS_URL=redis://redis:6379/0
+      - LOG_LEVEL=info
+      - ENABLE_PROMETHEUS_METRICS=true
+    ports:
+      - "3010:3000"
+      - "9090:9090"
+    volumes:
+      - ml_models:/app/models
+      - ml_training_data:/app/data/training
+      - ml_cache:/app/cache
+      - ml_logs:/app/logs
+    networks:
+      - ai_ml_network
+      - backend_network
+      - monitoring_network
+    secrets:
+      - db_password
+      - redis_password
+      - weaviate_api_key
+      - openai_api_key
+      - ortools_license_key
+      - graphhopper_api_key
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      weaviate:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          memory: 8G
+          cpus: '4.0'
+        reservations:
+          memory: 4G
+          cpus: '2.0'
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/health/ml"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 120s
+    profiles:
+      - ai-ml
+      - full
+    labels:
+      - "monitoring.enable=true"
+      - "service.tier=ai-ml"
+      - "service.type=ml-services"
+
+  # Local LLM Service (Llama 3.1 8B)
+  llm-service:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.llm
+    container_name: llm-service
+    restart: unless-stopped
+    environment:
+      - MODEL_PATH=/app/models/llama-3.1-8b
+      - MODEL_NAME=llama-3.1-8b-instruct
+      - MAX_CONTEXT_LENGTH=8192
+      - ENABLE_GPU_ACCELERATION=${ENABLE_GPU_ACCELERATION:-false}
+      - LOG_LEVEL=info
+    ports:
+      - "8001:8000"
+      - "8002:8001"
+    volumes:
+      - llm_models:/app/models
+      - llm_cache:/app/cache
+      - llm_logs:/app/logs
+    networks:
+      - ai_ml_network
+      - monitoring_network
+    secrets:
+      - llm_api_key
+    deploy:
+      resources:
+        limits:
+          memory: 16G
+          cpus: '8.0'
+        reservations:
+          memory: 8G
+          cpus: '4.0'
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 15s
+      retries: 3
+      start_period: 300s
+    profiles:
+      - ai-ml
+      - full
+    labels:
+      - "monitoring.enable=true"
+      - "service.tier=ai-ml"
+      - "service.type=llm"
+
+  # ============================================================================
+  # INFRASTRUCTURE LAYER
+  # DevOps-Agent + System-Architecture-Lead Coordination
+  # ============================================================================
+  
+  # Nginx Load Balancer and Reverse Proxy
+  nginx:
+    image: nginx:alpine
+    container_name: waste-mgmt-nginx
+    restart: unless-stopped
+    ports:
+      - "${NGINX_HTTP_PORT:-80}:80"
+      - "${NGINX_HTTPS_PORT:-443}:443"
+    volumes:
+      - ./docker/nginx/nginx.prod.conf:/etc/nginx/nginx.conf:ro
+      - ./docker/nginx/sites-enabled:/etc/nginx/sites-enabled:ro
+      - ./docker/nginx/ssl:/etc/nginx/ssl:ro
+      - nginx_logs:/var/log/nginx
+    networks:
+      - backend_network
+      - monitoring_network
+    depends_on:
+      - backend
+      - frontend
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: '0.5'
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    profiles:
+      - production
+      - full
+    labels:
+      - "monitoring.enable=true"
+      - "service.tier=infrastructure"
+      - "service.type=proxy"
+
+  # ============================================================================
+  # 24/7 MONITORING & OBSERVABILITY STACK
+  # DevOps-Agent 24/7 Automated Monitoring Implementation
+  # ============================================================================
+  
+  # Enhanced Prometheus with Production Configuration
+  prometheus:
+    image: prom/prometheus:v2.47.0
+    container_name: waste-mgmt-prometheus
+    restart: unless-stopped
+    user: "65534:65534"
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--storage.tsdb.retention.time=${PROMETHEUS_RETENTION_TIME:-30d}'
+      - '--storage.tsdb.retention.size=${PROMETHEUS_RETENTION_SIZE:-10GB}'
+      - '--storage.tsdb.wal-compression=true'
+      - '--web.enable-lifecycle'
+      - '--web.enable-admin-api'
+      - '--web.external-url=http://localhost:${PROMETHEUS_PORT:-9090}'
+      - '--log.level=${PROMETHEUS_LOG_LEVEL:-info}'
+    ports:
+      - "${PROMETHEUS_PORT:-9090}:9090"
+    volumes:
+      - ./docker/prometheus/prometheus.prod.yml:/etc/prometheus/prometheus.yml:ro
+      - ./docker/prometheus/rules:/etc/prometheus/rules:ro
+      - prometheus_data:/prometheus
+    networks:
+      - monitoring_network
+      - backend_network
+      - ai_ml_network
+    environment:
+      - PROMETHEUS_REMOTE_WRITE_URL=${PROMETHEUS_REMOTE_WRITE_URL:-}
+      - PROMETHEUS_REMOTE_WRITE_USERNAME=${PROMETHEUS_REMOTE_WRITE_USERNAME:-}
+      - PROMETHEUS_REMOTE_WRITE_PASSWORD=${PROMETHEUS_REMOTE_WRITE_PASSWORD:-}
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+          cpus: '1.0'
+        reservations:
+          memory: 1G
+          cpus: '0.5'
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:9090/-/healthy"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    profiles:
+      - monitoring
+      - full
+    labels:
+      - "monitoring.service=prometheus"
+      - "service.tier=monitoring"
+
+  # Enhanced Grafana with Security Configuration
+  grafana:
+    image: grafana/grafana:10.1.0
+    container_name: waste-mgmt-grafana
+    restart: unless-stopped
+    user: "472:472"
+    environment:
+      # Security Configuration
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_USER:-admin}
+      GF_SECURITY_ADMIN_PASSWORD__FILE: /run/secrets/grafana_password
+      GF_SECURITY_SECRET_KEY: ${GRAFANA_SECRET_KEY:-SW2YcwTIb9zpOOhoPsMm}
+      GF_SECURITY_DISABLE_GRAVATAR: true
+      GF_SECURITY_COOKIE_SECURE: ${GRAFANA_COOKIE_SECURE:-false}
+      
+      # Server Configuration
+      GF_SERVER_DOMAIN: ${GRAFANA_DOMAIN:-localhost}
+      GF_SERVER_ROOT_URL: http://${GRAFANA_DOMAIN:-localhost}:${GRAFANA_PORT:-3004}
+      
+      # Database Configuration
+      GF_DATABASE_TYPE: sqlite3
+      GF_DATABASE_PATH: /var/lib/grafana/grafana.db
+      
+      # Plugin Configuration
+      GF_INSTALL_PLUGINS: ${GRAFANA_INSTALL_PLUGINS:-grafana-clock-panel,grafana-simple-json-datasource,grafana-piechart-panel}
+      
+      # Alerting Configuration
+      GF_ALERTING_ENABLED: true
+      GF_UNIFIED_ALERTING_ENABLED: true
+      
+      # Logging Configuration
+      GF_LOG_MODE: ${GRAFANA_LOG_MODE:-console}
+      GF_LOG_LEVEL: ${GRAFANA_LOG_LEVEL:-info}
+    ports:
+      - "${GRAFANA_PORT:-3004}:3000"
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./docker/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./docker/grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - ./docker/grafana/config:/etc/grafana:ro
+    networks:
+      - monitoring_network
+    secrets:
+      - grafana_password
+    depends_on:
+      - prometheus
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+          cpus: '0.5'
+        reservations:
+          memory: 512M
+          cpus: '0.25'
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:3000/api/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    profiles:
+      - monitoring
+      - full
+    labels:
+      - "monitoring.service=grafana"
+      - "service.tier=monitoring"
+
+  # System Metrics Collection
+  node-exporter:
+    image: prom/node-exporter:v1.6.1
+    container_name: waste-mgmt-node-exporter
+    restart: unless-stopped
+    command:
+      - '--path.procfs=/host/proc'
+      - '--path.rootfs=/rootfs'
+      - '--path.sysfs=/host/sys'
+      - '--collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc)($$|/)'
+      - '--collector.textfile.directory=/etc/node-exporter/'
+      - '--no-collector.ipvs'
+    ports:
+      - "9100:9100"
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /:/rootfs:ro
+      - ./docker/monitoring/node-exporter:/etc/node-exporter:ro
+    networks:
+      - monitoring_network
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:9100/metrics"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    profiles:
+      - monitoring
+      - full
+    labels:
+      - "monitoring.service=node-exporter"
+      - "service.tier=monitoring"
+
+  # Container Metrics Collection
+  cadvisor:
+    image: gcr.io/cadvisor/cadvisor:v0.47.2
+    container_name: waste-mgmt-cadvisor
+    restart: unless-stopped
+    ports:
+      - "8082:8080"
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:ro
+      - /sys:/sys:ro
+      - /var/lib/docker/:/var/lib/docker:ro
+      - /dev/disk/:/dev/disk:ro
+    devices:
+      - /dev/kmsg
+    networks:
+      - monitoring_network
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/healthz"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    profiles:
+      - monitoring
+      - full
+    labels:
+      - "monitoring.service=cadvisor"
+      - "service.tier=monitoring"
+
+  # Redis Metrics Exporter
+  redis-exporter:
+    image: oliver006/redis_exporter:v1.54.0
+    container_name: waste-mgmt-redis-exporter
+    restart: unless-stopped
+    ports:
+      - "9121:9121"
+    environment:
+      REDIS_ADDR: redis://redis:6379
+    networks:
+      - monitoring_network
+      - backend_network
+    depends_on:
+      - redis
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:9121/metrics"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    profiles:
+      - monitoring
+      - full
+    labels:
+      - "monitoring.service=redis-exporter"
+      - "service.tier=monitoring"
+
+  # PostgreSQL Metrics Exporter
+  postgres-exporter:
+    image: prometheuscommunity/postgres-exporter:v0.13.2
+    container_name: waste-mgmt-postgres-exporter
+    restart: unless-stopped
+    ports:
+      - "9187:9187"
+    environment:
+      DATA_SOURCE_NAME: postgresql://postgres@postgres:5432/waste_management?sslmode=disable
+    networks:
+      - monitoring_network
+      - backend_network
+    secrets:
+      - db_password
+    depends_on:
+      - postgres
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:9187/metrics"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    profiles:
+      - monitoring
+      - full
+    labels:
+      - "monitoring.service=postgres-exporter"
+      - "service.tier=monitoring"
+
+  # 24/7 Alert Manager with Incident Response Escalation
+  alertmanager:
+    image: prom/alertmanager:v0.26.0
+    container_name: waste-mgmt-alertmanager
+    restart: unless-stopped
+    ports:
+      - "${ALERTMANAGER_PORT:-9093}:9093"
+    volumes:
+      - ./docker/alertmanager/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
+      - alertmanager_data:/alertmanager
+    networks:
+      - monitoring_network
+    command:
+      - '--config.file=/etc/alertmanager/alertmanager.yml'
+      - '--storage.path=/alertmanager'
+      - '--web.external-url=http://localhost:${ALERTMANAGER_PORT:-9093}'
+      - '--log.level=${ALERTMANAGER_LOG_LEVEL:-info}'
+      - '--cluster.listen-address=0.0.0.0:9094'
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: '0.5'
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:9093/-/healthy"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    depends_on:
+      - prometheus
+    profiles:
+      - monitoring
+      - alerting
+      - full
+    labels:
+      - "monitoring.service=alertmanager"
+      - "service.tier=monitoring"
+
+  # ============================================================================
+  # ADMINISTRATION TOOLS
+  # Secured with Docker Secrets
+  # ============================================================================
+  
+  # Redis Commander (Redis Management UI)
+  redis-commander:
+    image: rediscommander/redis-commander:latest
+    container_name: waste-mgmt-redis-commander
+    restart: unless-stopped
+    environment:
+      HTTP_USER: admin
+    command: |
+      sh -c '
+        REDIS_PASSWORD=$$(cat /run/secrets/redis_password)
+        HTTP_PASSWORD=$$(cat /run/secrets/redis_commander_password)
+        export REDIS_HOSTS="local:redis:6379:1:$$REDIS_PASSWORD"
+        export HTTP_PASSWORD="$$HTTP_PASSWORD"
+        redis-commander
+      '
+    ports:
+      - "${REDIS_COMMANDER_PORT:-8081}:8081"
+    networks:
+      - backend_network
+    secrets:
+      - redis_password
+      - redis_commander_password
+    depends_on:
+      redis:
+        condition: service_healthy
+    profiles:
+      - tools
+      - full
+    labels:
+      - "service.tier=admin"
+      - "service.type=redis-ui"
+
+  # pgAdmin (PostgreSQL Management UI)
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: waste-mgmt-pgadmin
+    restart: unless-stopped
+    environment:
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_EMAIL:-admin@waste-mgmt.com}
+      PGADMIN_DEFAULT_PASSWORD_FILE: /run/secrets/pgadmin_password
+      PGADMIN_LISTEN_PORT: 80
+    ports:
+      - "${PGADMIN_PORT:-8080}:80"
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+      - ./docker/pgadmin/servers.json:/pgadmin4/servers.json
+    networks:
+      - backend_network
+    secrets:
+      - pgadmin_password
+    depends_on:
+      postgres:
+        condition: service_healthy
+    profiles:
+      - tools
+      - full
+    labels:
+      - "service.tier=admin"
+      - "service.type=postgres-ui"
+
+  # ============================================================================
+  # SIEM AND SECURITY INFRASTRUCTURE (Security-Agent Coordination)
+  # ============================================================================
+  
+  # Elasticsearch for Security Event Logging
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.8.0
+    container_name: siem-elasticsearch
+    restart: unless-stopped
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+      - "ES_JAVA_OPTS=-Xms1g -Xmx1g"
+    ports:
+      - "9200:9200"
+    volumes:
+      - elasticsearch_data:/usr/share/elasticsearch/data
+    networks:
+      - siem_network
+      - monitoring_network
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+          cpus: '1.0'
+    profiles:
+      - siem
+      - security
+      - full
+    labels:
+      - "service.tier=security"
+      - "service.type=siem"
+
+  # Kibana for Security Dashboard
+  kibana:
+    image: docker.elastic.co/kibana/kibana:8.8.0
+    container_name: siem-kibana
+    restart: unless-stopped
+    environment:
+      - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
+    ports:
+      - "5601:5601"
+    networks:
+      - siem_network
+    depends_on:
+      - elasticsearch
+    profiles:
+      - siem
+      - security
+      - full
+    labels:
+      - "service.tier=security"
+      - "service.type=siem-ui"
+
+  # Filebeat for Log Collection
+  filebeat:
+    image: docker.elastic.co/beats/filebeat:8.8.0
+    container_name: siem-filebeat
+    restart: unless-stopped
+    user: root
+    volumes:
+      - ./docker/siem/filebeat/config/filebeat.yml:/usr/share/filebeat/filebeat.yml:ro
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - backend_logs:/var/log/backend:ro
+      - nginx_logs:/var/log/nginx:ro
+    networks:
+      - siem_network
+      - monitoring_network
+    depends_on:
+      - elasticsearch
+    profiles:
+      - siem
+      - security
+      - full
+    labels:
+      - "service.tier=security"
+      - "service.type=log-collector"
+
+# ============================================================================
+# ENHANCED PERSISTENT VOLUMES
+# ============================================================================
+volumes:
+  # Core Database Storage
+  postgres_data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${DATA_PATH:-./docker/data}/postgres
+  
+  redis_data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${DATA_PATH:-./docker/data}/redis
+
+  # Application Storage
+  backend_uploads:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${DATA_PATH:-./docker/data}/uploads
+  
+  backend_logs:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${DATA_PATH:-./docker/data}/logs
+
+  # AI/ML Storage
+  weaviate_data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${DATA_PATH:-./docker/data}/weaviate
+  
+  weaviate_backups:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${DATA_PATH:-./docker/data}/weaviate/backups
+  
+  ml_models:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${DATA_PATH:-./docker/data}/ml/models
+  
+  ml_training_data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${DATA_PATH:-./docker/data}/ml/training
+  
+  ml_cache:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${DATA_PATH:-./docker/data}/ml/cache
+  
+  ml_logs:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${DATA_PATH:-./docker/data}/logs/ml
+  
+  llm_models:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${DATA_PATH:-./docker/data}/llm/models
+  
+  llm_cache:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${DATA_PATH:-./docker/data}/llm/cache
+  
+  llm_logs:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${DATA_PATH:-./docker/data}/logs/llm
+
+  # Monitoring Storage
+  prometheus_data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${DATA_PATH:-./docker/data}/prometheus
+  
+  grafana_data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${DATA_PATH:-./docker/data}/grafana
+  
+  alertmanager_data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${DATA_PATH:-./docker/data}/alertmanager
+
+  # Infrastructure Storage
+  nginx_logs:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${DATA_PATH:-./docker/data}/logs/nginx
+  
+  pgadmin_data:
+    driver: local
+
+  # SIEM Storage
+  elasticsearch_data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${DATA_PATH:-./docker/data}/elasticsearch
+
+# ============================================================================
+# ENHANCED NETWORK ARCHITECTURE
+# ============================================================================
+networks:
+  # Backend Services Network
+  backend_network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16
+    labels:
+      - "com.waste-management.network.type=backend"
+      - "com.waste-management.network.environment=${NODE_ENV:-development}"
+
+  # AI/ML Services Network
+  ai_ml_network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.19.0.0/16
+    labels:
+      - "com.waste-management.network.type=ai-ml"
+
+  # Monitoring Network
+  monitoring_network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.21.0.0/16
+    labels:
+      - "com.waste-management.network.type=monitoring"
+
+  # SIEM Network
+  siem_network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.22.0.0/16
+    labels:
+      - "com.waste-management.network.type=siem"
+
+# ============================================================================
+# CONFIGURATION EXTENSIONS FOR PRODUCTION
+# ============================================================================
+x-logging: &default-logging
+  driver: "json-file"
+  options:
+    max-size: "10m"
+    max-file: "3"
+    labels: "service,environment"
+
+x-restart-policy: &restart-policy
+  restart_policy:
+    condition: unless-stopped
+    delay: 5s
+    max_attempts: 3
+    window: 120s
+
+x-monitoring-labels: &monitoring-labels
+  labels:
+    - "monitoring.enable=true"
+    - "monitoring.environment=${ENVIRONMENT:-development}"
+    - "monitoring.cluster=waste-management"
+
+# Apply common configurations to all services
+x-common-config: &common-config
+  logging: *default-logging
+  deploy:
+    <<: *restart-policy
+  <<: *monitoring-labels

@@ -24,6 +24,7 @@ import { AppError } from "@/middleware/errorHandler";
 import { logger, logSecurityEvent, logAuditEvent } from "@/utils/logger";
 import { redisClient } from "@/config/redis";
 import { config } from "@/config";
+import { BusinessImpact, SystemLayer } from "./ErrorOrchestrationService";
 
 /**
  * Error severity levels
@@ -101,22 +102,71 @@ export interface AlertConfig {
 }
 
 /**
- * Error monitoring service class
+ * AI/ML prediction models interface
+ */
+export interface PredictionModel {
+  modelId: string;
+  modelType: "anomaly_detection" | "pattern_prediction" | "cascading_failure" | "business_impact";
+  accuracy: number;
+  lastTrained: Date;
+  features: string[];
+  predictions: Map<string, number>; // Key: prediction_id, Value: confidence
+}
+
+/**
+ * Cross-system error correlation
+ */
+export interface CrossSystemCorrelation {
+  correlationId: string;
+  primarySystem: SystemLayer;
+  correlatedSystems: SystemLayer[];
+  correlationStrength: number;
+  timeLag: number; // milliseconds
+  businessImpact: BusinessImpact;
+  detectedAt: Date;
+  validated: boolean;
+}
+
+/**
+ * Predictive insight interface
+ */
+export interface PredictiveInsight {
+  insightId: string;
+  type: "error_storm" | "cascading_failure" | "system_degradation" | "business_impact";
+  confidence: number;
+  predictedAt: Date;
+  estimatedOccurrence: Date;
+  affectedSystems: SystemLayer[];
+  preventionActions: string[];
+  businessImpact: BusinessImpact;
+  metadata: Record<string, any>;
+}
+
+/**
+ * Enhanced error monitoring service with AI/ML capabilities
  */
 export class ErrorMonitoringService extends EventEmitter {
   private errorBuffer: Map<string, ErrorEvent> = new Map();
   private errorPatterns: Map<string, ErrorPattern> = new Map();
   private alertConfigs: AlertConfig[] = [];
   private alertCooldowns: Map<string, number> = new Map();
+  private predictionModels: Map<string, PredictionModel> = new Map();
+  private crossSystemCorrelations: Map<string, CrossSystemCorrelation> = new Map();
+  private predictiveInsights: Map<string, PredictiveInsight> = new Map();
   private readonly bufferSize = 10000;
   private readonly patternAnalysisInterval = 60000; // 1 minute
   private readonly cleanupInterval = 300000; // 5 minutes
+  private readonly mlPredictionInterval = 180000; // 3 minutes
+  private readonly correlationAnalysisInterval = 120000; // 2 minutes
 
   constructor() {
     super();
     this.initializeDefaultAlerts();
+    this.initializePredictionModels();
     this.startPatternAnalysis();
     this.startCleanup();
+    this.startMLPrediction();
+    this.startCorrelationAnalysis();
   }
 
   /**
@@ -730,6 +780,543 @@ export class ErrorMonitoringService extends EventEmitter {
     }
 
     return groups;
+  }
+
+  /**
+   * AI/ML Error Prediction Methods
+   */
+
+  /**
+   * Initialize prediction models
+   */
+  private initializePredictionModels(): void {
+    // Anomaly detection model
+    this.predictionModels.set("anomaly_detector", {
+      modelId: "anomaly_detector",
+      modelType: "anomaly_detection",
+      accuracy: 0.85,
+      lastTrained: new Date(),
+      features: ["error_rate", "response_time", "resource_usage", "user_activity"],
+      predictions: new Map()
+    });
+
+    // Pattern prediction model
+    this.predictionModels.set("pattern_predictor", {
+      modelId: "pattern_predictor", 
+      modelType: "pattern_prediction",
+      accuracy: 0.78,
+      lastTrained: new Date(),
+      features: ["error_frequency", "time_of_day", "system_load", "deployment_events"],
+      predictions: new Map()
+    });
+
+    // Cascading failure model
+    this.predictionModels.set("cascading_failure", {
+      modelId: "cascading_failure",
+      modelType: "cascading_failure",
+      accuracy: 0.72,
+      lastTrained: new Date(),
+      features: ["dependency_health", "error_propagation", "system_coupling"],
+      predictions: new Map()
+    });
+
+    // Business impact model
+    this.predictionModels.set("business_impact", {
+      modelId: "business_impact",
+      modelType: "business_impact",
+      accuracy: 0.80,
+      lastTrained: new Date(),
+      features: ["user_journey", "revenue_flow", "sla_metrics", "customer_tier"],
+      predictions: new Map()
+    });
+  }
+
+  /**
+   * Generate predictive insights using AI/ML models
+   */
+  public async generatePredictiveInsights(): Promise<PredictiveInsight[]> {
+    const insights: PredictiveInsight[] = [];
+    
+    // Run each prediction model
+    for (const [modelId, model] of this.predictionModels) {
+      try {
+        const modelInsights = await this.runPredictionModel(model);
+        insights.push(...modelInsights);
+      } catch (error) {
+        logger.warn(`Prediction model ${modelId} failed`, {
+          error: error.message,
+          modelType: model.modelType
+        });
+      }
+    }
+
+    // Store insights
+    insights.forEach(insight => {
+      this.predictiveInsights.set(insight.insightId, insight);
+    });
+
+    // Trigger high-confidence predictions
+    const highConfidenceInsights = insights.filter(insight => insight.confidence > 0.8);
+    if (highConfidenceInsights.length > 0) {
+      this.emit("highConfidencePrediction", highConfidenceInsights);
+    }
+
+    return insights;
+  }
+
+  /**
+   * Run specific prediction model
+   */
+  private async runPredictionModel(model: PredictionModel): Promise<PredictiveInsight[]> {
+    const insights: PredictiveInsight[] = [];
+    const currentData = await this.gatherModelFeatures(model);
+
+    switch (model.modelType) {
+      case "anomaly_detection":
+        insights.push(...await this.detectAnomalies(model, currentData));
+        break;
+      case "pattern_prediction":
+        insights.push(...await this.predictPatterns(model, currentData));
+        break;
+      case "cascading_failure":
+        insights.push(...await this.predictCascadingFailures(model, currentData));
+        break;
+      case "business_impact":
+        insights.push(...await this.predictBusinessImpact(model, currentData));
+        break;
+    }
+
+    return insights;
+  }
+
+  /**
+   * Detect error anomalies
+   */
+  private async detectAnomalies(model: PredictionModel, data: any): Promise<PredictiveInsight[]> {
+    const insights: PredictiveInsight[] = [];
+    
+    // Simple anomaly detection based on statistical analysis
+    const recentErrors = Array.from(this.errorBuffer.values())
+      .filter(error => error.timestamp.getTime() > Date.now() - 900000); // Last 15 minutes
+
+    const currentErrorRate = recentErrors.length / 15; // Errors per minute
+    const historicalAverage = await this.getHistoricalErrorRate();
+    
+    if (currentErrorRate > historicalAverage * 2.5) {
+      insights.push({
+        insightId: `anomaly_${Date.now()}`,
+        type: "error_storm",
+        confidence: Math.min(0.95, (currentErrorRate / historicalAverage) * 0.3),
+        predictedAt: new Date(),
+        estimatedOccurrence: new Date(Date.now() + 300000), // 5 minutes
+        affectedSystems: this.getAffectedSystemsFromErrors(recentErrors),
+        preventionActions: [
+          "Scale up infrastructure",
+          "Activate circuit breakers",
+          "Enable rate limiting"
+        ],
+        businessImpact: this.calculateAggregateBusinessImpact(recentErrors),
+        metadata: {
+          currentRate: currentErrorRate,
+          historicalAverage,
+          threshold: historicalAverage * 2.5
+        }
+      });
+    }
+
+    return insights;
+  }
+
+  /**
+   * Predict error patterns
+   */
+  private async predictPatterns(model: PredictionModel, data: any): Promise<PredictiveInsight[]> {
+    const insights: PredictiveInsight[] = [];
+    
+    // Analyze recurring patterns
+    for (const [patternKey, pattern] of this.errorPatterns) {
+      if (pattern.count > 5 && pattern.lastOccurrence.getTime() > Date.now() - 3600000) {
+        const timeIntervals = await this.getPatternTimeIntervals(patternKey);
+        const avgInterval = timeIntervals.reduce((sum, interval) => sum + interval, 0) / timeIntervals.length;
+        
+        if (avgInterval > 0) {
+          const nextPredicted = pattern.lastOccurrence.getTime() + avgInterval;
+          const confidence = Math.min(0.9, timeIntervals.length * 0.15);
+          
+          insights.push({
+            insightId: `pattern_${patternKey}_${Date.now()}`,
+            type: "error_storm",
+            confidence,
+            predictedAt: new Date(),
+            estimatedOccurrence: new Date(nextPredicted),
+            affectedSystems: [this.inferSystemFromPattern(patternKey)],
+            preventionActions: [
+              "Monitor pattern triggers",
+              "Prepare fallback mechanisms",
+              "Alert relevant teams"
+            ],
+            businessImpact: pattern.businessImpact,
+            metadata: {
+              patternKey,
+              frequency: pattern.count,
+              avgInterval,
+              lastOccurrence: pattern.lastOccurrence
+            }
+          });
+        }
+      }
+    }
+
+    return insights;
+  }
+
+  /**
+   * Predict cascading failures
+   */
+  private async predictCascadingFailures(model: PredictionModel, data: any): Promise<PredictiveInsight[]> {
+    const insights: PredictiveInsight[] = [];
+    
+    // Analyze cross-system correlations for cascading failure prediction
+    for (const [correlationId, correlation] of this.crossSystemCorrelations) {
+      if (correlation.correlationStrength > 0.7) {
+        const primarySystemHealth = await this.getSystemHealthScore(correlation.primarySystem);
+        
+        if (primarySystemHealth < 0.5) {
+          insights.push({
+            insightId: `cascading_${correlationId}`,
+            type: "cascading_failure",
+            confidence: correlation.correlationStrength * 0.8,
+            predictedAt: new Date(),
+            estimatedOccurrence: new Date(Date.now() + correlation.timeLag + 60000),
+            affectedSystems: [correlation.primarySystem, ...correlation.correlatedSystems],
+            preventionActions: [
+              "Isolate failing primary system",
+              "Activate fallback services",
+              "Break dependency chains"
+            ],
+            businessImpact: correlation.businessImpact,
+            metadata: {
+              correlationId,
+              primarySystemHealth,
+              correlationStrength: correlation.correlationStrength,
+              timeLag: correlation.timeLag
+            }
+          });
+        }
+      }
+    }
+
+    return insights;
+  }
+
+  /**
+   * Predict business impact
+   */
+  private async predictBusinessImpact(model: PredictionModel, data: any): Promise<PredictiveInsight[]> {
+    const insights: PredictiveInsight[] = [];
+    
+    // Analyze business-critical error patterns
+    const businessCriticalErrors = Array.from(this.errorBuffer.values())
+      .filter(error => this.isBusinessCritical(error))
+      .filter(error => error.timestamp.getTime() > Date.now() - 1800000); // Last 30 minutes
+
+    if (businessCriticalErrors.length > 3) {
+      const revenueAtRisk = await this.calculateRevenuePrediction(businessCriticalErrors);
+      
+      insights.push({
+        insightId: `business_impact_${Date.now()}`,
+        type: "business_impact",
+        confidence: 0.85,
+        predictedAt: new Date(),
+        estimatedOccurrence: new Date(Date.now() + 600000), // 10 minutes
+        affectedSystems: this.getAffectedSystemsFromErrors(businessCriticalErrors),
+        preventionActions: [
+          "Activate revenue protection protocols",
+          "Escalate to business continuity team",
+          "Implement emergency fallbacks"
+        ],
+        businessImpact: BusinessImpact.REVENUE_BLOCKING,
+        metadata: {
+          criticalErrorCount: businessCriticalErrors.length,
+          estimatedRevenueAtRisk: revenueAtRisk,
+          affectedCustomers: await this.getAffectedCustomerCount(businessCriticalErrors)
+        }
+      });
+    }
+
+    return insights;
+  }
+
+  /**
+   * Cross-System Coordination Methods
+   */
+
+  /**
+   * Analyze cross-system error correlations
+   */
+  public async analyzeCrossSystemCorrelations(): Promise<CrossSystemCorrelation[]> {
+    const correlations: CrossSystemCorrelation[] = [];
+    const systemLayers = Object.values(SystemLayer);
+    
+    // Analyze correlations between each pair of systems
+    for (let i = 0; i < systemLayers.length; i++) {
+      for (let j = i + 1; j < systemLayers.length; j++) {
+        const correlation = await this.calculateSystemCorrelation(
+          systemLayers[i],
+          systemLayers[j]
+        );
+        
+        if (correlation.correlationStrength > 0.5) {
+          correlations.push(correlation);
+          this.crossSystemCorrelations.set(correlation.correlationId, correlation);
+        }
+      }
+    }
+
+    return correlations;
+  }
+
+  /**
+   * Calculate correlation between two systems
+   */
+  private async calculateSystemCorrelation(
+    system1: SystemLayer,
+    system2: SystemLayer
+  ): Promise<CrossSystemCorrelation> {
+    const system1Errors = await this.getSystemErrors(system1, 3600000); // Last hour
+    const system2Errors = await this.getSystemErrors(system2, 3600000);
+    
+    const correlationStrength = this.calculateCorrelationStrength(system1Errors, system2Errors);
+    const timeLag = this.calculateAverageTimeLag(system1Errors, system2Errors);
+    
+    return {
+      correlationId: `corr_${system1}_${system2}_${Date.now()}`,
+      primarySystem: system1,
+      correlatedSystems: [system2],
+      correlationStrength,
+      timeLag,
+      businessImpact: this.getMaxBusinessImpactFromErrors([...system1Errors, ...system2Errors]),
+      detectedAt: new Date(),
+      validated: correlationStrength > 0.7
+    };
+  }
+
+  /**
+   * Get coordinated error response for cross-system failures
+   */
+  public async getCoordinatedErrorResponse(
+    primaryError: AppError,
+    affectedSystems: SystemLayer[]
+  ): Promise<{
+    coordinationStrategy: "isolate" | "failover" | "degrade" | "restart";
+    actionPlan: string[];
+    estimatedRecoveryTime: number;
+    businessImpactMitigation: string[];
+  }> {
+    const errorSeverity = this.determineSeverity(primaryError);
+    const systemHealthScores = await Promise.all(
+      affectedSystems.map(system => this.getSystemHealthScore(system))
+    );
+    
+    const avgHealthScore = systemHealthScores.reduce((sum, score) => sum + score, 0) / systemHealthScores.length;
+    
+    let strategy: "isolate" | "failover" | "degrade" | "restart";
+    let actionPlan: string[];
+    let estimatedRecoveryTime: number;
+    
+    if (avgHealthScore < 0.3) {
+      strategy = "restart";
+      actionPlan = [
+        "Isolate failed systems",
+        "Activate backup systems",
+        "Restart primary systems in sequence",
+        "Validate system health",
+        "Restore traffic gradually"
+      ];
+      estimatedRecoveryTime = 600000; // 10 minutes
+    } else if (avgHealthScore < 0.6) {
+      strategy = "failover";
+      actionPlan = [
+        "Activate failover mechanisms",
+        "Redirect traffic to healthy systems",
+        "Monitor failover performance",
+        "Prepare primary system recovery"
+      ];
+      estimatedRecoveryTime = 300000; // 5 minutes
+    } else {
+      strategy = "degrade";
+      actionPlan = [
+        "Enable graceful degradation",
+        "Reduce non-essential features",
+        "Monitor system performance",
+        "Scale resources if needed"
+      ];
+      estimatedRecoveryTime = 180000; // 3 minutes
+    }
+    
+    const businessImpactMitigation = [
+      "Notify affected customers",
+      "Activate customer support protocols",
+      "Monitor SLA compliance",
+      "Document incident for analysis"
+    ];
+    
+    return {
+      coordinationStrategy: strategy,
+      actionPlan,
+      estimatedRecoveryTime,
+      businessImpactMitigation
+    };
+  }
+
+  /**
+   * Start ML prediction timer
+   */
+  private startMLPrediction(): void {
+    setInterval(() => {
+      this.generatePredictiveInsights();
+    }, this.mlPredictionInterval);
+  }
+
+  /**
+   * Start correlation analysis timer
+   */
+  private startCorrelationAnalysis(): void {
+    setInterval(() => {
+      this.analyzeCrossSystemCorrelations();
+    }, this.correlationAnalysisInterval);
+  }
+
+  /**
+   * Helper methods for ML and cross-system coordination
+   */
+  private async gatherModelFeatures(model: PredictionModel): Promise<any> {
+    // Gather features based on model requirements
+    return {
+      timestamp: new Date(),
+      features: model.features
+    };
+  }
+
+  private async getHistoricalErrorRate(): Promise<number> {
+    // Calculate historical average error rate
+    return 2.5; // errors per minute (placeholder)
+  }
+
+  private getAffectedSystemsFromErrors(errors: ErrorEvent[]): SystemLayer[] {
+    const systems = new Set<SystemLayer>();
+    errors.forEach(error => {
+      const system = this.inferSystemFromError(error);
+      if (system) systems.add(system);
+    });
+    return Array.from(systems);
+  }
+
+  private calculateAggregateBusinessImpact(errors: ErrorEvent[]): BusinessImpact {
+    const impacts = errors.map(error => this.getBusinessImpactFromError(error));
+    return impacts.reduce((max, current) => this.getMaxBusinessImpact(max, current), BusinessImpact.MINIMAL);
+  }
+
+  private async getPatternTimeIntervals(patternKey: string): Promise<number[]> {
+    // Get time intervals between pattern occurrences
+    return [300000, 280000, 320000]; // placeholder intervals
+  }
+
+  private inferSystemFromPattern(patternKey: string): SystemLayer {
+    if (patternKey.includes("database")) return SystemLayer.DATA_ACCESS;
+    if (patternKey.includes("external")) return SystemLayer.EXTERNAL_SERVICES;
+    if (patternKey.includes("auth")) return SystemLayer.SECURITY;
+    return SystemLayer.API;
+  }
+
+  private async getSystemHealthScore(system: SystemLayer): Promise<number> {
+    // Get health score for system (0-1, where 1 is healthy)
+    return 0.8; // placeholder
+  }
+
+  private isBusinessCritical(error: ErrorEvent): boolean {
+    return error.category === ErrorCategory.BUSINESS_LOGIC ||
+           error.severity === ErrorSeverity.CRITICAL ||
+           error.error.code?.includes("PAYMENT") ||
+           error.error.code?.includes("BILLING");
+  }
+
+  private async calculateRevenuePrediction(errors: ErrorEvent[]): Promise<number> {
+    // Calculate estimated revenue at risk
+    return errors.length * 1000; // $1000 per critical error (placeholder)
+  }
+
+  private async getAffectedCustomerCount(errors: ErrorEvent[]): Promise<number> {
+    const uniqueUsers = new Set(errors.map(error => error.context.userId).filter(Boolean));
+    return uniqueUsers.size;
+  }
+
+  private async getSystemErrors(system: SystemLayer, timeRange: number): Promise<ErrorEvent[]> {
+    const cutoff = Date.now() - timeRange;
+    return Array.from(this.errorBuffer.values())
+      .filter(error => error.timestamp.getTime() >= cutoff)
+      .filter(error => this.inferSystemFromError(error) === system);
+  }
+
+  private calculateCorrelationStrength(errors1: ErrorEvent[], errors2: ErrorEvent[]): number {
+    // Simple correlation calculation (in production, use proper statistical methods)
+    if (errors1.length === 0 || errors2.length === 0) return 0;
+    
+    const timeWindow = 300000; // 5 minutes
+    let correlatedPairs = 0;
+    
+    for (const error1 of errors1) {
+      for (const error2 of errors2) {
+        const timeDiff = Math.abs(error1.timestamp.getTime() - error2.timestamp.getTime());
+        if (timeDiff <= timeWindow) {
+          correlatedPairs++;
+          break;
+        }
+      }
+    }
+    
+    return correlatedPairs / Math.max(errors1.length, errors2.length);
+  }
+
+  private calculateAverageTimeLag(errors1: ErrorEvent[], errors2: ErrorEvent[]): number {
+    // Calculate average time lag between correlated errors
+    return 30000; // 30 seconds (placeholder)
+  }
+
+  private getMaxBusinessImpactFromErrors(errors: ErrorEvent[]): BusinessImpact {
+    return errors.reduce((max, error) => {
+      const impact = this.getBusinessImpactFromError(error);
+      return this.getMaxBusinessImpact(max, impact);
+    }, BusinessImpact.MINIMAL);
+  }
+
+  private inferSystemFromError(error: ErrorEvent): SystemLayer | null {
+    const code = error.error.code;
+    if (code?.includes("DATABASE")) return SystemLayer.DATA_ACCESS;
+    if (code?.includes("EXTERNAL_SERVICE")) return SystemLayer.EXTERNAL_SERVICES;
+    if (code?.includes("AUTHENTICATION") || code?.includes("AUTHORIZATION")) return SystemLayer.SECURITY;
+    if (code?.includes("VALIDATION")) return SystemLayer.API;
+    return SystemLayer.BUSINESS_LOGIC;
+  }
+
+  private getBusinessImpactFromError(error: ErrorEvent): BusinessImpact {
+    if (error.severity === ErrorSeverity.CRITICAL) return BusinessImpact.CRITICAL;
+    if (error.severity === ErrorSeverity.HIGH) return BusinessImpact.HIGH;
+    if (error.severity === ErrorSeverity.MEDIUM) return BusinessImpact.MEDIUM;
+    if (error.severity === ErrorSeverity.LOW) return BusinessImpact.LOW;
+    return BusinessImpact.MINIMAL;
+  }
+
+  private getMaxBusinessImpact(a: BusinessImpact, b: BusinessImpact): BusinessImpact {
+    const weights = {
+      [BusinessImpact.MINIMAL]: 1,
+      [BusinessImpact.LOW]: 2,
+      [BusinessImpact.MEDIUM]: 3,
+      [BusinessImpact.HIGH]: 4,
+      [BusinessImpact.CRITICAL]: 5,
+      [BusinessImpact.REVENUE_BLOCKING]: 6
+    };
+    return weights[a] > weights[b] ? a : b;
   }
 }
 

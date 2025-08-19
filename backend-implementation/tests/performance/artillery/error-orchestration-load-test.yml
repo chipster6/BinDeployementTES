@@ -1,0 +1,231 @@
+# ============================================================================
+# WASTE MANAGEMENT SYSTEM - ERROR ORCHESTRATION LOAD TESTING
+# ============================================================================
+#
+# Artillery configuration for Error Orchestration Service performance testing
+# Tests business continuity under high load with revenue protection validation
+#
+# Created by: Testing Agent (Phase 3 Performance Validation)
+# Date: 2025-08-16
+# Target: 45-65% performance improvement validation
+
+config:
+  target: 'http://localhost:3001'
+  phases:
+    # Warm-up phase
+    - duration: 30
+      arrivalRate: 10
+      name: "Warm-up phase"
+    
+    # Load testing phase
+    - duration: 120
+      arrivalRate: 50
+      name: "Sustained load testing"
+    
+    # Peak load phase
+    - duration: 60
+      arrivalRate: 100
+      name: "Peak load testing"
+    
+    # Stress testing phase
+    - duration: 30
+      arrivalRate: 200
+      name: "Stress testing"
+
+  defaults:
+    headers:
+      Authorization: 'Bearer {{ authToken }}'
+      Content-Type: 'application/json'
+      User-Agent: 'Artillery-Performance-Test/1.0'
+
+  processor: './artillery-helpers.js'
+
+  variables:
+    businessImpacts:
+      - 'minimal'
+      - 'low'  
+      - 'medium'
+      - 'high'
+      - 'critical'
+      - 'revenue_blocking'
+    
+    systemLayers:
+      - 'presentation'
+      - 'api'
+      - 'business_logic'
+      - 'data_access'
+      - 'external_services'
+      - 'infrastructure'
+    
+    errorTypes:
+      - 'TIMEOUT_ERROR'
+      - 'DATABASE_ERROR'
+      - 'EXTERNAL_SERVICE_ERROR'
+      - 'AUTHENTICATION_ERROR'
+      - 'VALIDATION_ERROR'
+      - 'PAYMENT_ERROR'
+
+scenarios:
+  # Error orchestration scenarios
+  - name: "Error Orchestration Performance"
+    weight: 40
+    flow:
+      - post:
+          url: '/api/internal/error-orchestration/orchestrate'
+          beforeRequest: 'setAuthToken'
+          json:
+            error:
+              message: 'Performance test error {{ $randomString() }}'
+              statusCode: 500
+              errorCode: '{{ errorTypes.$randomElement }}'
+            context:
+              businessImpact: '{{ businessImpacts.$randomElement }}'
+              systemLayer: '{{ systemLayers.$randomElement }}'
+              customerFacing: '{{ $randomBoolean }}'
+              revenueImpacting: '{{ $randomBoolean }}'
+              affectedSystems:
+                - 'api_service'
+                - 'database'
+              requestContext:
+                endpoint: '/api/test/performance'
+                userId: 'perf_user_{{ $randomInt(1, 1000) }}'
+                ip: '192.168.1.{{ $randomInt(1, 254) }}'
+          expect:
+            - statusCode: 200
+            - contentType: json
+            - hasProperty: 'strategy'
+            - hasProperty: 'businessContinuity'
+          capture:
+            - json: '$.duration'
+              as: 'orchestrationDuration'
+            - json: '$.businessContinuity'
+              as: 'businessContinuity'
+      
+      - think: 1
+      
+      # Validate orchestration was successful
+      - function: 'validateOrchestrationPerformance'
+
+  # System health monitoring
+  - name: "System Health Monitoring"
+    weight: 20
+    flow:
+      - get:
+          url: '/api/internal/error-orchestration/health'
+          beforeRequest: 'setAuthToken'
+          expect:
+            - statusCode: 200
+            - contentType: json
+            - hasProperty: 'overall'
+            - hasProperty: 'layers'
+          capture:
+            - json: '$.overall'
+              as: 'systemHealth'
+            - json: '$.errorRate'
+              as: 'errorRate'
+      
+      - function: 'validateHealthCheckPerformance'
+
+  # Critical revenue protection scenarios  
+  - name: "Revenue Protection Performance"
+    weight: 30
+    flow:
+      - post:
+          url: '/api/internal/error-orchestration/orchestrate'
+          beforeRequest: 'setAuthToken'
+          json:
+            error:
+              message: 'Revenue critical error {{ $randomString() }}'
+              statusCode: 500
+              errorCode: 'PAYMENT_GATEWAY_ERROR'
+            context:
+              businessImpact: 'revenue_blocking'
+              customerFacing: true
+              revenueImpacting: true
+              affectedSystems:
+                - 'payment_gateway'
+                - 'billing_system'
+                - 'customer_portal'
+              requestContext:
+                endpoint: '/api/payments/process'
+                userId: 'premium_customer_{{ $randomInt(1, 100) }}'
+          expect:
+            - statusCode: 200
+            - contentType: json
+            - hasProperty: 'businessContinuity'
+            - jsonpath: '$.businessContinuity'
+              value: true
+          capture:
+            - json: '$.duration'
+              as: 'revenueDuration'
+            - json: '$.strategy'
+              as: 'recoveryStrategy'
+      
+      - function: 'validateRevenueProtectionPerformance'
+
+  # Emergency business continuity testing
+  - name: "Emergency Business Continuity"
+    weight: 10
+    flow:
+      - post:
+          url: '/api/internal/error-orchestration/emergency-continuity'
+          beforeRequest: 'setAuthToken'
+          json:
+            businessImpact: 'critical'
+            affectedSystems:
+              - 'core_api'
+              - 'database'
+              - 'payment_processing'
+          expect:
+            - statusCode: 200
+            - contentType: json
+            - hasProperty: 'plan'
+            - hasProperty: 'timeline'
+          capture:
+            - json: '$.estimatedRecovery'
+              as: 'recoveryTime'
+      
+      - function: 'validateEmergencyContinuityPerformance'
+
+# Performance expectations
+expectations:
+  # Error orchestration performance requirements
+  - http.response_time:
+      p95: 5000  # 95th percentile < 5 seconds
+      p99: 8000  # 99th percentile < 8 seconds
+      max: 10000 # Maximum 10 seconds
+  
+  # Revenue protection specific requirements
+  - http.response_time.revenue_protection:
+      p95: 3000  # Revenue critical < 3 seconds
+      p99: 5000  # 99th percentile < 5 seconds
+  
+  # System health checks
+  - http.response_time.health_check:
+      p95: 200   # Health checks < 200ms
+      p99: 500   # 99th percentile < 500ms
+  
+  # Success rates
+  - http.codes.200: 95  # 95% success rate minimum
+  - http.codes.500: 2   # < 2% server errors
+  
+  # Business continuity validation
+  - custom.business_continuity_rate: 98  # 98% business continuity success
+
+# Custom metrics
+metrics:
+  - name: 'orchestration_duration'
+    type: 'histogram'
+    unit: 'milliseconds'
+  
+  - name: 'business_continuity_rate' 
+    type: 'rate'
+    unit: 'percentage'
+  
+  - name: 'revenue_protection_response_time'
+    type: 'histogram'
+    unit: 'milliseconds'
+  
+  - name: 'recovery_strategy_distribution'
+    type: 'counter'
+    unit: 'count'

@@ -36,6 +36,13 @@ import {
   CircuitBreakerError,
   gracefulDegradation,
 } from "@/middleware/errorHandler";
+import { 
+  fallbackStrategyManager, 
+  FallbackContext,
+  ServicePriority,
+  BusinessCriticality 
+} from "./FallbackStrategyManager";
+import { serviceMeshManager } from "./ServiceMeshManager";
 
 /**
  * Service configuration interface
@@ -54,6 +61,14 @@ export interface ExternalServiceConfig {
     window: number; // seconds
   };
   headers?: Record<string, string>;
+  // Enhanced fallback configuration
+  servicePriority?: ServicePriority;
+  businessCriticality?: BusinessCriticality;
+  enableServiceMesh?: boolean;
+  enableAdvancedFallback?: boolean;
+  fallbackStrategies?: string[];
+  regions?: string[];
+  healthCheckEndpoint?: string;
 }
 
 /**
@@ -68,6 +83,16 @@ export interface ApiRequestOptions {
   useGracefulDegradation?: boolean;
   fallbackData?: any;
   metadata?: Record<string, any>;
+  // Enhanced fallback options
+  useServiceMesh?: boolean;
+  useAdvancedFallback?: boolean;
+  businessContext?: {
+    urgency: "low" | "medium" | "high" | "critical";
+    customerFacing: boolean;
+    revenueImpacting: boolean;
+  };
+  preferredRegion?: string;
+  maxCostIncrease?: number; // percentage
 }
 
 /**
@@ -84,6 +109,11 @@ export interface ApiResponse<T = any> {
     duration: number;
     attempt: number;
     fromCache?: boolean;
+    fallbackUsed?: boolean;
+    fallbackStrategy?: string;
+    serviceMeshNodeId?: string;
+    costImpact?: number;
+    degradationLevel?: "none" | "minor" | "moderate" | "severe";
   };
 }
 
@@ -123,6 +153,10 @@ export abstract class BaseExternalService {
       retryDelay: 1000,
       circuitBreakerThreshold: 5,
       circuitBreakerTimeout: 30000,
+      servicePriority: ServicePriority.MEDIUM,
+      businessCriticality: BusinessCriticality.PERFORMANCE_OPTIMIZATION,
+      enableServiceMesh: true,
+      enableAdvancedFallback: true,
       ...config,
     };
 
@@ -131,6 +165,7 @@ export abstract class BaseExternalService {
     this.rateLimitKey = `rate_limit:${this.serviceName}`;
 
     this.initializeClient();
+    this.registerWithServiceMesh();
   }
 
   /**
@@ -198,7 +233,7 @@ export abstract class BaseExternalService {
   }
 
   /**
-   * Make API request with retry logic and circuit breaker
+   * Make API request with enhanced fallback mechanisms
    */
   protected async makeRequest<T>(
     method: "GET" | "POST" | "PUT" | "DELETE" | "PATCH",
@@ -207,6 +242,113 @@ export abstract class BaseExternalService {
     options: ApiRequestOptions = {},
   ): Promise<ApiResponse<T>> {
     const timer = new Timer(`${this.serviceName}.${method}.${endpoint}`);
+    const requestId = options.metadata?.requestId || this.generateRequestId();
+    
+    // Try service mesh routing first if enabled
+    if (this.config.enableServiceMesh && options.useServiceMesh !== false) {
+      try {
+        return await this.executeServiceMeshRequest<T>(
+          method, 
+          endpoint, 
+          data, 
+          options, 
+          timer,
+          requestId
+        );
+      } catch (meshError) {
+        logger.warn("Service mesh request failed, falling back to direct request", {
+          serviceName: this.serviceName,
+          error: meshError.message
+        });
+        // Continue with direct request as fallback
+      }
+    }
+
+    // Direct request execution
+    return await this.executeDirectRequest<T>(
+      method,
+      endpoint,
+      data,
+      options,
+      timer,
+      requestId
+    );
+  }
+
+  /**
+   * Execute request through service mesh
+   */
+  private async executeServiceMeshRequest<T>(
+    method: "GET" | "POST" | "PUT" | "DELETE" | "PATCH",
+    endpoint: string,
+    data?: any,
+    options: ApiRequestOptions = {},
+    timer: Timer,
+    requestId: string
+  ): Promise<ApiResponse<T>> {
+    try {
+      const result = await serviceMeshManager.executeServiceRequest(
+        this.serviceName,
+        `${method}:${endpoint}`,
+        { method, endpoint, data, options },
+        {
+          requestId,
+          userId: options.metadata?.userId,
+          organizationId: options.metadata?.organizationId,
+          region: options.preferredRegion,
+          businessContext: options.businessContext
+        }
+      );
+
+      const duration = timer.end({
+        success: true,
+        serviceMesh: true
+      });
+
+      return {
+        success: true,
+        data: result.data,
+        statusCode: 200,
+        metadata: {
+          requestId,
+          duration,
+          attempt: 1,
+          serviceMeshNodeId: result.provider || result.nodeId,
+          fallbackUsed: result.fallback || false,
+          fallbackStrategy: result.strategy,
+          costImpact: result.costImpact || 0,
+          degradationLevel: result.degradationLevel || "none"
+        },
+      };
+
+    } catch (error) {
+      // If service mesh fails, try advanced fallback if enabled
+      if (this.config.enableAdvancedFallback && options.useAdvancedFallback !== false) {
+        return await this.executeAdvancedFallback<T>(
+          method,
+          endpoint,
+          data,
+          options,
+          error,
+          timer,
+          requestId
+        );
+      }
+      throw error;
+    }
+  }
+
+  /**
+   * Execute direct request (original implementation with enhancements)
+   */
+  private async executeDirectRequest<T>(
+    method: "GET" | "POST" | "PUT" | "DELETE" | "PATCH",
+    endpoint: string,
+    data?: any,
+    options: ApiRequestOptions = {},
+    timer: Timer,
+    requestId: string
+  ): Promise<ApiResponse<T>> {
     let attempt = 0;
     const maxAttempts = options.retries || this.config.retryAttempts || 3;
 
@@ -266,9 +408,11 @@ export abstract class BaseExternalService {
             statusCode: response.status,
             headers: response.headers,
             metadata: {
-              requestId: response.headers["x-request-id"],
+              requestId,
               duration,
               attempt,
+              fallbackUsed: false,
+              degradationLevel: "none"
             },
           };
         } catch (error) {
@@ -280,7 +424,7 @@ export abstract class BaseExternalService {
             await this.recordFailure();
           }
 
-          // If this is the last attempt or not retryable, check for graceful degradation
+          // If this is the last attempt or not retryable, try fallback strategies
           if (
             attempt >= maxAttempts ||
             !isRetryableError ||
@@ -298,7 +442,28 @@ export abstract class BaseExternalService {
               isRetryableError,
             );
 
-            // Try graceful degradation if enabled
+            // Try advanced fallback if enabled
+            if (this.config.enableAdvancedFallback && options.useAdvancedFallback !== false) {
+              try {
+                return await this.executeAdvancedFallback<T>(
+                  method,
+                  endpoint,
+                  data,
+                  options,
+                  serviceError,
+                  timer,
+                  requestId
+                );
+              } catch (fallbackError) {
+                logger.error("Advanced fallback failed", {
+                  serviceName: this.serviceName,
+                  originalError: serviceError.message,
+                  fallbackError: fallbackError.message
+                });
+              }
+            }
+
+            // Try basic graceful degradation if enabled
             if (options.useGracefulDegradation) {
               try {
                 const fallbackResult =
@@ -314,9 +479,12 @@ export abstract class BaseExternalService {
                   error: serviceError.message,
                   statusCode: serviceError.statusCode,
                   metadata: {
+                    requestId,
                     duration,
                     attempt,
-                    fallback: true,
+                    fallbackUsed: true,
+                    fallbackStrategy: "basic_graceful_degradation",
+                    degradationLevel: "moderate"
                   },
                 };
               } catch (degradationError) {
@@ -354,6 +522,78 @@ export abstract class BaseExternalService {
       this.serviceName,
       "Unexpected error occurred",
     );
+  }
+
+  /**
+   * Execute advanced fallback strategy
+   */
+  private async executeAdvancedFallback<T>(
+    method: "GET" | "POST" | "PUT" | "DELETE" | "PATCH",
+    endpoint: string,
+    data?: any,
+    options: ApiRequestOptions = {},
+    error: any,
+    timer: Timer,
+    requestId: string
+  ): Promise<ApiResponse<T>> {
+    logger.info("Executing advanced fallback strategy", {
+      serviceName: this.serviceName,
+      method,
+      endpoint,
+      error: error.message
+    });
+
+    // Create fallback context
+    const fallbackContext: FallbackContext = {
+      serviceName: this.serviceName,
+      operation: `${method}:${endpoint}`,
+      originalRequest: { method, endpoint, data, options },
+      error,
+      metadata: {
+        requestId,
+        userId: options.metadata?.userId,
+        organizationId: options.metadata?.organizationId,
+        timestamp: new Date(),
+        retryCount: options.retries || this.config.retryAttempts || 3,
+        maxRetries: options.retries || this.config.retryAttempts || 3
+      },
+      businessContext: options.businessContext
+    };
+
+    try {
+      const fallbackResult = await fallbackStrategyManager.executeFallback(fallbackContext);
+      
+      const duration = timer.end({
+        success: fallbackResult.success,
+        fallback: true,
+        strategy: fallbackResult.strategy.strategyId
+      });
+
+      return {
+        success: fallbackResult.success,
+        data: fallbackResult.data,
+        error: fallbackResult.success ? undefined : error.message,
+        statusCode: fallbackResult.success ? 200 : (error.statusCode || 503),
+        metadata: {
+          requestId,
+          duration,
+          attempt: fallbackContext.metadata.retryCount,
+          fallbackUsed: true,
+          fallbackStrategy: fallbackResult.strategy.strategyId,
+          costImpact: fallbackResult.metadata.costImpact,
+          degradationLevel: fallbackResult.metadata.degradationLevel
+        },
+      };
+
+    } catch (fallbackError) {
+      logger.error("Advanced fallback execution failed", {
+        serviceName: this.serviceName,
+        originalError: error.message,
+        fallbackError: fallbackError.message
+      });
+      
+      throw error; // Return original error if fallback fails
+    }
   }
 
   /**
@@ -414,6 +654,193 @@ export abstract class BaseExternalService {
    * Abstract method for authentication header
    */
   protected abstract getAuthHeader(): string;
+
+  /**
+   * Register service with service mesh
+   */
+  private registerWithServiceMesh(): void {
+    if (!this.config.enableServiceMesh) {
+      return;
+    }
+
+    try {
+      // Register service node with mesh manager
+      serviceMeshManager.registerNode({
+        nodeId: `${this.serviceName}-primary-${this.config.regions?.[0] || 'us-east-1'}`,
+        serviceName: this.serviceName,
+        serviceType: this.getServiceType(),
+        region: this.config.regions?.[0] || 'us-east-1',
+        endpoint: this.config.baseURL,
+        healthCheckEndpoint: this.config.healthCheckEndpoint || `${this.config.baseURL}/health`,
+        priority: this.config.servicePriority || ServicePriority.MEDIUM,
+        businessCriticality: this.config.businessCriticality || BusinessCriticality.PERFORMANCE_OPTIMIZATION,
+        capabilities: this.getServiceCapabilities(),
+        dependencies: [],
+        metadata: {
+          version: "1.0.0",
+          environment: process.env.NODE_ENV || "development",
+          deploymentId: `${this.serviceName}-deployment-001`,
+          lastHealthCheck: new Date(),
+          uptime: 100,
+          requestCount: 0,
+          errorCount: 0
+        },
+        config: {
+          maxConcurrentConnections: 50,
+          timeout: this.config.timeout || 10000,
+          retryPolicy: {
+            maxRetries: this.config.retryAttempts || 3,
+            backoffMultiplier: 2,
+            maxBackoffMs: 10000
+          },
+          circuitBreaker: {
+            threshold: this.config.circuitBreakerThreshold || 5,
+            timeout: this.config.circuitBreakerTimeout || 30000,
+            monitoringPeriod: 60000
+          }
+        }
+      });
+
+      logger.info("Service registered with service mesh", {
+        serviceName: this.serviceName,
+        serviceType: this.getServiceType(),
+        priority: this.config.servicePriority,
+        businessCriticality: this.config.businessCriticality
+      });
+
+    } catch (error) {
+      logger.warn("Failed to register service with service mesh", {
+        serviceName: this.serviceName,
+        error: error.message
+      });
+    }
+  }
+
+  /**
+   * Get service type for classification
+   */
+  private getServiceType(): string {
+    // Override in specific service implementations
+    return "external_api";
+  }
+
+  /**
+   * Get service capabilities
+   */
+  private getServiceCapabilities(): string[] {
+    // Override in specific service implementations
+    return ["api_requests"];
+  }
+
+  /**
+   * Get enhanced health status including fallback capabilities
+   */
+  public async getEnhancedHealthStatus(): Promise<{
+    service: string;
+    status: "healthy" | "degraded" | "unhealthy";
+    circuitBreaker?: any;
+    serviceMesh?: any;
+    fallbackStrategies?: any;
+    lastCheck: Date;
+  }> {
+    const basicHealth = await this.getHealthStatus();
+    
+    let serviceMeshHealth = null;
+    let fallbackStrategies = null;
+
+    if (this.config.enableServiceMesh) {
+      try {
+        const meshStatus = serviceMeshManager.getServiceMeshStatus();
+        serviceMeshHealth = {
+          totalNodes: meshStatus.totalNodes,
+          healthyNodes: meshStatus.healthyNodes,
+          openCircuitBreakers: meshStatus.openCircuitBreakers
+        };
+      } catch (error) {
+        logger.warn("Failed to get service mesh health", {
+          serviceName: this.serviceName,
+          error: error.message
+        });
+      }
+    }
+
+    if (this.config.enableAdvancedFallback) {
+      try {
+        const strategiesHealth = fallbackStrategyManager.getStrategiesHealthStatus();
+        const serviceStrategies = Object.values(strategiesHealth)
+          .filter((strategy: any) => strategy.serviceName === this.serviceName);
+        
+        fallbackStrategies = {
+          totalStrategies: serviceStrategies.length,
+          healthyProviders: serviceStrategies.reduce((sum: number, strategy: any) => sum + strategy.healthyProviders, 0),
+          totalProviders: serviceStrategies.reduce((sum: number, strategy: any) => sum + strategy.totalProviders, 0)
+        };
+      } catch (error) {
+        logger.warn("Failed to get fallback strategies health", {
+          serviceName: this.serviceName,
+          error: error.message
+        });
+      }
+    }
+
+    return {
+      ...basicHealth,
+      serviceMesh: serviceMeshHealth,
+      fallbackStrategies
+    };
+  }
+
+  /**
+   * Execute request with business context for intelligent routing
+   */
+  protected async executeWithBusinessContext<T>(
+    method: "GET" | "POST" | "PUT" | "DELETE" | "PATCH",
+    endpoint: string,
+    data?: any,
+    businessContext?: {
+      urgency: "low" | "medium" | "high" | "critical";
+      customerFacing: boolean;
+      revenueImpacting: boolean;
+      userId?: string;
+      organizationId?: string;
+    }
+  ): Promise<ApiResponse<T>> {
+    const options: ApiRequestOptions = {
+      useServiceMesh: true,
+      useAdvancedFallback: true,
+      businessContext,
+      metadata: {
+        userId: businessContext?.userId,
+        organizationId: businessContext?.organizationId
+      }
+    };
+
+    // Adjust timeouts based on business context
+    if (businessContext) {
+      switch (businessContext.urgency) {
+        case "critical":
+          options.timeout = this.config.timeout ? this.config.timeout * 0.5 : 5000; // Faster timeout for critical
+          options.retries = 1; // Fewer retries for critical - fail fast to fallback
+          break;
+        case "high":
+          options.timeout = this.config.timeout ? this.config.timeout * 0.8 : 8000;
+          options.retries = 2;
+          break;
+        case "low":
+          options.timeout = this.config.timeout ? this.config.timeout * 1.5 : 15000; // More time for low priority
+          options.retries = this.config.retryAttempts || 3;
+          break;
+      }
+
+      // For revenue impacting requests, ensure advanced fallback is enabled
+      if (businessContext.revenueImpacting) {
+        options.useAdvancedFallback = true;
+        options.maxCostIncrease = 50; // Allow higher cost for revenue protection
+      }
+    }
+
+    return this.makeRequest<T>(method, endpoint, data, options);
+  }
 
   /**
    * Check circuit breaker state

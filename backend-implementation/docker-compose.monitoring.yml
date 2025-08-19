@@ -1,0 +1,287 @@
+# ============================================================================
+# WASTE MANAGEMENT SYSTEM - MONITORING DOCKER COMPOSE OVERRIDE
+# ============================================================================
+#
+# Production-ready monitoring stack with enhanced configuration
+# Designed to be used with: docker-compose -f docker-compose.yml -f docker-compose.monitoring.yml
+#
+# Created by: DevOps Infrastructure Orchestrator
+# Date: 2025-08-15
+# Version: 2.0.0 - Enhanced Production Monitoring
+# ============================================================================
+
+version: '3.8'
+
+services:
+  # Enhanced Prometheus Configuration
+  prometheus:
+    image: prom/prometheus:v2.47.0
+    container_name: waste-mgmt-prometheus
+    restart: unless-stopped
+    user: "65534:65534"  # nobody user for security
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--storage.tsdb.retention.time=${PROMETHEUS_RETENTION_TIME:-30d}'
+      - '--storage.tsdb.retention.size=${PROMETHEUS_RETENTION_SIZE:-10GB}'
+      - '--storage.tsdb.wal-compression=${PROMETHEUS_WAL_COMPRESSION:-true}'
+      - '--web.enable-lifecycle'
+      - '--web.enable-admin-api'
+      - '--web.external-url=http://localhost:${PROMETHEUS_PORT:-9090}'
+      - '--log.level=${PROMETHEUS_LOG_LEVEL:-info}'
+    ports:
+      - "${PROMETHEUS_PORT:-9090}:9090"
+    volumes:
+      - ./docker/prometheus/prometheus.prod.yml:/etc/prometheus/prometheus.yml:ro
+      - ./docker/prometheus/rules:/etc/prometheus/rules:ro
+      - prometheus_data:/prometheus
+    networks:
+      - waste-mgmt-network
+    environment:
+      - PROMETHEUS_REMOTE_WRITE_URL=${PROMETHEUS_REMOTE_WRITE_URL:-}
+      - PROMETHEUS_REMOTE_WRITE_USERNAME=${PROMETHEUS_REMOTE_WRITE_USERNAME:-}
+      - PROMETHEUS_REMOTE_WRITE_PASSWORD=${PROMETHEUS_REMOTE_WRITE_PASSWORD:-}
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:9090/-/healthy"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    depends_on:
+      - backend
+    profiles:
+      - monitoring
+    labels:
+      - "monitoring.service=prometheus"
+      - "monitoring.environment=${ENVIRONMENT:-production}"
+
+  # Enhanced Grafana Configuration
+  grafana:
+    image: grafana/grafana:10.1.0
+    container_name: waste-mgmt-grafana
+    restart: unless-stopped
+    user: "472:472"  # grafana user for security
+    environment:
+      # Security Configuration
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_USER:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_PASSWORD:-admin123}
+      GF_SECURITY_SECRET_KEY: ${GRAFANA_SECRET_KEY:-SW2YcwTIb9zpOOhoPsMm}
+      GF_SECURITY_DISABLE_GRAVATAR: true
+      GF_SECURITY_COOKIE_SECURE: ${GRAFANA_COOKIE_SECURE:-false}
+      
+      # Server Configuration
+      GF_SERVER_DOMAIN: ${GRAFANA_DOMAIN:-localhost}
+      GF_SERVER_ROOT_URL: http://${GRAFANA_DOMAIN:-localhost}:${GRAFANA_PORT:-3004}
+      GF_SERVER_SERVE_FROM_SUB_PATH: false
+      
+      # Database Configuration
+      GF_DATABASE_TYPE: sqlite3
+      GF_DATABASE_PATH: /var/lib/grafana/grafana.db
+      
+      # Plugin Configuration
+      GF_INSTALL_PLUGINS: ${GRAFANA_INSTALL_PLUGINS:-grafana-clock-panel,grafana-simple-json-datasource,grafana-piechart-panel}
+      GF_PLUGINS_ALLOW_LOADING_UNSIGNED_PLUGINS: ${GRAFANA_ALLOW_UNSIGNED_PLUGINS:-}
+      
+      # Authentication Configuration
+      GF_AUTH_ANONYMOUS_ENABLED: ${GRAFANA_ANONYMOUS_ENABLED:-false}
+      GF_AUTH_DISABLE_LOGIN_FORM: ${GRAFANA_DISABLE_LOGIN:-false}
+      
+      # Alerting Configuration
+      GF_ALERTING_ENABLED: ${GRAFANA_ALERTING_ENABLED:-true}
+      GF_UNIFIED_ALERTING_ENABLED: ${GRAFANA_UNIFIED_ALERTING:-true}
+      
+      # Performance Configuration
+      GF_RENDERING_SERVER_URL: ${GRAFANA_RENDERING_URL:-}
+      GF_RENDERING_CALLBACK_URL: ${GRAFANA_CALLBACK_URL:-}
+      
+      # Logging Configuration
+      GF_LOG_MODE: ${GRAFANA_LOG_MODE:-console}
+      GF_LOG_LEVEL: ${GRAFANA_LOG_LEVEL:-info}
+      
+    ports:
+      - "${GRAFANA_PORT:-3004}:3000"
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./docker/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./docker/grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - ./docker/grafana/config:/etc/grafana:ro
+    networks:
+      - waste-mgmt-network
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:3000/api/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    depends_on:
+      - prometheus
+    profiles:
+      - monitoring
+    labels:
+      - "monitoring.service=grafana"
+      - "monitoring.environment=${ENVIRONMENT:-production}"
+
+  # Node Exporter for System Metrics
+  node-exporter:
+    image: prom/node-exporter:v1.6.1
+    container_name: waste-mgmt-node-exporter
+    restart: unless-stopped
+    command:
+      - '--path.procfs=/host/proc'
+      - '--path.rootfs=/rootfs'
+      - '--path.sysfs=/host/sys'
+      - '--collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc)($$|/)'
+      - '--collector.textfile.directory=/etc/node-exporter/'
+      - '--no-collector.ipvs'
+    ports:
+      - "9100:9100"
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /:/rootfs:ro
+      - ./docker/monitoring/node-exporter:/etc/node-exporter:ro
+    networks:
+      - waste-mgmt-network
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:9100/metrics"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    profiles:
+      - monitoring
+    labels:
+      - "monitoring.service=node-exporter"
+
+  # cAdvisor for Container Metrics
+  cadvisor:
+    image: gcr.io/cadvisor/cadvisor:v0.47.2
+    container_name: waste-mgmt-cadvisor
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:ro
+      - /sys:/sys:ro
+      - /var/lib/docker/:/var/lib/docker:ro
+      - /dev/disk/:/dev/disk:ro
+    devices:
+      - /dev/kmsg
+    networks:
+      - waste-mgmt-network
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/healthz"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    profiles:
+      - monitoring
+    labels:
+      - "monitoring.service=cadvisor"
+
+  # Redis Exporter for Redis Metrics
+  redis-exporter:
+    image: oliver006/redis_exporter:v1.54.0
+    container_name: waste-mgmt-redis-exporter
+    restart: unless-stopped
+    ports:
+      - "9121:9121"
+    environment:
+      REDIS_ADDR: redis://redis:6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-}
+    networks:
+      - waste-mgmt-network
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:9121/metrics"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    depends_on:
+      - redis
+    profiles:
+      - monitoring
+    labels:
+      - "monitoring.service=redis-exporter"
+
+  # PostgreSQL Exporter for Database Metrics
+  postgres-exporter:
+    image: prometheuscommunity/postgres-exporter:v0.13.2
+    container_name: waste-mgmt-postgres-exporter
+    restart: unless-stopped
+    ports:
+      - "9187:9187"
+    environment:
+      DATA_SOURCE_NAME: postgresql://${DB_USERNAME:-postgres}:${DB_PASSWORD}@postgres:5432/${DB_NAME:-waste_management}?sslmode=disable
+    networks:
+      - waste-mgmt-network
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:9187/metrics"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    depends_on:
+      - postgres
+    profiles:
+      - monitoring
+    labels:
+      - "monitoring.service=postgres-exporter"
+
+  # Alertmanager for Alert Management (Optional)
+  alertmanager:
+    image: prom/alertmanager:v0.26.0
+    container_name: waste-mgmt-alertmanager
+    restart: unless-stopped
+    ports:
+      - "${ALERTMANAGER_PORT:-9093}:9093"
+    volumes:
+      - ./docker/alertmanager/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
+      - alertmanager_data:/alertmanager
+    networks:
+      - waste-mgmt-network
+    command:
+      - '--config.file=/etc/alertmanager/alertmanager.yml'
+      - '--storage.path=/alertmanager'
+      - '--web.external-url=http://localhost:${ALERTMANAGER_PORT:-9093}'
+      - '--log.level=${ALERTMANAGER_LOG_LEVEL:-info}'
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:9093/-/healthy"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    depends_on:
+      - prometheus
+    profiles:
+      - monitoring
+      - alerting
+    labels:
+      - "monitoring.service=alertmanager"
+
+# Enhanced persistent volumes with proper configuration
+volumes:
+  prometheus_data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${PWD}/docker/data/prometheus
+  
+  grafana_data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${PWD}/docker/data/grafana
+  
+  alertmanager_data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${PWD}/docker/data/alertmanager
+
+# Networks
+networks:
+  waste-mgmt-network:
+    external: true

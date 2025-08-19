@@ -1,0 +1,22 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "sourceMap": false,
+    "declarationMap": false,
+    "removeComments": true,
+    "importsNotUsedAsValues": "remove",
+    "noEmitOnError": true,
+    "stripInternal": true
+  },
+  "exclude": [
+    "node_modules",
+    "dist",
+    "coverage",
+    "tests",
+    "**/*.test.ts",
+    "**/*.spec.ts",
+    "**/*.dev.ts",
+    "src/**/__tests__",
+    "src/**/__mocks__"
+  ]
+}

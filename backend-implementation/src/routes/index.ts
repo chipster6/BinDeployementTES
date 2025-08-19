@@ -22,9 +22,21 @@ import binRoutes from "./bins";
 import healthRoutes from "./health";
 import webhookRoutes from "./webhooks";
 import performanceCoordinationRoutes from "./performanceCoordination";
+import performanceOptimizationRoutes from "./performanceOptimization";
 import securityRoutes from "./security";
 import threatIntelligenceRoutes from "./threatIntelligence";
 import securityDashboardRoutes from "./securityDashboard";
+import aiRoutes from "./ai";
+import mlRoutes from "./api/ml";
+import dependencyMonitoringRoutes from "./dependencyMonitoring";
+import errorResilienceRoutes from "./errorResilience";
+import errorOptimizationRoutes from "./api/external/errorOptimization";
+import enhancedTrafficCoordinationRoutes from "./api/external/enhancedTrafficCoordination";
+import streamBCoordinationRoutes from "./streamBCoordination";
+import weaviateRoutes from "./weaviate";
+import routeOptimizationRoutes from "./routeOptimization";
+import externalServiceCoordinationRoutes from "./externalServiceCoordination";
+import masterTrafficCoordinationRoutes from "./api/master-traffic-coordination";
 // import vehicleRoutes from './vehicles';
 // import routeRoutes from './routes';
 // import driverRoutes from './drivers';
@@ -46,7 +58,7 @@ const router = Router();
  * /api/v1/customers     - Customer management
  * /api/v1/vehicles      - Vehicle management
  * /api/v1/drivers       - Driver management
- * /api/v1/routes        - Route management and optimization
+ * /api/v1/route-optimization - Route optimization with OR-Tools integration
  * /api/v1/services      - Service event management
  * /api/v1/billing       - Billing and invoicing
  * /api/v1/tracking      - Real-time GPS tracking
@@ -54,7 +66,18 @@ const router = Router();
  * /api/v1/webhooks      - External webhook handlers
  * /api/v1/admin         - Administrative endpoints
  * /api/v1/performance   - Performance coordination with Database-Architect
+ * /api/v1/optimization  - Comprehensive performance optimization framework (45-65% improvement)
  * /api/v1/security      - Security services (threats, monitoring, incidents, audit)
+ * /api/v1/ai            - AI/ML management (features, experiments, monitoring, impact)
+ * /api/v1/ml            - ML/AI API endpoints (vector intelligence, optimization, predictions)
+ * /api/v1/dependency-monitoring - Dependency vulnerability monitoring and scanning
+ * /api/v1/error-resilience - Enterprise error resilience and business continuity management
+ * /api/v1/error-optimization - Intelligent traffic routing and cost-aware fallback optimization
+ * /api/v1/enhanced-traffic-coordination - Enhanced traffic routing coordination with Backend Agent integration
+ * /api/v1/stream-b-coordination - Stream B Performance Optimization coordination with all agents
+ * /api/v1/vector           - Weaviate vector intelligence API (Phase 1 deployment)
+ * /api/v1/external-services - External Service Coordination with Frontend Agent integration (Group D)
+ * /api/v1/master-coordination - PHASE 2: System-wide master traffic coordination with Groups A-D integration
  */
 
 // Temporary placeholder endpoints until actual route modules are created
@@ -71,7 +94,7 @@ router.get("/", (req, res) => {
       bins: "/api/v1/bins",
       vehicles: "/api/v1/vehicles",
       drivers: "/api/v1/drivers",
-      routes: "/api/v1/routes",
+      routeOptimization: "/api/v1/route-optimization",
       services: "/api/v1/services",
       billing: "/api/v1/billing",
       tracking: "/api/v1/tracking",
@@ -79,7 +102,18 @@ router.get("/", (req, res) => {
       webhooks: "/api/v1/webhooks",
       admin: "/api/v1/admin",
       performance: "/api/v1/performance",
+      optimization: "/api/v1/optimization",
       security: "/api/v1/security",
+      ai: "/api/v1/ai",
+      ml: "/api/v1/ml",
+      dependencyMonitoring: "/api/v1/dependency-monitoring",
+      errorResilience: "/api/v1/error-resilience",
+      errorOptimization: "/api/v1/error-optimization",
+      enhancedTrafficCoordination: "/api/v1/enhanced-traffic-coordination",
+      streamBCoordination: "/api/v1/stream-b-coordination",
+      vector: "/api/v1/vector",
+      externalServices: "/api/v1/external-services",
+      masterCoordination: "/api/v1/master-coordination",
       docs: "/api/docs",
       health: "/health",
     },
@@ -102,9 +136,20 @@ router.use("/customers", customerRoutes);
 router.use("/bins", binRoutes);
 router.use("/webhooks", webhookRoutes);
 router.use("/performance", performanceCoordinationRoutes);
+router.use("/optimization", performanceOptimizationRoutes);
 router.use("/security", securityRoutes);
 router.use("/threat-intelligence", threatIntelligenceRoutes);
 router.use("/security-dashboard", securityDashboardRoutes);
+router.use("/ml", mlRoutes);
+router.use("/route-optimization", routeOptimizationRoutes);
+router.use("/dependency-monitoring", dependencyMonitoringRoutes);
+router.use("/error-resilience", errorResilienceRoutes);
+router.use("/error-optimization", errorOptimizationRoutes);
+router.use("/enhanced-traffic-coordination", enhancedTrafficCoordinationRoutes);
+router.use("/stream-b-coordination", streamBCoordinationRoutes);
+router.use("/vector", weaviateRoutes);
+router.use("/external-services", externalServiceCoordinationRoutes);
+router.use("/master-coordination", masterTrafficCoordinationRoutes);
 
 // Health and monitoring routes (not under /api/v1 prefix)
 router.use("/health", healthRoutes);
@@ -135,6 +180,18 @@ router.use("*", (req, res) => {
       "POST /api/v1/customers",
       "GET /api/v1/bins",
       "POST /api/v1/bins",
+      "POST /api/v1/route-optimization/optimize",
+      "POST /api/v1/route-optimization/adapt", 
+      "GET /api/v1/route-optimization/current",
+      "GET /api/v1/route-optimization/performance",
+      "GET /api/v1/route-optimization/analytics",
+      "POST /api/v1/master-coordination/execute-system-coordination",
+      "POST /api/v1/master-coordination/configure-load-balancing",
+      "GET /api/v1/master-coordination/system-status",
+      "GET /api/v1/master-coordination/coordination-analytics",
+      "GET /api/v1/master-coordination/group-integration-status",
+      "GET /api/v1/master-coordination/active-coordinations",
+      "GET /api/v1/master-coordination/health",
       "GET /health",
       "GET /api/docs",
     ],
