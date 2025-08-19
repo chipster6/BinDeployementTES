@@ -37,6 +37,7 @@ import weaviateRoutes from "./weaviate";
 import routeOptimizationRoutes from "./routeOptimization";
 import externalServiceCoordinationRoutes from "./externalServiceCoordination";
 import masterTrafficCoordinationRoutes from "./api/master-traffic-coordination";
+import externalApiRoutes from "./api/external";
 // import vehicleRoutes from './vehicles';
 // import routeRoutes from './routes';
 // import driverRoutes from './drivers';
@@ -78,6 +79,7 @@ const router = Router();
  * /api/v1/vector           - Weaviate vector intelligence API (Phase 1 deployment)
  * /api/v1/external-services - External Service Coordination with Frontend Agent integration (Group D)
  * /api/v1/master-coordination - PHASE 2: System-wide master traffic coordination with Groups A-D integration
+ * /api/v1/external - PHASE 2 COMPLETION: Real-time traffic, cost monitoring, health monitoring & fallback coordination
  */
 
 // Temporary placeholder endpoints until actual route modules are created
@@ -114,6 +116,7 @@ router.get("/", (req, res) => {
       vector: "/api/v1/vector",
       externalServices: "/api/v1/external-services",
       masterCoordination: "/api/v1/master-coordination",
+      external: "/api/v1/external",
       docs: "/api/docs",
       health: "/health",
     },
@@ -150,6 +153,7 @@ router.use("/stream-b-coordination", streamBCoordinationRoutes);
 router.use("/vector", weaviateRoutes);
 router.use("/external-services", externalServiceCoordinationRoutes);
 router.use("/master-coordination", masterTrafficCoordinationRoutes);
+router.use("/external", externalApiRoutes);
 
 // Health and monitoring routes (not under /api/v1 prefix)
 router.use("/health", healthRoutes);

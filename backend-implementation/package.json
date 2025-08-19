@@ -99,7 +99,10 @@
     "audit:security": "npm audit --audit-level moderate",
     "audit:fix": "npm audit fix",
     "deps:check": "npx npm-check-updates",
-    "deps:update": "npx npm-check-updates -u && npm install"
+    "deps:update": "npx npm-check-updates -u && npm install",
+    "validate:baseservice": "ts-node scripts/validate-baseservice-compliance.ts",
+    "validate:baseservice:json": "ts-node scripts/validate-baseservice-compliance.ts > validation-reports/latest-compliance.json",
+    "validate:hub-compliance": "npm run validate:baseservice"
   },
   "keywords": [
     "waste-management",

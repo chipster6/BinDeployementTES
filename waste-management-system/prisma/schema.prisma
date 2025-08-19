@@ -1,0 +1,386 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+  previewFeatures = ["fullTextSearch", "metrics", "driverAdapters"]
+  binaryTargets = ["native", "linux-openssl-1.1.x", "linux-openssl-3.0.x"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// User model for authentication and role management
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique @db.VarChar(255)
+  firstName String   @db.VarChar(100)
+  lastName  String   @db.VarChar(100)
+  password  String   @db.VarChar(255)
+  role      String   @db.VarChar(50) @default("driver")
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relationships
+  routes Route[]
+
+  // Enhanced constraints
+  @@check([raw("char_length(first_name) >= 2")])
+  @@check([raw("char_length(last_name) >= 2")])
+  @@check([raw("role IN ('admin', 'manager', 'driver', 'customer_service')")])
+  @@check([raw("email ~* '^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$'")])
+  
+  // Strategic indexes for performance
+  @@index([email], name: "idx_users_email")
+  @@index([role], name: "idx_users_role")
+  @@index([isActive], name: "idx_users_active")
+  @@index([role, isActive], name: "idx_users_role_active")
+  @@index([createdAt], name: "idx_users_created_at")
+  
+  @@map("users")
+}
+
+// Vehicle model for fleet management
+model Vehicle {
+  id           String   @id @default(uuid())
+  make         String   @db.VarChar(50)
+  model        String   @db.VarChar(50)
+  year         Int
+  licensePlate String   @unique @db.VarChar(20)
+  vin          String   @unique @db.VarChar(17)
+  capacity     Int      // in cubic meters or weight
+  status       String   @db.VarChar(50) @default("active")
+  lastMaintenance DateTime?
+  nextMaintenance DateTime?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  // Relationships
+  routes Route[]
+
+  // Enhanced constraints
+  @@check([raw("year >= 2000 AND year <= EXTRACT(YEAR FROM CURRENT_DATE) + 1")])
+  @@check([raw("capacity > 0")])
+  @@check([raw("status IN ('active', 'maintenance', 'retired', 'out_of_service')")])
+  @@check([raw("char_length(vin) = 17")])
+  
+  // Performance indexes
+  @@index([status], name: "idx_vehicles_status")
+  @@index([licensePlate], name: "idx_vehicles_license_plate")
+  @@index([lastMaintenance], name: "idx_vehicles_last_maintenance")
+  @@index([nextMaintenance], name: "idx_vehicles_next_maintenance")
+  @@index([status, nextMaintenance], name: "idx_vehicles_status_maintenance")
+  
+  @@map("vehicles")
+}
+
+// Customer model for business entities
+model Customer {
+  id              String    @id @default(uuid())
+  businessName    String    @db.VarChar(200)
+  contactInfo     Json
+  addressInfo     Json
+  contractStatus  String    @db.VarChar(50) @default("active")
+  contractStartDate DateTime?
+  contractEndDate   DateTime?
+  billingCycle    String    @db.VarChar(50) @default("monthly")
+  paymentTerms    Int       @default(30) // days
+  creditLimit     Decimal?  @db.Decimal(10,2)
+  notes           String?   @db.Text
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  // Relationships
+  bins     Bin[]
+  invoices Invoice[]
+
+  // Enhanced constraints
+  @@check([raw("char_length(business_name) >= 2")])
+  @@check([raw("contract_status IN ('active', 'inactive', 'suspended', 'pending', 'terminated')")])
+  @@check([raw("billing_cycle IN ('monthly', 'quarterly', 'annually')")])
+  @@check([raw("payment_terms > 0")])
+  @@check([raw("credit_limit >= 0")])
+  
+  // Strategic indexes for performance
+  @@index([contractStatus], name: "idx_customers_contract_status")
+  @@index([businessName], name: "idx_customers_business_name")
+  @@index([createdAt], name: "idx_customers_created_at")
+  @@index([contractStatus, businessName], name: "idx_customers_status_name")
+  @@index([contractStatus, createdAt], name: "idx_customers_status_created")
+  @@index([billingCycle], name: "idx_customers_billing_cycle")
+  @@index([contractEndDate], name: "idx_customers_contract_end")
+  
+  // Full-text search index for business name
+  @@index([businessName(ops: raw("gin_trgm_ops"))], name: "idx_customers_name_fulltext", type: Gin)
+  
+  @@map("customers")
+}
+
+// Bin model for waste containers
+model Bin {
+  id            String         @id @default(uuid())
+  customerId    String
+  customer      Customer       @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  binType       String         @db.VarChar(50)
+  size          String         @db.VarChar(50)
+  location      Json
+  qrCode        String         @unique @db.VarChar(100)
+  rfidTag       String         @unique @db.VarChar(100)
+  status        String         @db.VarChar(50) @default("empty")
+  lastServiced  DateTime?
+  nextService   DateTime?
+  installDate   DateTime       @default(now())
+  notes         String?        @db.Text
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+
+  // Relationships
+  serviceEvents ServiceEvent[]
+
+  // Enhanced constraints
+  @@check([raw("bin_type IN ('standard', 'recycling', 'organic', 'hazardous', 'construction', 'medical')")])
+  @@check([raw("size IN ('small', 'medium', 'large', 'extra_large', 'dumpster')")])
+  @@check([raw("status IN ('empty', 'partial', 'full', 'overflowing', 'maintenance', 'retired', 'damaged')")])
+  
+  // Performance indexes
+  @@index([customerId], name: "idx_bins_customer_id")
+  @@index([status], name: "idx_bins_status")
+  @@index([binType, size], name: "idx_bins_type_size")
+  @@index([lastServiced], name: "idx_bins_last_serviced")
+  @@index([nextService], name: "idx_bins_next_service")
+  @@index([customerId, status], name: "idx_bins_customer_status")
+  @@index([status, lastServiced], name: "idx_bins_status_serviced")
+  @@index([nextService, status], name: "idx_bins_next_service_status")
+  @@index([qrCode], name: "idx_bins_qr_code")
+  @@index([rfidTag], name: "idx_bins_rfid_tag")
+  
+  @@map("bins")
+}
+
+// Route model for collection routes
+model Route {
+  id                String         @id @default(uuid())
+  routeDate         DateTime       @db.Date
+  driverId          String
+  driver            User           @relation(fields: [driverId], references: [id])
+  vehicleId         String
+  vehicle           Vehicle        @relation(fields: [vehicleId], references: [id])
+  plannedStops      Json
+  actualStops       Json?
+  optimizationScore Float?         @db.Decimal(3,2)
+  status            String         @db.VarChar(50) @default("planned")
+  estimatedDuration Int?           // in minutes
+  actualDuration    Int?           // in minutes
+  estimatedDistance Float?         @db.Decimal(8,2) // in kilometers
+  actualDistance    Float?         @db.Decimal(8,2) // in kilometers
+  fuelUsage         Float?         @db.Decimal(8,2) // in liters
+  notes             String?        @db.Text
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @updatedAt
+
+  // Relationships
+  serviceEvents     ServiceEvent[]
+  analytics         RouteAnalytics?
+
+  // Enhanced constraints
+  @@check([raw("status IN ('planned', 'in_progress', 'completed', 'cancelled', 'delayed', 'paused')")])
+  @@check([raw("estimated_duration > 0")])
+  @@check([raw("actual_duration > 0")])
+  @@check([raw("optimization_score >= 0.0 AND optimization_score <= 1.0")])
+  @@check([raw("estimated_distance > 0")])
+  @@check([raw("actual_distance > 0")])
+  @@check([raw("fuel_usage >= 0")])
+  
+  // Performance indexes with date partitioning consideration
+  @@index([routeDate], name: "idx_routes_date")
+  @@index([driverId], name: "idx_routes_driver_id")
+  @@index([vehicleId], name: "idx_routes_vehicle_id")
+  @@index([status], name: "idx_routes_status")
+  @@index([routeDate, driverId], name: "idx_routes_date_driver")
+  @@index([routeDate, status], name: "idx_routes_date_status")
+  @@index([optimizationScore], name: "idx_routes_optimization")
+  @@index([createdAt], name: "idx_routes_created_at")
+  
+  // Composite index for daily route management
+  @@index([routeDate, status, driverId], name: "idx_routes_daily_management")
+  
+  @@map("routes")
+}
+
+// Service Event model for individual bin collections
+model ServiceEvent {
+  id            String    @id @default(uuid())
+  binId         String
+  bin           Bin       @relation(fields: [binId], references: [id], onDelete: Cascade)
+  routeId       String
+  route         Route     @relation(fields: [routeId], references: [id], onDelete: Cascade)
+  scheduledTime DateTime
+  actualTime    DateTime?
+  eventType     String    @db.VarChar(50)
+  status        String    @db.VarChar(50) @default("scheduled")
+  notes         String?   @db.Text
+  weight        Float?    @db.Decimal(8,2) // in kg
+  volume        Float?    @db.Decimal(8,2) // in cubic meters
+  duration      Int?      // service duration in seconds
+  gpsLocation   Json?     // GPS coordinates when service was performed
+  imageUrls     String[]  // URLs to photos taken during service
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  // Enhanced constraints
+  @@check([raw("event_type IN ('collection', 'delivery', 'maintenance', 'inspection', 'repair')")])
+  @@check([raw("status IN ('scheduled', 'in_progress', 'completed', 'skipped', 'failed', 'rescheduled')")])
+  @@check([raw("weight >= 0")])
+  @@check([raw("volume >= 0")])
+  @@check([raw("duration >= 0")])
+  
+  // Strategic indexes for reporting and analysis
+  @@index([binId], name: "idx_service_events_bin_id")
+  @@index([routeId], name: "idx_service_events_route_id")
+  @@index([scheduledTime], name: "idx_service_events_scheduled_time")
+  @@index([actualTime], name: "idx_service_events_actual_time")
+  @@index([status], name: "idx_service_events_status")
+  @@index([eventType], name: "idx_service_events_event_type")
+  @@index([scheduledTime, status], name: "idx_service_events_scheduled_status")
+  @@index([actualTime, eventType], name: "idx_service_events_actual_event_type")
+  @@index([binId, actualTime], name: "idx_service_events_bin_actual_time")
+  @@index([routeId, scheduledTime], name: "idx_service_events_route_scheduled")
+  
+  @@map("service_events")
+}
+
+// Invoice model for billing management
+model Invoice {
+  id           String    @id @default(uuid())
+  customerId   String
+  customer     Customer  @relation(fields: [customerId], references: [id])
+  invoiceNumber String   @unique @db.VarChar(50)
+  issueDate    DateTime  @default(now())
+  dueDate      DateTime
+  amount       Decimal   @db.Decimal(10,2)
+  tax          Decimal   @db.Decimal(10,2) @default(0)
+  totalAmount  Decimal   @db.Decimal(10,2)
+  status       String    @db.VarChar(50) @default("draft")
+  paymentDate  DateTime?
+  paymentMethod String?  @db.VarChar(50)
+  notes        String?   @db.Text
+  items        Json      // Invoice line items
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  // Enhanced constraints
+  @@check([raw("status IN ('draft', 'sent', 'paid', 'overdue', 'cancelled', 'refunded')")])
+  @@check([raw("amount >= 0")])
+  @@check([raw("tax >= 0")])
+  @@check([raw("total_amount >= 0")])
+  @@check([raw("payment_method IN ('cash', 'check', 'credit_card', 'bank_transfer', 'ach')")])
+  
+  // Performance indexes for billing operations
+  @@index([customerId], name: "idx_invoices_customer_id")
+  @@index([status], name: "idx_invoices_status")
+  @@index([issueDate], name: "idx_invoices_issue_date")
+  @@index([dueDate], name: "idx_invoices_due_date")
+  @@index([paymentDate], name: "idx_invoices_payment_date")
+  @@index([invoiceNumber], name: "idx_invoices_invoice_number")
+  @@index([customerId, status], name: "idx_invoices_customer_status")
+  @@index([status, dueDate], name: "idx_invoices_status_due_date")
+  @@index([issueDate, status], name: "idx_invoices_issue_date_status")
+  
+  @@map("invoices")
+}
+
+// Route Analytics model for performance tracking
+model RouteAnalytics {
+  id               String   @id @default(uuid())
+  routeId          String   @unique
+  route            Route    @relation(fields: [routeId], references: [id], onDelete: Cascade)
+  totalDistance    Float    @db.Decimal(8,2) // in kilometers
+  totalDuration    Int      // in minutes
+  fuelEfficiency   Float?   @db.Decimal(8,4) // km per liter
+  stopsCompleted   Int      @default(0)
+  stopsSkipped     Int      @default(0)
+  avgTimePerStop   Float?   @db.Decimal(8,2) // in minutes
+  delayMinutes     Int      @default(0)
+  co2Emissions     Float?   @db.Decimal(8,2) // in kg
+  costEstimate     Decimal? @db.Decimal(10,2)
+  performanceScore Float?   @db.Decimal(3,2)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  // Enhanced constraints
+  @@check([raw("total_distance > 0")])
+  @@check([raw("total_duration > 0")])
+  @@check([raw("stops_completed >= 0")])
+  @@check([raw("stops_skipped >= 0")])
+  @@check([raw("delay_minutes >= 0")])
+  @@check([raw("performance_score >= 0.0 AND performance_score <= 1.0")])
+  
+  // Analytics indexes
+  @@index([performanceScore], name: "idx_route_analytics_performance")
+  @@index([totalDistance], name: "idx_route_analytics_distance")
+  @@index([fuelEfficiency], name: "idx_route_analytics_fuel_efficiency")
+  @@index([createdAt], name: "idx_route_analytics_created_at")
+  
+  @@map("route_analytics")
+}
+
+// System Settings model for configuration management
+model SystemSetting {
+  id          String   @id @default(uuid())
+  category    String   @db.VarChar(100)
+  key         String   @db.VarChar(100)
+  value       String   @db.Text
+  dataType    String   @db.VarChar(50) @default("string")
+  description String?  @db.Text
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Enhanced constraints
+  @@check([raw("data_type IN ('string', 'number', 'boolean', 'json', 'date')")])
+  @@check([raw("char_length(category) >= 1")])
+  @@check([raw("char_length(key) >= 1")])
+  
+  // Unique constraint for category + key combination
+  @@unique([category, key], name: "unique_category_key")
+  
+  // Performance indexes
+  @@index([category], name: "idx_system_settings_category")
+  @@index([isActive], name: "idx_system_settings_active")
+  @@index([category, isActive], name: "idx_system_settings_category_active")
+  
+  @@map("system_settings")
+}
+
+// Audit Log model for tracking changes
+model AuditLog {
+  id          String   @id @default(uuid())
+  tableName   String   @db.VarChar(100)
+  recordId    String   @db.VarChar(100)
+  action      String   @db.VarChar(50)
+  userId      String?
+  oldValues   Json?
+  newValues   Json?
+  ipAddress   String?  @db.VarChar(45)
+  userAgent   String?  @db.Text
+  timestamp   DateTime @default(now())
+
+  // Enhanced constraints
+  @@check([raw("action IN ('CREATE', 'UPDATE', 'DELETE')")])
+  @@check([raw("char_length(table_name) >= 1")])
+  @@check([raw("char_length(record_id) >= 1")])
+  
+  // Performance indexes for audit queries
+  @@index([tableName], name: "idx_audit_logs_table_name")
+  @@index([recordId], name: "idx_audit_logs_record_id")
+  @@index([action], name: "idx_audit_logs_action")
+  @@index([userId], name: "idx_audit_logs_user_id")
+  @@index([timestamp], name: "idx_audit_logs_timestamp")
+  @@index([tableName, recordId], name: "idx_audit_logs_table_record")
+  @@index([timestamp, action], name: "idx_audit_logs_timestamp_action")
+  
+  @@map("audit_logs")
+}
