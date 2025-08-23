@@ -33,10 +33,10 @@ import { createHmacSignature, generateSecureToken } from "@/utils/encryption";
  */
 export interface VaultConfig {
   endpoint: string;
-  token?: string;
-  roleId?: string;
-  secretId?: string;
-  namespace?: string;
+  token?: string | undefined;
+  roleId?: string | undefined;
+  secretId?: string | undefined;
+  namespace?: string | undefined;
   apiVersion: string;
   timeout: number;
   retries: number;
@@ -53,9 +53,9 @@ export interface VaultSecret {
   metadata?: {
     version: number;
     createdTime: string;
-    deletionTime?: string;
+    deletionTime?: string | undefined;
     destroyed: boolean;
-  };
+  } | undefined;
 }
 
 /**
@@ -79,7 +79,7 @@ export interface RotationPolicy {
   rotationInterval: number; // in seconds
   maxVersions: number;
   deleteVersionAfter: number; // in seconds
-  webhookUrl?: string;
+  webhookUrl?: string | undefined;
   notificationChannels: string[];
 }
 
@@ -90,8 +90,8 @@ export class HashiCorpVaultService {
   private vaultClient: any;
   private config: VaultConfig;
   private isInitialized: boolean = false;
-  private authToken?: string;
-  private tokenExpiresAt?: Date;
+  private authToken?: string | undefined;
+  private tokenExpiresAt?: Date | undefined;
 
   constructor(config: VaultConfig) {
     this.config = config;
@@ -103,22 +103,30 @@ export class HashiCorpVaultService {
    */
   private initializeVaultClient(): void {
     try {
-      this.vaultClient = vault({
+      const vaultOptions: any = {
         apiVersion: this.config.apiVersion,
         endpoint: this.config.endpoint,
-        token: this.config.token,
-        namespace: this.config.namespace,
         requestOptions: {
           timeout: this.config.timeout,
         },
-      });
+      };
+      
+      if (this.config.token !== undefined) {
+        vaultOptions.token = this.config.token;
+      }
+      
+      if (this.config.namespace !== undefined) {
+        vaultOptions.namespace = this.config.namespace;
+      }
+      
+      this.vaultClient = vault(vaultOptions);
 
       logger.info("✅ HashiCorp Vault client initialized", {
         endpoint: this.config.endpoint,
         apiVersion: this.config.apiVersion,
         namespace: this.config.namespace,
       });
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error("❌ Failed to initialize Vault client:", error);
       throw new Error("Vault client initialization failed");
     }
@@ -148,7 +156,7 @@ export class HashiCorpVaultService {
       });
 
       this.isInitialized = true;
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error("❌ Vault AppRole authentication failed:", error);
       throw new Error("Vault authentication failed");
     }
@@ -174,7 +182,7 @@ export class HashiCorpVaultService {
       });
 
       this.isInitialized = true;
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error("❌ Vault JWT authentication failed:", error);
       throw new Error("Vault JWT authentication failed");
     }
@@ -238,7 +246,7 @@ export class HashiCorpVaultService {
       });
 
       logger.info(`✅ Secret written to Vault: ${path}`);
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error(`Failed to write secret to ${path}:`, error);
       throw new Error(`Failed to write secret: ${path}`);
     }
@@ -270,7 +278,7 @@ export class HashiCorpVaultService {
       });
 
       return credentials;
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error(`Failed to generate database credentials for role ${databaseRole}:`, error);
       throw new Error(`Failed to generate database credentials: ${databaseRole}`);
     }
@@ -304,7 +312,7 @@ export class HashiCorpVaultService {
       });
 
       return credentials;
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error(`Failed to renew database credentials lease ${leaseId}:`, error);
       throw new Error(`Failed to renew lease: ${leaseId}`);
     }
@@ -322,7 +330,7 @@ export class HashiCorpVaultService {
       });
 
       logger.info(`✅ Database credentials revoked: ${leaseId}`);
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error(`Failed to revoke database credentials ${leaseId}:`, error);
       throw new Error(`Failed to revoke credentials: ${leaseId}`);
     }
@@ -360,7 +368,7 @@ export class HashiCorpVaultService {
       });
 
       return credentials;
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error(`Failed to generate AWS credentials for role ${awsRole}:`, error);
       throw new Error(`Failed to generate AWS credentials: ${awsRole}`);
     }
@@ -392,7 +400,7 @@ export class HashiCorpVaultService {
         rotationInterval: policy.rotationInterval,
         maxVersions: policy.maxVersions,
       });
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error(`Failed to setup rotation policy for ${policy.secretPath}:`, error);
       throw new Error(`Failed to setup rotation policy: ${policy.secretPath}`);
     }
@@ -416,7 +424,7 @@ export class HashiCorpVaultService {
 
       // Send notification if webhook configured
       // This would be implemented based on specific requirements
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error(`Failed to rotate secret ${path}:`, error);
       throw new Error(`Failed to rotate secret: ${path}`);
     }
@@ -430,7 +438,7 @@ export class HashiCorpVaultService {
 
     try {
       const response = await this.vaultClient.list(`secret/metadata/${path}`);
-      return response.data.keys || [];
+      return response.data?.keys || [];
     } catch (error: any) {
       if (error.response?.statusCode === 404) {
         return [];
@@ -457,7 +465,7 @@ export class HashiCorpVaultService {
       }
 
       logger.info(`✅ Secret deleted: ${path}`, { versions });
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error(`Failed to delete secret ${path}:`, error);
       throw new Error(`Failed to delete secret: ${path}`);
     }
@@ -479,7 +487,7 @@ export class HashiCorpVaultService {
     try {
       const health = await this.vaultClient.health();
       return health;
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error("Failed to get Vault health:", error);
       throw new Error("Failed to get Vault health");
     }
@@ -500,7 +508,7 @@ export class HashiCorpVaultService {
       this.tokenExpiresAt = undefined;
 
       logger.info("✅ Vault connection closed");
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error("Error closing Vault connection:", error);
     }
   }
@@ -511,16 +519,16 @@ export class HashiCorpVaultService {
  */
 export function createVaultConfig(): VaultConfig {
   return {
-    endpoint: process.env.VAULT_ADDR || "https://vault.waste-mgmt.local:8200",
+    endpoint: process.env?.VAULT_ADDR || "https://vault.waste-mgmt.local:8200",
     token: process.env.VAULT_TOKEN,
     roleId: process.env.VAULT_ROLE_ID,
     secretId: process.env.VAULT_SECRET_ID,
     namespace: process.env.VAULT_NAMESPACE,
-    apiVersion: process.env.VAULT_API_VERSION || "v1",
-    timeout: parseInt(process.env.VAULT_TIMEOUT || "30000"),
-    retries: parseInt(process.env.VAULT_RETRIES || "3"),
-    maxRetries: parseInt(process.env.VAULT_MAX_RETRIES || "5"),
-    retryInterval: parseInt(process.env.VAULT_RETRY_INTERVAL || "1000"),
+    apiVersion: process.env?.VAULT_API_VERSION || "v1",
+    timeout: parseInt(process.env?.VAULT_TIMEOUT || "30000"),
+    retries: parseInt(process.env?.VAULT_RETRIES || "3"),
+    maxRetries: parseInt(process.env?.VAULT_MAX_RETRIES || "5"),
+    retryInterval: parseInt(process.env?.VAULT_RETRY_INTERVAL || "1000"),
   };
 }
 
@@ -542,7 +550,7 @@ export async function initializeVaultService(): Promise<HashiCorpVaultService> {
     }
 
     return vaultService;
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error("Failed to initialize Vault service:", error);
     throw error;
   }
@@ -570,7 +578,7 @@ export class VaultSecretMigration {
           });
 
           logger.info(`✅ Migrated ${envVar} to Vault: ${vaultPath}`);
-        } catch (error) {
+        } catch (error: unknown) {
           logger.error(`Failed to migrate ${envVar} to Vault:`, error);
         }
       }
@@ -601,7 +609,7 @@ export class VaultSecretMigration {
 
           logger.info(`✅ Migrated Docker secret ${secretName} to Vault: ${vaultPath}`);
         }
-      } catch (error) {
+      } catch (error: unknown) {
         logger.error(`Failed to migrate Docker secret ${secretName} to Vault:`, error);
       }
     }

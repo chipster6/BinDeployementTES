@@ -114,12 +114,12 @@ class DatabaseInitializationService {
 
       return this.initializationStatus;
 
-    } catch (error) {
+    } catch (error: unknown) {
       this.initializationStatus.overall = "failed";
       this.initializationStatus.duration = Date.now() - startTime;
 
       logger.error("❌ Critical database infrastructure initialization failed", {
-        error: error instanceof Error ? error.message : error,
+        error: error instanceof Error ? error?.message : error,
         status: this.initializationStatus,
         duration: `${this.initializationStatus.duration}ms`,
       });
@@ -142,8 +142,8 @@ class DatabaseInitializationService {
       
       logger.info("✅ Database connection initialized successfully");
 
-    } catch (error) {
-      this.initializationStatus.database.error = error instanceof Error ? error.message : String(error);
+    } catch (error: unknown) {
+      this.initializationStatus.database.error = error instanceof Error ? error?.message : String(error);
       logger.error("❌ Database connection initialization failed:", error);
       throw error;
     }
@@ -162,8 +162,8 @@ class DatabaseInitializationService {
       
       logger.info("✅ Redis connections initialized successfully");
 
-    } catch (error) {
-      this.initializationStatus.redis.error = error instanceof Error ? error.message : String(error);
+    } catch (error: unknown) {
+      this.initializationStatus.redis.error = error instanceof Error ? error?.message : String(error);
       logger.error("❌ Redis connection initialization failed:", error);
       throw error;
     }
@@ -183,8 +183,8 @@ class DatabaseInitializationService {
       
       logger.info("✅ Critical database indexes created successfully");
 
-    } catch (error) {
-      this.initializationStatus.optimization.error = error instanceof Error ? error.message : String(error);
+    } catch (error: unknown) {
+      this.initializationStatus.optimization.error = error instanceof Error ? error?.message : String(error);
       logger.error("❌ Critical index creation failed:", error);
       
       // Don't throw - indexes can be created later, but log as warning
@@ -209,8 +209,8 @@ class DatabaseInitializationService {
         interval: `${monitoringInterval}ms`,
       });
 
-    } catch (error) {
-      this.initializationStatus.monitoring.error = error instanceof Error ? error.message : String(error);
+    } catch (error: unknown) {
+      this.initializationStatus.monitoring.error = error instanceof Error ? error?.message : String(error);
       logger.error("❌ Performance monitoring startup failed:", error);
       
       // Don't throw - monitoring can be started later
@@ -247,15 +247,15 @@ class DatabaseInitializationService {
           }
 
         } catch (analysisError) {
-          this.initializationStatus.optimization.error = analysisError instanceof Error ? analysisError.message : String(analysisError);
+          this.initializationStatus.optimization.error = analysisError instanceof Error ? analysisError?.message : String(analysisError);
           logger.error("❌ Initial optimization analysis failed:", analysisError);
         }
       }, 5000); // Run after 5 seconds to avoid blocking startup
 
       logger.info("📋 Initial optimization analysis scheduled");
 
-    } catch (error) {
-      this.initializationStatus.optimization.error = error instanceof Error ? error.message : String(error);
+    } catch (error: unknown) {
+      this.initializationStatus.optimization.error = error instanceof Error ? error?.message : String(error);
       logger.error("❌ Optimization analysis scheduling failed:", error);
       
       // Don't throw - analysis can be run later
@@ -339,7 +339,7 @@ class DatabaseInitializationService {
       this.initialized = false;
       logger.info("✅ Database infrastructure shutdown completed");
 
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error("❌ Database infrastructure shutdown failed:", error);
       throw error;
     }

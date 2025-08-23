@@ -24,7 +24,7 @@ import { Customer, ServiceFrequency, PaymentTerms } from "@/models/Customer";
 import { Organization } from "@/models/Organization";
 import { Bin } from "@/models/Bin";
 import { ServiceEvent } from "@/models/ServiceEvent";
-import { User } from "@/models/User";
+import type { User } from "@/models/User";
 import { AuditLog } from "@/models/AuditLog";
 import { BaseService, ServiceResult, PaginatedResult } from "./BaseService";
 import { logger, Timer } from "@/utils/logger";
@@ -205,7 +205,7 @@ export class CustomerService extends BaseService<Customer> {
             city: customerData.city,
             state: customerData.state,
             zipCode: customerData.zipCode,
-            country: customerData.country || "US",
+            country: customerData?.country || "US",
             serviceTypes: customerData.serviceTypes,
             containerTypes: customerData.containerTypes,
             serviceFrequency: customerData.serviceFrequency,
@@ -241,10 +241,6 @@ export class CustomerService extends BaseService<Customer> {
               email: maskSensitiveData(customerData.email),
               organizationId: customerData.organizationId,
             },
-            metadata: {
-              createdBy,
-              ip: null,
-            },
           },
           { transaction: tx },
         );
@@ -265,12 +261,12 @@ export class CustomerService extends BaseService<Customer> {
         data: result,
         message: "Customer created successfully",
       };
-    } catch (error) {
-      timer.end({ error: error.message });
+    } catch (error: unknown) {
+      timer.end({ error: error instanceof Error ? error?.message : String(error) });
       logger.error("Customer creation failed", {
         companyName: customerData.companyName,
         email: maskSensitiveData(customerData.email),
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
       });
 
       if (error instanceof AppError) {
@@ -321,16 +317,6 @@ export class CustomerService extends BaseService<Customer> {
             serviceFrequency: serviceConfig.frequency,
             nextServiceDate,
             specialInstructions: serviceConfig.specialRequirements?.join("; "),
-            metadata: {
-              ...customer.metadata,
-              serviceConfig: {
-                preferredTimeWindows: serviceConfig.preferredTimeWindows,
-                specialRequirements: serviceConfig.specialRequirements,
-                hazardousMaterials: serviceConfig.hazardousMaterials,
-                recyclingProgram: serviceConfig.recyclingProgram,
-                emergencyContact: serviceConfig.emergencyContact,
-              },
-            },
           },
           { transaction },
         );
@@ -369,11 +355,11 @@ export class CustomerService extends BaseService<Customer> {
         data: result,
         message: "Service configuration updated successfully",
       };
-    } catch (error) {
-      timer.end({ error: error.message });
+    } catch (error: unknown) {
+      timer.end({ error: error instanceof Error ? error?.message : String(error) });
       logger.error("Service configuration update failed", {
         customerId,
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
       });
 
       if (error instanceof AppError) {
@@ -461,11 +447,11 @@ export class CustomerService extends BaseService<Customer> {
         data: result,
         message: "Billing information updated successfully",
       };
-    } catch (error) {
-      timer.end({ error: error.message });
+    } catch (error: unknown) {
+      timer.end({ error: error instanceof Error ? error?.message : String(error) });
       logger.error("Billing information update failed", {
         customerId,
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
       });
 
       if (error instanceof AppError) {
@@ -506,10 +492,10 @@ export class CustomerService extends BaseService<Customer> {
       if (customer.phone) {
         try {
           (customer as any).phone = await decryptSensitiveData(customer.phone);
-        } catch (error) {
+        } catch (error: unknown) {
           logger.warn("Failed to decrypt customer phone", {
             customerId,
-            error: error.message,
+            error: error instanceof Error ? error?.message : String(error),
           });
           (customer as any).phone = null;
         }
@@ -518,10 +504,10 @@ export class CustomerService extends BaseService<Customer> {
       if (customer.taxId) {
         try {
           (customer as any).taxId = await decryptSensitiveData(customer.taxId);
-        } catch (error) {
+        } catch (error: unknown) {
           logger.warn("Failed to decrypt customer tax ID", {
             customerId,
-            error: error.message,
+            error: error instanceof Error ? error?.message : String(error),
           });
           (customer as any).taxId = null;
         }
@@ -531,7 +517,7 @@ export class CustomerService extends BaseService<Customer> {
         success: true,
         data: customer,
       };
-    } catch (error) {
+    } catch (error: unknown) {
       if (error instanceof AppError) {
         throw error;
       }
@@ -588,9 +574,9 @@ export class CustomerService extends BaseService<Customer> {
         data: result,
         message: "Customers retrieved successfully",
       };
-    } catch (error) {
-      timer.end({ error: error.message });
-      logger.error("Customer search failed", { error: error.message });
+    } catch (error: unknown) {
+      timer.end({ error: error instanceof Error ? error?.message : String(error) });
+      logger.error("Customer search failed", { error: error instanceof Error ? error?.message : String(error) });
 
       if (error instanceof AppError) {
         throw error;
@@ -641,11 +627,11 @@ export class CustomerService extends BaseService<Customer> {
         data: serviceEvents,
         message: "Service history retrieved successfully",
       };
-    } catch (error) {
-      timer.end({ error: error.message });
+    } catch (error: unknown) {
+      timer.end({ error: error instanceof Error ? error?.message : String(error) });
       logger.error("Service history retrieval failed", {
         customerId,
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
       });
 
       if (error instanceof AppError) {
@@ -755,11 +741,11 @@ export class CustomerService extends BaseService<Customer> {
         data: analytics,
         message: "Customer analytics retrieved successfully",
       };
-    } catch (error) {
-      timer.end({ error: error.message });
+    } catch (error: unknown) {
+      timer.end({ error: error instanceof Error ? error?.message : String(error) });
       logger.error("Customer analytics failed", {
         customerId,
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
       });
 
       if (error instanceof AppError) {
@@ -790,15 +776,7 @@ export class CustomerService extends BaseService<Customer> {
         // Update customer status
         await customer.update(
           {
-            status: "inactive",
-            metadata: {
-              ...customer.metadata,
-              deactivation: {
-                reason,
-                deactivatedBy,
-                deactivatedAt: new Date(),
-              },
-            },
+            status: "inactive"
           },
           { transaction },
         );
@@ -845,11 +823,11 @@ export class CustomerService extends BaseService<Customer> {
         success: true,
         message: "Customer deactivated successfully",
       };
-    } catch (error) {
-      timer.end({ error: error.message });
+    } catch (error: unknown) {
+      timer.end({ error: error instanceof Error ? error?.message : String(error) });
       logger.error("Customer deactivation failed", {
         customerId,
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
       });
 
       if (error instanceof AppError) {
@@ -893,7 +871,7 @@ export class CustomerService extends BaseService<Customer> {
       errors.push({ field: "email", message: "Valid email is required" });
     }
 
-    if (!customerData.address || customerData.address.trim().length === 0) {
+    if (!customerData?.address || customerData.address.trim().length === 0) {
       errors.push({ field: "address", message: "Address is required" });
     }
 
@@ -904,7 +882,7 @@ export class CustomerService extends BaseService<Customer> {
       });
     }
 
-    if (!customerData.serviceTypes || customerData.serviceTypes.length === 0) {
+    if (!customerData?.serviceTypes || customerData.serviceTypes.length === 0) {
       errors.push({
         field: "serviceTypes",
         message: "At least one service type is required",
@@ -996,7 +974,7 @@ export class CustomerService extends BaseService<Customer> {
       whereClause.serviceTypes = { [Op.overlap]: criteria.serviceTypes };
     }
 
-    if (criteria.createdAfter || criteria.createdBefore) {
+    if (criteria?.createdAfter || criteria.createdBefore) {
       whereClause.createdAt = {};
       if (criteria.createdAfter) {
         whereClause.createdAt[Op.gte] = criteria.createdAfter;

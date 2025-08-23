@@ -22,7 +22,7 @@
  * Version: 1.0.0 - Phase 2 External API Completion
  */
 
-import { Router, Request, Response } from "express";
+import { Router, type Request, type Response } from "express";
 import { auth } from "@/middleware/auth";
 import { validation } from "@/middleware/validation";
 import { rateLimit } from "@/middleware/rateLimit";
@@ -64,7 +64,7 @@ router.get("/overview", auth, rateLimit, async (req: Request, res: Response) => 
     const overviewResult = await healthMonitoringService.getHealthOverview();
 
     if (!overviewResult.success) {
-      return ResponseHelper.internalError(res, overviewResult.message!);
+      return ResponseHelper.internalError(res, overviewResult?.message!);
     }
 
     const overview = overviewResult.data!;
@@ -97,21 +97,13 @@ router.get("/overview", auth, rateLimit, async (req: Request, res: Response) => 
 
     return ResponseHelper.success(res, {
       overview: enhancedOverview,
-      timestamp: new Date(),
-      metadata: {
-        executionTime,
-        dataFreshness: "real-time",
-        enhancementsIncluded: {
-          detailedMetrics: includeMetrics === 'true',
-          predictiveInsights: includePredictive === 'true'
-        }
-      }
+      timestamp: new Date()
     });
 
-  } catch (error) {
-    timer.end({ error: error.message });
+  } catch (error: unknown) {
+    timer.end({ error: error instanceof Error ? error?.message : String(error) });
     logger.error('Error retrieving health overview', {
-      error: error.message,
+      error: error instanceof Error ? error?.message : String(error),
       query: req.query
     });
     
@@ -144,7 +136,7 @@ router.get("/services/:service", auth, rateLimit, async (req: Request, res: Resp
     const healthResult = await healthMonitoringService.performHealthCheck(service);
 
     if (!healthResult.success) {
-      return ResponseHelper.internalError(res, healthResult.message!);
+      return ResponseHelper.internalError(res, healthResult?.message!);
     }
 
     let serviceData = {
@@ -178,18 +170,13 @@ router.get("/services/:service", auth, rateLimit, async (req: Request, res: Resp
     return ResponseHelper.success(res, {
       service,
       health: serviceData,
-      timestamp: new Date(),
-      metadata: {
-        executionTime,
-        historyIncluded: includeHistory === 'true',
-        timeRangeHours: timeRange ? parseInt(timeRange as string) / (60 * 60 * 1000) : 24
-      }
+      timestamp: new Date()
     });
 
-  } catch (error) {
-    timer.end({ error: error.message });
+  } catch (error: unknown) {
+    timer.end({ error: error instanceof Error ? error?.message : String(error) });
     logger.error('Error retrieving service health', {
-      error: error.message,
+      error: error instanceof Error ? error?.message : String(error),
       service: req.params.service
     });
     
@@ -222,7 +209,7 @@ router.post("/check/:service", auth, validation, rateLimit, async (req: Request,
     const healthResult = await healthMonitoringService.performHealthCheck(service);
 
     if (!healthResult.success) {
-      return ResponseHelper.internalError(res, healthResult.message!);
+      return ResponseHelper.internalError(res, healthResult?.message!);
     }
 
     const checkId = `manual_check_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
@@ -250,16 +237,13 @@ router.post("/check/:service", auth, validation, rateLimit, async (req: Request,
       manual: true,
       triggeredBy: (req as any).user.userId,
       reason: reason || "Manual trigger",
-      timestamp: new Date(),
-      metadata: {
-        executionTime
-      }
+      timestamp: new Date()
     });
 
-  } catch (error) {
-    timer.end({ error: error.message });
+  } catch (error: unknown) {
+    timer.end({ error: error instanceof Error ? error?.message : String(error) });
     logger.error('Error performing manual health check', {
-      error: error.message,
+      error: error instanceof Error ? error?.message : String(error),
       service: req.params.service,
       body: req.body
     });
@@ -324,18 +308,13 @@ router.get("/incidents", auth, rateLimit, async (req: Request, res: Response) =>
     return ResponseHelper.success(res, {
       incidents,
       filters,
-      pagination,
-      metadata: {
-        executionTime,
-        totalCount: incidents.length,
-        hasMore: incidents.length === pagination.limit
-      }
+      pagination
     });
 
-  } catch (error) {
-    timer.end({ error: error.message });
+  } catch (error: unknown) {
+    timer.end({ error: error instanceof Error ? error?.message : String(error) });
     logger.error('Error retrieving incidents', {
-      error: error.message,
+      error: error instanceof Error ? error?.message : String(error),
       query: req.query
     });
     
@@ -386,7 +365,7 @@ router.post("/incidents", auth, validation, rateLimit, async (req: Request, res:
     );
 
     if (!incidentResult.success) {
-      return ResponseHelper.internalError(res, incidentResult.message!);
+      return ResponseHelper.internalError(res, incidentResult?.message!);
     }
 
     const executionTime = timer.end({
@@ -409,17 +388,13 @@ router.post("/incidents", auth, validation, rateLimit, async (req: Request, res:
 
     return ResponseHelper.success(res, {
       incident: incidentResult.data,
-      message: "Incident created successfully",
-      metadata: {
-        executionTime,
-        createdBy: (req as any).user.userId
-      }
+      message: "Incident created successfully"
     }, 201);
 
-  } catch (error) {
-    timer.end({ error: error.message });
+  } catch (error: unknown) {
+    timer.end({ error: error instanceof Error ? error?.message : String(error) });
     logger.error('Error creating incident', {
-      error: error.message,
+      error: error instanceof Error ? error?.message : String(error),
       body: req.body
     });
     
@@ -463,18 +438,13 @@ router.put("/incidents/:id", auth, validation, rateLimit, async (req: Request, r
 
     return ResponseHelper.success(res, {
       incident: updatedIncident,
-      message: "Incident updated successfully",
-      metadata: {
-        executionTime,
-        updatedBy: (req as any).user.userId,
-        updatedFields: Object.keys(updateData)
-      }
+      message: "Incident updated successfully"
     });
 
-  } catch (error) {
-    timer.end({ error: error.message });
+  } catch (error: unknown) {
+    timer.end({ error: error instanceof Error ? error?.message : String(error) });
     logger.error('Error updating incident', {
-      error: error.message,
+      error: error instanceof Error ? error?.message : String(error),
       incidentId: req.params.id,
       body: req.body
     });
@@ -514,7 +484,7 @@ router.get("/predictive/:service", auth, rateLimit, async (req: Request, res: Re
     const analyticsResult = await healthMonitoringService.analyzePredictiveHealth(service);
 
     if (!analyticsResult.success) {
-      return ResponseHelper.internalError(res, analyticsResult.message!);
+      return ResponseHelper.internalError(res, analyticsResult?.message!);
     }
 
     let analytics = analyticsResult.data!;
@@ -551,18 +521,13 @@ router.get("/predictive/:service", auth, rateLimit, async (req: Request, res: Re
     return ResponseHelper.success(res, {
       service,
       analytics,
-      timestamp: new Date(),
-      metadata: {
-        executionTime,
-        modelAccuracy: analytics.modelMetrics.accuracy,
-        lastTraining: analytics.modelMetrics.lastTrainingDate
-      }
+      timestamp: new Date()
     });
 
-  } catch (error) {
-    timer.end({ error: error.message });
+  } catch (error: unknown) {
+    timer.end({ error: error instanceof Error ? error?.message : String(error) });
     logger.error('Error retrieving predictive analytics', {
-      error: error.message,
+      error: error instanceof Error ? error?.message : String(error),
       service: req.params.service
     });
     
@@ -618,17 +583,13 @@ router.get("/sla", auth, rateLimit, async (req: Request, res: Response) => {
 
     return ResponseHelper.success(res, {
       sla: slaData,
-      timeRange,
-      metadata: {
-        executionTime,
-        granularity: granularity || "day"
-      }
+      timeRange
     });
 
-  } catch (error) {
-    timer.end({ error: error.message });
+  } catch (error: unknown) {
+    timer.end({ error: error instanceof Error ? error?.message : String(error) });
     logger.error('Error retrieving SLA compliance data', {
-      error: error.message,
+      error: error instanceof Error ? error?.message : String(error),
       query: req.query
     });
     
@@ -677,17 +638,13 @@ router.post("/alerts", auth, validation, rateLimit, async (req: Request, res: Re
       configId,
       service: alertConfig.service,
       configuration: alertConfig,
-      message: "Alert configuration saved successfully",
-      metadata: {
-        executionTime,
-        configuredBy: (req as any).user.userId
-      }
+      message: "Alert configuration saved successfully"
     }, 201);
 
-  } catch (error) {
-    timer.end({ error: error.message });
+  } catch (error: unknown) {
+    timer.end({ error: error instanceof Error ? error?.message : String(error) });
     logger.error('Error configuring health alerts', {
-      error: error.message,
+      error: error instanceof Error ? error?.message : String(error),
       body: req.body
     });
     

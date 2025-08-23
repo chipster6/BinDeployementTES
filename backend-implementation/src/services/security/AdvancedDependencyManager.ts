@@ -126,9 +126,9 @@ export class AdvancedDependencyManager extends BaseService {
       await this.performComprehensiveAnalysis();
 
       logger.info('Advanced Dependency Manager initialized successfully');
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('Failed to initialize Advanced Dependency Manager', {
-        error: error instanceof Error ? error.message : 'Unknown error'
+        error: error instanceof Error ? error?.message : 'Unknown error'
       });
       throw error;
     }
@@ -184,9 +184,9 @@ export class AdvancedDependencyManager extends BaseService {
       });
 
       return { conflicts, vulnerabilities, optimizations, summary };
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('Comprehensive dependency analysis failed', {
-        error: error instanceof Error ? error.message : 'Unknown error',
+        error: error instanceof Error ? error?.message : 'Unknown error',
         duration: Date.now() - analysisStartTime
       });
       throw error;
@@ -221,9 +221,9 @@ export class AdvancedDependencyManager extends BaseService {
       });
 
       return conflicts;
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('Failed to analyze dependency conflicts', {
-        error: error instanceof Error ? error.message : 'Unknown error'
+        error: error instanceof Error ? error?.message : 'Unknown error'
       });
       return [];
     }
@@ -248,9 +248,9 @@ export class AdvancedDependencyManager extends BaseService {
       }
 
       return conflicts;
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('NPM conflict analysis failed', {
-        error: error instanceof Error ? error.message : 'Unknown error'
+        error: error instanceof Error ? error?.message : 'Unknown error'
       });
       return [];
     }
@@ -298,11 +298,11 @@ export class AdvancedDependencyManager extends BaseService {
       }
 
       return conflicts;
-    } catch (error) {
+    } catch (error: unknown) {
       // npm ls returns non-zero exit code for conflicts, which is expected
       logger.debug('NPM conflict detection completed with expected errors', {
         packagePath,
-        error: error instanceof Error ? error.message : 'Unknown error'
+        error: error instanceof Error ? error?.message : 'Unknown error'
       });
       return conflicts;
     }
@@ -343,9 +343,9 @@ export class AdvancedDependencyManager extends BaseService {
         riskAssessment: this.assessResolutionRisk(packageName, currentVersion, resolvedVersion),
         testingRequired: this.isSecurityCritical(packageName) || this.isBusinessCritical(packageName)
       };
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error(`Failed to resolve NPM conflict for ${packageName}`, {
-        error: error instanceof Error ? error.message : 'Unknown error'
+        error: error instanceof Error ? error?.message : 'Unknown error'
       });
       return null;
     }
@@ -376,9 +376,9 @@ export class AdvancedDependencyManager extends BaseService {
       }
 
       return conflicts;
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('Python conflict analysis failed', {
-        error: error instanceof Error ? error.message : 'Unknown error'
+        error: error instanceof Error ? error?.message : 'Unknown error'
       });
       return [];
     }
@@ -437,9 +437,9 @@ export class AdvancedDependencyManager extends BaseService {
         riskAssessment: this.assessPythonResolutionRisk(packageName, resolvedVersion),
         testingRequired: this.isSecurityCritical(packageName)
       };
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error(`Failed to resolve Python conflict for ${packageName}`, {
-        error: error instanceof Error ? error.message : 'Unknown error'
+        error: error instanceof Error ? error?.message : 'Unknown error'
       });
       return null;
     }
@@ -467,9 +467,9 @@ export class AdvancedDependencyManager extends BaseService {
       });
 
       return conflicts;
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('Cross-ecosystem conflict analysis failed', {
-        error: error instanceof Error ? error.message : 'Unknown error'
+        error: error instanceof Error ? error?.message : 'Unknown error'
       });
       return [];
     }
@@ -502,9 +502,9 @@ export class AdvancedDependencyManager extends BaseService {
       });
 
       return vulnerabilities;
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('Security audit failed', {
-        error: error instanceof Error ? error.message : 'Unknown error'
+        error: error instanceof Error ? error?.message : 'Unknown error'
       });
       return [];
     }
@@ -539,9 +539,9 @@ export class AdvancedDependencyManager extends BaseService {
       });
 
       return recommendations;
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('Optimization analysis failed', {
-        error: error instanceof Error ? error.message : 'Unknown error'
+        error: error instanceof Error ? error?.message : 'Unknown error'
       });
       return [];
     }
@@ -626,9 +626,9 @@ export class AdvancedDependencyManager extends BaseService {
       });
 
       return snapshot;
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('Failed to create dependency snapshot', {
-        error: error instanceof Error ? error.message : 'Unknown error'
+        error: error instanceof Error ? error?.message : 'Unknown error'
       });
       throw error;
     }
@@ -658,9 +658,9 @@ export class AdvancedDependencyManager extends BaseService {
           optimizations: analysisData.optimizations.length
         }
       });
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('Failed to generate comprehensive report', {
-        error: error instanceof Error ? error.message : 'Unknown error'
+        error: error instanceof Error ? error?.message : 'Unknown error'
       });
     }
   }
@@ -669,10 +669,10 @@ export class AdvancedDependencyManager extends BaseService {
   private async getAvailableNpmVersions(packageName: string): Promise<string[]> {
     try {
       const response = await axios.get(`https://registry.npmjs.org/${packageName}`, { timeout: 10000 });
-      return Object.keys(response.data.versions || {});
-    } catch (error) {
+      return Object.keys(response.data?.versions || {});
+    } catch (error: unknown) {
       logger.warn(`Failed to fetch NPM versions for ${packageName}`, {
-        error: error instanceof Error ? error.message : 'Unknown error'
+        error: error instanceof Error ? error?.message : 'Unknown error'
       });
       return [];
     }
@@ -681,10 +681,10 @@ export class AdvancedDependencyManager extends BaseService {
   private async getAvailablePythonVersions(packageName: string): Promise<string[]> {
     try {
       const response = await axios.get(`https://pypi.org/pypi/${packageName}/json`, { timeout: 10000 });
-      return Object.keys(response.data.releases || {});
-    } catch (error) {
+      return Object.keys(response.data?.releases || {});
+    } catch (error: unknown) {
       logger.warn(`Failed to fetch Python versions for ${packageName}`, {
-        error: error instanceof Error ? error.message : 'Unknown error'
+        error: error instanceof Error ? error?.message : 'Unknown error'
       });
       return [];
     }
@@ -835,7 +835,7 @@ ${analysisData.vulnerabilities.map((vuln: SecurityVulnerability) =>
   `### ${vuln.package} - ${vuln.cveId}
 - **Severity**: ${vuln.severity.toUpperCase()}
 - **Vulnerable Versions**: ${vuln.vulnerableVersions.join(', ')}
-- **Patched Version**: ${vuln.patchedVersion || 'None available'}
+- **Patched Version**: ${vuln?.patchedVersion || 'None available'}
 - **Business Risk**: ${vuln.businessRisk}
 - **Mitigation**: ${vuln.mitigationStrategy}
 `).join('\n')}
@@ -846,7 +846,7 @@ ${analysisData.optimizations.map((opt: OptimizationRecommendation) =>
   `### ${opt.type.toUpperCase()} - ${opt.impact.toUpperCase()} Impact
 - **Description**: ${opt.description}
 - **Implementation**: ${opt.implementation}
-- **Estimated Savings**: ${opt.estimatedSavings || 'N/A'}
+- **Estimated Savings**: ${opt?.estimatedSavings || 'N/A'}
 `).join('\n')}
 
 ## Next Steps

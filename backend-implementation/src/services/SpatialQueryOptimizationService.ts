@@ -244,12 +244,12 @@ class SpatialQueryOptimizationService {
       });
 
       return result;
-    } catch (error) {
-      timer.end({ error: error.message });
+    } catch (error: unknown) {
+      timer.end({ error: error instanceof Error ? error?.message : String(error) });
       logger.error("Spatial routes query failed", {
         center,
         radiusKm,
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
       });
       throw new AppError("Failed to find routes within radius", 500);
     }
@@ -378,11 +378,11 @@ class SpatialQueryOptimizationService {
       });
 
       return result;
-    } catch (error) {
-      timer.end({ error: error.message });
+    } catch (error: unknown) {
+      timer.end({ error: error instanceof Error ? error?.message : String(error) });
       logger.error("Spatial bins query failed", {
         bounds,
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
       });
       throw new AppError("Failed to find bins within bounds", 500);
     }
@@ -511,12 +511,12 @@ class SpatialQueryOptimizationService {
       });
 
       return result;
-    } catch (error) {
-      timer.end({ error: error.message });
+    } catch (error: unknown) {
+      timer.end({ error: error instanceof Error ? error?.message : String(error) });
       logger.error("Nearest bins to route query failed", {
         routeId,
         maxDistanceKm,
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
       });
       throw new AppError("Failed to find nearest bins to route", 500);
     }
@@ -608,7 +608,7 @@ class SpatialQueryOptimizationService {
       });
       
       return clearedCount;
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error("Failed to clear spatial cache", error);
       throw new AppError("Failed to clear spatial cache", 500);
     }
@@ -637,14 +637,14 @@ class SpatialQueryOptimizationService {
             { useCache: true, cacheTTL: 1800 } // 30 minutes for warmup
           );
           logger.debug(`Warmed up spatial cache for ${center.name}`);
-        } catch (error) {
+        } catch (error: unknown) {
           logger.warn(`Failed to warmup spatial cache for ${center.name}`, error);
         }
       });
 
       await Promise.allSettled(warmupPromises);
       logger.info("Spatial query cache warmup completed");
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error("Spatial query cache warmup failed", error);
     }
   }

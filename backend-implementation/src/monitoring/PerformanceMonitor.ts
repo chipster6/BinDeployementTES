@@ -161,7 +161,7 @@ export class PerformanceMonitor extends EventEmitter {
           active: poolStats.pool.active,
           idle: poolStats.pool.idle,
           utilization: poolStats.pool.utilization,
-          waitingConnections: poolStats.pool.waiting || 0,
+          waitingConnections: poolStats.pool?.waiting || 0,
         },
         cache: cacheMetrics,
         queries: queryMetrics,
@@ -186,7 +186,7 @@ export class PerformanceMonitor extends EventEmitter {
         avgResponseTime: `${metrics.queries.avgResponseTime}ms`,
       });
 
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error("Failed to collect performance metrics", error);
     }
   }
@@ -231,7 +231,7 @@ export class PerformanceMonitor extends EventEmitter {
         memoryUsage,
       };
 
-    } catch (error) {
+    } catch (error: unknown) {
       logger.warn("Failed to collect cache metrics", error);
       return {
         hitRatio: 0,
@@ -383,7 +383,7 @@ export class PerformanceMonitor extends EventEmitter {
     // Emit alerts
     alerts.forEach(alert => {
       this.emit("alert", alert);
-      logger.warn(`Performance Alert [${alert.level}]: ${alert.message}`, {
+      logger.warn(`Performance Alert [${alert.level}]: ${alert?.message}`, {
         metric: alert.metric,
         value: alert.value,
         threshold: alert.threshold,

@@ -205,7 +205,7 @@ export class UserRepository extends BaseRepository<User> {
           attributes: ["id", "name", "type"],
         },
       ],
-      order: criteria.order || [["updatedAt", "DESC"]],
+      order: criteria?.order || [["updatedAt", "DESC"]],
       attributes: criteria.attributes,
     };
 
@@ -533,7 +533,7 @@ export class UserRepository extends BaseRepository<User> {
       whereClause.emailVerified = criteria.emailVerified;
     }
 
-    if (criteria.createdAfter || criteria.createdBefore) {
+    if (criteria?.createdAfter || criteria.createdBefore) {
       whereClause.createdAt = {};
       if (criteria.createdAfter) {
         whereClause.createdAt[Op.gte] = criteria.createdAfter;

@@ -308,7 +308,7 @@ router.get("/:id/permissions", authenticateToken, async (req, res) => {
         },
       },
     });
-  } catch (error) {
+  } catch (error: unknown) {
     res.status(500).json({
       success: false,
       message: "Internal server error",

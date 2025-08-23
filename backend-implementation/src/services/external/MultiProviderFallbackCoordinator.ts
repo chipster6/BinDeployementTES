@@ -236,11 +236,11 @@ export class MultiProviderFallbackCoordinator {
 
       return result;
 
-    } catch (error) {
-      timer.end({ error: error.message });
+    } catch (error: unknown) {
+      timer.end({ error: error instanceof Error ? error?.message : String(error) });
       logger.error('Routing fallback failed', {
         planId,
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
         businessContext: options.businessContext
       });
 
@@ -250,12 +250,7 @@ export class MultiProviderFallbackCoordinator {
         costImpact: 0,
         latency: timer.duration,
         cacheUsed: false,
-        offlineMode: false,
-        metadata: {
-          totalProvidersTried: 0,
-          fallbackStrategy: "multi_provider_intelligent",
-          businessImpact: "significant",
-          recommendations: [`Routing fallback failed: ${error.message}`]
+        offlineMode: false`]
         }
       };
     }
@@ -331,11 +326,11 @@ export class MultiProviderFallbackCoordinator {
 
       return result;
 
-    } catch (error) {
-      timer.end({ error: error.message });
+    } catch (error: unknown) {
+      timer.end({ error: error instanceof Error ? error?.message : String(error) });
       logger.error('Matrix fallback failed', {
         planId,
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
         locationCount: locations.length
       });
 
@@ -345,12 +340,7 @@ export class MultiProviderFallbackCoordinator {
         costImpact: 0,
         latency: timer.duration,
         cacheUsed: false,
-        offlineMode: false,
-        metadata: {
-          totalProvidersTried: 0,
-          fallbackStrategy: "multi_provider_intelligent",
-          businessImpact: "significant",
-          recommendations: [`Matrix fallback failed: ${error.message}`]
+        offlineMode: false`]
         }
       };
     }
@@ -424,22 +414,16 @@ export class MultiProviderFallbackCoordinator {
           costImpact,
           latency: totalLatency,
           cacheUsed: false,
-          offlineMode: false,
-          metadata: {
-            totalProvidersTried: context.attemptedProviders.length + 1,
-            fallbackStrategy: "multi_provider_intelligent",
-            businessImpact: this.assessBusinessImpact(costImpact, providerPlan.priority),
-            recommendations: [
-              `Successfully used ${providerPlan.providerId} as fallback provider`,
+          offlineMode: false as fallback provider`,
               `Cost impact: ${costImpact.toFixed(1)}%`,
               `Latency: ${callLatency}ms`
             ]
           }
         };
 
-      } catch (error) {
+      } catch (error: unknown) {
         logger.warn(`Provider ${providerPlan.providerId} failed`, {
-          error: error.message,
+          error: error instanceof Error ? error?.message : String(error),
           priority: providerPlan.priority
         });
 
@@ -456,7 +440,7 @@ export class MultiProviderFallbackCoordinator {
           success: false,
           latency: 0,
           cost: 0,
-          error: error.message
+          error: error instanceof Error ? error?.message : String(error)
         });
 
         // Continue to next provider
@@ -478,18 +462,7 @@ export class MultiProviderFallbackCoordinator {
       costImpact: 0,
       latency: totalLatency,
       cacheUsed: false,
-      offlineMode: false,
-      metadata: {
-        totalProvidersTried: context.attemptedProviders.length,
-        fallbackStrategy: "multi_provider_intelligent",
-        businessImpact: "significant",
-        recommendations: [
-          "All providers failed",
-          "Consider checking network connectivity",
-          "Review provider configurations",
-          "Implement additional fallback strategies"
-        ]
-      }
+      offlineMode: false
     };
   }
 
@@ -589,7 +562,7 @@ export class MultiProviderFallbackCoordinator {
     }
     
     // Sort by calculated score (descending)
-    rankedProviders.sort((a, b) => ((b as any).calculatedScore || 0) - ((a as any).calculatedScore || 0));
+    rankedProviders.sort((a, b) => ((b as any)?.calculatedScore || 0) - ((a as any)?.calculatedScore || 0));
     
     return rankedProviders;
   }
@@ -612,7 +585,7 @@ export class MultiProviderFallbackCoordinator {
     switch (providerId) {
       case 'graphhopper_primary':
         const ghResult = await this.graphHopperService.getTrafficAwareRoute(start, end, {
-          vehicle: options.vehicleType || 'truck',
+          vehicle: options?.vehicleType || 'truck',
           traffic: options.includeTraffic !== false
         });
         if (!ghResult.success || !ghResult.data) {
@@ -622,7 +595,7 @@ export class MultiProviderFallbackCoordinator {
         
       case 'google_maps_fallback':
         const gmResult = await this.mapsService.getRoute(start, end, {
-          vehicle: options.vehicleType || 'truck',
+          vehicle: options?.vehicleType || 'truck',
           traffic: options.includeTraffic !== false
         });
         if (!gmResult.success || !gmResult.data) {
@@ -650,7 +623,7 @@ export class MultiProviderFallbackCoordinator {
     switch (providerId) {
       case 'graphhopper_primary':
         const ghResult = await this.graphHopperService.getRouteMatrix(locations, {
-          vehicle: options.vehicleType || 'truck',
+          vehicle: options?.vehicleType || 'truck',
           traffic: options.includeTraffic !== false
         });
         if (!ghResult.success || !ghResult.data) {
@@ -660,7 +633,7 @@ export class MultiProviderFallbackCoordinator {
         
       case 'google_maps_fallback':
         const gmResult = await this.mapsService.getDistanceMatrix(locations, {
-          vehicle: options.vehicleType || 'truck',
+          vehicle: options?.vehicleType || 'truck',
           traffic: options.includeTraffic !== false
         });
         if (!gmResult.success || !gmResult.data) {
@@ -686,9 +659,9 @@ export class MultiProviderFallbackCoordinator {
     setInterval(async () => {
       try {
         await this.updateProviderHealth();
-      } catch (error) {
+      } catch (error: unknown) {
         logger.error('Error in provider monitoring', {
-          error: error.message
+          error: error instanceof Error ? error?.message : String(error)
         });
       }
     }, 30000); // Every 30 seconds
@@ -703,9 +676,9 @@ export class MultiProviderFallbackCoordinator {
     setInterval(async () => {
       try {
         await this.analyzeProviderPerformance();
-      } catch (error) {
+      } catch (error: unknown) {
         logger.error('Error in performance analysis', {
-          error: error.message
+          error: error instanceof Error ? error?.message : String(error)
         });
       }
     }, 300000); // Every 5 minutes

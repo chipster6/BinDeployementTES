@@ -100,8 +100,8 @@ export class EnhancedAIMLOptimizer extends BaseService<any> {
       await this.loadExistingDecisionTrees();
 
       logger.info("Enhanced AI/ML Optimizer initialized");
-    } catch (error) {
-      logger.error("Failed to initialize Enhanced AI/ML Optimizer", { error: error.message });
+    } catch (error: unknown) {
+      logger.error("Failed to initialize Enhanced AI/ML Optimizer", { error: error instanceof Error ? error?.message : String(error) });
     }
   }
 
@@ -178,14 +178,14 @@ export class EnhancedAIMLOptimizer extends BaseService<any> {
         message: `AI/ML optimization analysis completed in ${duration}ms with ${overallImprovementProjection}% projected improvement`
       };
 
-    } catch (error) {
-      timer.end({ error: error.message });
-      logger.error("AI/ML optimization analysis failed", { error: error.message });
+    } catch (error: unknown) {
+      timer.end({ error: error instanceof Error ? error?.message : String(error) });
+      logger.error("AI/ML optimization analysis failed", { error: error instanceof Error ? error?.message : String(error) });
       
       return {
         success: false,
         message: "Failed to run AI/ML optimization analysis",
-        errors: [error.message]
+        errors: [error instanceof Error ? error?.message : String(error)]
       };
     }
   }
@@ -231,8 +231,8 @@ export class EnhancedAIMLOptimizer extends BaseService<any> {
       // Sort by priority (highest impact first)
       optimizations.sort((a, b) => b.priority - a.priority);
 
-    } catch (error) {
-      logger.warn("Feature flag optimization failed", { error: error.message });
+    } catch (error: unknown) {
+      logger.warn("Feature flag optimization failed", { error: error instanceof Error ? error?.message : String(error) });
     }
 
     return optimizations;
@@ -267,8 +267,8 @@ export class EnhancedAIMLOptimizer extends BaseService<any> {
         }
       }
 
-    } catch (error) {
-      logger.warn("Vector database optimization failed", { error: error.message });
+    } catch (error: unknown) {
+      logger.warn("Vector database optimization failed", { error: error instanceof Error ? error?.message : String(error) });
     }
 
     return optimizations;
@@ -306,8 +306,8 @@ export class EnhancedAIMLOptimizer extends BaseService<any> {
       // Sort by expected improvement (highest first)
       optimizations.sort((a, b) => b.expectedImprovement - a.expectedImprovement);
 
-    } catch (error) {
-      logger.warn("Model serving optimization failed", { error: error.message });
+    } catch (error: unknown) {
+      logger.warn("Model serving optimization failed", { error: error instanceof Error ? error?.message : String(error) });
     }
 
     return optimizations;
@@ -359,8 +359,8 @@ export class EnhancedAIMLOptimizer extends BaseService<any> {
         });
       }
 
-    } catch (error) {
-      logger.warn("AI/ML cache optimization failed", { error: error.message });
+    } catch (error: unknown) {
+      logger.warn("AI/ML cache optimization failed", { error: error instanceof Error ? error?.message : String(error) });
     }
 
     return optimizations;
@@ -382,8 +382,8 @@ export class EnhancedAIMLOptimizer extends BaseService<any> {
         memoryUsage: parseFloat(performanceSummary.current?.aimlMemoryUsage || '2048'),
         gpuUtilization: parseFloat(performanceSummary.current?.gpuUtilization || '0')
       };
-    } catch (error) {
-      logger.warn("Failed to collect AI/ML performance metrics", { error: error.message });
+    } catch (error: unknown) {
+      logger.warn("Failed to collect AI/ML performance metrics", { error: error instanceof Error ? error?.message : String(error) });
       
       // Return default metrics
       return {
@@ -605,8 +605,8 @@ export class EnhancedAIMLOptimizer extends BaseService<any> {
           this.decisionTrees.set(key, tree as DecisionTreeNode);
         });
       }
-    } catch (error) {
-      logger.warn("Failed to load existing decision trees", { error: error.message });
+    } catch (error: unknown) {
+      logger.warn("Failed to load existing decision trees", { error: error instanceof Error ? error?.message : String(error) });
     }
   }
 
@@ -659,11 +659,11 @@ export class EnhancedAIMLOptimizer extends BaseService<any> {
         data: immediate,
         message: `Found ${immediate.length} immediate AI/ML optimization opportunities`
       };
-    } catch (error) {
+    } catch (error: unknown) {
       return {
         success: false,
         message: "Failed to get immediate AI/ML recommendations",
-        errors: [error.message]
+        errors: [error instanceof Error ? error?.message : String(error)]
       };
     }
   }

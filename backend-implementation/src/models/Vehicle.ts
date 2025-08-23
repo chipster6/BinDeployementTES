@@ -305,7 +305,7 @@ export class Vehicle extends Model<
 
   // Check if vehicle has capacity information
   public hasCapacityInfo(): boolean {
-    return !!(this.capacityCubicYards || this.capacityWeightLbs);
+    return !!(this?.capacityCubicYards || this.capacityWeightLbs);
   }
 
   /**
@@ -889,7 +889,7 @@ Vehicle.init(
       },
       beforeUpdate: (vehicle: Vehicle) => {
         // Increment version for optimistic locking
-        vehicle.version = (vehicle.version || 1) + 1;
+        vehicle.version = (vehicle?.version || 1) + 1;
 
         // Update maintenance dates if last maintenance date is updated
         if (

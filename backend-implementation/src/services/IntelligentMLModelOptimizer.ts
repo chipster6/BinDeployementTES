@@ -462,18 +462,18 @@ export class IntelligentMLModelOptimizer extends BaseService<any> {
         message: "ML model inference optimization completed successfully"
       };
 
-    } catch (error) {
-      timer.end({ error: error.message });
+    } catch (error: unknown) {
+      timer.end({ error: error instanceof Error ? error?.message : String(error) });
       logger.error("ML model inference optimization failed", {
         service: this.serviceName,
         modelId,
-        error: error.message
+        error: error instanceof Error ? error?.message : String(error)
       });
 
       return {
         success: false,
         message: "ML model inference optimization failed",
-        errors: [error.message]
+        errors: [error instanceof Error ? error?.message : String(error)]
       };
     }
   }
@@ -573,18 +573,18 @@ export class IntelligentMLModelOptimizer extends BaseService<any> {
         }
       };
 
-    } catch (error) {
-      timer.end({ error: error.message });
+    } catch (error: unknown) {
+      timer.end({ error: error instanceof Error ? error?.message : String(error) });
       logger.error("Model performance benchmark failed", {
         service: this.serviceName,
         modelId,
-        error: error.message
+        error: error instanceof Error ? error?.message : String(error)
       });
 
       return {
         success: false,
         message: "Model performance benchmark failed",
-        errors: [error.message]
+        errors: [error instanceof Error ? error?.message : String(error)]
       };
     }
   }
@@ -670,18 +670,18 @@ export class IntelligentMLModelOptimizer extends BaseService<any> {
         message: "Intelligent model scaling deployed successfully"
       };
 
-    } catch (error) {
-      timer.end({ error: error.message });
+    } catch (error: unknown) {
+      timer.end({ error: error instanceof Error ? error?.message : String(error) });
       logger.error("Failed to deploy intelligent model scaling", {
         service: this.serviceName,
         modelId,
-        error: error.message
+        error: error instanceof Error ? error?.message : String(error)
       });
 
       return {
         success: false,
         message: "Failed to deploy intelligent model scaling",
-        errors: [error.message]
+        errors: [error instanceof Error ? error?.message : String(error)]
       };
     }
   }
@@ -766,17 +766,17 @@ export class IntelligentMLModelOptimizer extends BaseService<any> {
         message: "Model optimization dashboard data retrieved successfully"
       };
 
-    } catch (error) {
-      timer.end({ error: error.message });
+    } catch (error: unknown) {
+      timer.end({ error: error instanceof Error ? error?.message : String(error) });
       logger.error("Failed to get model optimization dashboard", {
         service: this.serviceName,
-        error: error.message
+        error: error instanceof Error ? error?.message : String(error)
       });
 
       return {
         success: false,
         message: "Failed to get model optimization dashboard",
-        errors: [error.message]
+        errors: [error instanceof Error ? error?.message : String(error)]
       };
     }
   }
@@ -936,11 +936,11 @@ export class IntelligentMLModelOptimizer extends BaseService<any> {
       this.modelMetrics.set(modelId, modelMetrics);
 
       return metrics;
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error("Failed to collect model metrics", {
         service: this.serviceName,
         modelId,
-        error: error.message
+        error: error instanceof Error ? error?.message : String(error)
       });
       return null;
     }

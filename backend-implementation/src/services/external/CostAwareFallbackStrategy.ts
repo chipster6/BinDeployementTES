@@ -363,18 +363,18 @@ export class CostAwareFallbackStrategy extends EventEmitter {
 
       return fallbackResult;
 
-    } catch (error) {
+    } catch (error: unknown) {
       const decisionTime = Date.now() - startTime;
       
       logger.error("Cost-aware fallback decision failed", {
         decisionId,
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
         decisionTime
       });
 
       this.emitFallbackEvent("cost_aware_fallback_failed", {
         decisionId,
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
         decisionTime
       });
 
@@ -490,13 +490,7 @@ export class CostAwareFallbackStrategy extends EventEmitter {
           timeline: "within 24 hours",
           costImpact: 1000
         }
-      ],
-      metadata: {
-        decisionTime: 0, // Will be set by caller
-        confidenceScore: selectedNode ? 85 : 30,
-        algorithmVersion: "v1.0.0-budget-preserving",
-        fallbackReason: "Budget preservation required due to low remaining budget"
-      }
+      ]
     };
   }
 
@@ -550,13 +544,7 @@ export class CostAwareFallbackStrategy extends EventEmitter {
           timeline: "within 48 hours",
           costImpact: 500
         }
-      ],
-      metadata: {
-        decisionTime: 0,
-        confidenceScore: selectedNode ? 95 : 50,
-        algorithmVersion: "v1.0.0-emergency-override",
-        fallbackReason: "Emergency override authorized for critical error scenario"
-      }
+      ]
     };
   }
 
@@ -605,13 +593,7 @@ export class CostAwareFallbackStrategy extends EventEmitter {
           timeline: "within 4 hours",
           costImpact: 200
         }
-      ],
-      metadata: {
-        decisionTime: 0,
-        confidenceScore: selectedNode ? 80 : 40,
-        algorithmVersion: "v1.0.0-graduated-degradation",
-        fallbackReason: "Balanced cost-performance approach with acceptable degradation"
-      }
+      ]
     };
   }
 
@@ -663,13 +645,7 @@ export class CostAwareFallbackStrategy extends EventEmitter {
           timeline: "within 6 hours",
           costImpact: 500
         }
-      ],
-      metadata: {
-        decisionTime: 0,
-        confidenceScore: selectedNode ? 75 : 25,
-        algorithmVersion: "v1.0.0-cost-throttling",
-        fallbackReason: "Cost throttling applied to stay within increase limits"
-      }
+      ]
     };
   }
 
@@ -714,13 +690,7 @@ export class CostAwareFallbackStrategy extends EventEmitter {
           timeline: "within 2 hours",
           costImpact: 300
         }
-      ],
-      metadata: {
-        decisionTime: 0,
-        confidenceScore: selectedNode ? 70 : 20,
-        algorithmVersion: "v1.0.0-performance-sacrifice",
-        fallbackReason: "Performance sacrificed for cost optimization priority"
-      }
+      ]
     };
   }
 
@@ -783,13 +753,7 @@ export class CostAwareFallbackStrategy extends EventEmitter {
           timeline: "within 24 hours",
           costImpact: 0
         }
-      ],
-      metadata: {
-        decisionTime: 0,
-        confidenceScore: selectedNode ? 85 : 35,
-        algorithmVersion: "v1.0.0-hybrid-cost-aware",
-        fallbackReason: "Hybrid approach balancing cost, performance, and risk factors"
-      }
+      ]
     };
   }
 
@@ -1024,9 +988,9 @@ export class CostAwareFallbackStrategy extends EventEmitter {
     for (const [serviceName, config] of this.budgetConfigs) {
       try {
         await this.updateServiceBudgetMetrics(serviceName, config);
-      } catch (error) {
+      } catch (error: unknown) {
         logger.error(`Budget monitoring update failed for ${serviceName}`, {
-          error: error.message
+          error: error instanceof Error ? error?.message : String(error)
         });
       }
     }
@@ -1106,9 +1070,9 @@ export class CostAwareFallbackStrategy extends EventEmitter {
     for (const serviceName of this.budgetConfigs.keys()) {
       try {
         await this.analyzeServiceCostOptimization(serviceName);
-      } catch (error) {
+      } catch (error: unknown) {
         logger.error(`Cost optimization analysis failed for ${serviceName}`, {
-          error: error.message
+          error: error instanceof Error ? error?.message : String(error)
         });
       }
     }

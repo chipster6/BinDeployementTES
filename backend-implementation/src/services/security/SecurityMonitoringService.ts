@@ -23,7 +23,7 @@
 
 import { BaseService, ServiceResult } from "@/services/BaseService";
 import { AuditLog, AuditAction, SensitivityLevel } from "@/models/AuditLog";
-import { User } from "@/models/User";
+import type { User } from "@/models/User";
 import { logger, Timer } from "@/utils/logger";
 import { AppError, ValidationError } from "@/middleware/errorHandler";
 import { redisClient } from "@/config/redis";
@@ -228,11 +228,11 @@ export class SecurityMonitoringService extends BaseService<AuditLog> {
       });
 
       return { success: true, data: event };
-    } catch (error) {
-      timer.end({ error: error.message });
+    } catch (error: unknown) {
+      timer.end({ error: error instanceof Error ? error?.message : String(error) });
       logger.error("Failed to process security event", {
         eventData,
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
       });
 
       throw new AppError("Failed to process security event", 500);
@@ -279,14 +279,14 @@ export class SecurityMonitoringService extends BaseService<AuditLog> {
       });
 
       return { success: true, data: dashboardData };
-    } catch (error) {
-      timer.end({ error: error.message });
+    } catch (error: unknown) {
+      timer.end({ error: error instanceof Error ? error?.message : String(error) });
       logger.error("Failed to get dashboard data", {
         timeframe,
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
       });
 
-      return { success: false, errors: [error.message] };
+      return { success: false, errors: [error instanceof Error ? error?.message : String(error)] };
     }
   }
 
@@ -310,8 +310,8 @@ export class SecurityMonitoringService extends BaseService<AuditLog> {
     const timer = new Timer("SecurityMonitoringService.getSecurityEvents");
 
     try {
-      const limit = Math.min(filters.limit || 50, this.MAX_EVENTS_PER_QUERY);
-      const offset = filters.offset || 0;
+      const limit = Math.min(filters?.limit || 50, this.MAX_EVENTS_PER_QUERY);
+      const offset = filters?.offset || 0;
 
       // Build cache key
       const cacheKey = `events:${JSON.stringify(filters)}`;
@@ -333,14 +333,14 @@ export class SecurityMonitoringService extends BaseService<AuditLog> {
 
       timer.end({ success: true, count: events.length, total });
       return { success: true, data: result };
-    } catch (error) {
-      timer.end({ error: error.message });
+    } catch (error: unknown) {
+      timer.end({ error: error instanceof Error ? error?.message : String(error) });
       logger.error("Failed to get security events", {
         filters,
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
       });
 
-      return { success: false, errors: [error.message] };
+      return { success: false, errors: [error instanceof Error ? error?.message : String(error)] };
     }
   }
 
@@ -365,11 +365,6 @@ export class SecurityMonitoringService extends BaseService<AuditLog> {
         recipients: customRecipients || await this.getAlertRecipients(event.severity),
         status: "pending",
         retryCount: 0,
-        metadata: {
-          eventType: event.type,
-          source: event.source,
-          correlationId: event.correlationId,
-        },
       };
 
       // Store alert
@@ -383,11 +378,11 @@ export class SecurityMonitoringService extends BaseService<AuditLog> {
 
       timer.end({ success: true, severity: alert.severity });
       return { success: true, data: alert };
-    } catch (error) {
-      timer.end({ error: error.message });
+    } catch (error: unknown) {
+      timer.end({ error: error instanceof Error ? error?.message : String(error) });
       logger.error("Failed to create security alert", {
         eventId: event.id,
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
       });
 
       throw new AppError("Failed to create security alert", 500);
@@ -429,14 +424,14 @@ export class SecurityMonitoringService extends BaseService<AuditLog> {
 
       timer.end({ success: true, timeframe });
       return { success: true, data: metrics };
-    } catch (error) {
-      timer.end({ error: error.message });
+    } catch (error: unknown) {
+      timer.end({ error: error instanceof Error ? error?.message : String(error) });
       logger.error("Failed to get security metrics", {
         timeframe,
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
       });
 
-      return { success: false, errors: [error.message] };
+      return { success: false, errors: [error instanceof Error ? error?.message : String(error)] };
     }
   }
 
@@ -496,12 +491,12 @@ export class SecurityMonitoringService extends BaseService<AuditLog> {
 
       timer.end({ success: true, status });
       return { success: true, data: event };
-    } catch (error) {
-      timer.end({ error: error.message });
+    } catch (error: unknown) {
+      timer.end({ error: error instanceof Error ? error?.message : String(error) });
       logger.error("Failed to update event status", {
         eventId,
         status,
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
       });
 
       if (error instanceof ValidationError) {
@@ -608,8 +603,8 @@ export class SecurityMonitoringService extends BaseService<AuditLog> {
       const redisKey = `security_event:${eventId}`;
       const eventData = await redisClient.get(redisKey);
       return eventData ? JSON.parse(eventData) : null;
-    } catch (error) {
-      logger.warn("Failed to get security event by ID", { eventId, error: error.message });
+    } catch (error: unknown) {
+      logger.warn("Failed to get security event by ID", { eventId, error: error instanceof Error ? error?.message : String(error) });
       return null;
     }
   }
@@ -961,7 +956,7 @@ export class SecurityMonitoringService extends BaseService<AuditLog> {
     // This would integrate with user management to get security team members
     const recipients = [];
 
-    if (severity === SecurityEventSeverity.CRITICAL || severity === SecurityEventSeverity.HIGH) {
+    if (severity === SecurityEventSeverity?.CRITICAL || severity === SecurityEventSeverity.HIGH) {
       recipients.push("security-team@company.com", "on-call@company.com");
     } else {
       recipients.push("security-team@company.com");

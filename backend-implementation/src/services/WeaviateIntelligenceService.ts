@@ -187,7 +187,7 @@ export class WeaviateIntelligenceService extends BaseMlService {
         url: weaviateConfig.url,
         timeout: weaviateConfig.timeout
       });
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('Failed to initialize Weaviate connections', error);
       throw new AppError('Weaviate initialization failed', 500);
     }
@@ -213,7 +213,7 @@ export class WeaviateIntelligenceService extends BaseMlService {
       }
 
       logger.info('HNSW parameters optimized for <150ms search performance', optimizedParams);
-    } catch (error) {
+    } catch (error: unknown) {
       logger.warn('HNSW optimization failed, using defaults', error);
     }
   }
@@ -329,17 +329,17 @@ export class WeaviateIntelligenceService extends BaseMlService {
         }
       };
 
-    } catch (error) {
-      timer.end({ error: error.message });
+    } catch (error: unknown) {
+      timer.end({ error: error instanceof Error ? error?.message : String(error) });
       this.updatePerformanceMetrics(Date.now() - searchStartTime, true);
       
       logger.error('Vector search failed', {
         query: request.query,
         className: request.className,
-        error: error.message
+        error: error instanceof Error ? error?.message : String(error)
       });
 
-      throw new AppError(`Vector search failed: ${error.message}`, 500);
+      throw new AppError(`Vector search failed: ${error instanceof Error ? error?.message : String(error)}`, 500);
     }
   }
 
@@ -352,9 +352,9 @@ export class WeaviateIntelligenceService extends BaseMlService {
 
     try {
       let query = client.graphql.get()
-        .withClassName(request.className || 'WasteOperation')
-        .withLimit(request.limit || 10)
-        .withOffset(request.offset || 0);
+        .withClassName(request?.className || 'WasteOperation')
+        .withLimit(request?.limit || 10)
+        .withOffset(request?.offset || 0);
 
       // Add fields to retrieve
       query = query.withFields('_id className _additional { id certainty distance }');
@@ -417,11 +417,11 @@ export class WeaviateIntelligenceService extends BaseMlService {
         }
       };
 
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('Weaviate query execution failed', {
         query: request.query,
         className: request.className,
-        error: error.message
+        error: error instanceof Error ? error?.message : String(error)
       });
       throw error;
     }
@@ -453,10 +453,10 @@ export class WeaviateIntelligenceService extends BaseMlService {
         resultsCount: result.results.length,
         confidence: result.confidence
       });
-    } catch (error) {
+    } catch (error: unknown) {
       logger.warn('Failed to cache vector search result', {
         cacheKey,
-        error: error.message
+        error: error instanceof Error ? error?.message : String(error)
       });
     }
   }
@@ -467,11 +467,11 @@ export class WeaviateIntelligenceService extends BaseMlService {
   private generateVectorSearchCacheKey(request: VectorSearchRequest): string {
     const keyComponents = [
       request.query,
-      request.className || 'default',
+      request?.className || 'default',
       request.searchType,
-      request.limit || 10,
-      request.offset || 0,
-      JSON.stringify(request.filters || {})
+      request?.limit || 10,
+      request?.offset || 0,
+      JSON.stringify(request?.filters || {})
     ];
 
     const hash = Buffer.from(keyComponents.join('|')).toString('base64').substring(0, 16);
@@ -505,14 +505,9 @@ export class WeaviateIntelligenceService extends BaseMlService {
   private processVectorResults(rawResults: any[]): VectorSearchResult[] {
     return rawResults.map(result => ({
       id: result._additional?.id || result._id,
-      className: result.className || 'WasteOperation',
+      className: result?.className || 'WasteOperation',
       properties: this.extractProperties(result),
-      score: result._additional?.certainty || 0,
-      metadata: {
-        distance: result._additional?.distance || 0,
-        certainty: result._additional?.certainty || 0,
-        explanation: this.generateExplanation(result)
-      }
+      score: result._additional?.certainty || 0
     }));
   }
 
@@ -577,7 +572,7 @@ export class WeaviateIntelligenceService extends BaseMlService {
       try {
         await this.reportPerformanceMetrics();
         await this.checkSLACompliance();
-      } catch (error) {
+      } catch (error: unknown) {
         logger.warn('Performance monitoring error', error);
       }
     }, 30000); // Every 30 seconds
@@ -603,7 +598,7 @@ export class WeaviateIntelligenceService extends BaseMlService {
         errorRate: `${(metrics.errorRate * 100).toFixed(2)}%`,
         connectionHealth: metrics.connectionHealth
       });
-    } catch (error) {
+    } catch (error: unknown) {
       logger.warn('Failed to report performance metrics', error);
     }
   }
@@ -660,7 +655,7 @@ export class WeaviateIntelligenceService extends BaseMlService {
       await this.optimizeHNSWParameters();
 
       logger.info('Adaptive optimization completed');
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('Adaptive optimization failed', error);
     }
   }
@@ -688,7 +683,7 @@ export class WeaviateIntelligenceService extends BaseMlService {
         previousSize: currentSize,
         newSize: this.connectionPool.length
       });
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('Failed to expand connection pool', error);
     }
   }
@@ -716,7 +711,7 @@ export class WeaviateIntelligenceService extends BaseMlService {
         connectionHealth,
         cacheHitRatio: memoryStats.totalHits / Math.max(memoryStats.totalHits + 1, 1)
       };
-    } catch (error) {
+    } catch (error: unknown) {
       logger.warn('Failed to get vector performance metrics', error);
       return {
         ...this.performanceMetrics,
@@ -757,7 +752,7 @@ export class WeaviateIntelligenceService extends BaseMlService {
       logger.info('Vector cache warmup completed', {
         queriesWarmed: commonQueries.length
       });
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('Vector cache warmup failed', error);
     }
   }
@@ -787,11 +782,11 @@ export class WeaviateIntelligenceService extends BaseMlService {
           }
         }
       };
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('Failed to get vector service stats', error);
       return {
         service: this.serviceName,
-        vector: { error: error.message }
+        vector: { error: error instanceof Error ? error?.message : String(error) }
       };
     }
   }

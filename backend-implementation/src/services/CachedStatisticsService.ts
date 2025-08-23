@@ -205,8 +205,8 @@ class CachedStatisticsService {
       });
 
       return routeStatistics;
-    } catch (error) {
-      timer.end({ error: error.message });
+    } catch (error: unknown) {
+      timer.end({ error: error instanceof Error ? error?.message : String(error) });
       logger.error("Route statistics generation failed", error);
       throw new AppError("Failed to generate route statistics", 500);
     }
@@ -321,8 +321,8 @@ class CachedStatisticsService {
       });
 
       return binStatistics;
-    } catch (error) {
-      timer.end({ error: error.message });
+    } catch (error: unknown) {
+      timer.end({ error: error instanceof Error ? error?.message : String(error) });
       logger.error("Bin statistics generation failed", error);
       throw new AppError("Failed to generate bin statistics", 500);
     }
@@ -412,8 +412,8 @@ class CachedStatisticsService {
       });
 
       return dashboardStatistics;
-    } catch (error) {
-      timer.end({ error: error.message });
+    } catch (error: unknown) {
+      timer.end({ error: error instanceof Error ? error?.message : String(error) });
       logger.error("Dashboard statistics generation failed", error);
       throw new AppError("Failed to generate dashboard statistics", 500);
     }
@@ -520,7 +520,7 @@ class CachedStatisticsService {
         customerId,
         patterns: patterns.length,
       });
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error("Statistics cache invalidation failed", error);
     }
   }

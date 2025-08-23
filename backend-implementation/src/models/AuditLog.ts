@@ -326,7 +326,7 @@ export class AuditLog extends Model<
       recordId: this.recordId,
       action: this.action,
       timestamp: this.accessTimestamp,
-      user: this.userId || "system",
+      user: this?.userId || "system",
       sensitiveData: this.sensitiveDataAccessed,
       changes: this.getChangeSummary(),
     };
@@ -578,7 +578,7 @@ AuditLog.init(
         if (auditLog.sensitiveDataAccessed) {
           console.warn(
             `Sensitive data access logged: ${auditLog.tableName}:${auditLog.recordId} ` +
-              `by user ${auditLog.userId || "system"}`,
+              `by user ${auditLog?.userId || "system"}`,
           );
         }
       },

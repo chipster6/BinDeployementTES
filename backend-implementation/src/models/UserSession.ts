@@ -151,7 +151,7 @@ export class UserSession extends Model<
    * Check if session is expired
    */
   isExpired(): boolean {
-    return new Date() > this.expiresAt || this.status !== SessionStatus.ACTIVE;
+    return new Date() > this?.expiresAt || this.status !== SessionStatus.ACTIVE;
   }
 
   /**
@@ -262,7 +262,7 @@ export class UserSession extends Model<
       if (userSecurity && userSecurity.failedLoginAttempts > 0) {
         riskScore += Math.min(userSecurity.failedLoginAttempts * 5, 25);
       }
-    } catch (error) {
+    } catch (error: unknown) {
       // Silently handle if UserSecurity is not available
     }
 

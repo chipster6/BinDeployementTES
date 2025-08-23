@@ -57,12 +57,12 @@ router.post(
     try {
       logger.info("🚀 Performance optimization framework deployment requested", {
         user: req.user?.id,
-        environment: req.body.environment || "development",
-        dryRun: req.body.dryRun || false
+        environment: req.body?.environment || "development",
+        dryRun: req.body?.dryRun || false
       });
 
       await performanceOptimizationController.deployOptimizationFramework(req, res);
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error("Performance optimization deployment route error", error);
       res.status(500).json({ success: false, message: "Internal server error" });
     }
@@ -92,11 +92,11 @@ router.post(
         includeMemoryCPU: req.body.includeMemoryCPU !== false,
         includeAPIOptimization: req.body.includeAPIOptimization !== false,
         includeDashboardOptimization: req.body.includeDashboardOptimization !== false,
-        dryRun: req.body.dryRun || false
+        dryRun: req.body?.dryRun || false
       });
 
       await performanceOptimizationController.executeComprehensiveOptimization(req, res);
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error("Performance optimization execution route error", error);
       res.status(500).json({ success: false, message: "Internal server error" });
     }
@@ -120,11 +120,11 @@ router.get(
       logger.debug("📊 Performance optimization status requested", {
         user: req.user?.id,
         includeDetails: req.query.includeDetails === "true",
-        service: req.query.service || "all"
+        service: req.query?.service || "all"
       });
 
       await performanceOptimizationController.getOptimizationStatus(req, res);
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error("Performance optimization status route error", error);
       res.status(500).json({ success: false, message: "Internal server error" });
     }
@@ -149,13 +149,13 @@ router.get(
     try {
       logger.debug("📈 Performance metrics requested", {
         user: req.user?.id,
-        type: req.query.type || "all",
+        type: req.query?.type || "all",
         includeHistory: req.query.includeHistory === "true",
-        limit: req.query.limit || 100
+        limit: req.query?.limit || 100
       });
 
       await performanceOptimizationController.getPerformanceMetrics(req, res);
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error("Performance metrics route error", error);
       res.status(500).json({ success: false, message: "Internal server error" });
     }
@@ -179,13 +179,13 @@ router.get(
     try {
       logger.debug("📊 Performance benchmarks requested", {
         user: req.user?.id,
-        service: req.query.service || "all",
-        limit: req.query.limit || 10,
+        service: req.query?.service || "all",
+        limit: req.query?.limit || 10,
         includeTrends: req.query.includeTrends === "true"
       });
 
       await performanceOptimizationController.getPerformanceBenchmarks(req, res);
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error("Performance benchmarks route error", error);
       res.status(500).json({ success: false, message: "Internal server error" });
     }
@@ -212,12 +212,12 @@ router.post(
       logger.info("🤝 Performance coordination requested", {
         user: req.user?.id,
         services: req.body.services,
-        coordinationType: req.body.coordinationType || "parallel",
-        priority: req.body.priority || "medium"
+        coordinationType: req.body?.coordinationType || "parallel",
+        priority: req.body?.priority || "medium"
       });
 
       await performanceOptimizationController.coordinatePerformanceOptimization(req, res);
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error("Performance coordination route error", error);
       res.status(500).json({ success: false, message: "Internal server error" });
     }
@@ -254,7 +254,7 @@ router.get(
           message: "Memory profiling endpoint - implementation pending"
         }
       });
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error("Memory profiling route error", error);
       res.status(500).json({ success: false, message: "Internal server error" });
     }
@@ -290,7 +290,7 @@ router.get(
           message: "API acceleration status endpoint - implementation pending"
         }
       });
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error("API acceleration status route error", error);
       res.status(500).json({ success: false, message: "Internal server error" });
     }
@@ -326,7 +326,7 @@ router.get(
           message: "Dashboard optimization status endpoint - implementation pending"
         }
       });
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error("Dashboard optimization status route error", error);
       res.status(500).json({ success: false, message: "Internal server error" });
     }
@@ -351,9 +351,9 @@ router.post(
     try {
       logger.info("🧪 Performance load test requested", {
         user: req.user?.id,
-        duration: req.body.duration || 60,
-        concurrency: req.body.concurrency || 10,
-        dryRun: req.body.dryRun || false
+        duration: req.body?.duration || 60,
+        concurrency: req.body?.concurrency || 10,
+        dryRun: req.body?.dryRun || false
       });
 
       // This would execute performance load testing
@@ -361,12 +361,12 @@ router.post(
         success: true,
         data: {
           testStatus: "initiated",
-          duration: req.body.duration || 60,
-          concurrency: req.body.concurrency || 10,
+          duration: req.body?.duration || 60,
+          concurrency: req.body?.concurrency || 10,
           message: "Performance load test endpoint - implementation pending"
         }
       });
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error("Performance load test route error", error);
       res.status(500).json({ success: false, message: "Internal server error" });
     }
@@ -390,8 +390,8 @@ router.get(
     try {
       logger.debug("📋 Performance report requested", {
         user: req.user?.id,
-        timeRange: req.query.timeRange || "7d",
-        format: req.query.format || "json",
+        timeRange: req.query?.timeRange || "7d",
+        format: req.query?.format || "json",
         includeRecommendations: req.query.includeRecommendations === "true"
       });
 
@@ -400,12 +400,12 @@ router.get(
         success: true,
         data: {
           reportType: "summary",
-          timeRange: req.query.timeRange || "7d",
-          format: req.query.format || "json",
+          timeRange: req.query?.timeRange || "7d",
+          format: req.query?.format || "json",
           message: "Performance report endpoint - implementation pending"
         }
       });
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error("Performance report route error", error);
       res.status(500).json({ success: false, message: "Internal server error" });
     }
@@ -417,16 +417,16 @@ router.get(
  */
 router.use((error: any, req: any, res: any, next: any) => {
   logger.error("Performance optimization route error", {
-    error: error.message,
-    stack: error.stack,
+    error: error instanceof Error ? error?.message : String(error),
+    stack: error instanceof Error ? error?.stack : undefined,
     path: req.path,
     method: req.method,
     user: req.user?.id
   });
 
-  res.status(error.statusCode || 500).json({
+  res.status(error?.statusCode || 500).json({
     success: false,
-    message: error.message || "Performance optimization operation failed",
+    message: error instanceof Error ? error?.message : String(error) || "Performance optimization operation failed",
     timestamp: new Date().toISOString()
   });
 });

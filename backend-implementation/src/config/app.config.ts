@@ -11,7 +11,7 @@
  * Version: 2.0.0 - Refactored from monolithic config
  */
 
-import Joi from "joi";
+import * as Joi from "joi";
 
 /**
  * Application environment variable validation schema
@@ -87,7 +87,7 @@ export const appEnvSchema = Joi.object({
 export const validateAppEnv = () => {
   const { error, value } = appEnvSchema.validate(process.env);
   if (error) {
-    throw new Error(`App configuration validation error: ${error.message}`);
+    throw new Error(`App configuration validation error: ${error instanceof Error ? error?.message : String(error)}`);
   }
   return value;
 };

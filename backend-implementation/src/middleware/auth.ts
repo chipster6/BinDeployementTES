@@ -11,7 +11,7 @@
  * Version: 1.1.0
  */
 
-import { Request, Response, NextFunction } from "express";
+import { Request, type Response, type NextFunction } from "express";
 import jwt, { Algorithm } from "jsonwebtoken";
 import { config } from "@/config";
 import { logger } from "@/utils/logger";
@@ -172,7 +172,7 @@ export const authenticateToken = async (
     next();
   } catch (error: any) {
     logger.warn("Authentication failed", {
-      error: error.message,
+      error: error instanceof Error ? error?.message : String(error),
       ip: req.ip,
       userAgent: req.headers["user-agent"],
       url: req.originalUrl,
@@ -181,7 +181,7 @@ export const authenticateToken = async (
     if (error instanceof AuthenticationError) {
       res.status(401).json({
         success: false,
-        message: error.message,
+        message: error instanceof Error ? error?.message : String(error),
       });
       return;
     }
@@ -215,7 +215,7 @@ export const optionalAuth = async (
     }
 
     next();
-  } catch (error) {
+  } catch (error: unknown) {
     // Ignore authentication errors in optional auth
     logger.debug("Optional authentication failed:", error);
     next();
@@ -257,7 +257,7 @@ export const requireRole = (...allowedRoles: UserRole[]) => {
       }
 
       next();
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error("Authorization middleware error:", error);
       res.status(500).json({
         success: false,
@@ -309,7 +309,7 @@ export const requireOwnership = (resourceIdParam: string = "id") => {
       }
 
       next();
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error("Ownership validation error:", error);
       res.status(500).json({
         success: false,
@@ -355,7 +355,7 @@ export const requirePermission = (resource: string, action: string) => {
       }
 
       next();
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error("Permission validation error:", error);
       res.status(500).json({
         success: false,
@@ -460,7 +460,7 @@ export function verifyRefreshToken(token: string): {
       userId: payload.userId,
       sessionId: payload.sessionId,
     };
-  } catch (error) {
+  } catch (error: unknown) {
     throw new AuthenticationError("Invalid refresh token");
   }
 }

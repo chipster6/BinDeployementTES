@@ -19,7 +19,7 @@
  * Version: 1.0.0 - Phase 1 Production API
  */
 
-import { Request, Response, NextFunction } from 'express';
+import type { Request, Response, NextFunction } from 'express';
 import { logger, Timer } from '@/utils/logger';
 import { AppError, ValidationError } from '@/middleware/errorHandler';
 import { weaviateIntelligenceService, VectorSearchRequest } from '../services/WeaviateIntelligenceService';
@@ -152,8 +152,8 @@ export class WeaviateController {
         requestId,
         query: searchRequest.query.substring(0, 100), // First 100 chars only
         className: searchRequest.className,
-        searchType: searchRequest.searchType || 'semantic',
-        limit: searchRequest.limit || 10
+        searchType: searchRequest?.searchType || 'semantic',
+        limit: searchRequest?.limit || 10
       });
 
       // Check rate limiting
@@ -170,10 +170,10 @@ export class WeaviateController {
         features: {},
         query: searchRequest.query,
         className: searchRequest.className,
-        limit: searchRequest.limit || 10,
-        offset: searchRequest.offset || 0,
+        limit: searchRequest?.limit || 10,
+        offset: searchRequest?.offset || 0,
         filters: searchRequest.filters,
-        searchType: searchRequest.searchType || 'semantic',
+        searchType: searchRequest?.searchType || 'semantic',
         options: {
           cacheResult: searchRequest.cacheOptions?.useCache !== false,
           cacheTTL: searchRequest.cacheOptions?.cacheTTL || 1800,
@@ -199,12 +199,6 @@ export class WeaviateController {
             searchTime,
             cacheHit: searchResult.searchMetrics.cacheHit,
             slaCompliant
-          },
-          metadata: {
-            query: searchRequest.query,
-            searchType: searchRequest.searchType || 'semantic',
-            confidence: searchResult.confidence,
-            timestamp: new Date().toISOString()
           }
         },
         message: searchResult.searchMetrics.cacheHit 
@@ -234,12 +228,12 @@ export class WeaviateController {
       timer.end({ success: true, searchTime, cacheHit: searchResult.searchMetrics.cacheHit });
       res.status(200).json(response);
 
-    } catch (error) {
-      timer.end({ error: error.message });
+    } catch (error: unknown) {
+      timer.end({ error: error instanceof Error ? error?.message : String(error) });
       
       logger.error('Vector search failed', {
         requestId,
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
         query: req.body?.query?.substring(0, 100)
       });
 
@@ -283,8 +277,8 @@ export class WeaviateController {
       timer.end({ success: true });
       res.status(200).json(response);
 
-    } catch (error) {
-      timer.end({ error: error.message });
+    } catch (error: unknown) {
+      timer.end({ error: error instanceof Error ? error?.message : String(error) });
       logger.error('Vector cache warmup failed', error);
       next(error);
     }
@@ -320,8 +314,8 @@ export class WeaviateController {
             cacheHitRatio: vectorMetrics.cacheHitRatio,
             errorRate: vectorMetrics.errorRate,
             connectionHealth: vectorMetrics.connectionHealth,
-            slaCompliance: monitoringMetrics?.sla.overallSLACompliance || 0,
-            performanceGrade: monitoringMetrics?.optimization.performanceGrade || 'C'
+            slaCompliance: monitoringMetrics?.sla?.overallSLACompliance || 0,
+            performanceGrade: monitoringMetrics?.optimization?.performanceGrade || 'C'
           },
           trends: {
             historicalDataPoints: performanceHistory.length,
@@ -340,7 +334,7 @@ export class WeaviateController {
               errorRate: '1%'
             }
           },
-          recommendations: monitoringMetrics?.optimization.optimizationRecommendations || []
+          recommendations: monitoringMetrics?.optimization?.optimizationRecommendations || []
         },
         message: 'Performance metrics retrieved successfully'
       };
@@ -355,7 +349,7 @@ export class WeaviateController {
             id: alert.id,
             severity: alert.severity,
             metric: alert.metric,
-            message: alert.message,
+            message: alert?.message,
             timestamp: alert.timestamp
           }))
         };
@@ -364,8 +358,8 @@ export class WeaviateController {
       timer.end({ success: true });
       res.status(200).json(response);
 
-    } catch (error) {
-      timer.end({ error: error.message });
+    } catch (error: unknown) {
+      timer.end({ error: error instanceof Error ? error?.message : String(error) });
       logger.error('Failed to get performance metrics', error);
       next(error);
     }
@@ -418,7 +412,7 @@ export class WeaviateController {
       };
 
       // Determine overall health based on SLA compliance
-      const slaCompliance = monitoringMetrics?.sla.overallSLACompliance || 0;
+      const slaCompliance = monitoringMetrics?.sla?.overallSLACompliance || 0;
       if (slaCompliance < 80) {
         healthStatus.status = 'unhealthy';
       } else if (slaCompliance < 95) {
@@ -434,8 +428,8 @@ export class WeaviateController {
         message: `Weaviate service is ${healthStatus.status}`
       });
 
-    } catch (error) {
-      timer.end({ error: error.message });
+    } catch (error: unknown) {
+      timer.end({ error: error instanceof Error ? error?.message : String(error) });
       logger.error('Health check failed', error);
 
       // Return unhealthy status
@@ -444,7 +438,7 @@ export class WeaviateController {
         data: {
           status: 'unhealthy',
           timestamp: new Date().toISOString(),
-          error: error.message
+          error: error instanceof Error ? error?.message : String(error)
         },
         message: 'Weaviate service health check failed'
       });
@@ -468,7 +462,7 @@ export class WeaviateController {
 
       // Calculate additional statistics
       const recentHistory = performanceHistory.slice(-100); // Last 100 requests
-      const averageResponseTime = recentHistory.reduce((sum, h) => sum + h.apiResponseTime, 0) / recentHistory.length || 0;
+      const averageResponseTime = recentHistory.reduce((sum, h) => sum + h.apiResponseTime, 0) / recentHistory?.length || 0;
       const p95ResponseTime = this.calculatePercentile(recentHistory.map(h => h.apiResponseTime), 0.95);
 
       const response = {
@@ -480,12 +474,12 @@ export class WeaviateController {
             averageResponseTime: `${averageResponseTime.toFixed(1)}ms`,
             p95ResponseTime: `${p95ResponseTime.toFixed(1)}ms`,
             dataPointsCollected: performanceHistory.length,
-            monitoringUptime: timer.duration || 0
+            monitoringUptime: timer?.duration || 0
           },
           performance: {
             recentTrend: recentHistory.length > 10 ? this.calculateTrend(recentHistory) : 'insufficient_data',
             slaViolations: recentHistory.filter(h => h.apiResponseTime > 200).length,
-            cachingEffectiveness: recentHistory.filter(h => h.cacheHitRatio > 0.9).length / recentHistory.length || 0
+            cachingEffectiveness: recentHistory.filter(h => h.cacheHitRatio > 0.9).length / recentHistory?.length || 0
           }
         },
         message: 'Vector service statistics retrieved successfully'
@@ -494,8 +488,8 @@ export class WeaviateController {
       timer.end({ success: true });
       res.status(200).json(response);
 
-    } catch (error) {
-      timer.end({ error: error.message });
+    } catch (error: unknown) {
+      timer.end({ error: error instanceof Error ? error?.message : String(error) });
       logger.error('Failed to get vector stats', error);
       next(error);
     }
@@ -533,7 +527,7 @@ export class WeaviateController {
         await CacheService.incr('vector_search_cache_hits', 86400);
       }
 
-    } catch (error) {
+    } catch (error: unknown) {
       logger.warn('Failed to track search metrics', error);
     }
   }

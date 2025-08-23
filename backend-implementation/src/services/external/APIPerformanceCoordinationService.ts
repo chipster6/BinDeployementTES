@@ -200,9 +200,9 @@ export class APIPerformanceCoordinationService {
         responseRequired: false,
       });
 
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('Failed to initialize API Performance Coordination Service', {
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
       });
       throw error;
     }
@@ -313,9 +313,9 @@ export class APIPerformanceCoordinationService {
         JSON.stringify(aggregatedMetrics)
       );
 
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('Failed to collect API performance metrics', {
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
       });
     }
   }
@@ -432,9 +432,9 @@ export class APIPerformanceCoordinationService {
         await this.generateCoordinationRecommendations(optimizationAnalysis);
       }
 
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('Failed to analyze performance optimizations', {
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
       });
     }
   }
@@ -456,9 +456,9 @@ export class APIPerformanceCoordinationService {
       // Frontend Agent Coordination
       await this.coordinateWithFrontendAgent();
 
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('Failed to coordinate with Stream B agents', {
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
       });
     }
   }
@@ -630,9 +630,9 @@ export class APIPerformanceCoordinationService {
 
       this.lastDashboardUpdate = new Date();
 
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('Failed to update performance coordination dashboard', {
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
       });
     }
   }
@@ -727,9 +727,9 @@ export class APIPerformanceCoordinationService {
           timestamp: new Date().toISOString(),
         });
       }
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('Failed to broadcast dashboard updates', {
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
       });
     }
   }
@@ -755,7 +755,7 @@ export class APIPerformanceCoordinationService {
         // Update channel metrics
         const channel = this.coordinationChannels.get(targetAgent);
         if (channel) {
-          channel.messageQueue.push(event);
+          channel?.messageQueue.push(event);
           channel.coordinationMetrics.totalMessages++;
           channel.lastActivity = new Date();
         }
@@ -788,10 +788,10 @@ export class APIPerformanceCoordinationService {
         priority: event.priority,
       });
 
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('Failed to send coordination event', {
         coordinationId: event.coordinationId,
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
       });
     }
   }
@@ -820,7 +820,7 @@ export class APIPerformanceCoordinationService {
         const stats = JSON.parse(cacheStats);
         return (stats.hits / (stats.hits + stats.misses)) * 100;
       }
-    } catch (error) {
+    } catch (error: unknown) {
       logger.debug('Could not get cache hit ratio', { serviceName });
     }
     return 50; // Default assumption
@@ -1030,7 +1030,7 @@ export class APIPerformanceCoordinationService {
       immediate: opportunities.filter((opp: any) => opp.impact === 'high').slice(0, 5),
       shortTerm: opportunities.filter((opp: any) => opp.impact === 'medium').slice(0, 5),
       longTerm: opportunities.filter((opp: any) => opp.impact === 'low').slice(0, 3),
-      totalPotentialSavings: opportunities.reduce((sum: number, opp: any) => sum + (opp.estimatedSavings || 0), 0),
+      totalPotentialSavings: opportunities.reduce((sum: number, opp: any) => sum + (opp?.estimatedSavings || 0), 0),
     };
   }
 

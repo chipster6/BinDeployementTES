@@ -24,7 +24,7 @@
  */
 
 import { Router } from 'express';
-import { Request, Response } from 'express';
+import type { Request, Response } from 'express';
 import { auth } from '@/middleware/auth';
 import { logger } from '@/utils/logger';
 import { ResponseHelper } from '@/utils/ResponseHelper';
@@ -56,13 +56,13 @@ router.get('/dashboard', auth, async (req: Request, res: Response) => {
       coordinationActive: true,
     }, 'Stream B coordination dashboard retrieved successfully');
 
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error('Failed to get Stream B coordination dashboard', {
-      error: error.message,
+      error: error instanceof Error ? error?.message : String(error),
       userId: req.user?.id,
     });
 
-    return ResponseHelper.error(res, 'Failed to retrieve coordination dashboard', 500);
+    return ResponseHelper.error(res, req, { message: 'Failed to retrieve coordination dashboard', statusCode: 500 });
   }
 });
 
@@ -108,13 +108,13 @@ router.get('/metrics/realtime', auth, async (req: Request, res: Response) => {
 
     return ResponseHelper.success(res, metrics, 'Real-time metrics retrieved successfully');
 
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error('Failed to get real-time metrics', {
-      error: error.message,
+      error: error instanceof Error ? error?.message : String(error),
       userId: req.user?.id,
     });
 
-    return ResponseHelper.error(res, 'Failed to retrieve real-time metrics', 500);
+    return ResponseHelper.error(res, req, { message: 'Failed to retrieve real-time metrics', statusCode: 500 });
   }
 });
 
@@ -138,22 +138,22 @@ router.get('/cost/analysis', auth, async (req: Request, res: Response) => {
       rateLimitingStatus: rateLimitStatus,
       projections: {
         dailySavings: optimizationRecommendations.reduce((sum: number, rec: any) => 
-          sum + (rec.estimatedSavings || 0), 0),
+          sum + (rec?.estimatedSavings || 0), 0),
         monthlySavings: optimizationRecommendations.reduce((sum: number, rec: any) => 
-          sum + (rec.estimatedSavings || 0), 0) * 30,
+          sum + (rec?.estimatedSavings || 0), 0) * 30,
       },
       lastAnalysis: new Date(),
     };
 
     return ResponseHelper.success(res, analysis, 'Cost optimization analysis retrieved successfully');
 
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error('Failed to get cost optimization analysis', {
-      error: error.message,
+      error: error instanceof Error ? error?.message : String(error),
       userId: req.user?.id,
     });
 
-    return ResponseHelper.error(res, 'Failed to retrieve cost analysis', 500);
+    return ResponseHelper.error(res, req, { message: 'Failed to retrieve cost analysis', statusCode: 500 });
   }
 });
 
@@ -189,13 +189,13 @@ router.post('/cost/optimize', auth, async (req: Request, res: Response) => {
 
     return ResponseHelper.success(res, optimizationResult, 'Cost optimization analysis triggered successfully');
 
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error('Failed to trigger cost optimization', {
-      error: error.message,
+      error: error instanceof Error ? error?.message : String(error),
       userId: req.user?.id,
     });
 
-    return ResponseHelper.error(res, 'Failed to trigger cost optimization', 500);
+    return ResponseHelper.error(res, req, { message: 'Failed to trigger cost optimization', statusCode: 500 });
   }
 });
 
@@ -271,13 +271,13 @@ router.get('/agents/status', auth, async (req: Request, res: Response) => {
 
     return ResponseHelper.success(res, agentStatus, 'Agent status retrieved successfully');
 
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error('Failed to get agent status', {
-      error: error.message,
+      error: error instanceof Error ? error?.message : String(error),
       userId: req.user?.id,
     });
 
-    return ResponseHelper.error(res, 'Failed to retrieve agent status', 500);
+    return ResponseHelper.error(res, req, { message: 'Failed to retrieve agent status', statusCode: 500 });
   }
 });
 
@@ -317,13 +317,13 @@ router.get('/webhooks/stats', auth, async (req: Request, res: Response) => {
 
     return ResponseHelper.success(res, stats, 'Webhook coordination statistics retrieved successfully');
 
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error('Failed to get webhook coordination stats', {
-      error: error.message,
+      error: error instanceof Error ? error?.message : String(error),
       userId: req.user?.id,
     });
 
-    return ResponseHelper.error(res, 'Failed to retrieve webhook statistics', 500);
+    return ResponseHelper.error(res, req, { message: 'Failed to retrieve webhook statistics', statusCode: 500 });
   }
 });
 
@@ -336,7 +336,7 @@ router.post('/coordination/send-event', auth, async (req: Request, res: Response
     const { eventType, targetAgents, data, priority = 'medium' } = req.body;
 
     if (!eventType || !targetAgents || !Array.isArray(targetAgents)) {
-      return ResponseHelper.error(res, 'Missing required fields: eventType, targetAgents', 400);
+      return ResponseHelper.error(res, req, { message: 'Missing required fields: eventType, targetAgents', statusCode: 400 });
     }
 
     const coordinationEvent = {
@@ -352,8 +352,8 @@ router.post('/coordination/send-event', auth, async (req: Request, res: Response
       priority,
       coordinationId: `manual_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
       timestamp: new Date(),
-      responseRequired: req.body.responseRequired || false,
-      responseTimeout: req.body.responseTimeout || 300000,
+      responseRequired: req.body?.responseRequired || false,
+      responseTimeout: req.body?.responseTimeout || 300000,
     };
 
     // Broadcast to target agents via WebSocket
@@ -395,13 +395,13 @@ router.post('/coordination/send-event', auth, async (req: Request, res: Response
       sentAt: coordinationEvent.timestamp,
     }, 'Coordination event sent successfully');
 
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error('Failed to send coordination event', {
-      error: error.message,
+      error: error instanceof Error ? error?.message : String(error),
       userId: req.user?.id,
     });
 
-    return ResponseHelper.error(res, 'Failed to send coordination event', 500);
+    return ResponseHelper.error(res, req, { message: 'Failed to send coordination event', statusCode: 500 });
   }
 });
 
@@ -482,7 +482,7 @@ router.get('/optimization/recommendations', auth, async (req: Request, res: Resp
     if (service && typeof service === 'string') {
       for (const category in recommendations) {
         recommendations[category as keyof typeof recommendations] = recommendations[category as keyof typeof recommendations]
-          .filter((rec: any) => !rec.service || rec.service === service);
+          .filter((rec: any) => !rec?.service || rec.service === service);
       }
     }
 
@@ -499,13 +499,13 @@ router.get('/optimization/recommendations', auth, async (req: Request, res: Resp
       lastAnalysis: new Date(),
     }, 'Performance optimization recommendations retrieved successfully');
 
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error('Failed to get optimization recommendations', {
-      error: error.message,
+      error: error instanceof Error ? error?.message : String(error),
       userId: req.user?.id,
     });
 
-    return ResponseHelper.error(res, 'Failed to retrieve optimization recommendations', 500);
+    return ResponseHelper.error(res, req, { message: 'Failed to retrieve optimization recommendations', statusCode: 500 });
   }
 });
 
@@ -539,7 +539,7 @@ router.get('/health/comprehensive', auth, async (req: Request, res: Response) =>
         activeCoordinations: coordinationStats.activeCoordinations,
         efficiency: coordinationStats.coordinationEfficiency,
         agentConnectivity: {
-          connected: Object.values(coordinationStats.agentConnections || {})
+          connected: Object.values(coordinationStats?.agentConnections || {})
             .filter((conn: any) => conn.status === 'active').length,
           total: 4, // 4 Stream B agents
         },
@@ -576,13 +576,13 @@ router.get('/health/comprehensive', auth, async (req: Request, res: Response) =>
 
     return ResponseHelper.success(res, comprehensiveHealth, 'Comprehensive health status retrieved successfully');
 
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error('Failed to get comprehensive health status', {
-      error: error.message,
+      error: error instanceof Error ? error?.message : String(error),
       userId: req.user?.id,
     });
 
-    return ResponseHelper.error(res, 'Failed to retrieve comprehensive health status', 500);
+    return ResponseHelper.error(res, req, { message: 'Failed to retrieve comprehensive health status', statusCode: 500 });
   }
 });
 
@@ -603,7 +603,7 @@ router.post('/initialize', auth, async (req: Request, res: Response) => {
       details: {
         initializedBy: req.user?.id,
         timestamp: new Date().toISOString(),
-        reason: req.body.reason || 'manual_initialization',
+        reason: req.body?.reason || 'manual_initialization',
       },
       ipAddress: req.ip,
       userAgent: req.get('User-Agent') || 'unknown',
@@ -622,13 +622,13 @@ router.post('/initialize', auth, async (req: Request, res: Response) => {
       initializedBy: req.user?.id,
     }, 'Stream B coordination initialized successfully');
 
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error('Failed to initialize Stream B coordination', {
-      error: error.message,
+      error: error instanceof Error ? error?.message : String(error),
       userId: req.user?.id,
     });
 
-    return ResponseHelper.error(res, 'Failed to initialize Stream B coordination', 500);
+    return ResponseHelper.error(res, req, { message: 'Failed to initialize Stream B coordination', statusCode: 500 });
   }
 });
 

@@ -36,7 +36,7 @@
  * Version: 1.0.0 - Phase 2 API Integration
  */
 
-import { Request, Response, NextFunction } from "express";
+import type { Request, Response, NextFunction } from "express";
 import { body, param, query, validationResult } from "express-validator";
 import rateLimit from "express-rate-limit";
 import { logger, Timer } from "@/utils/logger";
@@ -352,8 +352,8 @@ export class RouteOptimizationController {
         binIds: req.body.binIds,
         objectives: req.body.objectives,
         maxOptimizationTime: req.body.maxOptimizationTime,
-        useAdvancedAlgorithms: req.body.useAdvancedAlgorithms || false,
-        generateAlternatives: req.body.generateAlternatives || false
+        useAdvancedAlgorithms: req.body?.useAdvancedAlgorithms || false,
+        generateAlternatives: req.body?.generateAlternatives || false
       };
       
       // Authorization check - user must belong to organization
@@ -384,21 +384,21 @@ export class RouteOptimizationController {
 
       // Return response
       if (result.success) {
-        ResponseHelper.success(res, result.data!, result.message, {
+        ResponseHelper.success(res, result.data!, result?.message, {
           executionTime,
           cached: executionTime < 1000 // Likely cached if very fast
         });
       } else {
-        ResponseHelper.error(res, result.message || "Optimization failed", 400, result.errors);
+        ResponseHelper.error(res, result?.message || "Optimization failed", 400, result.errors);
       }
       
-    } catch (error) {
-      timer.end({ error: error.message });
+    } catch (error: unknown) {
+      timer.end({ error: error instanceof Error ? error?.message : String(error) });
       logger.error("Route optimization failed", {
         userId: req.user?.id,
         organizationId: req.body?.organizationId,
-        error: error.message,
-        stack: error.stack
+        error: error instanceof Error ? error?.message : String(error),
+        stack: error instanceof Error ? error?.stack : undefined
       });
       
       next(error);
@@ -428,7 +428,7 @@ export class RouteOptimizationController {
         routeOptimizationId: req.params.id,
         changes: req.body.changes,
         priority: req.body.priority,
-        maxAdaptationTime: req.body.maxAdaptationTime || 5
+        maxAdaptationTime: req.body?.maxAdaptationTime || 5
       };
       
       // Execute adaptation
@@ -453,20 +453,20 @@ export class RouteOptimizationController {
 
       // Return response
       if (result.success) {
-        ResponseHelper.success(res, result.data!, result.message, {
+        ResponseHelper.success(res, result.data!, result?.message, {
           executionTime,
           priority: request.priority
         });
       } else {
-        ResponseHelper.error(res, result.message || "Adaptation failed", 400, result.errors);
+        ResponseHelper.error(res, result?.message || "Adaptation failed", 400, result.errors);
       }
       
-    } catch (error) {
-      timer.end({ error: error.message });
+    } catch (error: unknown) {
+      timer.end({ error: error instanceof Error ? error?.message : String(error) });
       logger.error("Route adaptation failed", {
         userId: req.user?.id,
         routeOptimizationId: req.params?.id,
-        error: error.message
+        error: error instanceof Error ? error?.message : String(error)
       });
       
       next(error);
@@ -497,7 +497,7 @@ export class RouteOptimizationController {
         optimizationDate: new Date(req.body.optimizationDate),
         vehicleIds: req.body.vehicleIds,
         binIds: req.body.binIds,
-        maxOptimizationTime: req.body.maxOptimizationTime || 60,
+        maxOptimizationTime: req.body?.maxOptimizationTime || 60,
         useAdvancedAlgorithms: true,
         generateAlternatives: true
       };
@@ -545,20 +545,20 @@ export class RouteOptimizationController {
 
       // Return response
       if (result.success) {
-        ResponseHelper.success(res, result.data!, result.message, {
+        ResponseHelper.success(res, result.data!, result?.message, {
           executionTime,
           solutionCount: result.data?.solutions?.length || 0
         });
       } else {
-        ResponseHelper.error(res, result.message || "Alternative generation failed", 400, result.errors);
+        ResponseHelper.error(res, result?.message || "Alternative generation failed", 400, result.errors);
       }
       
-    } catch (error) {
-      timer.end({ error: error.message });
+    } catch (error: unknown) {
+      timer.end({ error: error instanceof Error ? error?.message : String(error) });
       logger.error("Alternative optimization failed", {
         userId: req.user?.id,
         organizationId: req.body?.organizationId,
-        error: error.message
+        error: error instanceof Error ? error?.message : String(error)
       });
       
       next(error);
@@ -626,21 +626,21 @@ export class RouteOptimizationController {
 
       // Return response
       if (result.success) {
-        ResponseHelper.success(res, result.data!, result.message, {
+        ResponseHelper.success(res, result.data!, result?.message, {
           executionTime,
           timeRange,
           cached: executionTime < 500 // Likely cached if very fast
         });
       } else {
-        ResponseHelper.error(res, result.message || "Analytics generation failed", 400, result.errors);
+        ResponseHelper.error(res, result?.message || "Analytics generation failed", 400, result.errors);
       }
       
-    } catch (error) {
-      timer.end({ error: error.message });
+    } catch (error: unknown) {
+      timer.end({ error: error instanceof Error ? error?.message : String(error) });
       logger.error("Route analytics failed", {
         userId: req.user?.id,
         organizationId: req.params?.organizationId,
-        error: error.message
+        error: error instanceof Error ? error?.message : String(error)
       });
       
       next(error);
@@ -678,14 +678,14 @@ export class RouteOptimizationController {
         success: result.success
       });
 
-      ResponseHelper.error(res, result.message, 501); // Not implemented
+      ResponseHelper.error(res, req, { message: result?.message, statusCode: 501 }); // Not implemented
       
-    } catch (error) {
-      timer.end({ error: error.message });
+    } catch (error: unknown) {
+      timer.end({ error: error instanceof Error ? error?.message : String(error) });
       logger.error("Get optimization failed", {
         userId: req.user?.id,
         optimizationId: req.params?.id,
-        error: error.message
+        error: error instanceof Error ? error?.message : String(error)
       });
       
       next(error);
@@ -728,14 +728,14 @@ export class RouteOptimizationController {
         success: result.success
       });
 
-      ResponseHelper.error(res, result.message, 501); // Not implemented
+      ResponseHelper.error(res, req, { message: result?.message, statusCode: 501 }); // Not implemented
       
-    } catch (error) {
-      timer.end({ error: error.message });
+    } catch (error: unknown) {
+      timer.end({ error: error instanceof Error ? error?.message : String(error) });
       logger.error("Get optimization history failed", {
         userId: req.user?.id,
         organizationId: req.params?.organizationId,
-        error: error.message
+        error: error instanceof Error ? error?.message : String(error)
       });
       
       next(error);

@@ -600,7 +600,7 @@ export class ConnectionPoolOptimizer {
         appliedConfig: profile,
       };
       
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('Failed to apply connection pool configuration', error);
       return {
         success: false,

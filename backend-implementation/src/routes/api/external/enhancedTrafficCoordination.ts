@@ -33,15 +33,15 @@ import {
 } from '@/services/external/EnhancedTrafficRoutingCoordinator';
 import { 
   IntelligentTrafficRoutingService,
-  RoutingStrategy,
-  RoutingDecisionContext 
+  RoutingStrategy
 } from '@/services/external/IntelligentTrafficRoutingService';
+import type { RoutingDecisionContext } from '@/services/external/IntelligentTrafficRoutingService';
 import { 
   ErrorScenarioOptimizationService,
   ErrorScenarioType,
-  OptimizationStrategy,
-  ErrorScenarioContext 
+  OptimizationStrategy
 } from '@/services/external/ErrorScenarioOptimizationService';
+import type { ErrorScenarioContext } from '@/services/external/ErrorScenarioOptimizationService';
 import { 
   FallbackStrategyManager,
   ServicePriority,
@@ -98,7 +98,7 @@ router.post('/execute-coordination', auth, async (req, res) => {
 
     // Validate required fields
     if (!serviceName || !operation || !routingContext) {
-      return ResponseHelper.error(res, 'Service name, operation, and routing context are required', 400);
+      return ResponseHelper.error(res, req, { message: 'Service name, operation, and routing context are required', statusCode: 400 });
     }
 
     // Create enhanced coordination context
@@ -136,7 +136,7 @@ router.post('/execute-coordination', auth, async (req, res) => {
         }
       },
       errorScenarioContext: errorScenarioContext ? {
-        scenarioId: errorScenarioContext.scenarioId || `scenario_${Date.now()}`,
+        scenarioId: errorScenarioContext?.scenarioId || `scenario_${Date.now()}`,
         scenarioType: errorScenarioContext.scenarioType as ErrorScenarioType,
         serviceName,
         operation,
@@ -165,14 +165,11 @@ router.post('/execute-coordination', auth, async (req, res) => {
           minThroughput: errorScenarioContext.performanceRequirements?.minThroughput || 100,
           minSuccessRate: errorScenarioContext.performanceRequirements?.minSuccessRate || 95
         },
-        metadata: {
-          requestId: metadata?.requestId || `req_${Date.now()}`,
-          userId: req.user?.id,
-          organizationId: req.user?.organizationId,
-          timestamp: new Date(),
-          priority: metadata?.priority || ServicePriority.MEDIUM,
-          businessCriticality: metadata?.businessCriticality || BusinessCriticality.CUSTOMER_FACING
-        }
+        userId: req.user?.id,
+        organizationId: req.user?.organizationId,
+        timestamp: new Date(),
+        priority: metadata?.priority || ServicePriority.MEDIUM,
+        businessCriticality: metadata?.businessCriticality || BusinessCriticality.CUSTOMER_FACING
       } : undefined,
       backendAgentContext: {
         errorStreamId: backendAgentContext?.errorStreamId || `stream_${Date.now()}`,
@@ -193,8 +190,6 @@ router.post('/execute-coordination', auth, async (req, res) => {
         requireEmergencyOverride: coordinationRequirements?.requireEmergencyOverride || false
       },
       metadata: {
-        coordinationTimestamp: new Date(),
-        requestId: metadata?.requestId || `req_${Date.now()}`,
         userId: req.user?.id,
         organizationId: req.user?.organizationId,
         sessionId: metadata?.sessionId
@@ -215,14 +210,14 @@ router.post('/execute-coordination', auth, async (req, res) => {
 
     ResponseHelper.success(res, coordinationResult, 'Enhanced traffic coordination completed successfully');
 
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error('Enhanced traffic coordination failed', {
-      error: error.message,
+      error: error instanceof Error ? error?.message : String(error),
       serviceName: req.body.serviceName,
       userId: req.user?.id,
       body: req.body
     });
-    ResponseHelper.error(res, 'Failed to execute enhanced traffic coordination', 500);
+    ResponseHelper.error(res, req, { message: 'Failed to execute enhanced traffic coordination', statusCode: 500 });
   }
 });
 
@@ -249,7 +244,7 @@ router.post('/backend-agent-error', auth, async (req, res) => {
 
     // Validate required fields
     if (!errorType || !serviceName || !severity) {
-      return ResponseHelper.error(res, 'Error type, service name, and severity are required', 400);
+      return ResponseHelper.error(res, req, { message: 'Error type, service name, and severity are required', statusCode: 400 });
     }
 
     // Create coordination context from Backend Agent error
@@ -314,9 +309,7 @@ router.post('/backend-agent-error', auth, async (req, res) => {
           maxLatency: severity === "critical" ? 500 : 1000,
           minThroughput: 100,
           minSuccessRate: severity === "critical" ? 99 : 95
-        },
-        metadata: {
-          requestId: `backend_error_${Date.now()}`,
+        }`,
           userId: req.user?.id,
           organizationId: req.user?.organizationId,
           timestamp: new Date(),
@@ -343,8 +336,6 @@ router.post('/backend-agent-error', auth, async (req, res) => {
         requireEmergencyOverride: severity === "critical"
       },
       metadata: {
-        coordinationTimestamp: new Date(),
-        requestId: `backend_error_${Date.now()}`,
         userId: req.user?.id,
         organizationId: req.user?.organizationId
       }
@@ -372,14 +363,14 @@ router.post('/backend-agent-error', auth, async (req, res) => {
       }
     }, 'Backend Agent error handled successfully');
 
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error('Backend Agent error handling failed', {
-      error: error.message,
+      error: error instanceof Error ? error?.message : String(error),
       errorType: req.body.errorType,
       serviceName: req.body.serviceName,
       userId: req.user?.id
     });
-    ResponseHelper.error(res, 'Failed to handle Backend Agent error', 500);
+    ResponseHelper.error(res, req, { message: 'Failed to handle Backend Agent error', statusCode: 500 });
   }
 });
 
@@ -395,12 +386,12 @@ router.get('/coordination-analytics', auth, async (req, res) => {
 
     ResponseHelper.success(res, analytics, 'Coordination analytics retrieved successfully');
 
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error('Failed to get coordination analytics', {
-      error: error.message,
+      error: error instanceof Error ? error?.message : String(error),
       userId: req.user?.id
     });
-    ResponseHelper.error(res, 'Failed to retrieve coordination analytics', 500);
+    ResponseHelper.error(res, req, { message: 'Failed to retrieve coordination analytics', statusCode: 500 });
   }
 });
 
@@ -423,12 +414,12 @@ router.get('/active-coordinations', auth, async (req, res) => {
       coordinations: coordinationsArray
     }, 'Active coordinations retrieved successfully');
 
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error('Failed to get active coordinations', {
-      error: error.message,
+      error: error instanceof Error ? error?.message : String(error),
       userId: req.user?.id
     });
-    ResponseHelper.error(res, 'Failed to retrieve active coordinations', 500);
+    ResponseHelper.error(res, req, { message: 'Failed to retrieve active coordinations', statusCode: 500 });
   }
 });
 
@@ -456,12 +447,12 @@ router.get('/backend-agent-connections', auth, async (req, res) => {
       }
     }, 'Backend Agent connections retrieved successfully');
 
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error('Failed to get Backend Agent connections', {
-      error: error.message,
+      error: error instanceof Error ? error?.message : String(error),
       userId: req.user?.id
     });
-    ResponseHelper.error(res, 'Failed to retrieve Backend Agent connections', 500);
+    ResponseHelper.error(res, req, { message: 'Failed to retrieve Backend Agent connections', statusCode: 500 });
   }
 });
 
@@ -484,7 +475,7 @@ router.post('/emergency-override', auth, async (req, res) => {
 
     // Validate required fields
     if (!serviceName || !emergencyReason || !businessJustification) {
-      return ResponseHelper.error(res, 'Service name, emergency reason, and business justification are required', 400);
+      return ResponseHelper.error(res, req, { message: 'Service name, emergency reason, and business justification are required', statusCode: 400 });
     }
 
     // Create emergency coordination context
@@ -550,14 +541,11 @@ router.post('/emergency-override', auth, async (req, res) => {
           minThroughput: 1000,
           minSuccessRate: 99.9
         },
-        metadata: {
-          requestId: `emergency_${Date.now()}`,
-          userId: req.user?.id,
-          organizationId: req.user?.organizationId,
-          timestamp: new Date(),
-          priority: ServicePriority.CRITICAL,
-          businessCriticality: BusinessCriticality.REVENUE_BLOCKING
-        }
+        userId: req.user?.id,
+        organizationId: req.user?.organizationId,
+        timestamp: new Date(),
+        priority: ServicePriority.CRITICAL,
+        businessCriticality: BusinessCriticality.REVENUE_BLOCKING
       },
       backendAgentContext: {
         errorStreamId: `emergency_stream_${Date.now()}`,
@@ -578,8 +566,6 @@ router.post('/emergency-override', auth, async (req, res) => {
         requireEmergencyOverride: true
       },
       metadata: {
-        coordinationTimestamp: new Date(),
-        requestId: `emergency_${Date.now()}`,
         userId: req.user?.id,
         organizationId: req.user?.organizationId
       }
@@ -610,13 +596,13 @@ router.post('/emergency-override', auth, async (req, res) => {
       }
     }, 'Emergency coordination mode activated successfully');
 
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error('Emergency override activation failed', {
-      error: error.message,
+      error: error instanceof Error ? error?.message : String(error),
       serviceName: req.body.serviceName,
       userId: req.user?.id
     });
-    ResponseHelper.error(res, 'Failed to activate emergency coordination mode', 500);
+    ResponseHelper.error(res, req, { message: 'Failed to activate emergency coordination mode', statusCode: 500 });
   }
 });
 
@@ -632,7 +618,7 @@ router.get('/performance-metrics/:serviceName', auth, async (req, res) => {
     const { timeframe } = req.query;
 
     if (!serviceName) {
-      return ResponseHelper.error(res, 'Service name is required', 400);
+      return ResponseHelper.error(res, req, { message: 'Service name is required', statusCode: 400 });
     }
 
     // Get service-specific analytics (this would typically fetch from the analytics cache)
@@ -663,13 +649,13 @@ router.get('/performance-metrics/:serviceName', auth, async (req, res) => {
 
     ResponseHelper.success(res, serviceMetrics, 'Performance metrics retrieved successfully');
 
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error('Failed to get performance metrics', {
-      error: error.message,
+      error: error instanceof Error ? error?.message : String(error),
       serviceName: req.params.serviceName,
       userId: req.user?.id
     });
-    ResponseHelper.error(res, 'Failed to retrieve performance metrics', 500);
+    ResponseHelper.error(res, req, { message: 'Failed to retrieve performance metrics', statusCode: 500 });
   }
 });
 
@@ -695,17 +681,17 @@ router.get('/health', (req, res) => {
         recoveryService: 'operational',
         monitoringService: 'operational'
       },
-      activeCoordinations: enhancedCoordinator?.getActiveCoordinations().size || 0,
-      backendConnections: enhancedCoordinator?.getBackendAgentConnections().size || 0
+      activeCoordinations: enhancedCoordinator?.getActiveCoordinations()?.size || 0,
+      backendConnections: enhancedCoordinator?.getBackendAgentConnections()?.size || 0
     };
 
     ResponseHelper.success(res, healthStatus, 'Enhanced coordination services are healthy');
 
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error('Enhanced coordination health check failed', {
-      error: error.message
+      error: error instanceof Error ? error?.message : String(error)
     });
-    ResponseHelper.error(res, 'Health check failed', 500);
+    ResponseHelper.error(res, req, { message: 'Health check failed', statusCode: 500 });
   }
 });
 

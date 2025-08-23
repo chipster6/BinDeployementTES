@@ -27,12 +27,16 @@
  * Version: 2.0.0 - System-Wide Coordination Controller
  */
 
-import { Request, Response } from 'express';
+import type { Request, Response } from 'express';
+/// <reference path="../types/express.d.ts" />
+import type { User } from '@/models/User';
 import { 
   MasterTrafficCoordinationService,
+  SystemLoadBalancingStrategy
+} from '@/services/MasterTrafficCoordinationService';
+import type {
   CrossServiceCoordinationContext,
   SystemCoordinationResult,
-  SystemLoadBalancingStrategy,
   SystemCoordinationAnalytics
 } from '@/services/MasterTrafficCoordinationService';
 import { 
@@ -44,6 +48,7 @@ import {
 import { FallbackStrategyManager } from '@/services/external/FallbackStrategyManager';
 import { ExternalServicesManager } from '@/services/external/ExternalServicesManager';
 import { ErrorScenarioOptimizationService } from '@/services/external/ErrorScenarioOptimizationService';
+import { CostAwareFallbackService } from '@/services/external/CostAwareFallbackService';
 import { AppError } from '@/middleware/errorHandler';
 import { logger, Timer } from '@/utils/logger';
 import { ResponseHelper } from '@/utils/ResponseHelper';
@@ -53,9 +58,9 @@ import { ResponseHelper } from '@/utils/ResponseHelper';
  * Enterprise-grade system-wide coordination management
  */
 export class MasterTrafficCoordinationController {
-  private masterCoordinationService: MasterTrafficCoordinationService;
-  private enhancedRoutingCoordinator: EnhancedTrafficRoutingCoordinator;
-  private intelligentRoutingService: IntelligentTrafficRoutingService;
+  private masterCoordinationService!: MasterTrafficCoordinationService;
+  private enhancedRoutingCoordinator!: EnhancedTrafficRoutingCoordinator;
+  private intelligentRoutingService!: IntelligentTrafficRoutingService;
 
   constructor() {
     this.initializeServices();
@@ -69,19 +74,32 @@ export class MasterTrafficCoordinationController {
       // Initialize Phase 1 foundation services
       const fallbackManager = new FallbackStrategyManager();
       const externalServicesManager = new ExternalServicesManager();
-      const errorScenarioOptimizer = new ErrorScenarioOptimizationService();
 
-      // Initialize enhanced routing coordinator
+      // Initialize intelligent routing service first (no dependencies on others)
+      this.intelligentRoutingService = new IntelligentTrafficRoutingService(
+        fallbackManager,
+        externalServicesManager
+      );
+
+      // Initialize cost service with dependencies
+      const costService = new CostAwareFallbackService(
+        fallbackManager,
+        this.intelligentRoutingService
+      );
+
+      // Initialize error scenario optimizer with all dependencies
+      const errorScenarioOptimizer = new ErrorScenarioOptimizationService(
+        fallbackManager,
+        this.intelligentRoutingService,
+        costService,
+        externalServicesManager
+      );
+
+      // Initialize enhanced routing coordinator (depends on intelligent service)
       this.enhancedRoutingCoordinator = new EnhancedTrafficRoutingCoordinator(
         this.intelligentRoutingService,
         errorScenarioOptimizer,
         fallbackManager
-      );
-
-      // Initialize intelligent routing service
-      this.intelligentRoutingService = new IntelligentTrafficRoutingService(
-        fallbackManager,
-        externalServicesManager
       );
 
       // Initialize master coordination service
@@ -99,10 +117,10 @@ export class MasterTrafficCoordinationController {
         ]
       });
 
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error("Failed to initialize Master Traffic Coordination Controller", {
-        error: error.message,
-        stack: error.stack
+        error: error instanceof Error ? error?.message : String(error),
+        stack: error instanceof Error ? error?.stack : undefined
       });
       throw new AppError("Controller initialization failed", 500);
     }
@@ -116,9 +134,9 @@ export class MasterTrafficCoordinationController {
     
     try {
       logger.info("Processing system coordination request", {
-        userId: req.user?.id,
+        userId: (req.user as any)?.id,
         sourceService: req.body.sourceService,
-        targetServices: req.body.targetServices?.length || 0,
+        targetServices: req.body?.targetServices?.length || 0,
         coordinationType: req.body.coordinationType,
         priority: req.body.priority
       });
@@ -165,14 +183,6 @@ export class MasterTrafficCoordinationController {
           revenueImpact: req.body.businessContext?.revenueImpact || 0,
           customerTier: req.body.businessContext?.customerTier || 'standard',
           slaRequirements: req.body.businessContext?.slaRequirements || []
-        },
-        
-        metadata: {
-          requestId: req.headers['x-request-id'] as string || coordinationId,
-          userId: req.user?.id,
-          organizationId: req.user?.organizationId,
-          timestamp: new Date(),
-          correlationId: req.headers['x-correlation-id'] as string || coordinationId
         }
       };
 
@@ -190,7 +200,7 @@ export class MasterTrafficCoordinationController {
       });
 
       logger.info("System coordination completed successfully", {
-        userId: req.user?.id,
+        userId: (req.user as any)?.id,
         coordinationId: result.coordinationId,
         sourceService: coordinationContext.sourceService,
         targetServices: coordinationContext.targetServices.length,
@@ -198,27 +208,23 @@ export class MasterTrafficCoordinationController {
         executionTime
       });
 
-      ResponseHelper.success(res, responseData, 'System-wide traffic coordination executed successfully', {
-        executionTime,
-        coordinationType: coordinationContext.coordinationType,
-        priority: coordinationContext.priority,
-        targetServicesCount: coordinationContext.targetServices.length
-      });
+      ResponseHelper.success(res, req, { data: responseData, 
+            message: 'System-wide traffic coordination executed successfully' });
 
-    } catch (error) {
-      timer.end({ error: error.message });
+    } catch (error: unknown) {
+      timer.end({ error: error instanceof Error ? error?.message : String(error) });
       
       logger.error("System coordination failed", {
-        userId: req.user?.id,
+        userId: (req.user as any)?.id,
         sourceService: req.body?.sourceService,
-        error: error.message,
-        stack: error.stack
+        error: error instanceof Error ? error?.message : String(error),
+        stack: error instanceof Error ? error?.stack : undefined
       });
 
       if (error instanceof AppError) {
-        ResponseHelper.error(res, error.message, error.statusCode);
+        ResponseHelper.error(res, req, { message: error instanceof Error ? error?.message : String(error), statusCode: error.statusCode });
       } else {
-        ResponseHelper.error(res, 'Internal server error during system coordination', 500);
+        ResponseHelper.error(res, req, { message: 'Internal server error during system coordination', statusCode: 500 });
       }
     }
   };
@@ -231,9 +237,9 @@ export class MasterTrafficCoordinationController {
     
     try {
       logger.info("Processing load balancing configuration request", {
-        userId: req.user?.id,
+        userId: (req.user as any)?.id,
         strategy: req.body.strategy,
-        servicesCount: req.body.services?.length || 0
+        servicesCount: req.body?.services?.length || 0
       });
 
       // Validate request body
@@ -262,8 +268,8 @@ export class MasterTrafficCoordinationController {
         circuitBreakerEnabled: circuitBreakerEnabled || false,
         healthCheckInterval: healthCheckInterval || 30,
         appliedAt: new Date(),
-        userId: req.user?.id,
-        organizationId: req.user?.organizationId,
+        userId: (req.user as any)?.id,
+        organizationId: (req.user as any)?.organizationId,
         
         // Calculated configuration details
         estimatedImprovements: {
@@ -289,32 +295,29 @@ export class MasterTrafficCoordinationController {
       });
 
       logger.info("Load balancing configuration completed", {
-        userId: req.user?.id,
+        userId: (req.user as any)?.id,
         configurationId,
         strategy,
         servicesCount: services.length,
         executionTime
       });
 
-      ResponseHelper.success(res, configuration, 'Load balancing configuration applied successfully', {
-        executionTime,
-        strategy,
-        servicesConfigured: services.length
-      });
+      ResponseHelper.success(res, req, { data: configuration, 
+            message: 'Load balancing configuration applied successfully' });
 
-    } catch (error) {
-      timer.end({ error: error.message });
+    } catch (error: unknown) {
+      timer.end({ error: error instanceof Error ? error?.message : String(error) });
       
       logger.error("Load balancing configuration failed", {
-        userId: req.user?.id,
+        userId: (req.user as any)?.id,
         strategy: req.body?.strategy,
-        error: error.message
+        error: error instanceof Error ? error?.message : String(error)
       });
 
       if (error instanceof AppError) {
-        ResponseHelper.error(res, error.message, error.statusCode);
+        ResponseHelper.error(res, req, { message: error instanceof Error ? error?.message : String(error), statusCode: error.statusCode });
       } else {
-        ResponseHelper.error(res, 'Internal server error during load balancing configuration', 500);
+        ResponseHelper.error(res, req, { message: 'Internal server error during load balancing configuration', statusCode: 500 });
       }
     }
   };
@@ -329,7 +332,7 @@ export class MasterTrafficCoordinationController {
       const { includeDetailedMetrics, timeWindow } = req.query;
 
       logger.info("Processing system status request", {
-        userId: req.user?.id,
+        userId: (req.user as any)?.id,
         includeDetailedMetrics: includeDetailedMetrics === 'true',
         timeWindow: timeWindow || '60'
       });
@@ -373,27 +376,24 @@ export class MasterTrafficCoordinationController {
       });
 
       logger.info("System status request completed", {
-        userId: req.user?.id,
+        userId: (req.user as any)?.id,
         systemHealth: statusData.groupIntegrationSummary.overallHealth,
         activeCoordinations: systemStatus.activeCoordinations,
         executionTime
       });
 
-      ResponseHelper.success(res, statusData, 'System status retrieved successfully', {
-        executionTime,
-        timeWindow: parseInt(timeWindow as string) || 60,
-        includeDetailedMetrics: includeDetailedMetrics === 'true'
-      });
+      ResponseHelper.success(res, req, { data: statusData, 
+            message: 'System status retrieved successfully' });
 
-    } catch (error) {
-      timer.end({ error: error.message });
+    } catch (error: unknown) {
+      timer.end({ error: error instanceof Error ? error?.message : String(error) });
       
       logger.error("System status request failed", {
-        userId: req.user?.id,
-        error: error.message
+        userId: (req.user as any)?.id,
+        error: error instanceof Error ? error?.message : String(error)
       });
 
-      ResponseHelper.error(res, 'Internal server error while retrieving system status', 500);
+      ResponseHelper.error(res, req, { message: 'Internal server error while retrieving system status', statusCode: 500 });
     }
   };
 
@@ -408,7 +408,7 @@ export class MasterTrafficCoordinationController {
       const serviceArray = services ? (services as string).split(',') : undefined;
 
       logger.info("Processing coordination analytics request", {
-        userId: req.user?.id,
+        userId: (req.user as any)?.id,
         timeRange: timeRange || '24h',
         servicesCount: serviceArray?.length || 0,
         includePredictions: includePredictions === 'true'
@@ -429,29 +429,25 @@ export class MasterTrafficCoordinationController {
       });
 
       logger.info("Coordination analytics request completed", {
-        userId: req.user?.id,
+        userId: (req.user as any)?.id,
         timeRange: timeRange || '24h',
         totalCoordinations: analytics.coordinationMetrics.totalCoordinations,
         executionTime
       });
 
-      ResponseHelper.success(res, analytics, 'Coordination analytics retrieved successfully', {
-        executionTime,
-        timeRange: timeRange || '24h',
-        servicesAnalyzed: serviceArray?.length || 'all',
-        includePredictions: includePredictions === 'true'
-      });
+      ResponseHelper.success(res, req, { data: analytics, 
+            message: 'Coordination analytics retrieved successfully' });
 
-    } catch (error) {
-      timer.end({ error: error.message });
+    } catch (error: unknown) {
+      timer.end({ error: error instanceof Error ? error?.message : String(error) });
       
       logger.error("Coordination analytics request failed", {
-        userId: req.user?.id,
+        userId: (req.user as any)?.id,
         timeRange: req.query?.timeRange,
-        error: error.message
+        error: error instanceof Error ? error?.message : String(error)
       });
 
-      ResponseHelper.error(res, 'Internal server error while retrieving coordination analytics', 500);
+      ResponseHelper.error(res, req, { message: 'Internal server error while retrieving coordination analytics', statusCode: 500 });
     }
   };
 
@@ -463,7 +459,7 @@ export class MasterTrafficCoordinationController {
     
     try {
       logger.info("Processing group integration status request", {
-        userId: req.user?.id
+        userId: (req.user as any)?.id
       });
 
       // Get comprehensive group integration status
@@ -475,27 +471,24 @@ export class MasterTrafficCoordinationController {
       });
 
       logger.info("Group integration status request completed", {
-        userId: req.user?.id,
+        userId: (req.user as any)?.id,
         overallHealth: integrationStatus.overallIntegrationHealth,
         operationalGroups: integrationStatus.operationalGroups,
         executionTime
       });
 
-      ResponseHelper.success(res, integrationStatus, 'Group integration status retrieved successfully', {
-        executionTime,
-        totalGroups: 4,
-        operationalGroups: integrationStatus.operationalGroups
-      });
+      ResponseHelper.success(res, req, { data: integrationStatus, 
+            message: 'Group integration status retrieved successfully' });
 
-    } catch (error) {
-      timer.end({ error: error.message });
+    } catch (error: unknown) {
+      timer.end({ error: error instanceof Error ? error?.message : String(error) });
       
       logger.error("Group integration status request failed", {
-        userId: req.user?.id,
-        error: error.message
+        userId: (req.user as any)?.id,
+        error: error instanceof Error ? error?.message : String(error)
       });
 
-      ResponseHelper.error(res, 'Internal server error while retrieving group integration status', 500);
+      ResponseHelper.error(res, req, { message: 'Internal server error while retrieving group integration status', statusCode: 500 });
     }
   };
 
@@ -509,7 +502,7 @@ export class MasterTrafficCoordinationController {
       const { limit, status, priority } = req.query;
 
       logger.info("Processing active coordinations request", {
-        userId: req.user?.id,
+        userId: (req.user as any)?.id,
         limit: limit || 50,
         statusFilter: status || 'all',
         priorityFilter: priority || 'all'
@@ -529,28 +522,24 @@ export class MasterTrafficCoordinationController {
       });
 
       logger.info("Active coordinations request completed", {
-        userId: req.user?.id,
+        userId: (req.user as any)?.id,
         coordinationsCount: activeCoordinations.coordinations.length,
         statusFilter: status || 'all',
         executionTime
       });
 
-      ResponseHelper.success(res, activeCoordinations, 'Active coordinations retrieved successfully', {
-        executionTime,
-        limit: parseInt(limit as string) || 50,
-        statusFilter: status || 'all',
-        priorityFilter: priority || 'all'
-      });
+      ResponseHelper.success(res, req, { data: activeCoordinations, 
+            message: 'Active coordinations retrieved successfully' });
 
-    } catch (error) {
-      timer.end({ error: error.message });
+    } catch (error: unknown) {
+      timer.end({ error: error instanceof Error ? error?.message : String(error) });
       
       logger.error("Active coordinations request failed", {
-        userId: req.user?.id,
-        error: error.message
+        userId: (req.user as any)?.id,
+        error: error instanceof Error ? error?.message : String(error)
       });
 
-      ResponseHelper.error(res, 'Internal server error while retrieving active coordinations', 500);
+      ResponseHelper.error(res, req, { message: 'Internal server error while retrieving active coordinations', statusCode: 500 });
     }
   };
 
@@ -562,7 +551,7 @@ export class MasterTrafficCoordinationController {
     
     try {
       logger.info("Processing service health check request", {
-        userId: req.user?.id
+        userId: (req.user as any)?.id
       });
 
       // Get comprehensive service health
@@ -574,31 +563,24 @@ export class MasterTrafficCoordinationController {
       });
 
       logger.info("Service health check completed", {
-        userId: req.user?.id,
+        userId: (req.user as any)?.id,
         serviceStatus: healthStatus.status,
         uptime: healthStatus.uptime,
         executionTime
       });
 
-      ResponseHelper.success(res, healthStatus, 'Service health status retrieved successfully', {
-        executionTime,
-        checkTime: new Date()
-      });
+      ResponseHelper.success(res, req, { data: healthStatus, 
+            message: 'Service health status retrieved successfully' });
 
-    } catch (error) {
-      timer.end({ error: error.message });
+    } catch (error: unknown) {
+      timer.end({ error: error instanceof Error ? error?.message : String(error) });
       
       logger.error("Service health check failed", {
-        userId: req.user?.id,
-        error: error.message
+        userId: (req.user as any)?.id,
+        error: error instanceof Error ? error?.message : String(error)
       });
 
-      ResponseHelper.error(res, 'Service health check failed', 503, {
-        service: 'MasterTrafficCoordinationService',
-        status: 'unhealthy',
-        error: error.message,
-        timestamp: new Date()
-      });
+      ResponseHelper.error(res, req, { message: 'Service health check failed', statusCode: 503 });
     }
   };
 
@@ -607,7 +589,7 @@ export class MasterTrafficCoordinationController {
    */
   
   private validateSystemCoordinationRequest(body: any): void {
-    if (!body.sourceService || typeof body.sourceService !== 'string') {
+    if (!body?.sourceService || typeof body.sourceService !== 'string') {
       throw new AppError('Source service is required and must be a string', 400);
     }
     

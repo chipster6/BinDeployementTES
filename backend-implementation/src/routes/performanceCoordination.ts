@@ -15,7 +15,7 @@
  * Version: 1.0.0
  */
 
-import { Router, Request, Response } from "express";
+import { Router, type Request, type Response } from "express";
 import { authenticate, authorize } from "@/middleware/auth";
 import { logger } from "@/utils/logger";
 import { ResponseHelper } from "@/utils/ResponseHelper";
@@ -62,9 +62,9 @@ router.get("/metrics", async (req: Request, res: Response) => {
         criticalIssues: metrics.performance.criticalIssues,
       },
     }, "Performance coordination metrics retrieved successfully");
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error("Performance coordination metrics retrieval failed", error);
-    return ResponseHelper.error(res, "Failed to retrieve performance metrics", 500);
+    return ResponseHelper.error(res, req, { message: "Failed to retrieve performance metrics", statusCode: 500 });
   }
 });
 
@@ -98,9 +98,9 @@ router.get("/recommendations", async (req: Request, res: Response) => {
       recommendations,
       summary,
     }, "Optimization recommendations retrieved successfully");
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error("Performance recommendations retrieval failed", error);
-    return ResponseHelper.error(res, "Failed to retrieve optimization recommendations", 500);
+    return ResponseHelper.error(res, req, { message: "Failed to retrieve optimization recommendations", statusCode: 500 });
   }
 });
 
@@ -132,9 +132,9 @@ router.post("/benchmark", async (req: Request, res: Response) => {
                 benchmarkResults.benchmarkScore >= 60 ? "acceptable" : "needs_improvement",
       },
     }, "Performance benchmark completed successfully");
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error("Performance benchmark failed", error);
-    return ResponseHelper.error(res, "Performance benchmark failed", 500);
+    return ResponseHelper.error(res, req, { message: "Performance benchmark failed", statusCode: 500 });
   }
 });
 
@@ -147,7 +147,7 @@ router.post("/sync", async (req: Request, res: Response) => {
     const { activeOptimizations, completedOptimizations } = req.body;
 
     if (!Array.isArray(activeOptimizations)) {
-      return ResponseHelper.error(res, "activeOptimizations must be an array", 400);
+      return ResponseHelper.error(res, req, { message: "activeOptimizations must be an array", statusCode: 400 });
     }
 
     logger.info("Coordination status sync requested", {
@@ -167,9 +167,9 @@ router.post("/sync", async (req: Request, res: Response) => {
       activeOptimizations: activeOptimizations.length,
       completedOptimizations: (completedOptimizations || []).length,
     }, "Coordination status synced successfully");
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error("Coordination sync failed", error);
-    return ResponseHelper.error(res, "Coordination sync failed", 500);
+    return ResponseHelper.error(res, req, { message: "Coordination sync failed", statusCode: 500 });
   }
 });
 
@@ -204,15 +204,10 @@ router.get("/statistics", async (req: Request, res: Response) => {
         bins: binStats,
       },
       cachePerformance: cacheMetrics,
-      metadata: {
-        customerId: customerId as string || null,
-        forceRefresh: forceRefresh === "true",
-        timestamp: new Date(),
-      },
     }, "Statistics performance metrics retrieved successfully");
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error("Statistics performance metrics retrieval failed", error);
-    return ResponseHelper.error(res, "Failed to retrieve statistics metrics", 500);
+    return ResponseHelper.error(res, req, { message: "Failed to retrieve statistics metrics", statusCode: 500 });
   }
 });
 
@@ -242,9 +237,9 @@ router.get("/spatial", async (req: Request, res: Response) => {
                            spatialMetrics.spatialIndexEffectiveness > 40 ? "acceptable" : "needs_improvement",
       },
     }, "Spatial performance metrics retrieved successfully");
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error("Spatial performance metrics retrieval failed", error);
-    return ResponseHelper.error(res, "Failed to retrieve spatial performance metrics", 500);
+    return ResponseHelper.error(res, req, { message: "Failed to retrieve spatial performance metrics", statusCode: 500 });
   }
 });
 
@@ -264,9 +259,9 @@ router.post("/spatial/warmup", async (req: Request, res: Response) => {
       warmupStatus: "completed",
       timestamp: new Date(),
     }, "Spatial cache warmup completed successfully");
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error("Spatial cache warmup failed", error);
-    return ResponseHelper.error(res, "Spatial cache warmup failed", 500);
+    return ResponseHelper.error(res, req, { message: "Spatial cache warmup failed", statusCode: 500 });
   }
 });
 
@@ -310,9 +305,9 @@ router.delete("/cache", async (req: Request, res: Response) => {
       clearedCount,
       timestamp: new Date(),
     }, "Performance cache cleared successfully");
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error("Performance cache clear failed", error);
-    return ResponseHelper.error(res, "Failed to clear performance cache", 500);
+    return ResponseHelper.error(res, req, { message: "Failed to clear performance cache", statusCode: 500 });
   }
 });
 
@@ -344,9 +339,9 @@ router.get("/database", async (req: Request, res: Response) => {
         lastOptimization: optimizationStatus?.lastAnalysis || null,
       },
     }, "Database performance metrics retrieved successfully");
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error("Database performance metrics retrieval failed", error);
-    return ResponseHelper.error(res, "Failed to retrieve database performance metrics", 500);
+    return ResponseHelper.error(res, req, { message: "Failed to retrieve database performance metrics", statusCode: 500 });
   }
 });
 
@@ -377,9 +372,9 @@ router.post("/database/analyze", async (req: Request, res: Response) => {
         largestTable: analysisResults.summary.largestTable,
       },
     }, "Database performance analysis completed successfully");
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error("Database performance analysis failed", error);
-    return ResponseHelper.error(res, "Database performance analysis failed", 500);
+    return ResponseHelper.error(res, req, { message: "Database performance analysis failed", statusCode: 500 });
   }
 });
 
@@ -413,9 +408,9 @@ router.get("/health", async (req: Request, res: Response) => {
       },
       timestamp: new Date(),
     }, "Performance coordination health check completed", statusCode);
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error("Performance coordination health check failed", error);
-    return ResponseHelper.error(res, "Health check failed", 503);
+    return ResponseHelper.error(res, req, { message: "Health check failed", statusCode: 503 });
   }
 });
 

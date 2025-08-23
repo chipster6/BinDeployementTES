@@ -173,10 +173,10 @@ class VirusTotalService extends BaseExternalService {
       });
 
       return result;
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error("VirusTotal IP reputation check failed", {
         ip,
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
       });
       throw error;
     }
@@ -217,10 +217,10 @@ class VirusTotalService extends BaseExternalService {
       });
 
       return result;
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error("VirusTotal domain reputation check failed", {
         domain,
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
       });
       throw error;
     }
@@ -261,10 +261,10 @@ class VirusTotalService extends BaseExternalService {
       });
 
       return result;
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error("VirusTotal file hash reputation check failed", {
         hash,
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
       });
       throw error;
     }
@@ -306,10 +306,10 @@ class VirusTotalService extends BaseExternalService {
       });
 
       return result;
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error("VirusTotal URL analysis failed", {
         url,
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
       });
       throw error;
     }
@@ -343,10 +343,10 @@ class VirusTotalService extends BaseExternalService {
             default:
               throw new Error(`Unsupported indicator type: ${indicator.type}`);
           }
-        } catch (error) {
+        } catch (error: unknown) {
           logger.error("Batch indicator check failed", {
             indicator,
-            error: error.message,
+            error: error instanceof Error ? error?.message : String(error),
           });
           return null;
         }
@@ -368,12 +368,12 @@ class VirusTotalService extends BaseExternalService {
    * Parse IP response data
    */
   private parseIPResponse(ip: string, data: any): ThreatIntelligenceResult {
-    const attributes = data.attributes || {};
-    const stats = attributes.last_analysis_stats || {};
-    const detections = stats.malicious || 0;
+    const attributes = data?.attributes || {};
+    const stats = attributes?.last_analysis_stats || {};
+    const detections = stats?.malicious || 0;
     const totalScans = Object.values(stats).reduce((sum: number, count: any) => sum + count, 0);
     
-    const vendors = Object.entries(attributes.last_analysis_results || {})
+    const vendors = Object.entries(attributes?.last_analysis_results || {})
       .filter(([, result]: [string, any]) => result.category === "malicious")
       .map(([vendor]) => vendor);
 
@@ -387,13 +387,6 @@ class VirusTotalService extends BaseExternalService {
       detections,
       totalScans,
       vendors,
-      metadata: {
-        asn: attributes.asn,
-        country: attributes.country,
-        network: attributes.network,
-        whois: attributes.whois,
-        reputation: attributes.reputation,
-      },
       timestamp: new Date(),
       source: "virustotal",
     };
@@ -403,12 +396,12 @@ class VirusTotalService extends BaseExternalService {
    * Parse domain response data
    */
   private parseDomainResponse(domain: string, data: any): ThreatIntelligenceResult {
-    const attributes = data.attributes || {};
-    const stats = attributes.last_analysis_stats || {};
-    const detections = stats.malicious || 0;
+    const attributes = data?.attributes || {};
+    const stats = attributes?.last_analysis_stats || {};
+    const detections = stats?.malicious || 0;
     const totalScans = Object.values(stats).reduce((sum: number, count: any) => sum + count, 0);
     
-    const vendors = Object.entries(attributes.last_analysis_results || {})
+    const vendors = Object.entries(attributes?.last_analysis_results || {})
       .filter(([, result]: [string, any]) => result.category === "malicious")
       .map(([vendor]) => vendor);
 
@@ -422,13 +415,6 @@ class VirusTotalService extends BaseExternalService {
       detections,
       totalScans,
       vendors,
-      metadata: {
-        categories: attributes.categories,
-        reputation: attributes.reputation,
-        whois: attributes.whois,
-        creation_date: attributes.creation_date,
-        registrar: attributes.registrar,
-      },
       timestamp: new Date(),
       source: "virustotal",
     };
@@ -438,12 +424,12 @@ class VirusTotalService extends BaseExternalService {
    * Parse file response data
    */
   private parseFileResponse(hash: string, data: any): ThreatIntelligenceResult {
-    const attributes = data.attributes || {};
-    const stats = attributes.last_analysis_stats || {};
-    const detections = stats.malicious || 0;
+    const attributes = data?.attributes || {};
+    const stats = attributes?.last_analysis_stats || {};
+    const detections = stats?.malicious || 0;
     const totalScans = Object.values(stats).reduce((sum: number, count: any) => sum + count, 0);
     
-    const vendors = Object.entries(attributes.last_analysis_results || {})
+    const vendors = Object.entries(attributes?.last_analysis_results || {})
       .filter(([, result]: [string, any]) => result.category === "malicious")
       .map(([vendor]) => vendor);
 
@@ -457,14 +443,6 @@ class VirusTotalService extends BaseExternalService {
       detections,
       totalScans,
       vendors,
-      metadata: {
-        names: attributes.names,
-        size: attributes.size,
-        type_description: attributes.type_description,
-        magic: attributes.magic,
-        first_submission_date: attributes.first_submission_date,
-        last_modification_date: attributes.last_modification_date,
-      },
       timestamp: new Date(),
       source: "virustotal",
     };
@@ -474,12 +452,12 @@ class VirusTotalService extends BaseExternalService {
    * Parse URL response data
    */
   private parseURLResponse(url: string, data: any): ThreatIntelligenceResult {
-    const attributes = data.attributes || {};
-    const stats = attributes.last_analysis_stats || {};
-    const detections = stats.malicious || 0;
+    const attributes = data?.attributes || {};
+    const stats = attributes?.last_analysis_stats || {};
+    const detections = stats?.malicious || 0;
     const totalScans = Object.values(stats).reduce((sum: number, count: any) => sum + count, 0);
     
-    const vendors = Object.entries(attributes.last_analysis_results || {})
+    const vendors = Object.entries(attributes?.last_analysis_results || {})
       .filter(([, result]: [string, any]) => result.category === "malicious")
       .map(([vendor]) => vendor);
 
@@ -493,12 +471,6 @@ class VirusTotalService extends BaseExternalService {
       detections,
       totalScans,
       vendors,
-      metadata: {
-        categories: attributes.categories,
-        title: attributes.title,
-        last_analysis_date: attributes.last_analysis_date,
-        times_submitted: attributes.times_submitted,
-      },
       timestamp: new Date(),
       source: "virustotal",
     };
@@ -542,9 +514,9 @@ class VirusTotalService extends BaseExternalService {
         },
         cacheStats,
       };
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error("Failed to get VirusTotal threat summary", {
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
       });
       
       return {

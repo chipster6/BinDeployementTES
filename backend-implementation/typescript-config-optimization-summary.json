@@ -1,0 +1,42 @@
+{
+  "timestamp": "2025-08-20T23:29:11.570Z",
+  "results": {
+    "development": {
+      "config": "tsconfig.dev-optimized.json",
+      "success": false,
+      "duration": 2.282,
+      "errorCount": 0,
+      "status": "GOOD_WITH_ERRORS"
+    },
+    "modernization": {
+      "config": "tsconfig.modernization.json",
+      "success": false,
+      "duration": 1.847,
+      "errorCount": 0,
+      "status": "GOOD_WITH_ERRORS"
+    },
+    "production": {
+      "config": "tsconfig.production-optimized.json",
+      "success": false,
+      "duration": 6.536,
+      "errorCount": 0,
+      "status": "GOOD_WITH_ERRORS"
+    }
+  },
+  "optimizations": [
+    "Enhanced incremental compilation with dependency tracking",
+    "Memory usage optimization for large-scale type checking",
+    "Watch mode performance optimization for rapid iteration",
+    "Enhanced incremental compilation with dependency tracking",
+    "Memory usage optimization for large-scale type checking",
+    "Enhanced TypeScript strictness for comprehensive modernization",
+    "Optimized file inclusion/exclusion for modernization phase",
+    "Enhanced incremental compilation with dependency tracking",
+    "Memory usage optimization for large-scale type checking"
+  ],
+  "recommendations": [
+    "Use tsconfig.dev-optimized.json for fastest development iteration",
+    "Use tsconfig.modernization.json for comprehensive type checking during fixes",
+    "Use tsconfig.production-optimized.json for fastest production builds"
+  ]
+}

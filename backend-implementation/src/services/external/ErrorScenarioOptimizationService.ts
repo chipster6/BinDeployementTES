@@ -292,13 +292,7 @@ export class ErrorScenarioOptimizationService extends EventEmitter {
         fallbackDecision: optimizationResults.fallbackDecision,
         optimizationPlan,
         businessJustification: this.generateBusinessJustification(context, optimizationStrategy, optimizationResults),
-        monitoringPlan: this.createMonitoringPlan(context, optimizationPlan),
-        metadata: {
-          decisionTime: Date.now() - startTime,
-          confidenceScore: this.calculateConfidenceScore(context, optimizationResults),
-          optimizationLevel: this.determineOptimizationLevel(context),
-          automationLevel: this.determineAutomationLevel(context)
-        }
+        monitoringPlan: this.createMonitoringPlan(context, optimizationPlan)
       };
 
       // Record decision for analytics
@@ -328,13 +322,13 @@ export class ErrorScenarioOptimizationService extends EventEmitter {
 
       return decision;
 
-    } catch (error) {
+    } catch (error: unknown) {
       const decisionTime = Date.now() - startTime;
       
       logger.error("Error scenario optimization failed", {
         scenarioId: context.scenarioId,
         serviceName: context.serviceName,
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
         decisionTime
       });
 
@@ -342,7 +336,7 @@ export class ErrorScenarioOptimizationService extends EventEmitter {
       this.emitOptimizationEvent("optimization_failed", {
         scenarioId: context.scenarioId,
         serviceName: context.serviceName,
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
         decisionTime
       });
 
@@ -499,7 +493,7 @@ export class ErrorScenarioOptimizationService extends EventEmitter {
           errorHistory: {
             recentErrors: context.errorDetails.failedProviders.map(provider => ({
               nodeId: provider,
-              error: context.errorDetails.originalError.message,
+              error: context.errorDetails.originalError?.message,
               timestamp: new Date(),
               errorType: context.scenarioType
             })),
@@ -530,14 +524,6 @@ export class ErrorScenarioOptimizationService extends EventEmitter {
           operation: context.operation,
           originalRequest: {},
           error: context.errorDetails.originalError as any,
-          metadata: {
-            requestId: context.metadata.requestId,
-            userId: context.metadata.userId,
-            organizationId: context.metadata.organizationId,
-            timestamp: context.metadata.timestamp,
-            retryCount: context.errorDetails.retryAttempts,
-            maxRetries: 3
-          },
           businessContext: {
             urgency: context.severity === "critical" ? "critical" : 
                     context.severity === "high" ? "high" : "medium",
@@ -555,24 +541,16 @@ export class ErrorScenarioOptimizationService extends EventEmitter {
           serviceName: context.serviceName,
           operation: context.operation,
           originalRequest: {},
-          error: context.errorDetails.originalError as any,
-          metadata: {
-            requestId: context.metadata.requestId,
-            userId: context.metadata.userId,
-            organizationId: context.metadata.organizationId,
-            timestamp: context.metadata.timestamp,
-            retryCount: context.errorDetails.retryAttempts,
-            maxRetries: 3
-          }
+          error: context.errorDetails.originalError as any
         };
 
         results.fallbackDecision = await this.fallbackManager.executeFallback(fallbackContext);
       }
 
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error("Error during optimization execution", {
         scenarioId: context.scenarioId,
-        error: error.message
+        error: error instanceof Error ? error?.message : String(error)
       });
       
       // Continue with partial results
@@ -722,9 +700,9 @@ export class ErrorScenarioOptimizationService extends EventEmitter {
     for (const [scenarioId, context] of this.activeScenarios) {
       try {
         await this.monitorActiveScenario(scenarioId, context);
-      } catch (error) {
+      } catch (error: unknown) {
         logger.error(`Scenario monitoring failed for ${scenarioId}`, {
-          error: error.message
+          error: error instanceof Error ? error?.message : String(error)
         });
       }
     }
@@ -762,9 +740,9 @@ export class ErrorScenarioOptimizationService extends EventEmitter {
     for (const serviceName of this.optimizationHistory.keys()) {
       try {
         await this.generateScenarioAnalytics(serviceName);
-      } catch (error) {
+      } catch (error: unknown) {
         logger.error(`Analytics update failed for ${serviceName}`, {
-          error: error.message
+          error: error instanceof Error ? error?.message : String(error)
         });
       }
     }
@@ -1062,9 +1040,9 @@ export class ErrorScenarioOptimizationService extends EventEmitter {
         userAgent: "ErrorScenarioOptimizationService",
         organizationId: context.metadata.organizationId
       });
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error("Failed to create optimization audit log", {
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
         decisionId: decision.decisionId
       });
     }

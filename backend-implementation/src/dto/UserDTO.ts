@@ -430,8 +430,8 @@ export class UserDTO extends BaseDTO<UserDTOData> {
       organizationId: data.organizationId,
       firstName: data.firstName,
       lastName: data.lastName,
-      timezone: data.timezone || "UTC",
-      locale: data.locale || "en",
+      timezone: data?.timezone || "UTC",
+      locale: data?.locale || "en",
     };
 
     // Only add optional properties if they have values

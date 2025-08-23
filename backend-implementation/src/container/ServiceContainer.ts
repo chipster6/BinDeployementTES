@@ -19,10 +19,10 @@ import { MLModelManagementService } from "../services/ai/MLModelManagementServic
 import { ErrorAnalyticsService } from "../services/ai/ErrorAnalyticsService";
 import { ErrorCoordinationService } from "../services/ai/ErrorCoordinationService";
 
-import { IErrorPredictionEngine } from "../interfaces/ai/IErrorPredictionEngine";
-import { IMLModelManager } from "../interfaces/ai/IMLModelManager";
-import { IErrorAnalytics } from "../interfaces/ai/IErrorAnalytics";
-import { IErrorCoordination } from "../interfaces/ai/IErrorCoordination";
+import type { IErrorPredictionEngine } from "../interfaces/ai/IErrorPredictionEngine";
+import type { IMLModelManager } from "../interfaces/ai/IMLModelManager";
+import type { IErrorAnalytics } from "../interfaces/ai/IErrorAnalytics";
+import type { IErrorCoordination } from "../interfaces/ai/IErrorCoordination";
 
 import { logger } from "@/utils/logger";
 
@@ -90,11 +90,12 @@ export class ServiceContainer {
         services: Array.from(this.services.keys()),
       });
 
-    } catch (error) {
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error?.message : 'Unknown error';
       logger.error("Failed to initialize service container", {
-        error: error.message,
+        error: errorMessage,
       });
-      throw new Error(`Service container initialization failed: ${error.message}`);
+      throw new Error(`Service container initialization failed: ${errorMessage}`);
     }
   }
 
@@ -176,9 +177,10 @@ export class ServiceContainer {
 
       logger.info("Service container shutdown completed");
 
-    } catch (error) {
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error?.message : 'Unknown error';
       logger.error("Error during service container shutdown", {
-        error: error.message,
+        error: errorMessage,
       });
     }
   }

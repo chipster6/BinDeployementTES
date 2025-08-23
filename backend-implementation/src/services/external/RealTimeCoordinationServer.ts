@@ -107,7 +107,7 @@ export class RealTimeCoordinationServer {
       // Initialize Socket.IO server
       this.io = new SocketIOServer(httpServer, {
         cors: {
-          origin: process.env.FRONTEND_URL || "http://localhost:3000",
+          origin: process.env?.FRONTEND_URL || "http://localhost:3000",
           methods: ["GET", "POST"],
           credentials: true,
         },
@@ -134,9 +134,9 @@ export class RealTimeCoordinationServer {
         rooms: this.coordinationRooms.length,
         maxConnections: 1000, // Configurable limit
       });
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('Failed to initialize Real-Time Coordination Server', {
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
       });
       throw error;
     }
@@ -218,7 +218,7 @@ export class RealTimeCoordinationServer {
       socket.on('error', (error) => {
         logger.error('WebSocket connection error', {
           connectionId,
-          error: error.message,
+          error: error instanceof Error ? error?.message : String(error),
         });
       });
 
@@ -232,7 +232,7 @@ export class RealTimeCoordinationServer {
    */
   private setupCoordinationRooms(): void {
     for (const room of this.coordinationRooms) {
-      this.messageQueue.set(room, []);
+      this?.messageQueue.set(room, []);
       this.performanceMetrics.set(room, {
         messagesSent: 0,
         activeSubscribers: 0,
@@ -314,10 +314,10 @@ export class RealTimeCoordinationServer {
           reason: 'Invalid credentials',
         });
       }
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('Authentication failed', {
         connectionId: metadata.connectionId,
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
       });
       socket.emit('authentication_failed', {
         success: false,
@@ -379,11 +379,11 @@ export class RealTimeCoordinationServer {
         room,
         totalSubscriptions: metadata.subscriptions.length,
       });
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('Room subscription failed', {
         connectionId: metadata.connectionId,
         room: roomData.room,
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
       });
     }
   }
@@ -441,9 +441,9 @@ export class RealTimeCoordinationServer {
       };
 
       await this.broadcastMessage(message);
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('Failed to stream service status updates', {
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
       });
     }
   }
@@ -489,9 +489,9 @@ export class RealTimeCoordinationServer {
 
         await this.broadcastMessage(alertMessage);
       }
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('Failed to stream cost monitoring updates', {
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
       });
     }
   }
@@ -518,9 +518,9 @@ export class RealTimeCoordinationServer {
       };
 
       await this.broadcastMessage(message);
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('Failed to stream batching performance updates', {
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
       });
     }
   }
@@ -548,9 +548,9 @@ export class RealTimeCoordinationServer {
 
         await this.broadcastMessage(message);
       }
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('Failed to stream high-frequency updates', {
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
       });
     }
   }
@@ -563,14 +563,14 @@ export class RealTimeCoordinationServer {
 
     try {
       // Add to message queue
-      const roomQueue = this.messageQueue.get(message.room) || [];
+      const roomQueue = this?.messageQueue.get(message.room) || [];
       roomQueue.push(message);
 
       // Keep only recent messages (last 100)
       if (roomQueue.length > 100) {
-        this.messageQueue.set(message.room, roomQueue.slice(-100));
+        this?.messageQueue.set(message.room, roomQueue.slice(-100));
       } else {
-        this.messageQueue.set(message.room, roomQueue);
+        this?.messageQueue.set(message.room, roomQueue);
       }
 
       // Broadcast to room
@@ -584,7 +584,7 @@ export class RealTimeCoordinationServer {
       // Update metrics
       const roomMetrics = this.performanceMetrics.get(message.room);
       if (roomMetrics) {
-        roomMetrics.messagesSent++;
+        roomMetrics?.messagesSent++;
         roomMetrics.lastActivity = new Date();
       }
 
@@ -593,11 +593,11 @@ export class RealTimeCoordinationServer {
         type: message.type,
         priority: message.priority,
       });
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('Failed to broadcast message', {
         room: message.room,
         type: message.type,
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
       });
     }
   }
@@ -633,7 +633,7 @@ export class RealTimeCoordinationServer {
    */
   private initializeMessageQueues(): void {
     for (const room of this.coordinationRooms) {
-      this.messageQueue.set(room, []);
+      this?.messageQueue.set(room, []);
     }
   }
 
@@ -649,7 +649,7 @@ export class RealTimeCoordinationServer {
   }
 
   private async sendRecentMessages(socket: any, room: string): Promise<void> {
-    const recentMessages = this.messageQueue.get(room) || [];
+    const recentMessages = this?.messageQueue.get(room) || [];
     const last10Messages = recentMessages.slice(-10);
 
     for (const message of last10Messages) {
@@ -689,7 +689,7 @@ export class RealTimeCoordinationServer {
     
     // Update average latency
     const currentAvg = metadata.performance.averageLatency;
-    const messageCount = metadata.performance.messagesSent + metadata.performance.messagesReceived;
+    const messageCount = metadata.performance?.messagesSent + metadata.performance?.messagesReceived;
     metadata.performance.averageLatency = 
       messageCount > 0 ? (currentAvg * messageCount + latency) / (messageCount + 1) : latency;
 
@@ -703,7 +703,7 @@ export class RealTimeCoordinationServer {
   }
 
   private handleMessageAck(socket: any, ackData: any, metadata: ConnectionMetadata): void {
-    metadata.performance.messagesReceived++;
+    metadata.performance?.messagesReceived++;
     metadata.lastActivity = new Date();
   }
 
@@ -776,7 +776,7 @@ export class RealTimeCoordinationServer {
       300, // 5 minutes
       JSON.stringify(globalMetrics)
     ).catch(error => {
-      logger.warn('Failed to store performance metrics', { error: error.message });
+      logger.warn('Failed to store performance metrics', { error: error instanceof Error ? error?.message : String(error) });
     });
   }
 
@@ -812,7 +812,7 @@ export class RealTimeCoordinationServer {
       connections: this.connections.size,
       rooms: Object.fromEntries(this.performanceMetrics.entries()),
       messageQueues: Object.fromEntries(
-        Array.from(this.messageQueue.entries()).map(([room, messages]) => [
+        Array.from(this?.messageQueue.entries()).map(([room, messages]) => [
           room,
           { messageCount: messages.length }
         ])
@@ -840,7 +840,7 @@ export class RealTimeCoordinationServer {
     }
 
     this.connections.clear();
-    this.messageQueue.clear();
+    this?.messageQueue.clear();
     this.performanceMetrics.clear();
     this.isInitialized = false;
 

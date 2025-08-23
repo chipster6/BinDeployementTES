@@ -208,7 +208,7 @@ export class EnterpriseErrorResilienceService extends EventEmitter {
 
     logger.info("ENTERPRISE ERROR HANDLING INITIATED", {
       eventId,
-      error: error.message,
+      error: error instanceof Error ? error?.message : String(error),
       systemLayer: context.systemLayer,
       operation: context.operation
     });
@@ -241,15 +241,7 @@ export class EnterpriseErrorResilienceService extends EventEmitter {
         manualInterventionsRequired: [],
         estimatedRecoveryTime: 0,
         processingTime: 0,
-        componentResponseTimes: {},
-        metadata: {
-          correlationId: this.generateCorrelationId(),
-          userId: context.userId,
-          organizationId: context.organizationId,
-          requestContext: context.requestContext,
-          escalationLevel: "none",
-          notificationsSent: []
-        }
+        componentResponseTimes: {}
       };
 
       this.activeEvents.set(eventId, enterpriseEvent);
@@ -303,8 +295,8 @@ export class EnterpriseErrorResilienceService extends EventEmitter {
     } catch (coordinationError) {
       logger.error("ENTERPRISE ERROR HANDLING FAILED", {
         eventId,
-        error: coordinationError.message,
-        originalError: error.message
+        error: coordinationError?.message,
+        originalError: error instanceof Error ? error?.message : String(error)
       });
 
       // Emergency fallback
@@ -419,17 +411,16 @@ export class EnterpriseErrorResilienceService extends EventEmitter {
     try {
       const result = await errorOrchestration.orchestrateError(event.originalError, {
         systemLayer: event.systemLayer,
-        requestContext: context.requestContext,
-        metadata: { enterpriseEventId: event.eventId }
+        requestContext: context.requestContext
       });
 
       event.componentResponseTimes.orchestration = Date.now() - startTime;
       return result;
 
-    } catch (error) {
-      logger.warn("Error orchestration failed", { eventId: event.eventId, error: error.message });
+    } catch (error: unknown) {
+      logger.warn("Error orchestration failed", { eventId: event.eventId, error: error instanceof Error ? error?.message : String(error) });
       event.componentResponseTimes.orchestration = Date.now() - startTime;
-      return { success: false, error: error.message };
+      return { success: false, error: error instanceof Error ? error?.message : String(error) };
     }
   }
 
@@ -454,10 +445,10 @@ export class EnterpriseErrorResilienceService extends EventEmitter {
       event.componentResponseTimes.prediction = Date.now() - startTime;
       return result;
 
-    } catch (error) {
-      logger.warn("Error prediction failed", { eventId: event.eventId, error: error.message });
+    } catch (error: unknown) {
+      logger.warn("Error prediction failed", { eventId: event.eventId, error: error instanceof Error ? error?.message : String(error) });
       event.componentResponseTimes.prediction = Date.now() - startTime;
-      return { success: false, error: error.message };
+      return { success: false, error: error instanceof Error ? error?.message : String(error) };
     }
   }
 
@@ -471,16 +462,16 @@ export class EnterpriseErrorResilienceService extends EventEmitter {
       const result = await crossSystemErrorPropagation.handleCrossSystemError(
         event.originalError,
         event.systemLayer,
-        { operationType: context.operation, metadata: { enterpriseEventId: event.eventId } }
+        { operationType: context.operation }
       );
 
       event.componentResponseTimes.propagation = Date.now() - startTime;
       return result;
 
-    } catch (error) {
-      logger.warn("Propagation prevention failed", { eventId: event.eventId, error: error.message });
+    } catch (error: unknown) {
+      logger.warn("Propagation prevention failed", { eventId: event.eventId, error: error instanceof Error ? error?.message : String(error) });
       event.componentResponseTimes.propagation = Date.now() - startTime;
-      return { success: false, error: error.message };
+      return { success: false, error: error instanceof Error ? error?.message : String(error) };
     }
   }
 
@@ -499,10 +490,10 @@ export class EnterpriseErrorResilienceService extends EventEmitter {
       event.componentResponseTimes.analytics = Date.now() - startTime;
       return snapshot;
 
-    } catch (error) {
-      logger.warn("Analytics snapshot failed", { eventId: event.eventId, error: error.message });
+    } catch (error: unknown) {
+      logger.warn("Analytics snapshot failed", { eventId: event.eventId, error: error instanceof Error ? error?.message : String(error) });
       event.componentResponseTimes.analytics = Date.now() - startTime;
-      return { success: false, error: error.message };
+      return { success: false, error: error instanceof Error ? error?.message : String(error) };
     }
   }
 
@@ -515,7 +506,7 @@ export class EnterpriseErrorResilienceService extends EventEmitter {
     try {
       const streamContext = {
         stream: this.mapSystemLayerToStream(event.systemLayer),
-        component: context.operation || "unknown",
+        component: context?.operation || "unknown",
         userId: event.metadata.userId,
         organizationId: event.metadata.organizationId,
         correlationId: event.metadata.correlationId
@@ -530,10 +521,10 @@ export class EnterpriseErrorResilienceService extends EventEmitter {
       event.componentResponseTimes.coordination = Date.now() - startTime;
       return { eventId: result, success: true };
 
-    } catch (error) {
-      logger.warn("Stream coordination failed", { eventId: event.eventId, error: error.message });
+    } catch (error: unknown) {
+      logger.warn("Stream coordination failed", { eventId: event.eventId, error: error instanceof Error ? error?.message : String(error) });
       event.componentResponseTimes.coordination = Date.now() - startTime;
-      return { success: false, error: error.message };
+      return { success: false, error: error instanceof Error ? error?.message : String(error) };
     }
   }
 

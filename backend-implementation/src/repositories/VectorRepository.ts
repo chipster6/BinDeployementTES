@@ -106,7 +106,7 @@ export class VectorRepository extends BaseRepository<any> {
       }
 
       // Get entity types to search
-      const entityTypes = options.entityTypes || await this.getActiveEntityTypes();
+      const entityTypes = options?.entityTypes || await this.getActiveEntityTypes();
       const results: EnhancedVectorResult[] = [];
 
       // Search across each entity type
@@ -118,8 +118,8 @@ export class VectorRepository extends BaseRepository<any> {
             className,
             query: options.query,
             vector: options.vector,
-            limit: options.limit || 10,
-            offset: options.offset || 0,
+            limit: options?.limit || 10,
+            offset: options?.offset || 0,
             additional: ['certainty', 'distance', 'id']
           };
 
@@ -138,23 +138,23 @@ export class VectorRepository extends BaseRepository<any> {
             try {
               const enhanced = await this.enhanceVectorResult(result, entityType);
               
-              if (enhanced && enhanced.relevanceScore >= (options.threshold || 0.5)) {
+              if (enhanced && enhanced.relevanceScore >= (options?.threshold || 0.5)) {
                 results.push(enhanced);
                 
                 // Update search statistics
                 await this.updateSearchStatistics(enhanced.entityId, enhanced.relevanceScore);
               }
-            } catch (error) {
+            } catch (error: unknown) {
               this.logger.warn('Failed to enhance vector result', {
                 resultId: result.id,
                 entityType,
-                error: error.message
+                error: error instanceof Error ? error?.message : String(error)
               });
             }
           }
-        } catch (error) {
+        } catch (error: unknown) {
           this.logger.warn(`Search failed for entity type: ${entityType}`, {
-            error: error.message
+            error: error instanceof Error ? error?.message : String(error)
           });
         }
       }
@@ -162,7 +162,7 @@ export class VectorRepository extends BaseRepository<any> {
       // Sort by relevance and apply final limit
       results.sort((a, b) => b.relevanceScore - a.relevanceScore);
       
-      const finalResults = results.slice(0, options.limit || 10);
+      const finalResults = results.slice(0, options?.limit || 10);
 
       this.logger.debug(`Semantic search completed`, {
         totalResults: finalResults.length,
@@ -171,10 +171,10 @@ export class VectorRepository extends BaseRepository<any> {
 
       return finalResults;
 
-    } catch (error) {
+    } catch (error: unknown) {
       this.logger.error('Semantic search failed', {
         options,
-        error: error.message
+        error: error instanceof Error ? error?.message : String(error)
       });
       throw error;
     }
@@ -227,11 +227,11 @@ export class VectorRepository extends BaseRepository<any> {
       // Filter out the source entity
       return results.filter(result => result.entityId !== entityId);
 
-    } catch (error) {
+    } catch (error: unknown) {
       this.logger.error('Failed to find similar entities', {
         entityType,
         entityId,
-        error: error.message
+        error: error instanceof Error ? error?.message : String(error)
       });
       throw error;
     }
@@ -274,11 +274,11 @@ export class VectorRepository extends BaseRepository<any> {
         limit
       });
 
-    } catch (error) {
+    } catch (error: unknown) {
       this.logger.error('Failed to get recommendations', {
         userId,
         entityType,
-        error: error.message
+        error: error instanceof Error ? error?.message : String(error)
       });
       throw error;
     }
@@ -379,22 +379,22 @@ export class VectorRepository extends BaseRepository<any> {
       const row = results[0] as any;
       
       return {
-        totalVectors: row.total_vectors || 0,
-        syncedVectors: row.synced_vectors || 0,
-        pendingVectors: row.pending_vectors || 0,
-        errorVectors: row.error_vectors || 0,
-        avgQualityScore: row.avg_quality_score || 0,
-        entityTypeDistribution: row.entity_distribution || {},
-        searchPopularity: row.search_popularity || [],
-        syncPerformance: row.sync_performance || {
+        totalVectors: row?.total_vectors || 0,
+        syncedVectors: row?.synced_vectors || 0,
+        pendingVectors: row?.pending_vectors || 0,
+        errorVectors: row?.error_vectors || 0,
+        avgQualityScore: row?.avg_quality_score || 0,
+        entityTypeDistribution: row?.entity_distribution || {},
+        searchPopularity: row?.search_popularity || [],
+        syncPerformance: row?.sync_performance || {
           avgSyncTime: 0,
           successRate: 0,
           lastSyncDate: new Date()
         }
       };
 
-    } catch (error) {
-      this.logger.error('Failed to get vector analytics', { error: error.message });
+    } catch (error: unknown) {
+      this.logger.error('Failed to get vector analytics', { error: error instanceof Error ? error?.message : String(error) });
       throw error;
     }
   }
@@ -425,11 +425,11 @@ export class VectorRepository extends BaseRepository<any> {
 
       this.logger.debug('Entity vector invalidated successfully', { entityType, entityId });
 
-    } catch (error) {
+    } catch (error: unknown) {
       this.logger.error('Failed to invalidate entity vector', {
         entityType,
         entityId,
-        error: error.message
+        error: error instanceof Error ? error?.message : String(error)
       });
       throw error;
     }
@@ -456,7 +456,7 @@ export class VectorRepository extends BaseRepository<any> {
         type: 'UPDATE'
       });
 
-      const updatedCount = (result as any).rowCount || 0;
+      const updatedCount = (result as any)?.rowCount || 0;
 
       this.logger.debug('Bulk vector invalidation completed', {
         entityType,
@@ -465,10 +465,10 @@ export class VectorRepository extends BaseRepository<any> {
 
       return updatedCount;
 
-    } catch (error) {
+    } catch (error: unknown) {
       this.logger.error('Failed to bulk invalidate vectors', {
         entityType,
-        error: error.message
+        error: error instanceof Error ? error?.message : String(error)
       });
       throw error;
     }
@@ -516,10 +516,10 @@ export class VectorRepository extends BaseRepository<any> {
 
       return results;
 
-    } catch (error) {
+    } catch (error: unknown) {
       this.logger.error('Failed to get vectors requiring sync', {
         entityType,
-        error: error.message
+        error: error instanceof Error ? error?.message : String(error)
       });
       throw error;
     }
@@ -630,7 +630,7 @@ export class VectorRepository extends BaseRepository<any> {
       let entityData = null;
       try {
         entityData = await this.getEntityData(entityType, metadata.entity_id);
-      } catch (error) {
+      } catch (error: unknown) {
         this.logger.warn('Failed to get entity data', {
           entityType,
           entityId: metadata.entity_id
@@ -642,16 +642,16 @@ export class VectorRepository extends BaseRepository<any> {
         entityType,
         entityId: metadata.entity_id,
         entityData,
-        relevanceScore: result.certainty || result.score || 0,
+        relevanceScore: result?.certainty || result?.score || 0,
         syncedAt: metadata.weaviate_synced_at,
         lastSearched: metadata.last_searched_at
       };
 
-    } catch (error) {
+    } catch (error: unknown) {
       this.logger.error('Failed to enhance vector result', {
         resultId: result.id,
         entityType,
-        error: error.message
+        error: error instanceof Error ? error?.message : String(error)
       });
       return null;
     }
@@ -751,10 +751,10 @@ export class VectorRepository extends BaseRepository<any> {
         type: 'UPDATE'
       });
 
-    } catch (error) {
+    } catch (error: unknown) {
       this.logger.warn('Failed to update search statistics', {
         entityId,
-        error: error.message
+        error: error instanceof Error ? error?.message : String(error)
       });
     }
   }
@@ -811,9 +811,9 @@ export class VectorRepository extends BaseRepository<any> {
           entityType,
           entityId: row.entity_id,
           entityData,
-          relevanceScore: row.avg_search_relevance || 0.5
+          relevanceScore: row?.avg_search_relevance || 0.5
         });
-      } catch (error) {
+      } catch (error: unknown) {
         this.logger.warn('Failed to get popular entity data', {
           entityType,
           entityId: row.entity_id

@@ -528,13 +528,13 @@ export class FallbackStrategyManager extends EventEmitter {
 
       return result;
 
-    } catch (error) {
+    } catch (error: unknown) {
       const executionTime = Date.now() - startTime;
       
       logger.error("Fallback strategy execution failed", {
         strategyId: strategy.strategyId,
         serviceName: context.serviceName,
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
         executionTime
       });
 
@@ -542,7 +542,7 @@ export class FallbackStrategyManager extends EventEmitter {
       this.emitFallbackEvent("fallback_failed", {
         serviceName: context.serviceName,
         strategyId: strategy.strategyId,
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
         executionTime
       });
 
@@ -570,13 +570,6 @@ export class FallbackStrategyManager extends EventEmitter {
           success: true,
           strategy,
           data,
-          metadata: {
-            executionTime: 0,
-            costImpact: 0,
-            degradationLevel: "minor",
-            fallbackType: FallbackStrategyType.CACHE_ONLY,
-            providersAttempted: ["cache"]
-          },
           businessImpact: {
             customerExperience: "slightly_degraded",
             operationalImpact: "minor",
@@ -597,13 +590,6 @@ export class FallbackStrategyManager extends EventEmitter {
           success: true,
           strategy,
           data: fallbackData,
-          metadata: {
-            executionTime: 0,
-            costImpact: 0,
-            degradationLevel: "moderate",
-            fallbackType: FallbackStrategyType.CACHE_ONLY,
-            providersAttempted: ["fallback_generator"]
-          },
           businessImpact: {
             customerExperience: "moderately_degraded",
             operationalImpact: "moderate",
@@ -615,10 +601,10 @@ export class FallbackStrategyManager extends EventEmitter {
 
       throw new Error("No cached data available and no fallback generator configured");
 
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error("Cache-only fallback failed", {
         serviceName: context.serviceName,
-        error: error.message
+        error: error instanceof Error ? error?.message : String(error)
       });
       throw error;
     }
@@ -660,13 +646,6 @@ export class FallbackStrategyManager extends EventEmitter {
           strategy,
           provider,
           data,
-          metadata: {
-            executionTime: 0,
-            costImpact,
-            degradationLevel: providersAttempted.length > 1 ? "minor" : "none",
-            fallbackType: FallbackStrategyType.ALTERNATIVE_PROVIDER,
-            providersAttempted
-          },
           businessImpact: {
             customerExperience: providersAttempted.length > 1 ? "slightly_degraded" : "unchanged",
             operationalImpact: "none",
@@ -675,11 +654,11 @@ export class FallbackStrategyManager extends EventEmitter {
           nextRecommendedAction: "Monitor primary provider recovery"
         };
 
-      } catch (error) {
+      } catch (error: unknown) {
         lastError = error;
         logger.warn("Alternative provider failed", {
           providerId: provider.providerId,
-          error: error.message
+          error: error instanceof Error ? error?.message : String(error)
         });
         
         // Mark provider as unhealthy temporarily
@@ -719,13 +698,6 @@ export class FallbackStrategyManager extends EventEmitter {
         _fallback: true,
         _message: userMessage,
         _enabledFeatures: enabledFeatures
-      },
-      metadata: {
-        executionTime: 0,
-        costImpact: 0,
-        degradationLevel: "moderate",
-        fallbackType: FallbackStrategyType.DEGRADED_FUNCTIONALITY,
-        providersAttempted: ["degraded_mode"]
       },
       businessImpact: {
         customerExperience: "moderately_degraded",
@@ -767,13 +739,6 @@ export class FallbackStrategyManager extends EventEmitter {
         _estimatedResolution: estimatedResolutionTime,
         _escalationPath: escalationPath
       },
-      metadata: {
-        executionTime: 0,
-        costImpact: 0,
-        degradationLevel: "severe",
-        fallbackType: FallbackStrategyType.MANUAL_OPERATION,
-        providersAttempted: ["manual_process"]
-      },
       businessImpact: {
         customerExperience: "severely_degraded",
         operationalImpact: "significant",
@@ -797,9 +762,9 @@ export class FallbackStrategyManager extends EventEmitter {
       if (cacheResult.success) {
         return cacheResult;
       }
-    } catch (error) {
+    } catch (error: unknown) {
       logger.debug("Cache fallback failed, trying alternative providers", {
-        error: error.message
+        error: error instanceof Error ? error?.message : String(error)
       });
     }
 
@@ -809,9 +774,9 @@ export class FallbackStrategyManager extends EventEmitter {
       if (providerResult.success) {
         return providerResult;
       }
-    } catch (error) {
+    } catch (error: unknown) {
       logger.debug("Alternative provider fallback failed, switching to degraded mode", {
-        error: error.message
+        error: error instanceof Error ? error?.message : String(error)
       });
     }
 
@@ -830,13 +795,6 @@ export class FallbackStrategyManager extends EventEmitter {
       success: false,
       strategy,
       data: null,
-      metadata: {
-        executionTime: 0,
-        costImpact: 0,
-        degradationLevel: "severe",
-        fallbackType: FallbackStrategyType.CIRCUIT_BREAKER,
-        providersAttempted: []
-      },
       businessImpact: {
         customerExperience: "severely_degraded",
         operationalImpact: "significant",
@@ -893,11 +851,11 @@ export class FallbackStrategyManager extends EventEmitter {
               serviceName
             });
           }
-        } catch (error) {
+        } catch (error: unknown) {
           this.providerHealthStatus.set(provider.providerId, false);
           logger.error("Provider health check failed", {
             providerId: provider.providerId,
-            error: error.message
+            error: error instanceof Error ? error?.message : String(error)
           });
         }
       }
@@ -916,7 +874,7 @@ export class FallbackStrategyManager extends EventEmitter {
       // Implementation would depend on provider type
       // This is a placeholder for the actual health check logic
       return true;
-    } catch (error) {
+    } catch (error: unknown) {
       return false;
     }
   }
@@ -1081,10 +1039,10 @@ export class FallbackStrategyManager extends EventEmitter {
             await this.sendDashboardAlert(notification);
             break;
         }
-      } catch (error) {
+      } catch (error: unknown) {
         logger.error("Failed to send manual operation notification", {
           channel,
-          error: error.message
+          error: error instanceof Error ? error?.message : String(error)
         });
       }
     }
@@ -1207,9 +1165,9 @@ export class FallbackStrategyManager extends EventEmitter {
         userAgent: "FallbackStrategyManager",
         organizationId: context.metadata.organizationId
       });
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error("Failed to create audit log for fallback execution", {
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
         serviceName: context.serviceName
       });
     }

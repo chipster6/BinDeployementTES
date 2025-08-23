@@ -347,8 +347,8 @@ export class AIMLPipelineEnhancement extends BaseService<any> {
    */
   private initializeQueues(): void {
     const redisConfig = {
-      host: process.env.REDIS_HOST || 'localhost',
-      port: parseInt(process.env.REDIS_PORT || '6379'),
+      host: process.env?.REDIS_HOST || 'localhost',
+      port: parseInt(process.env?.REDIS_PORT || '6379'),
     };
 
     // Preprocessing queue
@@ -499,18 +499,18 @@ export class AIMLPipelineEnhancement extends BaseService<any> {
         message: "Data preprocessing optimization completed successfully"
       };
 
-    } catch (error) {
-      timer.end({ error: error.message });
+    } catch (error: unknown) {
+      timer.end({ error: error instanceof Error ? error?.message : String(error) });
       logger.error("Data preprocessing optimization failed", {
         service: this.serviceName,
         pipelineId,
-        error: error.message
+        error: error instanceof Error ? error?.message : String(error)
       });
 
       return {
         success: false,
         message: "Data preprocessing optimization failed",
-        errors: [error.message]
+        errors: [error instanceof Error ? error?.message : String(error)]
       };
     }
   }
@@ -610,18 +610,18 @@ export class AIMLPipelineEnhancement extends BaseService<any> {
         message: "Feature engineering optimization completed successfully"
       };
 
-    } catch (error) {
-      timer.end({ error: error.message });
+    } catch (error: unknown) {
+      timer.end({ error: error instanceof Error ? error?.message : String(error) });
       logger.error("Feature engineering optimization failed", {
         service: this.serviceName,
         pipelineId,
-        error: error.message
+        error: error instanceof Error ? error?.message : String(error)
       });
 
       return {
         success: false,
         message: "Feature engineering optimization failed",
-        errors: [error.message]
+        errors: [error instanceof Error ? error?.message : String(error)]
       };
     }
   }
@@ -712,18 +712,18 @@ export class AIMLPipelineEnhancement extends BaseService<any> {
         message: "Batch processing optimization completed successfully"
       };
 
-    } catch (error) {
-      timer.end({ error: error.message });
+    } catch (error: unknown) {
+      timer.end({ error: error instanceof Error ? error?.message : String(error) });
       logger.error("Batch processing optimization failed", {
         service: this.serviceName,
         pipelineId,
-        error: error.message
+        error: error instanceof Error ? error?.message : String(error)
       });
 
       return {
         success: false,
         message: "Batch processing optimization failed",
-        errors: [error.message]
+        errors: [error instanceof Error ? error?.message : String(error)]
       };
     }
   }
@@ -792,18 +792,18 @@ export class AIMLPipelineEnhancement extends BaseService<any> {
         message: "Pipeline bottleneck analysis completed successfully"
       };
 
-    } catch (error) {
-      timer.end({ error: error.message });
+    } catch (error: unknown) {
+      timer.end({ error: error instanceof Error ? error?.message : String(error) });
       logger.error("Pipeline bottleneck analysis failed", {
         service: this.serviceName,
         pipelineId,
-        error: error.message
+        error: error instanceof Error ? error?.message : String(error)
       });
 
       return {
         success: false,
         message: "Pipeline bottleneck analysis failed",
-        errors: [error.message]
+        errors: [error instanceof Error ? error?.message : String(error)]
       };
     }
   }
@@ -887,17 +887,17 @@ export class AIMLPipelineEnhancement extends BaseService<any> {
         message: "AI/ML Pipeline dashboard data retrieved successfully"
       };
 
-    } catch (error) {
-      timer.end({ error: error.message });
+    } catch (error: unknown) {
+      timer.end({ error: error instanceof Error ? error?.message : String(error) });
       logger.error("Failed to get AI/ML Pipeline dashboard", {
         service: this.serviceName,
-        error: error.message
+        error: error instanceof Error ? error?.message : String(error)
       });
 
       return {
         success: false,
         message: "Failed to get AI/ML Pipeline dashboard",
-        errors: [error.message]
+        errors: [error instanceof Error ? error?.message : String(error)]
       };
     }
   }
@@ -1007,11 +1007,11 @@ export class AIMLPipelineEnhancement extends BaseService<any> {
           outputSize: processedData.length
         }
       };
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error("Preprocessing job failed", {
         jobId: job.id,
         pipelineId,
-        error: error.message
+        error: error instanceof Error ? error?.message : String(error)
       });
       throw error;
     }
@@ -1037,11 +1037,11 @@ export class AIMLPipelineEnhancement extends BaseService<any> {
           outputFeatures: engineeredFeatures.length
         }
       };
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error("Feature engineering job failed", {
         jobId: job.id,
         pipelineId,
-        error: error.message
+        error: error instanceof Error ? error?.message : String(error)
       });
       throw error;
     }
@@ -1067,11 +1067,11 @@ export class AIMLPipelineEnhancement extends BaseService<any> {
           outputSize: processedBatch.length
         }
       };
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error("Batch processing job failed", {
         jobId: job.id,
         pipelineId,
-        error: error.message
+        error: error instanceof Error ? error?.message : String(error)
       });
       throw error;
     }
@@ -1096,11 +1096,11 @@ export class AIMLPipelineEnhancement extends BaseService<any> {
           optimizationTime: timer.elapsed
         }
       };
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error("Optimization job failed", {
         jobId: job.id,
         pipelineId,
-        error: error.message
+        error: error instanceof Error ? error?.message : String(error)
       });
       throw error;
     }

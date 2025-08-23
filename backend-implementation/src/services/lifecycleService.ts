@@ -27,7 +27,7 @@ export class LifecycleService {
       logger.info("Starting Waste Management API Server...");
       this.startServer(port);
       this.setupShutdownHandlers();
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error("Failed to start server:", error);
       process.exit(1);
     }

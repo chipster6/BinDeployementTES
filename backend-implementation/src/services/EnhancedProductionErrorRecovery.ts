@@ -240,12 +240,12 @@ export class EnhancedProductionErrorRecoveryService extends EventEmitter {
   ): Promise<RollbackPoint> {
     const rollbackPoint: RollbackPoint = {
       pointId: `rbp_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-      name: pointData.name || `Rollback Point ${new Date().toISOString()}`,
-      type: pointData.type || RollbackType.APPLICATION_DEPLOYMENT,
+      name: pointData?.name || `Rollback Point ${new Date().toISOString()}`,
+      type: pointData?.type || RollbackType.APPLICATION_DEPLOYMENT,
       timestamp: new Date(),
       systemState: await this.captureSystemState(),
-      validationChecks: pointData.validationChecks || this.getDefaultValidationChecks(),
-      metadata: pointData.metadata || {}
+      validationChecks: pointData?.validationChecks || this.getDefaultValidationChecks(),
+      metadata: pointData?.metadata || {}
     };
 
     // Store rollback point
@@ -302,10 +302,10 @@ export class EnhancedProductionErrorRecoveryService extends EventEmitter {
       const rollbackContext: RollbackContext = {
         rollbackId,
         triggerType: trigger,
-        rollbackType: context.rollbackType || RollbackType.APPLICATION_DEPLOYMENT,
+        rollbackType: context?.rollbackType || RollbackType.APPLICATION_DEPLOYMENT,
         strategy,
-        businessImpact: context.businessImpact || BusinessImpact.HIGH,
-        affectedSystems: context.affectedSystems || [SystemLayer.API],
+        businessImpact: context?.businessImpact || BusinessImpact.HIGH,
+        affectedSystems: context?.affectedSystems || [SystemLayer.API],
         estimatedDuration: await this.estimateRollbackDuration(strategy),
         riskLevel: await this.assessRollbackRisk(strategy, context),
         originalDeployment: {
@@ -316,7 +316,7 @@ export class EnhancedProductionErrorRecoveryService extends EventEmitter {
           rollbackPoints
         },
         healthValidation: await this.buildHealthValidation(strategy),
-        businessContext: context.businessContext || {
+        businessContext: context?.businessContext || {
           revenueAtRisk: 0,
           customersAffected: 0,
           slaImpact: 0,
@@ -352,10 +352,10 @@ export class EnhancedProductionErrorRecoveryService extends EventEmitter {
 
       return result;
 
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error("AUTOMATED ROLLBACK FAILED", {
         rollbackId,
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
         deploymentId
       });
 
@@ -458,7 +458,7 @@ export class EnhancedProductionErrorRecoveryService extends EventEmitter {
 
       return result;
 
-    } catch (error) {
+    } catch (error: unknown) {
       const result: RollbackResult = {
         rollbackId: context.rollbackId,
         success: false,
@@ -483,7 +483,7 @@ export class EnhancedProductionErrorRecoveryService extends EventEmitter {
           capacityRestored: 0
         },
         nextActions: ["Manual intervention required", "Escalate to engineering team"],
-        lessons: [`Rollback strategy ${context.strategy} failed: ${error.message}`]
+        lessons: [`Rollback strategy ${context.strategy} failed: ${error instanceof Error ? error?.message : String(error)}`]
       };
 
       return result;
@@ -729,13 +729,13 @@ export class EnhancedProductionErrorRecoveryService extends EventEmitter {
         validationPassed: true
       };
       
-    } catch (error) {
+    } catch (error: unknown) {
       const duration = Date.now() - startTime;
       
       logger.error(`Rollback step failed: ${step.name}`, {
         stepId: step.stepId,
         duration,
-        error: error.message
+        error: error instanceof Error ? error?.message : String(error)
       });
       
       return {
@@ -743,7 +743,7 @@ export class EnhancedProductionErrorRecoveryService extends EventEmitter {
         name: step.name,
         success: false,
         duration,
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
         validationPassed: false
       };
     }
@@ -800,7 +800,7 @@ export class EnhancedProductionErrorRecoveryService extends EventEmitter {
         businessCritical: check.businessCritical
       };
       
-    } catch (error) {
+    } catch (error: unknown) {
       const duration = Date.now() - startTime;
       
       return {
@@ -808,7 +808,7 @@ export class EnhancedProductionErrorRecoveryService extends EventEmitter {
         name: check.name,
         success: false,
         duration,
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
         businessCritical: check.businessCritical
       };
     }

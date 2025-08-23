@@ -253,7 +253,7 @@ export class Bin extends Model<
 
   // Check if bin is smart (has GPS or sensors)
   public isSmartBin(): boolean {
-    return this.gpsEnabled || this.sensorEnabled;
+    return this?.gpsEnabled || this.sensorEnabled;
   }
 
   // Get fill level status
@@ -1020,7 +1020,7 @@ Bin.init(
       },
       beforeUpdate: (bin: Bin) => {
         // Increment version for optimistic locking
-        bin.version = (bin.version || 1) + 1;
+        bin.version = (bin?.version || 1) + 1;
 
         // Update next service date if last service date changed
         if (bin.changed("lastServiceDate") && bin.lastServiceDate) {

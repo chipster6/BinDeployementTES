@@ -270,17 +270,17 @@ export class CostMonitoringDashboardService extends BaseService<any> {
         message: "Cost data recorded successfully"
       };
       
-    } catch (error) {
-      timer.end({ error: error.message });
+    } catch (error: unknown) {
+      timer.end({ error: error instanceof Error ? error?.message : String(error) });
       logger.error('Error recording API call cost', {
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
         service: costData?.service,
         organizationId: costData?.organizationId
       });
       
       return {
         success: false,
-        message: `Failed to record cost data: ${error.message}`
+        message: `Failed to record cost data: ${error instanceof Error ? error?.message : String(error)}`
       };
     }
   }
@@ -338,16 +338,16 @@ export class CostMonitoringDashboardService extends BaseService<any> {
         message: "Cost analytics generated successfully"
       };
       
-    } catch (error) {
-      timer.end({ error: error.message });
+    } catch (error: unknown) {
+      timer.end({ error: error instanceof Error ? error?.message : String(error) });
       logger.error('Error generating cost analytics', {
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
         organizationId
       });
       
       return {
         success: false,
-        message: `Failed to generate cost analytics: ${error.message}`
+        message: `Failed to generate cost analytics: ${error instanceof Error ? error?.message : String(error)}`
       };
     }
   }
@@ -383,16 +383,16 @@ export class CostMonitoringDashboardService extends BaseService<any> {
         message: "Provider comparison generated successfully"
       };
       
-    } catch (error) {
-      timer.end({ error: error.message });
+    } catch (error: unknown) {
+      timer.end({ error: error instanceof Error ? error?.message : String(error) });
       logger.error('Error generating provider cost comparison', {
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
         service
       });
       
       return {
         success: false,
-        message: `Failed to generate provider comparison: ${error.message}`
+        message: `Failed to generate provider comparison: ${error instanceof Error ? error?.message : String(error)}`
       };
     }
   }
@@ -445,16 +445,16 @@ export class CostMonitoringDashboardService extends BaseService<any> {
         message: "Budget created successfully"
       };
       
-    } catch (error) {
-      timer.end({ error: error.message });
+    } catch (error: unknown) {
+      timer.end({ error: error instanceof Error ? error?.message : String(error) });
       logger.error('Error creating cost budget', {
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
         organizationId: budget?.organizationId
       });
       
       return {
         success: false,
-        message: `Failed to create budget: ${error.message}`
+        message: `Failed to create budget: ${error instanceof Error ? error?.message : String(error)}`
       };
     }
   }
@@ -500,16 +500,16 @@ export class CostMonitoringDashboardService extends BaseService<any> {
         message: "Budgets retrieved successfully"
       };
       
-    } catch (error) {
-      timer.end({ error: error.message });
+    } catch (error: unknown) {
+      timer.end({ error: error instanceof Error ? error?.message : String(error) });
       logger.error('Error retrieving organization budgets', {
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
         organizationId
       });
       
       return {
         success: false,
-        message: `Failed to retrieve budgets: ${error.message}`
+        message: `Failed to retrieve budgets: ${error instanceof Error ? error?.message : String(error)}`
       };
     }
   }
@@ -560,16 +560,16 @@ export class CostMonitoringDashboardService extends BaseService<any> {
         message: "Alert created successfully"
       };
       
-    } catch (error) {
-      timer.end({ error: error.message });
+    } catch (error: unknown) {
+      timer.end({ error: error instanceof Error ? error?.message : String(error) });
       logger.error('Error creating cost alert', {
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
         organizationId: alert?.organizationId
       });
       
       return {
         success: false,
-        message: `Failed to create alert: ${error.message}`
+        message: `Failed to create alert: ${error instanceof Error ? error?.message : String(error)}`
       };
     }
   }
@@ -626,16 +626,16 @@ export class CostMonitoringDashboardService extends BaseService<any> {
         message: "Real-time cost data retrieved successfully"
       };
       
-    } catch (error) {
-      timer.end({ error: error.message });
+    } catch (error: unknown) {
+      timer.end({ error: error instanceof Error ? error?.message : String(error) });
       logger.error('Error retrieving real-time cost data', {
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
         organizationId
       });
       
       return {
         success: false,
-        message: `Failed to retrieve real-time cost data: ${error.message}`
+        message: `Failed to retrieve real-time cost data: ${error instanceof Error ? error?.message : String(error)}`
       };
     }
   }
@@ -653,9 +653,9 @@ export class CostMonitoringDashboardService extends BaseService<any> {
     setInterval(async () => {
       try {
         await this.aggregateHourlyCosts();
-      } catch (error) {
+      } catch (error: unknown) {
         logger.error('Error in periodic cost aggregation', {
-          error: error.message
+          error: error instanceof Error ? error?.message : String(error)
         });
       }
     }, 60 * 60 * 1000); // Every hour
@@ -670,9 +670,9 @@ export class CostMonitoringDashboardService extends BaseService<any> {
     setInterval(async () => {
       try {
         await this.runAnomalyDetection();
-      } catch (error) {
+      } catch (error: unknown) {
         logger.error('Error in anomaly detection', {
-          error: error.message
+          error: error instanceof Error ? error?.message : String(error)
         });
       }
     }, 15 * 60 * 1000); // Every 15 minutes
@@ -687,9 +687,9 @@ export class CostMonitoringDashboardService extends BaseService<any> {
     setInterval(async () => {
       try {
         await this.checkAllBudgets();
-      } catch (error) {
+      } catch (error: unknown) {
         logger.error('Error in budget monitoring', {
-          error: error.message
+          error: error instanceof Error ? error?.message : String(error)
         });
       }
     }, 10 * 60 * 1000); // Every 10 minutes

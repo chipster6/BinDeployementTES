@@ -113,9 +113,9 @@ export class ApiKeyRotationService {
       }
 
       logger.info('API key rotation monitoring initialized for all external services');
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('Failed to initialize rotation monitoring', {
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
       });
     }
   }
@@ -163,9 +163,9 @@ export class ApiKeyRotationService {
         recommendations,
         lastAudit: new Date(),
       };
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('Failed to get security status', {
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
       });
 
       return {
@@ -219,9 +219,9 @@ export class ApiKeyRotationService {
         nextRotationDue,
         securityScore: Math.round(securityScore),
       };
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error(`Failed to get ${serviceName} key status`, {
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
       });
 
       return {
@@ -274,15 +274,15 @@ export class ApiKeyRotationService {
         rotationDate: new Date(rotationTime),
         ...rotationDetails,
       });
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error(`Failed to record key rotation for ${serviceName}`, {
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
         serviceName,
       });
 
       await this.logSecurityEvent('key_rotation_record_failed', {
         serviceName,
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
       });
     }
   }
@@ -302,9 +302,9 @@ export class ApiKeyRotationService {
       const history = await redisClient.lrange(historyKey, 0, limit - 1);
       
       return history.map(record => JSON.parse(record));
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error(`Failed to get rotation history for ${serviceName}`, {
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
         serviceName,
       });
       return [];
@@ -348,9 +348,9 @@ export class ApiKeyRotationService {
         revokedBy,
         revocationDate: new Date(revocationTime),
       });
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error(`Failed to process emergency revocation for ${serviceName}`, {
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
         serviceName,
         reason,
       });
@@ -421,9 +421,9 @@ export class ApiKeyRotationService {
         validationResults,
         recommendations,
       };
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('Failed to validate services security', {
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
       });
 
       return {
@@ -497,9 +497,9 @@ export class ApiKeyRotationService {
         compliantServices,
         recommendations: securityStatus.recommendations,
       };
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('Failed to generate compliance report', {
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
       });
 
       return {
@@ -526,7 +526,7 @@ export class ApiKeyRotationService {
         customerId: null,
         action,
         resourceType: 'api_key_security',
-        resourceId: details.serviceName || 'api-key-rotation',
+        resourceId: details?.serviceName || 'api-key-rotation',
         details: {
           service: 'api_key_rotation',
           timestamp: new Date().toISOString(),
@@ -535,9 +535,9 @@ export class ApiKeyRotationService {
         ipAddress: 'system',
         userAgent: 'ApiKeyRotationService',
       });
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('Failed to log security event', {
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
         action,
       });
     }
@@ -573,12 +573,12 @@ export class ApiKeyRotationService {
           recommendations: securityStatus.recommendations,
         },
       };
-    } catch (error) {
+    } catch (error: unknown) {
       return {
         service: 'api_key_rotation',
         status: 'unhealthy',
         lastCheck: new Date(),
-        details: { error: error.message },
+        details: { error: error instanceof Error ? error?.message : String(error) },
       };
     }
   }

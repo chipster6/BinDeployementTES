@@ -53,23 +53,23 @@ export interface SecretConfig {
   sessionSecret: string;
 
   // External service API keys
-  stripeSecretKey?: string;
-  stripeWebhookSecret?: string;
-  twilioAuthToken?: string;
-  sendgridApiKey?: string;
-  samsaraApiToken?: string;
-  samsaraWebhookSecret?: string;
-  airtableApiKey?: string;
-  mapboxAccessToken?: string;
+  stripeSecretKey?: string | undefined;
+  stripeWebhookSecret?: string | undefined;
+  twilioAuthToken?: string | undefined;
+  sendgridApiKey?: string | undefined;
+  samsaraApiToken?: string | undefined;
+  samsaraWebhookSecret?: string | undefined;
+  airtableApiKey?: string | undefined;
+  mapboxAccessToken?: string | undefined;
 
   // AWS credentials
-  awsAccessKeyId?: string;
-  awsSecretAccessKey?: string;
+  awsAccessKeyId?: string | undefined;
+  awsSecretAccessKey?: string | undefined;
 
   // Administrative interface passwords
-  redisCommanderPassword?: string;
-  pgadminPassword?: string;
-  grafanaPassword?: string;
+  redisCommanderPassword?: string | undefined;
+  pgadminPassword?: string | undefined;
+  grafanaPassword?: string | undefined;
 }
 
 /**
@@ -116,7 +116,7 @@ function loadSecret(
     }
 
     return secretValue;
-  } catch (error) {
+  } catch (error: unknown) {
     if (required) {
       logger.error(`Failed to load required secret: ${secretName}`, error);
       throw error;
@@ -276,7 +276,7 @@ export function loadSecrets(): SecretConfig {
       pgadminPassword,
       grafanaPassword,
     };
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error("Failed to load secrets configuration:", error);
     throw new Error("Secret configuration failed - check secret files and environment variables");
   }
@@ -325,7 +325,7 @@ export function initializeSecrets(): SecretConfig {
     const secrets = loadSecrets();
     injectSecretsToEnvironment(secrets);
     return secrets;
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error("Failed to initialize secrets management:", error);
     throw error;
   }
@@ -354,7 +354,7 @@ export function listAvailableSecrets(): {
   if (fs.existsSync(DOCKER_SECRETS_PATH)) {
     try {
       dockerSecrets.push(...fs.readdirSync(DOCKER_SECRETS_PATH));
-    } catch (error) {
+    } catch (error: unknown) {
       logger.warn("Could not list Docker secrets:", error);
     }
   }
@@ -363,7 +363,7 @@ export function listAvailableSecrets(): {
   if (fs.existsSync(LOCAL_SECRETS_PATH)) {
     try {
       localSecrets.push(...fs.readdirSync(LOCAL_SECRETS_PATH));
-    } catch (error) {
+    } catch (error: unknown) {
       logger.warn("Could not list local secrets:", error);
     }
   }

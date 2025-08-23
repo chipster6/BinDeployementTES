@@ -319,7 +319,7 @@ export class EnhancedServiceMeshCoordinationService extends EventEmitter {
 
     logger.warn("SERVICE MESH ERROR RECOVERY COORDINATION INITIATED", {
       coordinationId,
-      error: error.message,
+      error: error instanceof Error ? error?.message : String(error),
       affectedNodes: affectedNodeIds,
       options
     });
@@ -380,7 +380,7 @@ export class EnhancedServiceMeshCoordinationService extends EventEmitter {
     } catch (coordinationError) {
       logger.error("SERVICE MESH ERROR RECOVERY COORDINATION FAILED", {
         coordinationId,
-        error: coordinationError.message,
+        error: coordinationError?.message,
         affectedNodes: affectedNodeIds
       });
 
@@ -529,11 +529,11 @@ export class EnhancedServiceMeshCoordinationService extends EventEmitter {
         businessImpact
       };
 
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error("CROSS-REGION FAILOVER FAILED", {
         sourceRegion,
         targetRegion,
-        error: error.message
+        error: error instanceof Error ? error?.message : String(error)
       });
 
       return {
@@ -584,7 +584,7 @@ export class EnhancedServiceMeshCoordinationService extends EventEmitter {
     }
 
     // Calculate traffic metrics
-    const totalTraffic = nodes.reduce((sum, node) => sum + (node.capacity.currentLoad || 0), 0);
+    const totalTraffic = nodes.reduce((sum, node) => sum + (node.capacity?.currentLoad || 0), 0);
     const errorRate = nodes.reduce((sum, node) => sum + node.health.errorRate, 0) / nodes.length;
     const averageResponseTime = nodes.reduce((sum, node) => sum + node.health.responseTime, 0) / nodes.length;
 
@@ -706,7 +706,7 @@ export class EnhancedServiceMeshCoordinationService extends EventEmitter {
     candidates: [string, any][]
   ): { selectedDestination: string; confidence: number; reason: string } {
     const leastConnections = candidates.reduce((best, [nodeId, metrics]) => {
-      const connections = metrics.connections || 0;
+      const connections = metrics?.connections || 0;
       return connections < best.connections ? { nodeId, connections } : best;
     }, { nodeId: "", connections: Infinity });
 
@@ -739,7 +739,7 @@ export class EnhancedServiceMeshCoordinationService extends EventEmitter {
   private calculateHealthScore(metrics: any): number {
     const errorRateScore = Math.max(0, 1 - metrics.errorRate);
     const responseTimeScore = Math.max(0, 1 - (metrics.responseTime / 1000));
-    const uptimeScore = metrics.uptime || 0.9;
+    const uptimeScore = metrics?.uptime || 0.9;
     
     return (errorRateScore * 0.4) + (responseTimeScore * 0.3) + (uptimeScore * 0.3);
   }

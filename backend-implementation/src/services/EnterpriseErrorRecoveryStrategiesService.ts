@@ -274,7 +274,7 @@ export class EnterpriseErrorRecoveryStrategiesService extends EventEmitter {
     
     logger.info("ENTERPRISE RECOVERY STRATEGY EXECUTION INITIATED", {
       executionId,
-      error: error.message,
+      error: error instanceof Error ? error?.message : String(error),
       preferredStrategy,
       businessContext
     });
@@ -326,8 +326,8 @@ export class EnterpriseErrorRecoveryStrategiesService extends EventEmitter {
     } catch (recoveryError) {
       logger.error("ENTERPRISE RECOVERY STRATEGY EXECUTION FAILED", {
         executionId,
-        error: recoveryError.message,
-        originalError: error.message
+        error: recoveryError?.message,
+        originalError: error instanceof Error ? error?.message : String(error)
       });
 
       // Execute emergency recovery
@@ -385,9 +385,9 @@ export class EnterpriseErrorRecoveryStrategiesService extends EventEmitter {
 
       return optimizations;
 
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error("RECOVERY STRATEGY OPTIMIZATION FAILED", {
-        error: error.message
+        error: error instanceof Error ? error?.message : String(error)
       });
       return [];
     }
@@ -470,10 +470,10 @@ export class EnterpriseErrorRecoveryStrategiesService extends EventEmitter {
 
       return result;
 
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error("CROSS-REGION FAILOVER FAILED", {
         failoverId,
-        error: error.message
+        error: error instanceof Error ? error?.message : String(error)
       });
 
       return {
@@ -514,7 +514,7 @@ export class EnterpriseErrorRecoveryStrategiesService extends EventEmitter {
     };
   }> {
     logger.info("GENERATING RECOVERY STRATEGY RECOMMENDATIONS", {
-      error: error.message,
+      error: error instanceof Error ? error?.message : String(error),
       systemContext
     });
 
@@ -551,9 +551,9 @@ export class EnterpriseErrorRecoveryStrategiesService extends EventEmitter {
         expectedOutcome
       };
 
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error("RECOVERY STRATEGY RECOMMENDATION FAILED", {
-        error: error.message
+        error: error instanceof Error ? error?.message : String(error)
       });
       throw error;
     }
@@ -583,8 +583,7 @@ export class EnterpriseErrorRecoveryStrategiesService extends EventEmitter {
           retryCount: 0,
           requiredPermissions: ["service_monitor"],
           validationChecks: ["service_unreachable", "health_check_failed"],
-          rollbackTriggers: [],
-          metadata: {}
+          rollbackTriggers: []
         },
         {
           stepId: "activate_circuit_breaker",
@@ -599,8 +598,7 @@ export class EnterpriseErrorRecoveryStrategiesService extends EventEmitter {
             circuitBreakerConfig: { state: "open", timeout: 30000 }
           },
           validationChecks: ["circuit_breaker_active"],
-          rollbackTriggers: ["circuit_breaker_failed"],
-          metadata: {}
+          rollbackTriggers: ["circuit_breaker_failed"]
         },
         {
           stepId: "redirect_traffic",
@@ -616,8 +614,7 @@ export class EnterpriseErrorRecoveryStrategiesService extends EventEmitter {
             targetNodes: ["backup_node_1", "backup_node_2"]
           },
           validationChecks: ["traffic_redirected", "healthy_nodes_receiving"],
-          rollbackTriggers: ["traffic_redirect_failed"],
-          metadata: {}
+          rollbackTriggers: ["traffic_redirect_failed"]
         }
       ],
       validationCriteria: {
@@ -660,8 +657,7 @@ export class EnterpriseErrorRecoveryStrategiesService extends EventEmitter {
           retryCount: 1,
           requiredPermissions: ["traffic_control"],
           validationChecks: ["original_routing_restored"],
-          rollbackTriggers: [],
-          metadata: {}
+          rollbackTriggers: []
         }
       ],
       serviceMeshIntegration: {
@@ -671,14 +667,7 @@ export class EnterpriseErrorRecoveryStrategiesService extends EventEmitter {
         circuitBreakerActions: ["activate", "monitor", "auto_recovery"]
       },
       estimatedRecoveryTime: 30000, // 30 seconds
-      successRate: 0.95,
-      metadata: {
-        description: "Immediate failover using service mesh capabilities",
-        documentation: "/docs/recovery/immediate-mesh-failover",
-        maintainer: "platform_team",
-        lastUpdated: new Date(),
-        testResults: []
-      }
+      successRate: 0.95
     });
 
     // Gradual Blue-Green Recovery Strategy
@@ -701,8 +690,7 @@ export class EnterpriseErrorRecoveryStrategiesService extends EventEmitter {
           retryCount: 2,
           requiredPermissions: ["environment_validate"],
           validationChecks: ["green_health_check", "green_smoke_tests"],
-          rollbackTriggers: ["green_validation_failed"],
-          metadata: {}
+          rollbackTriggers: ["green_validation_failed"]
         },
         {
           stepId: "gradual_traffic_shift",
@@ -717,8 +705,7 @@ export class EnterpriseErrorRecoveryStrategiesService extends EventEmitter {
             trafficPercentage: 10 // Start with 10%, gradually increase
           },
           validationChecks: ["traffic_shift_successful", "green_handling_traffic"],
-          rollbackTriggers: ["green_errors_detected", "performance_degradation"],
-          metadata: { incrementalPercentages: [10, 25, 50, 75, 100] }
+          rollbackTriggers: ["green_errors_detected", "performance_degradation"]
         }
       ],
       validationCriteria: {
@@ -765,8 +752,7 @@ export class EnterpriseErrorRecoveryStrategiesService extends EventEmitter {
             targetNodes: ["blue_environment"]
           },
           validationChecks: ["blue_receiving_traffic"],
-          rollbackTriggers: [],
-          metadata: {}
+          rollbackTriggers: []
         }
       ],
       serviceMeshIntegration: {
@@ -776,14 +762,7 @@ export class EnterpriseErrorRecoveryStrategiesService extends EventEmitter {
         circuitBreakerActions: ["monitor", "protect_blue"]
       },
       estimatedRecoveryTime: 600000, // 10 minutes
-      successRate: 0.92,
-      metadata: {
-        description: "Gradual blue-green deployment switch with validation",
-        documentation: "/docs/recovery/blue-green-recovery",
-        maintainer: "deployment_team",
-        lastUpdated: new Date(),
-        testResults: []
-      }
+      successRate: 0.92
     });
 
     // Cross-Region Disaster Recovery Strategy
@@ -806,8 +785,7 @@ export class EnterpriseErrorRecoveryStrategiesService extends EventEmitter {
           retryCount: 1,
           requiredPermissions: ["region_monitoring"],
           validationChecks: ["region_unreachable", "infrastructure_down"],
-          rollbackTriggers: [],
-          metadata: {}
+          rollbackTriggers: []
         },
         {
           stepId: "activate_dr_region",
@@ -819,8 +797,7 @@ export class EnterpriseErrorRecoveryStrategiesService extends EventEmitter {
           retryCount: 1,
           requiredPermissions: ["dr_activation"],
           validationChecks: ["dr_services_running", "dr_data_current"],
-          rollbackTriggers: ["dr_activation_failed"],
-          metadata: {}
+          rollbackTriggers: ["dr_activation_failed"]
         },
         {
           stepId: "dns_failover",
@@ -836,8 +813,7 @@ export class EnterpriseErrorRecoveryStrategiesService extends EventEmitter {
             targetNodes: ["dr_region_nodes"]
           },
           validationChecks: ["dns_updated", "traffic_to_dr"],
-          rollbackTriggers: ["dns_update_failed"],
-          metadata: {}
+          rollbackTriggers: ["dns_update_failed"]
         }
       ],
       validationCriteria: {
@@ -880,8 +856,7 @@ export class EnterpriseErrorRecoveryStrategiesService extends EventEmitter {
           retryCount: 1,
           requiredPermissions: ["region_restore"],
           validationChecks: ["primary_region_healthy"],
-          rollbackTriggers: [],
-          metadata: {}
+          rollbackTriggers: []
         }
       ],
       serviceMeshIntegration: {
@@ -891,14 +866,7 @@ export class EnterpriseErrorRecoveryStrategiesService extends EventEmitter {
         circuitBreakerActions: ["global_rerouting", "region_isolation"]
       },
       estimatedRecoveryTime: 600000, // 10 minutes
-      successRate: 0.88,
-      metadata: {
-        description: "Cross-region disaster recovery with full failover",
-        documentation: "/docs/recovery/cross-region-dr",
-        maintainer: "infrastructure_team",
-        lastUpdated: new Date(),
-        testResults: []
-      }
+      successRate: 0.88
     });
   }
 
@@ -1025,8 +993,7 @@ export class EnterpriseErrorRecoveryStrategiesService extends EventEmitter {
         downtime: 30000
       },
       rollbackRequired: false,
-      recommendations: [],
-      metadata: {}
+      recommendations: []
     };
 
     return result;
@@ -1083,8 +1050,7 @@ export class EnterpriseErrorRecoveryStrategiesService extends EventEmitter {
         downtime: 0
       },
       rollbackRequired: true,
-      recommendations: ["manual_intervention_required"],
-      metadata: { emergency: true }
+      recommendations: ["manual_intervention_required"]
     };
   }
 
@@ -1232,10 +1198,10 @@ export class EnterpriseErrorRecoveryStrategiesService extends EventEmitter {
       logger.info("Intelligent service mesh error recovery deployed", result);
       return result;
 
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error("Service mesh error recovery deployment failed", {
         deploymentId,
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
         errorContext
       });
 
@@ -1243,7 +1209,7 @@ export class EnterpriseErrorRecoveryStrategiesService extends EventEmitter {
         "Service mesh recovery deployment failed",
         500,
         "SERVICE_MESH_RECOVERY_ERROR",
-        { deploymentId, originalError: error.message }
+        { deploymentId, originalError: error instanceof Error ? error?.message : String(error) }
       );
     }
   }
@@ -1340,17 +1306,17 @@ export class EnterpriseErrorRecoveryStrategiesService extends EventEmitter {
 
       return result;
 
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error("Multi-tier circuit breaker strategy failed", {
         strategyId,
-        error: error.message
+        error: error instanceof Error ? error?.message : String(error)
       });
 
       throw new AppError(
         "Multi-tier circuit breaker strategy execution failed",
         500,
         "MULTI_TIER_CB_STRATEGY_ERROR",
-        { strategyId, originalError: error.message }
+        { strategyId, originalError: error instanceof Error ? error?.message : String(error) }
       );
     }
   }
@@ -1461,10 +1427,10 @@ export class EnterpriseErrorRecoveryStrategiesService extends EventEmitter {
       logger.info("Cross-region disaster recovery deployed", result);
       return result;
 
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error("Cross-region disaster recovery failed", {
         recoveryId,
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
         disasterContext
       });
 
@@ -1472,7 +1438,7 @@ export class EnterpriseErrorRecoveryStrategiesService extends EventEmitter {
         "Cross-region disaster recovery deployment failed",
         500,
         "DISASTER_RECOVERY_ERROR",
-        { recoveryId, originalError: error.message }
+        { recoveryId, originalError: error instanceof Error ? error?.message : String(error) }
       );
     }
   }

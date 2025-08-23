@@ -152,7 +152,7 @@ export abstract class RefactoredBaseRepository<T extends Model = Model> {
       const result = await operation(newTransaction);
       await newTransaction.commit();
       return result;
-    } catch (error) {
+    } catch (error: unknown) {
       await newTransaction.rollback();
       throw error;
     }
@@ -180,7 +180,7 @@ export abstract class RefactoredBaseRepository<T extends Model = Model> {
         if (cacheResult.hit) {
           timer.end({ cacheHit: true });
           this.updateMetrics(timer.getDuration(), true);
-          return Result.success(cacheResult.data || null);
+          return Result.success(cacheResult?.data || null);
         }
       }
 
@@ -196,13 +196,13 @@ export abstract class RefactoredBaseRepository<T extends Model = Model> {
       this.updateMetrics(timer.getDuration(), false);
 
       return Result.success(result);
-    } catch (error) {
-      timer.end({ error: error.message });
+    } catch (error: unknown) {
+      timer.end({ error: error instanceof Error ? error?.message : String(error) });
       this.updateErrorMetrics();
       
       logger.error(`${this.modelName} repository findById failed`, {
         id,
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
       });
       
       return Result.failure(AppErrors.database(`Failed to find ${this.modelName}`, error));
@@ -230,7 +230,7 @@ export abstract class RefactoredBaseRepository<T extends Model = Model> {
         if (cacheResult.hit) {
           timer.end({ cacheHit: true });
           this.updateMetrics(timer.getDuration(), true);
-          return Result.success(cacheResult.data || null);
+          return Result.success(cacheResult?.data || null);
         }
       }
 
@@ -246,13 +246,13 @@ export abstract class RefactoredBaseRepository<T extends Model = Model> {
       this.updateMetrics(timer.getDuration(), false);
 
       return Result.success(result);
-    } catch (error) {
-      timer.end({ error: error.message });
+    } catch (error: unknown) {
+      timer.end({ error: error instanceof Error ? error?.message : String(error) });
       this.updateErrorMetrics();
       
       logger.error(`${this.modelName} repository findOne failed`, {
         filter,
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
       });
       
       return Result.failure(AppErrors.database(`Failed to find ${this.modelName}`, error));
@@ -280,7 +280,7 @@ export abstract class RefactoredBaseRepository<T extends Model = Model> {
         if (cacheResult.hit) {
           timer.end({ cacheHit: true });
           this.updateMetrics(timer.getDuration(), true);
-          return Result.success(cacheResult.data || []);
+          return Result.success(cacheResult?.data || []);
         }
       }
 
@@ -296,13 +296,13 @@ export abstract class RefactoredBaseRepository<T extends Model = Model> {
       this.updateMetrics(timer.getDuration(), false);
 
       return Result.success(results);
-    } catch (error) {
-      timer.end({ error: error.message });
+    } catch (error: unknown) {
+      timer.end({ error: error instanceof Error ? error?.message : String(error) });
       this.updateErrorMetrics();
       
       logger.error(`${this.modelName} repository findAll failed`, {
         filter,
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
       });
       
       return Result.failure(AppErrors.database(`Failed to find ${this.modelName} records`, error));
@@ -373,14 +373,14 @@ export abstract class RefactoredBaseRepository<T extends Model = Model> {
       this.updateMetrics(timer.getDuration(), false);
 
       return Result.success(result);
-    } catch (error) {
-      timer.end({ error: error.message });
+    } catch (error: unknown) {
+      timer.end({ error: error instanceof Error ? error?.message : String(error) });
       this.updateErrorMetrics();
       
       logger.error(`${this.modelName} repository findAndCountAll failed`, {
         filter,
         pagination,
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
       });
       
       return Result.failure(AppErrors.database(`Failed to find ${this.modelName} records`, error));
@@ -420,13 +420,13 @@ export abstract class RefactoredBaseRepository<T extends Model = Model> {
       });
 
       return Result.success(result);
-    } catch (error) {
-      timer.end({ error: error.message });
+    } catch (error: unknown) {
+      timer.end({ error: error instanceof Error ? error?.message : String(error) });
       this.updateErrorMetrics();
       
       logger.error(`${this.modelName} repository create failed`, {
         data,
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
       });
 
       if (error.name === "SequelizeValidationError") {
@@ -478,14 +478,14 @@ export abstract class RefactoredBaseRepository<T extends Model = Model> {
       logger.info(`${this.modelName} repository update successful`, { id });
 
       return Result.success(result);
-    } catch (error) {
-      timer.end({ error: error.message });
+    } catch (error: unknown) {
+      timer.end({ error: error instanceof Error ? error?.message : String(error) });
       this.updateErrorMetrics();
       
       logger.error(`${this.modelName} repository updateById failed`, {
         id,
         data,
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
       });
 
       if (error instanceof NotFoundError) {
@@ -538,13 +538,13 @@ export abstract class RefactoredBaseRepository<T extends Model = Model> {
       logger.info(`${this.modelName} repository delete successful`, { id });
 
       return Result.success(result);
-    } catch (error) {
-      timer.end({ error: error.message });
+    } catch (error: unknown) {
+      timer.end({ error: error instanceof Error ? error?.message : String(error) });
       this.updateErrorMetrics();
       
       logger.error(`${this.modelName} repository deleteById failed`, {
         id,
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
       });
 
       if (error instanceof NotFoundError) {
@@ -592,13 +592,13 @@ export abstract class RefactoredBaseRepository<T extends Model = Model> {
       this.updateMetrics(timer.getDuration(), false);
 
       return Result.success(count);
-    } catch (error) {
-      timer.end({ error: error.message });
+    } catch (error: unknown) {
+      timer.end({ error: error instanceof Error ? error?.message : String(error) });
       this.updateErrorMetrics();
       
       logger.error(`${this.modelName} repository count failed`, {
         where,
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
       });
       
       return Result.failure(AppErrors.database(`Failed to count ${this.modelName} records`, error));

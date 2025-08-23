@@ -581,13 +581,13 @@ export class IntelligentTrafficRoutingFoundation extends EventEmitter {
 
       return decision;
 
-    } catch (error) {
+    } catch (error: unknown) {
       const decisionTime = Date.now() - startTime;
       
       logger.error("Smart routing decision failed", {
         decisionId,
         serviceName: context.serviceName,
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
         decisionTime
       });
 
@@ -595,7 +595,7 @@ export class IntelligentTrafficRoutingFoundation extends EventEmitter {
       this.emitIntelligentRoutingEvent("smart_decision_failed", {
         decisionId,
         serviceName: context.serviceName,
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
         decisionTime
       });
 
@@ -1310,10 +1310,10 @@ export class IntelligentTrafficRoutingFoundation extends EventEmitter {
       
       try {
         await this.executeSystemCoordination(coordinationItem);
-      } catch (error) {
+      } catch (error: unknown) {
         logger.error("System coordination failed", {
           coordinationItem,
-          error: error.message
+          error: error instanceof Error ? error?.message : String(error)
         });
       }
     }
@@ -1513,9 +1513,9 @@ export class IntelligentTrafficRoutingFoundation extends EventEmitter {
     for (const [nodeId, learningData] of this.learningAlgorithms) {
       try {
         await this.optimizeNodeLearning(nodeId, learningData);
-      } catch (error) {
+      } catch (error: unknown) {
         logger.error(`Learning algorithm update failed for node ${nodeId}`, {
-          error: error.message
+          error: error instanceof Error ? error?.message : String(error)
         });
       }
     }
@@ -1537,9 +1537,9 @@ export class IntelligentTrafficRoutingFoundation extends EventEmitter {
       for (const node of nodes) {
         try {
           await this.updateNodeIntelligence(node);
-        } catch (error) {
+        } catch (error: unknown) {
           logger.error(`Intelligent monitoring failed for node ${node.nodeId}`, {
-            error: error.message
+            error: error instanceof Error ? error?.message : String(error)
           });
         }
       }
@@ -1660,9 +1660,9 @@ export class IntelligentTrafficRoutingFoundation extends EventEmitter {
         userAgent: "IntelligentTrafficRoutingFoundation",
         organizationId: coordinationItem.context?.organizationId
       });
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error("Failed to create coordination audit log", {
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
         coordinationId: coordinationItem.coordinationId
       });
     }

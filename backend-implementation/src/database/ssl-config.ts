@@ -80,9 +80,9 @@ export class DatabaseSSLManager {
 
       logger.info(`Database SSL configured for ${environment} environment`, {
         rejectUnauthorized: this.sslConfig ? this.sslConfig.rejectUnauthorized : false,
-        hasCertificates: this.sslConfig ? !!(this.sslConfig.ca || this.sslConfig.cert) : false,
+        hasCertificates: this.sslConfig ? !!(this.sslConfig?.ca || this.sslConfig.cert) : false,
       });
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('Failed to initialize SSL configuration', error);
       
       // Fallback to secure defaults
@@ -97,7 +97,7 @@ export class DatabaseSSLManager {
    * Production SSL configuration with strict certificate validation
    */
   private createProductionSSLConfig(): SSLConfig {
-    const certPath = process.env.DB_SSL_CERT_PATH || '/app/ssl/certs';
+    const certPath = process.env?.DB_SSL_CERT_PATH || '/app/ssl/certs';
     
     const config: SSLConfig = {
       require: true,
@@ -144,7 +144,7 @@ export class DatabaseSSLManager {
    * Staging SSL configuration with moderate validation
    */
   private createStagingSSLConfig(): SSLConfig {
-    const certPath = process.env.DB_SSL_CERT_PATH || '/app/ssl/certs';
+    const certPath = process.env?.DB_SSL_CERT_PATH || '/app/ssl/certs';
     
     const config: SSLConfig = {
       require: true,

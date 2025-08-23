@@ -200,7 +200,7 @@ export class Organization extends Model<
 
     try {
       return await decryptSensitiveData(this.taxIdEncrypted);
-    } catch (error) {
+    } catch (error: unknown) {
       console.error("Failed to decrypt tax ID:", error);
       return null;
     }

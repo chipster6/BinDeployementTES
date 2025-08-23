@@ -157,8 +157,8 @@ export class VectorSyncService extends BaseService {
         if (!this.syncInProgress) {
           await this.syncPendingVectors('scheduled_sync');
         }
-      } catch (error) {
-        this.logger.error('Scheduled vector sync failed', { error: error.message });
+      } catch (error: unknown) {
+        this.logger.error('Scheduled vector sync failed', { error: error instanceof Error ? error?.message : String(error) });
       }
     }, intervalMs);
 
@@ -313,10 +313,10 @@ export class VectorSyncService extends BaseService {
 
       return result;
 
-    } catch (error) {
+    } catch (error: unknown) {
       this.logger.error(`Vector sync batch failed: ${syncType}`, {
         batchId,
-        error: error.message
+        error: error instanceof Error ? error?.message : String(error)
       });
 
       if (syncBatch) {
@@ -324,7 +324,7 @@ export class VectorSyncService extends BaseService {
           syncStatus: 'failed',
           syncCompletedAt: new Date(),
           totalDurationMs: Date.now() - startTime,
-          errorSummary: error.message,
+          errorSummary: error instanceof Error ? error?.message : String(error),
           weaviateErrorCount: 1
         });
       }
@@ -381,11 +381,11 @@ export class VectorSyncService extends BaseService {
           failed: batchResult.failed
         });
 
-      } catch (error) {
+      } catch (error: unknown) {
         this.logger.error(`Batch processing failed`, {
           batchStart: i,
           batchSize: batch.length,
-          error: error.message
+          error: error instanceof Error ? error?.message : String(error)
         });
 
         // Mark entire batch as failed
@@ -394,7 +394,7 @@ export class VectorSyncService extends BaseService {
           errors.push({
             entityId: vector.entityId,
             entityType: vector.entityType,
-            error: error.message
+            error: error instanceof Error ? error?.message : String(error)
           });
         });
       }
@@ -462,14 +462,14 @@ export class VectorSyncService extends BaseService {
         const weaviateProperties = this.prepareWeaviateProperties(vector.entityType, entityData);
         
         weaviateObjects.push({
-          id: vector.vectorId || vector.id,
+          id: vector?.vectorId || vector.id,
           properties: weaviateProperties
         });
 
         // Prepare vector metadata update
         vectorUpdates.push({
           id: vector.id,
-          vectorId: vector.vectorId || vector.id,
+          vectorId: vector?.vectorId || vector.id,
           contentText: content,
           contentSummary: content.length > 500 ? content.substring(0, 500) + '...' : content,
           syncStatus: 'processing' as const,
@@ -477,17 +477,17 @@ export class VectorSyncService extends BaseService {
           processingVersion: '1.0.0'
         });
 
-      } catch (error) {
+      } catch (error: unknown) {
         this.logger.error(`Failed to prepare vector for sync`, {
           entityType: vector.entityType,
           entityId: vector.entityId,
-          error: error.message
+          error: error instanceof Error ? error?.message : String(error)
         });
         
         errors.push({
           entityId: vector.entityId,
           entityType: vector.entityType,
-          error: error.message
+          error: error instanceof Error ? error?.message : String(error)
         });
         failed++;
       }
@@ -506,7 +506,7 @@ export class VectorSyncService extends BaseService {
     try {
       // Batch upsert to Weaviate
       const weaviateIds = await this.weaviateConnection.batchUpsertVectors(
-        weaviateObjects[0].properties.className || 'KnowledgeBase',
+        weaviateObjects[0].properties?.className || 'KnowledgeBase',
         weaviateObjects
       );
 
@@ -537,23 +537,23 @@ export class VectorSyncService extends BaseService {
               error: 'Failed to sync to Weaviate'
             });
           }
-        } catch (error) {
+        } catch (error: unknown) {
           this.logger.error(`Failed to update vector metadata`, {
             vectorId: update.id,
-            error: error.message
+            error: error instanceof Error ? error?.message : String(error)
           });
           
           failed++;
           errors.push({
             entityId: vectors[i].entityId,
             entityType: vectors[i].entityType,
-            error: `Metadata update failed: ${error.message}`
+            error: `Metadata update failed: ${error instanceof Error ? error?.message : String(error)}`
           });
         }
       }
 
-    } catch (error) {
-      this.logger.error(`Batch Weaviate sync failed`, { error: error.message });
+    } catch (error: unknown) {
+      this.logger.error(`Batch Weaviate sync failed`, { error: error instanceof Error ? error?.message : String(error) });
       
       // Mark all as failed
       for (const vector of vectors) {
@@ -561,7 +561,7 @@ export class VectorSyncService extends BaseService {
         errors.push({
           entityId: vector.entityId,
           entityType: vector.entityType,
-          error: `Weaviate batch sync failed: ${error.message}`
+          error: `Weaviate batch sync failed: ${error instanceof Error ? error?.message : String(error)}`
         });
       }
     }
@@ -710,7 +710,7 @@ export class VectorSyncService extends BaseService {
           entityData.description,
           `Distance: ${entityData.estimated_distance_miles} miles`,
           `Duration: ${entityData.estimated_duration_minutes} minutes`,
-          `Optimization score: ${entityData.optimization_score || 'N/A'}`
+          `Optimization score: ${entityData?.optimization_score || 'N/A'}`
         ].filter(Boolean).join('. ');
 
       case 'bin':
@@ -719,7 +719,7 @@ export class VectorSyncService extends BaseService {
           `Type: ${entityData.bin_type}`,
           `Status: ${entityData.status}`,
           `Capacity: ${entityData.capacity_gallons} gallons`,
-          `Current level: ${entityData.current_level || 'N/A'}%`,
+          `Current level: ${entityData?.current_level || 'N/A'}%`,
           `Service frequency: ${entityData.service_frequency_days} days`,
           entityData.notes,
           entityData.special_instructions
@@ -742,9 +742,9 @@ export class VectorSyncService extends BaseService {
           `Status: ${entityData.status}`,
           entityData.description,
           entityData.notes,
-          `Duration: ${entityData.duration_minutes || 'N/A'} minutes`,
-          `Driver: ${entityData.driver_name || 'N/A'}`,
-          `Vehicle: ${entityData.vehicle_license_plate || 'N/A'}`
+          `Duration: ${entityData?.duration_minutes || 'N/A'} minutes`,
+          `Driver: ${entityData?.driver_name || 'N/A'}`,
+          `Vehicle: ${entityData?.vehicle_license_plate || 'N/A'}`
         ].filter(Boolean).join('. ');
 
       default:
@@ -770,10 +770,10 @@ export class VectorSyncService extends BaseService {
           routeType: entityData.route_type,
           territory: entityData.territory,
           status: entityData.status,
-          description: entityData.description || '',
-          estimatedDistance: entityData.estimated_distance_miles || 0,
-          estimatedDuration: entityData.estimated_duration_minutes || 0,
-          optimizationScore: entityData.optimization_score || 0,
+          description: entityData?.description || '',
+          estimatedDistance: entityData?.estimated_distance_miles || 0,
+          estimatedDuration: entityData?.estimated_duration_minutes || 0,
+          optimizationScore: entityData?.optimization_score || 0,
           binCount: 0, // Will be calculated separately
           customerCount: 0 // Will be calculated separately
         };
@@ -785,14 +785,14 @@ export class VectorSyncService extends BaseService {
           binIdExternal: entityData.bin_id,
           binType: entityData.bin_type,
           status: entityData.status,
-          capacity: entityData.capacity_gallons || 0,
-          currentLevel: entityData.current_level || 0,
-          serviceFrequency: entityData.service_frequency_days || 7,
+          capacity: entityData?.capacity_gallons || 0,
+          currentLevel: entityData?.current_level || 0,
+          serviceFrequency: entityData?.service_frequency_days || 7,
           lastServiceDate: entityData.last_service_date?.toISOString(),
           nextServiceDate: entityData.next_service_date?.toISOString(),
           customerName: '', // Will be populated from customer lookup
-          address: entityData.address || '',
-          notes: entityData.notes || '',
+          address: entityData?.address || '',
+          notes: entityData?.notes || '',
           coordinates: entityData.location ? {
             latitude: entityData.location.coordinates[1],
             longitude: entityData.location.coordinates[0]
@@ -808,10 +808,10 @@ export class VectorSyncService extends BaseService {
           businessType: entityData.business_type,
           status: entityData.status,
           serviceLevel: entityData.service_level,
-          address: entityData.address || '',
-          description: entityData.description || '',
+          address: entityData?.address || '',
+          description: entityData?.description || '',
           binCount: 0, // Will be calculated separately
-          monthlyRevenue: entityData.monthly_revenue || 0,
+          monthlyRevenue: entityData?.monthly_revenue || 0,
           signupDate: entityData.created_at?.toISOString(),
           lastServiceDate: entityData.last_service_date?.toISOString()
         };
@@ -824,11 +824,11 @@ export class VectorSyncService extends BaseService {
           status: entityData.status,
           binId: entityData.bin_id,
           routeId: entityData.route_id,
-          driverName: entityData.driver_name || '',
-          vehicleId: entityData.vehicle_id || '',
-          description: entityData.description || '',
-          notes: entityData.notes || '',
-          duration: entityData.duration_minutes || 0,
+          driverName: entityData?.driver_name || '',
+          vehicleId: entityData?.vehicle_id || '',
+          description: entityData?.description || '',
+          notes: entityData?.notes || '',
+          duration: entityData?.duration_minutes || 0,
           scheduledTime: entityData.scheduled_time?.toISOString(),
           startedTime: entityData.started_at?.toISOString(),
           completedTime: entityData.completed_at?.toISOString()
@@ -1004,7 +1004,7 @@ export class VectorSyncService extends BaseService {
     `;
 
     const [result] = await this.database.query(query, { type: 'DELETE' });
-    return (result as any).rowCount || 0;
+    return (result as any)?.rowCount || 0;
   }
 
   /**

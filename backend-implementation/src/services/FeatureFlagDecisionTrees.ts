@@ -390,18 +390,18 @@ export class FeatureFlagDecisionTrees extends BaseService<any> {
         message: "Feature evaluation completed using decision tree"
       };
 
-    } catch (error) {
-      timer.end({ error: error.message });
+    } catch (error: unknown) {
+      timer.end({ error: error instanceof Error ? error?.message : String(error) });
       logger.error("Decision tree evaluation failed", {
         service: this.serviceName,
         featureId,
-        error: error.message
+        error: error instanceof Error ? error?.message : String(error)
       });
 
       return {
         success: false,
         message: "Decision tree evaluation failed",
-        errors: [error.message]
+        errors: [error instanceof Error ? error?.message : String(error)]
       };
     }
   }
@@ -460,18 +460,18 @@ export class FeatureFlagDecisionTrees extends BaseService<any> {
         message: "Advanced A/B test created successfully"
       };
 
-    } catch (error) {
-      timer.end({ error: error.message });
+    } catch (error: unknown) {
+      timer.end({ error: error instanceof Error ? error?.message : String(error) });
       logger.error("Failed to create advanced A/B test", {
         service: this.serviceName,
         testId: testConfig.id,
-        error: error.message
+        error: error instanceof Error ? error?.message : String(error)
       });
 
       return {
         success: false,
         message: "Failed to create advanced A/B test",
-        errors: [error.message]
+        errors: [error instanceof Error ? error?.message : String(error)]
       };
     }
   }
@@ -562,18 +562,18 @@ export class FeatureFlagDecisionTrees extends BaseService<any> {
         }
       };
 
-    } catch (error) {
-      timer.end({ error: error.message });
+    } catch (error: unknown) {
+      timer.end({ error: error instanceof Error ? error?.message : String(error) });
       logger.error("Performance impact analysis failed", {
         service: this.serviceName,
         featureId,
-        error: error.message
+        error: error instanceof Error ? error?.message : String(error)
       });
 
       return {
         success: false,
         message: "Performance impact analysis failed",
-        errors: [error.message]
+        errors: [error instanceof Error ? error?.message : String(error)]
       };
     }
   }
@@ -664,18 +664,18 @@ export class FeatureFlagDecisionTrees extends BaseService<any> {
         message: "Decision tree optimization completed"
       };
 
-    } catch (error) {
-      timer.end({ error: error.message });
+    } catch (error: unknown) {
+      timer.end({ error: error instanceof Error ? error?.message : String(error) });
       logger.error("Decision tree optimization failed", {
         service: this.serviceName,
         featureId,
-        error: error.message
+        error: error instanceof Error ? error?.message : String(error)
       });
 
       return {
         success: false,
         message: "Decision tree optimization failed",
-        errors: [error.message]
+        errors: [error instanceof Error ? error?.message : String(error)]
       };
     }
   }
@@ -758,17 +758,17 @@ export class FeatureFlagDecisionTrees extends BaseService<any> {
         message: "Feature flag analytics dashboard data retrieved successfully"
       };
 
-    } catch (error) {
-      timer.end({ error: error.message });
+    } catch (error: unknown) {
+      timer.end({ error: error instanceof Error ? error?.message : String(error) });
       logger.error("Failed to get feature flag analytics dashboard", {
         service: this.serviceName,
-        error: error.message
+        error: error instanceof Error ? error?.message : String(error)
       });
 
       return {
         success: false,
         message: "Failed to get feature flag analytics dashboard",
-        errors: [error.message]
+        errors: [error instanceof Error ? error?.message : String(error)]
       };
     }
   }
@@ -1140,11 +1140,11 @@ export class FeatureFlagDecisionTrees extends BaseService<any> {
             performance
           });
         }
-      } catch (error) {
+      } catch (error: unknown) {
         logger.error("Failed to analyze tree performance", {
           service: this.serviceName,
           featureId,
-          error: error.message
+          error: error instanceof Error ? error?.message : String(error)
         });
       }
     }
@@ -1156,11 +1156,11 @@ export class FeatureFlagDecisionTrees extends BaseService<any> {
     for (const featureId of this.decisionTrees.keys()) {
       try {
         await this.optimizeDecisionTree(featureId);
-      } catch (error) {
+      } catch (error: unknown) {
         logger.error("Failed to optimize decision tree", {
           service: this.serviceName,
           featureId,
-          error: error.message
+          error: error instanceof Error ? error?.message : String(error)
         });
       }
     }
@@ -1311,7 +1311,7 @@ export class FeatureFlagDecisionTrees extends BaseService<any> {
     return Array.from(this.abTests.values()).map(test => ({
       testId: test.id,
       status: test.status,
-      confidence: test.results?.effect.confidence_interval || 0,
+      confidence: test.results?.effect?.confidence_interval || 0,
       winningVariant: test.results?.winningVariant,
       statisticalSignificance: test.results?.statisticalSignificance || false
     }));

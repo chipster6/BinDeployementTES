@@ -157,10 +157,10 @@ export class VectorIntelligenceService extends BaseService {
         hasApiKey: !!config.aiMl.weaviate.apiKey,
         hasOpenAI: !!config.aiMl.openai.apiKey,
       });
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('Failed to initialize Weaviate client', {
         service: this.serviceName,
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
       });
       throw new AppError('Vector database initialization failed', 500);
     }
@@ -217,17 +217,17 @@ export class VectorIntelligenceService extends BaseService {
           timestamp: new Date()
         }
       };
-    } catch (error) {
-      timer.end({ error: error.message });
+    } catch (error: unknown) {
+      timer.end({ error: error instanceof Error ? error?.message : String(error) });
       logger.error('Weaviate deployment failed', {
         service: this.serviceName,
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
       });
 
       return {
         success: false,
         message: 'Weaviate deployment failed',
-        errors: [error.message]
+        errors: [error instanceof Error ? error?.message : String(error)]
       };
     }
   }
@@ -385,11 +385,11 @@ export class VectorIntelligenceService extends BaseService {
           });
 
         } catch (batchError) {
-          batchTimer.end({ error: batchError.message });
+          batchTimer.end({ error: batchError?.message });
           logger.error('Batch vectorization failed', {
             service: this.serviceName,
             batchSize: batch.length,
-            error: batchError.message
+            error: batchError?.message
           });
         }
       }
@@ -416,18 +416,18 @@ export class VectorIntelligenceService extends BaseService {
         }
       };
 
-    } catch (error) {
-      timer.end({ error: error.message });
+    } catch (error: unknown) {
+      timer.end({ error: error instanceof Error ? error?.message : String(error) });
       logger.error('Operational data vectorization failed', {
         service: this.serviceName,
         dataCount: data.length,
-        error: error.message
+        error: error instanceof Error ? error?.message : String(error)
       });
 
       return {
         success: false,
         message: 'Vectorization failed',
-        errors: [error.message]
+        errors: [error instanceof Error ? error?.message : String(error)]
       };
     }
   }
@@ -441,7 +441,7 @@ export class VectorIntelligenceService extends BaseService {
 
     try {
       // Input validation
-      if (!query.query || query.query.trim().length === 0) {
+      if (!query?.query || query.query.trim().length === 0) {
         throw new ValidationError('Search query is required');
       }
 
@@ -469,8 +469,8 @@ export class VectorIntelligenceService extends BaseService {
       }
 
       // Prepare search parameters
-      const limit = Math.min(query.limit || 10, 100); // Cap at 100 for performance
-      const threshold = query.threshold || 0.7;
+      const limit = Math.min(query?.limit || 10, 100); // Cap at 100 for performance
+      const threshold = query?.threshold || 0.7;
 
       // Build Weaviate query
       let searchQuery = this.weaviateClient.graphql
@@ -514,7 +514,7 @@ export class VectorIntelligenceService extends BaseService {
             description: item.description,
             location: null, // TODO: Parse location from metadata
             timestamp: new Date(item.timestamp),
-            metadata: item.metadata || {},
+            metadata: item?.metadata || {},
             businessContext: {
               priority: item.priority,
               category: item.category,
@@ -542,18 +542,18 @@ export class VectorIntelligenceService extends BaseService {
         }
       };
 
-    } catch (error) {
-      timer.end({ error: error.message });
+    } catch (error: unknown) {
+      timer.end({ error: error instanceof Error ? error?.message : String(error) });
       logger.error('Semantic search failed', {
         service: this.serviceName,
         query: query.query,
-        error: error.message
+        error: error instanceof Error ? error?.message : String(error)
       });
 
       return {
         success: false,
         message: 'Search failed',
-        errors: [error.message]
+        errors: [error instanceof Error ? error?.message : String(error)]
       };
     }
   }
@@ -613,18 +613,18 @@ export class VectorIntelligenceService extends BaseService {
         }
       };
 
-    } catch (error) {
-      timer.end({ error: error.message });
+    } catch (error: unknown) {
+      timer.end({ error: error instanceof Error ? error?.message : String(error) });
       logger.error('Insights generation failed', {
         service: this.serviceName,
         timeframe,
-        error: error.message
+        error: error instanceof Error ? error?.message : String(error)
       });
 
       return {
         success: false,
         message: 'Insights generation failed',
-        errors: [error.message]
+        errors: [error instanceof Error ? error?.message : String(error)]
       };
     }
   }
@@ -662,12 +662,12 @@ export class VectorIntelligenceService extends BaseService {
         message: 'Vector intelligence health check completed'
       };
 
-    } catch (error) {
-      timer.end({ error: error.message });
+    } catch (error: unknown) {
+      timer.end({ error: error instanceof Error ? error?.message : String(error) });
       return {
         success: false,
         message: 'Health check failed',
-        errors: [error.message]
+        errors: [error instanceof Error ? error?.message : String(error)]
       };
     }
   }

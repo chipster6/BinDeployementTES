@@ -27,7 +27,7 @@ import { OptimizedCacheManager } from "./cache/OptimizedCacheManager";
 import { performanceMonitor } from "@/monitoring/PerformanceMonitor";
 import { EventEmitter } from "events";
 import compression from "compression";
-import { Request, Response, NextFunction } from "express";
+import type { Request, Response, NextFunction } from "express";
 
 /**
  * API Performance Metrics Interface
@@ -190,14 +190,14 @@ export class APIResponseTimeAccelerator extends BaseService<any> {
         message: `API Accelerator deployed targeting ${this.targets.responseTime}ms response times`
       };
 
-    } catch (error) {
-      timer.end({ error: error.message });
+    } catch (error: unknown) {
+      timer.end({ error: error instanceof Error ? error?.message : String(error) });
       logger.error("❌ Failed to deploy API Response Time Accelerator", error);
       
       return {
         success: false,
         message: "Failed to deploy API Response Time Accelerator",
-        errors: [error.message]
+        errors: [error instanceof Error ? error?.message : String(error)]
       };
     }
   }
@@ -281,14 +281,14 @@ export class APIResponseTimeAccelerator extends BaseService<any> {
         message: `API optimization completed with ${performanceImprovement}% improvement`
       };
 
-    } catch (error) {
-      timer.end({ error: error.message });
+    } catch (error: unknown) {
+      timer.end({ error: error instanceof Error ? error?.message : String(error) });
       logger.error("❌ API response time optimization failed", error);
       
       return {
         success: false,
         message: "API response time optimization failed",
-        errors: [error.message]
+        errors: [error instanceof Error ? error?.message : String(error)]
       };
     }
   }
@@ -331,7 +331,7 @@ export class APIResponseTimeAccelerator extends BaseService<any> {
 
         next();
 
-      } catch (error) {
+      } catch (error: unknown) {
         logger.error("Request interceptor error", error);
         next();
       }
@@ -425,7 +425,7 @@ export class APIResponseTimeAccelerator extends BaseService<any> {
         p99ResponseTime: parseFloat(performanceSummary.current?.p99ResponseTime || '500'),
         throughput: parseFloat(performanceSummary.current?.throughput || '100'),
         errorRate: parseFloat(performanceSummary.current?.errorRate || '0.01'),
-        cacheHitRatio: cacheStats.hitRate || 0,
+        cacheHitRatio: cacheStats?.hitRate || 0,
         compressionRatio: parseFloat(performanceSummary.current?.compressionRatio || '0'),
         timestamp: new Date()
       };
@@ -438,7 +438,7 @@ export class APIResponseTimeAccelerator extends BaseService<any> {
 
       return metrics;
 
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error("Failed to collect API performance metrics", error);
       throw error;
     }
@@ -515,7 +515,7 @@ export class APIResponseTimeAccelerator extends BaseService<any> {
 
       return { strategies, improvement: strategy.estimatedImprovement };
 
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error("Multi-layer caching optimization failed", error);
       return { strategies, improvement: 0 };
     }
@@ -550,7 +550,7 @@ export class APIResponseTimeAccelerator extends BaseService<any> {
 
       return { strategies, improvement: strategy.estimatedImprovement };
 
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error("Request routing optimization failed", error);
       return { strategies, improvement: 0 };
     }
@@ -581,7 +581,7 @@ export class APIResponseTimeAccelerator extends BaseService<any> {
 
       return { strategies, improvement: strategy.estimatedImprovement };
 
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error("Response compression optimization failed", error);
       return { strategies, improvement: 0 };
     }
@@ -616,7 +616,7 @@ export class APIResponseTimeAccelerator extends BaseService<any> {
 
       return { strategies, improvement: strategy.estimatedImprovement };
 
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error("Database query optimization failed", error);
       return { strategies, improvement: 0 };
     }
@@ -647,7 +647,7 @@ export class APIResponseTimeAccelerator extends BaseService<any> {
 
       return { strategies, improvement: strategy.estimatedImprovement };
 
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error("Response serialization optimization failed", error);
       return { strategies, improvement: 0 };
     }
@@ -667,7 +667,7 @@ export class APIResponseTimeAccelerator extends BaseService<any> {
           strategies.push(`Optimized ${profile.path} (${optimization.improvement}% improvement)`);
           totalImprovement += optimization.improvement;
           profile.lastOptimized = new Date();
-        } catch (error) {
+        } catch (error: unknown) {
           logger.error(`Failed to optimize endpoint ${profile.path}`, error);
         }
       }

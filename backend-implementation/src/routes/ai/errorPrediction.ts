@@ -89,14 +89,14 @@ router.post("/predict", requireRole(["admin", "operations", "system"]), async (r
 
     res.json(ResponseHelper.success(result, "Error prediction generated successfully"));
 
-  } catch (error) {
-    timer.end({ error: error.message });
+  } catch (error: unknown) {
+    timer.end({ error: error instanceof Error ? error?.message : String(error) });
     logger.error("Error prediction API failed", {
-      error: error.message,
+      error: error instanceof Error ? error?.message : String(error),
       endpoint: "/predict",
       body: req.body,
     });
-    res.status(500).json(ResponseHelper.error("Failed to generate error prediction", [error.message]));
+    res.status(500).json(ResponseHelper.error("Failed to generate error prediction", [error instanceof Error ? error?.message : String(error)]));
   }
 });
 
@@ -123,8 +123,8 @@ router.post("/batch", requireRole(["admin", "operations", "system"]), async (req
         end: new Date(context.predictionWindow.end),
       },
       systemLayer: context.systemLayer,
-      features: context.features || {},
-      historicalData: context.historicalData || [],
+      features: context?.features || {},
+      historicalData: context?.historicalData || [],
       businessContext: context.businessContext,
     }));
 
@@ -138,14 +138,14 @@ router.post("/batch", requireRole(["admin", "operations", "system"]), async (req
 
     res.json(ResponseHelper.success(results, `${results.length} batch predictions generated successfully`));
 
-  } catch (error) {
-    timer.end({ error: error.message });
+  } catch (error: unknown) {
+    timer.end({ error: error instanceof Error ? error?.message : String(error) });
     logger.error("Batch prediction API failed", {
-      error: error.message,
+      error: error instanceof Error ? error?.message : String(error),
       endpoint: "/batch",
-      contextCount: req.body.contexts?.length || 0,
+      contextCount: req.body?.contexts?.length || 0,
     });
-    res.status(500).json(ResponseHelper.error("Failed to generate batch predictions", [error.message]));
+    res.status(500).json(ResponseHelper.error("Failed to generate batch predictions", [error instanceof Error ? error?.message : String(error)]));
   }
 });
 
@@ -168,13 +168,13 @@ router.get("/performance", requireRole(["admin", "operations"]), async (req, res
 
     res.json(ResponseHelper.success(performance, "Prediction performance metrics retrieved"));
 
-  } catch (error) {
-    timer.end({ error: error.message });
+  } catch (error: unknown) {
+    timer.end({ error: error instanceof Error ? error?.message : String(error) });
     logger.error("Prediction performance API failed", {
-      error: error.message,
+      error: error instanceof Error ? error?.message : String(error),
       endpoint: "/performance",
     });
-    res.status(500).json(ResponseHelper.error("Failed to get prediction performance", [error.message]));
+    res.status(500).json(ResponseHelper.error("Failed to get prediction performance", [error instanceof Error ? error?.message : String(error)]));
   }
 });
 
@@ -212,13 +212,13 @@ router.post("/validate", requireRole(["admin", "data_science"]), async (req, res
 
     res.json(ResponseHelper.success(accuracy, "Prediction accuracy validation completed"));
 
-  } catch (error) {
-    timer.end({ error: error.message });
+  } catch (error: unknown) {
+    timer.end({ error: error instanceof Error ? error?.message : String(error) });
     logger.error("Prediction validation API failed", {
-      error: error.message,
+      error: error instanceof Error ? error?.message : String(error),
       endpoint: "/validate",
     });
-    res.status(500).json(ResponseHelper.error("Failed to validate prediction accuracy", [error.message]));
+    res.status(500).json(ResponseHelper.error("Failed to validate prediction accuracy", [error instanceof Error ? error?.message : String(error)]));
   }
 });
 
@@ -254,13 +254,13 @@ router.get("/models", requireRole(["admin", "data_science", "operations"]), asyn
 
     res.json(ResponseHelper.success(models, `${models.length} models retrieved`));
 
-  } catch (error) {
-    timer.end({ error: error.message });
+  } catch (error: unknown) {
+    timer.end({ error: error instanceof Error ? error?.message : String(error) });
     logger.error("Models list API failed", {
-      error: error.message,
+      error: error instanceof Error ? error?.message : String(error),
       endpoint: "/models",
     });
-    res.status(500).json(ResponseHelper.error("Failed to retrieve models", [error.message]));
+    res.status(500).json(ResponseHelper.error("Failed to retrieve models", [error instanceof Error ? error?.message : String(error)]));
   }
 });
 
@@ -298,16 +298,16 @@ router.post("/models/:modelId/deploy", requireRole(["admin", "data_science"]), a
     }
 
     const statusCode = result.success ? 200 : 400;
-    res.status(statusCode).json(ResponseHelper.success(result, result.message));
+    res.status(statusCode).json(ResponseHelper.success(result, result?.message));
 
-  } catch (error) {
-    timer.end({ error: error.message });
+  } catch (error: unknown) {
+    timer.end({ error: error instanceof Error ? error?.message : String(error) });
     logger.error("Model deployment API failed", {
-      error: error.message,
+      error: error instanceof Error ? error?.message : String(error),
       endpoint: "/models/deploy",
       modelId: req.params.modelId,
     });
-    res.status(500).json(ResponseHelper.error("Failed to deploy model", [error.message]));
+    res.status(500).json(ResponseHelper.error("Failed to deploy model", [error instanceof Error ? error?.message : String(error)]));
   }
 });
 
@@ -333,16 +333,16 @@ router.post("/models/:modelId/rollback", requireRole(["admin", "data_science"]),
     });
 
     const statusCode = result.success ? 200 : 400;
-    res.status(statusCode).json(ResponseHelper.success(result, result.message));
+    res.status(statusCode).json(ResponseHelper.success(result, result?.message));
 
-  } catch (error) {
-    timer.end({ error: error.message });
+  } catch (error: unknown) {
+    timer.end({ error: error instanceof Error ? error?.message : String(error) });
     logger.error("Model rollback API failed", {
-      error: error.message,
+      error: error instanceof Error ? error?.message : String(error),
       endpoint: "/models/rollback",
       modelId: req.params.modelId,
     });
-    res.status(500).json(ResponseHelper.error("Failed to rollback model", [error.message]));
+    res.status(500).json(ResponseHelper.error("Failed to rollback model", [error instanceof Error ? error?.message : String(error)]));
   }
 });
 
@@ -371,14 +371,14 @@ router.post("/models/train", requireRole(["admin", "data_science"]), async (req,
 
     res.status(201).json(ResponseHelper.success({ jobId }, "Training job started successfully"));
 
-  } catch (error) {
-    timer.end({ error: error.message });
+  } catch (error: unknown) {
+    timer.end({ error: error instanceof Error ? error?.message : String(error) });
     logger.error("Model training API failed", {
-      error: error.message,
+      error: error instanceof Error ? error?.message : String(error),
       endpoint: "/models/train",
       modelId: req.body.modelId,
     });
-    res.status(500).json(ResponseHelper.error("Failed to start training job", [error.message]));
+    res.status(500).json(ResponseHelper.error("Failed to start training job", [error instanceof Error ? error?.message : String(error)]));
   }
 });
 
@@ -404,14 +404,14 @@ router.get("/models/jobs/:jobId", requireRole(["admin", "data_science"]), async 
 
     res.json(ResponseHelper.success(job, "Training job status retrieved"));
 
-  } catch (error) {
-    timer.end({ error: error.message });
+  } catch (error: unknown) {
+    timer.end({ error: error instanceof Error ? error?.message : String(error) });
     logger.error("Training job status API failed", {
-      error: error.message,
+      error: error instanceof Error ? error?.message : String(error),
       endpoint: "/models/jobs/status",
       jobId: req.params.jobId,
     });
-    res.status(500).json(ResponseHelper.error("Failed to get training job status", [error.message]));
+    res.status(500).json(ResponseHelper.error("Failed to get training job status", [error instanceof Error ? error?.message : String(error)]));
   }
 });
 
@@ -437,14 +437,14 @@ router.get("/models/:modelId/health", requireRole(["admin", "operations"]), asyn
 
     res.json(ResponseHelper.success(health, "Model health status retrieved"));
 
-  } catch (error) {
-    timer.end({ error: error.message });
+  } catch (error: unknown) {
+    timer.end({ error: error instanceof Error ? error?.message : String(error) });
     logger.error("Model health API failed", {
-      error: error.message,
+      error: error instanceof Error ? error?.message : String(error),
       endpoint: "/models/health",
       modelId: req.params.modelId,
     });
-    res.status(500).json(ResponseHelper.error("Failed to get model health", [error.message]));
+    res.status(500).json(ResponseHelper.error("Failed to get model health", [error instanceof Error ? error?.message : String(error)]));
   }
 });
 
@@ -487,13 +487,13 @@ router.get("/analytics/trends", requireRole(["admin", "operations", "business_in
 
     res.json(ResponseHelper.success(trends, `${trends.length} trend data points retrieved`));
 
-  } catch (error) {
-    timer.end({ error: error.message });
+  } catch (error: unknown) {
+    timer.end({ error: error instanceof Error ? error?.message : String(error) });
     logger.error("Error trends API failed", {
-      error: error.message,
+      error: error instanceof Error ? error?.message : String(error),
       endpoint: "/analytics/trends",
     });
-    res.status(500).json(ResponseHelper.error("Failed to get error trends", [error.message]));
+    res.status(500).json(ResponseHelper.error("Failed to get error trends", [error instanceof Error ? error?.message : String(error)]));
   }
 });
 
@@ -525,13 +525,13 @@ router.get("/analytics/dashboard", requireRole(["admin", "operations", "business
 
     res.json(ResponseHelper.success(dashboard, "Analytics dashboard data retrieved"));
 
-  } catch (error) {
-    timer.end({ error: error.message });
+  } catch (error: unknown) {
+    timer.end({ error: error instanceof Error ? error?.message : String(error) });
     logger.error("Analytics dashboard API failed", {
-      error: error.message,
+      error: error instanceof Error ? error?.message : String(error),
       endpoint: "/analytics/dashboard",
     });
-    res.status(500).json(ResponseHelper.error("Failed to get analytics dashboard", [error.message]));
+    res.status(500).json(ResponseHelper.error("Failed to get analytics dashboard", [error instanceof Error ? error?.message : String(error)]));
   }
 });
 
@@ -555,13 +555,13 @@ router.get("/analytics/realtime", requireRole(["admin", "operations"]), async (r
 
     res.json(ResponseHelper.success(realtimeData, "Real-time analytics retrieved"));
 
-  } catch (error) {
-    timer.end({ error: error.message });
+  } catch (error: unknown) {
+    timer.end({ error: error instanceof Error ? error?.message : String(error) });
     logger.error("Real-time analytics API failed", {
-      error: error.message,
+      error: error instanceof Error ? error?.message : String(error),
       endpoint: "/analytics/realtime",
     });
-    res.status(500).json(ResponseHelper.error("Failed to get real-time analytics", [error.message]));
+    res.status(500).json(ResponseHelper.error("Failed to get real-time analytics", [error instanceof Error ? error?.message : String(error)]));
   }
 });
 
@@ -597,13 +597,13 @@ router.post("/coordination/register", requireRole(["system", "admin"]), async (r
 
     res.status(201).json(ResponseHelper.success(result, "Stream registered for coordination"));
 
-  } catch (error) {
-    timer.end({ error: error.message });
+  } catch (error: unknown) {
+    timer.end({ error: error instanceof Error ? error?.message : String(error) });
     logger.error("Stream registration API failed", {
-      error: error.message,
+      error: error instanceof Error ? error?.message : String(error),
       endpoint: "/coordination/register",
     });
-    res.status(500).json(ResponseHelper.error("Failed to register stream", [error.message]));
+    res.status(500).json(ResponseHelper.error("Failed to register stream", [error instanceof Error ? error?.message : String(error)]));
   }
 });
 
@@ -634,13 +634,13 @@ router.post("/coordination/coordinate", requireRole(["system", "admin"]), async 
 
     res.json(ResponseHelper.success(result, "Error event coordination completed"));
 
-  } catch (error) {
-    timer.end({ error: error.message });
+  } catch (error: unknown) {
+    timer.end({ error: error instanceof Error ? error?.message : String(error) });
     logger.error("Error coordination API failed", {
-      error: error.message,
+      error: error instanceof Error ? error?.message : String(error),
       endpoint: "/coordination/coordinate",
     });
-    res.status(500).json(ResponseHelper.error("Failed to coordinate error event", [error.message]));
+    res.status(500).json(ResponseHelper.error("Failed to coordinate error event", [error instanceof Error ? error?.message : String(error)]));
   }
 });
 
@@ -667,13 +667,13 @@ router.get("/coordination/health", requireRole(["admin", "operations"]), async (
 
     res.json(ResponseHelper.success(healthStatuses, `Health status for ${streamCount} streams retrieved`));
 
-  } catch (error) {
-    timer.end({ error: error.message });
+  } catch (error: unknown) {
+    timer.end({ error: error instanceof Error ? error?.message : String(error) });
     logger.error("Coordination health API failed", {
-      error: error.message,
+      error: error instanceof Error ? error?.message : String(error),
       endpoint: "/coordination/health",
     });
-    res.status(500).json(ResponseHelper.error("Failed to get coordination health", [error.message]));
+    res.status(500).json(ResponseHelper.error("Failed to get coordination health", [error instanceof Error ? error?.message : String(error)]));
   }
 });
 
@@ -704,13 +704,13 @@ router.get("/coordination/analytics", requireRole(["admin", "operations"]), asyn
 
     res.json(ResponseHelper.success(analytics, "Coordination analytics retrieved"));
 
-  } catch (error) {
-    timer.end({ error: error.message });
+  } catch (error: unknown) {
+    timer.end({ error: error instanceof Error ? error?.message : String(error) });
     logger.error("Coordination analytics API failed", {
-      error: error.message,
+      error: error instanceof Error ? error?.message : String(error),
       endpoint: "/coordination/analytics",
     });
-    res.status(500).json(ResponseHelper.error("Failed to get coordination analytics", [error.message]));
+    res.status(500).json(ResponseHelper.error("Failed to get coordination analytics", [error instanceof Error ? error?.message : String(error)]));
   }
 });
 

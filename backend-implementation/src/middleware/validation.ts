@@ -16,7 +16,7 @@
  * Version: 1.0.0
  */
 
-import { Request, Response, NextFunction } from 'express';
+import type { Request, Response, NextFunction } from 'express';
 import Joi from 'joi';
 import { logger } from '@/utils/logger';
 import { ValidationError } from '@/middleware/errorHandler';
@@ -87,7 +87,7 @@ export const validateRequest = (
         // Extract validation error details
         const errorDetails = error.details.map(detail => ({
           field: detail.path.join('.'),
-          message: detail.message,
+          message: detail?.message,
           value: detail.context?.value,
           type: detail.type
         }));
@@ -111,7 +111,7 @@ export const validateRequest = (
           res,
           'Invalid request data',
           400,
-          errorDetails.map(detail => `${detail.field}: ${detail.message}`)
+          errorDetails.map(detail => `${detail.field}: ${detail?.message}`)
         );
       }
 
@@ -147,14 +147,10 @@ export const validateRequest = (
         target,
         path: req.path,
         method: req.method,
-        error: validationError.message
+        error: validationError?.message
       });
 
-      return ResponseHelper.error(
-        res,
-        'Validation processing failed',
-        500
-      );
+      return ResponseHelper.error(res, req, { message: 'Validation processing failed', statusCode: 500 });
     }
   };
 };
@@ -323,19 +319,15 @@ export const sanitizeInput = (req: Request, res: Response, next: NextFunction) =
 
     next();
 
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error('Input sanitization error', {
       requestId,
       path: req.path,
       method: req.method,
-      error: error.message
+      error: error instanceof Error ? error?.message : String(error)
     });
 
-    return ResponseHelper.error(
-      res,
-      'Input processing failed',
-      500
-    );
+    return ResponseHelper.error(res, req, { message: 'Input processing failed', statusCode: 500 });
   }
 };
 

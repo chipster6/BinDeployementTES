@@ -221,8 +221,8 @@ export class ErrorOrchestrationService extends EventEmitter {
     } catch (orchestrationError) {
       logger.error("Error orchestration failed", {
         errorId: orchestrationContext.errorId,
-        orchestrationError: orchestrationError.message,
-        originalError: error.message
+        orchestrationError: orchestrationError?.message,
+        originalError: error instanceof Error ? error?.message : String(error)
       });
 
       // Emergency fallback - execute basic recovery
@@ -392,20 +392,15 @@ export class ErrorOrchestrationService extends EventEmitter {
     return {
       errorId,
       originalError: error,
-      systemLayer: context.systemLayer || this.determineSystemLayer(error),
-      businessImpact: context.businessImpact || this.calculateBusinessImpact(error),
-      affectedSystems: context.affectedSystems || await this.identifyAffectedSystems(error),
+      systemLayer: context?.systemLayer || this.determineSystemLayer(error),
+      businessImpact: context?.businessImpact || this.calculateBusinessImpact(error),
+      affectedSystems: context?.affectedSystems || await this.identifyAffectedSystems(error),
       customerFacing: context.customerFacing ?? this.isCustomerFacing(error),
       revenueImpacting: context.revenueImpacting ?? this.isRevenueImpacting(error),
       securityRelated: context.securityRelated ?? this.isSecurityRelated(error),
       requestContext: context.requestContext,
       systemContext: await this.gatherSystemContext(),
-      timestamp: new Date(),
-      metadata: {
-        ...context.metadata,
-        orchestrationVersion: "2.0.0",
-        processingNode: process.env.NODE_ID || "primary"
-      }
+      timestamp: new Date()
     };
   }
 
@@ -446,7 +441,7 @@ export class ErrorOrchestrationService extends EventEmitter {
     if (!pattern) {
       pattern = {
         patternId: patternKey,
-        errorTypes: [context.originalError.code || "UNKNOWN"],
+        errorTypes: [context.originalError?.code || "UNKNOWN"],
         frequency: 0,
         trend: "stable",
         predictedOccurrence: new Date(Date.now() + 3600000), // Default 1 hour
@@ -546,22 +541,17 @@ export class ErrorOrchestrationService extends EventEmitter {
           return {
             ...result,
             duration,
-            businessContinuity: true,
-            metadata: {
-              ...result.metadata,
-              coordinationId: coordination.coordinationId,
-              strategiesAttempted: strategies.indexOf(strategy) + 1
-            }
+            businessContinuity: true
           };
         }
         
-        lastError = new Error(`Strategy ${strategy} failed: ${result.message}`);
+        lastError = new Error(`Strategy ${strategy} failed: ${result?.message}`);
         
-      } catch (error) {
+      } catch (error: unknown) {
         lastError = error as Error;
         logger.warn(`Recovery strategy ${strategy} failed`, {
           errorId: context.errorId,
-          error: error.message
+          error: error instanceof Error ? error?.message : String(error)
         });
       }
     }
@@ -578,12 +568,7 @@ export class ErrorOrchestrationService extends EventEmitter {
         "Manual intervention required",
         "Contact on-call engineer",
         "Escalate to management if revenue impacting"
-      ],
-      metadata: {
-        coordinationId: coordination.coordinationId,
-        strategiesAttempted: strategies.length,
-        finalError: lastError?.message
-      }
+      ]
     };
   }
 
@@ -638,22 +623,17 @@ export class ErrorOrchestrationService extends EventEmitter {
         data: meshResult.data,
         message: "Successfully rerouted through service mesh",
         duration: 0, // Will be set by caller
-        costImpact: meshResult.costIncrease || 0,
-        businessContinuity: true,
-        metadata: {
-          meshNodeId: meshResult.nodeId,
-          routingDecision: meshResult.routingDecision
-        }
+        costImpact: meshResult?.costIncrease || 0,
+        businessContinuity: true
       };
-    } catch (error) {
+    } catch (error: unknown) {
       return {
         strategy: RecoveryStrategy.SERVICE_MESH_ROUTING,
         success: false,
-        message: `Service mesh recovery failed: ${error.message}`,
+        message: `Service mesh recovery failed: ${error instanceof Error ? error?.message : String(error)}`,
         duration: 0,
         costImpact: 0,
-        businessContinuity: false,
-        metadata: { error: error.message }
+        businessContinuity: false
       };
     }
   }
@@ -675,22 +655,17 @@ export class ErrorOrchestrationService extends EventEmitter {
         data: fallbackResult.data,
         message: "Successfully activated fallback service",
         duration: 0,
-        costImpact: fallbackResult.costImpact || 0,
-        businessContinuity: true,
-        metadata: {
-          fallbackProvider: fallbackResult.provider,
-          degradationLevel: fallbackResult.degradationLevel
-        }
+        costImpact: fallbackResult?.costImpact || 0,
+        businessContinuity: true
       };
-    } catch (error) {
+    } catch (error: unknown) {
       return {
         strategy: RecoveryStrategy.FALLBACK_SERVICE,
         success: false,
-        message: `Fallback service recovery failed: ${error.message}`,
+        message: `Fallback service recovery failed: ${error instanceof Error ? error?.message : String(error)}`,
         duration: 0,
         costImpact: 0,
-        businessContinuity: false,
-        metadata: { error: error.message }
+        businessContinuity: false
       };
     }
   }
@@ -714,11 +689,7 @@ export class ErrorOrchestrationService extends EventEmitter {
           message: "Serving cached response",
           duration: 0,
           costImpact: 0,
-          businessContinuity: true,
-          metadata: {
-            cacheKey,
-            cacheAge: await this.getCacheAge(cacheKey)
-          }
+          businessContinuity: true
         };
       } else {
         return {
@@ -727,19 +698,17 @@ export class ErrorOrchestrationService extends EventEmitter {
           message: "No cached data available",
           duration: 0,
           costImpact: 0,
-          businessContinuity: false,
-          metadata: { cacheKey }
+          businessContinuity: false
         };
       }
-    } catch (error) {
+    } catch (error: unknown) {
       return {
         strategy: RecoveryStrategy.CACHED_RESPONSE,
         success: false,
-        message: `Cache recovery failed: ${error.message}`,
+        message: `Cache recovery failed: ${error instanceof Error ? error?.message : String(error)}`,
         duration: 0,
         costImpact: 0,
-        businessContinuity: false,
-        metadata: { error: error.message }
+        businessContinuity: false
       };
     }
   }
@@ -917,8 +886,7 @@ export class ErrorOrchestrationService extends EventEmitter {
       message: "Emergency fallback executed",
       duration: 0,
       costImpact: 0,
-      businessContinuity: false,
-      metadata: { emergency: true }
+      businessContinuity: false
     };
   }
   private getBusinessContinuityPlan(impact: BusinessImpact): any {
@@ -967,8 +935,7 @@ export class ErrorOrchestrationService extends EventEmitter {
       message: "Graceful degradation activated",
       duration: 0,
       costImpact: 0,
-      businessContinuity: true,
-      metadata: {}
+      businessContinuity: true
     };
   }
   private async executeCircuitBreakerRecovery(context: ErrorOrchestrationContext, coordination: CrossSystemCoordination): Promise<RecoveryResult> {
@@ -978,8 +945,7 @@ export class ErrorOrchestrationService extends EventEmitter {
       message: "Circuit breaker activated",
       duration: 0,
       costImpact: 0,
-      businessContinuity: true,
-      metadata: {}
+      businessContinuity: true
     };
   }
   private async executeSystemRestartRecovery(context: ErrorOrchestrationContext, coordination: CrossSystemCoordination): Promise<RecoveryResult> {
@@ -989,8 +955,7 @@ export class ErrorOrchestrationService extends EventEmitter {
       message: "System restart requires manual approval",
       duration: 0,
       costImpact: 0,
-      businessContinuity: false,
-      metadata: { requiresApproval: true }
+      businessContinuity: false
     };
   }
 }

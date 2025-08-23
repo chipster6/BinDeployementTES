@@ -23,7 +23,7 @@
 
 import { BaseService, ServiceResult } from "@/services/BaseService";
 import { AuditLog, AuditAction } from "@/models/AuditLog";
-import { User } from "@/models/User";
+import type { User } from "@/models/User";
 import { logger, Timer } from "@/utils/logger";
 import { AppError, ValidationError } from "@/middleware/errorHandler";
 import { redisClient } from "@/config/redis";
@@ -252,17 +252,15 @@ export class IncidentResponseService extends BaseService<AuditLog> {
           {
             id: `timeline_${Date.now()}`,
             timestamp: new Date(),
-            actor: incidentData.reportedBy || "system",
+            actor: incidentData?.reportedBy || "system",
             action: "incident_created",
             description: "Security incident created",
-            metadata: { category: incidentData.category, severity: incidentData.severity },
           },
         ],
         responseActions: [],
         childIncidentIds: [],
         postMortemRequired: incidentData.severity === IncidentSeverity.CRITICAL || 
                             incidentData.severity === IncidentSeverity.HIGH,
-        metadata: {},
       };
 
       // Store incident
@@ -295,11 +293,11 @@ export class IncidentResponseService extends BaseService<AuditLog> {
       });
 
       return { success: true, data: incident };
-    } catch (error) {
-      timer.end({ error: error.message });
+    } catch (error: unknown) {
+      timer.end({ error: error instanceof Error ? error?.message : String(error) });
       logger.error("Failed to create incident", {
         incidentData,
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
       });
 
       throw new AppError("Failed to create incident", 500);
@@ -331,14 +329,14 @@ export class IncidentResponseService extends BaseService<AuditLog> {
 
       timer.end({ success: true, incidentId });
       return { success: true, data: incident };
-    } catch (error) {
-      timer.end({ error: error.message });
+    } catch (error: unknown) {
+      timer.end({ error: error instanceof Error ? error?.message : String(error) });
       logger.error("Failed to get incident", {
         incidentId,
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
       });
 
-      return { success: false, errors: [error.message] };
+      return { success: false, errors: [error instanceof Error ? error?.message : String(error)] };
     }
   }
 
@@ -371,14 +369,14 @@ export class IncidentResponseService extends BaseService<AuditLog> {
 
       timer.end({ success: true, count: incidents.length });
       return { success: true, data: incidents };
-    } catch (error) {
-      timer.end({ error: error.message });
+    } catch (error: unknown) {
+      timer.end({ error: error instanceof Error ? error?.message : String(error) });
       logger.error("Failed to get active incidents", {
         filters,
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
       });
 
-      return { success: false, errors: [error.message] };
+      return { success: false, errors: [error instanceof Error ? error?.message : String(error)] };
     }
   }
 
@@ -425,11 +423,6 @@ export class IncidentResponseService extends BaseService<AuditLog> {
         actor: userId || "system",
         action: "status_updated",
         description: `Status changed from ${previousStatus} to ${status}`,
-        metadata: { 
-          previousStatus, 
-          newStatus: status, 
-          notes: notes || undefined 
-        },
       };
       incident.timeline.push(timelineEntry);
 
@@ -455,12 +448,12 @@ export class IncidentResponseService extends BaseService<AuditLog> {
 
       timer.end({ success: true, status });
       return { success: true, data: incident };
-    } catch (error) {
-      timer.end({ error: error.message });
+    } catch (error: unknown) {
+      timer.end({ error: error instanceof Error ? error?.message : String(error) });
       logger.error("Failed to update incident status", {
         incidentId,
         status,
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
       });
 
       if (error instanceof ValidationError) {
@@ -499,7 +492,6 @@ export class IncidentResponseService extends BaseService<AuditLog> {
         actor: escalatedBy || "system",
         action: "escalated",
         description: `Incident escalated: ${reason}`,
-        metadata: { reason, previousStatus },
       };
       incident.timeline.push(timelineEntry);
 
@@ -533,12 +525,12 @@ export class IncidentResponseService extends BaseService<AuditLog> {
 
       timer.end({ success: true, incidentId });
       return { success: true, data: incident };
-    } catch (error) {
-      timer.end({ error: error.message });
+    } catch (error: unknown) {
+      timer.end({ error: error instanceof Error ? error?.message : String(error) });
       logger.error("Failed to escalate incident", {
         incidentId,
         reason,
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
       });
 
       if (error instanceof ValidationError) {
@@ -577,14 +569,9 @@ export class IncidentResponseService extends BaseService<AuditLog> {
       const timelineEntry: IncidentTimelineEntry = {
         id: `timeline_${Date.now()}`,
         timestamp: new Date(),
-        actor: actionData.executedBy || "system",
+        actor: actionData?.executedBy || "system",
         action: "response_action_added",
         description: `Response action added: ${action.description}`,
-        metadata: { 
-          actionType: action.type, 
-          automated: action.automated,
-          priority: action.priority,
-        },
       };
       incident.timeline.push(timelineEntry);
 
@@ -598,12 +585,12 @@ export class IncidentResponseService extends BaseService<AuditLog> {
 
       timer.end({ success: true, actionType: action.type });
       return { success: true, data: action };
-    } catch (error) {
-      timer.end({ error: error.message });
+    } catch (error: unknown) {
+      timer.end({ error: error instanceof Error ? error?.message : String(error) });
       logger.error("Failed to add response action", {
         incidentId,
         actionData,
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
       });
 
       if (error instanceof ValidationError) {
@@ -634,9 +621,9 @@ export class IncidentResponseService extends BaseService<AuditLog> {
         action.status = "completed";
         action.result = result;
         action.completedAt = new Date();
-      } catch (error) {
+      } catch (error: unknown) {
         action.status = "failed";
-        action.error = error.message;
+        action.error = error instanceof Error ? error?.message : String(error);
         action.completedAt = new Date();
       }
 
@@ -652,14 +639,9 @@ export class IncidentResponseService extends BaseService<AuditLog> {
         const timelineEntry: IncidentTimelineEntry = {
           id: `timeline_${Date.now()}`,
           timestamp: new Date(),
-          actor: action.executedBy || "system",
+          actor: action?.executedBy || "system",
           action: "response_action_executed",
           description: `Response action ${action.status}: ${action.description}`,
-          metadata: { 
-            actionType: action.type, 
-            result: action.result,
-            error: action.error,
-          },
         };
         incident.timeline.push(timelineEntry);
 
@@ -686,12 +668,12 @@ export class IncidentResponseService extends BaseService<AuditLog> {
 
       timer.end({ success: true, status: action.status });
       return { success: true, data: action };
-    } catch (error) {
-      timer.end({ error: error.message });
+    } catch (error: unknown) {
+      timer.end({ error: error instanceof Error ? error?.message : String(error) });
       logger.error("Failed to execute response action", {
         actionId: action.id,
         actionType: action.type,
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
       });
 
       throw new AppError("Failed to execute response action", 500);
@@ -722,14 +704,14 @@ export class IncidentResponseService extends BaseService<AuditLog> {
 
       timer.end({ success: true, timeframe });
       return { success: true, data: metrics };
-    } catch (error) {
-      timer.end({ error: error.message });
+    } catch (error: unknown) {
+      timer.end({ error: error instanceof Error ? error?.message : String(error) });
       logger.error("Failed to get incident metrics", {
         timeframe,
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
       });
 
-      return { success: false, errors: [error.message] };
+      return { success: false, errors: [error instanceof Error ? error?.message : String(error)] };
     }
   }
 
@@ -786,8 +768,8 @@ export class IncidentResponseService extends BaseService<AuditLog> {
       const redisKey = `incident:${incidentId}`;
       const incidentData = await redisClient.get(redisKey);
       return incidentData ? JSON.parse(incidentData) : null;
-    } catch (error) {
-      logger.warn("Failed to get incident from storage", { incidentId, error: error.message });
+    } catch (error: unknown) {
+      logger.warn("Failed to get incident from storage", { incidentId, error: error instanceof Error ? error?.message : String(error) });
       return null;
     }
   }
@@ -861,7 +843,6 @@ export class IncidentResponseService extends BaseService<AuditLog> {
         actor: "system",
         action: "auto_assigned",
         description: `Automatically assigned to ${incident.assignedTo}`,
-        metadata: { severity: incident.severity, category: incident.category },
       };
       incident.timeline.push(timelineEntry);
     }

@@ -961,7 +961,7 @@ Route.init(
         // Auto-generate route number if not provided
         if (!route.routeNumber) {
           route.routeNumber = await Route.generateRouteNumber(
-            route.territory || undefined,
+            route?.territory || undefined,
           );
         }
 
@@ -972,7 +972,7 @@ Route.init(
       },
       beforeUpdate: (route: Route) => {
         // Increment version for optimistic locking
-        route.version = (route.version || 1) + 1;
+        route.version = (route?.version || 1) + 1;
 
         // Update optimization timestamp if optimization score changed
         if (route.changed("optimizationScore") && route.optimizationScore) {

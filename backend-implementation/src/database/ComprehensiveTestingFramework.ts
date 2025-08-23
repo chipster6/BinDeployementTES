@@ -466,16 +466,16 @@ export class ComprehensiveTestingFramework extends EventEmitter {
       suiteResult.coverage = this.calculateCoverage(suite, suiteResult.testResults);
       suiteResult.recommendations = this.generateSuiteRecommendations(suiteResult);
 
-    } catch (error) {
-      logger.error('Test suite execution failed', { suiteId: suite.id, error: error.message });
+    } catch (error: unknown) {
+      logger.error('Test suite execution failed', { suiteId: suite.id, error: error instanceof Error ? error?.message : String(error) });
       suiteResult.status = 'failed';
     } finally {
       // Run teardown if provided
       if (suite.teardown) {
         try {
           await suite.teardown();
-        } catch (error) {
-          logger.error('Test suite teardown failed', { suiteId: suite.id, error: error.message });
+        } catch (error: unknown) {
+          logger.error('Test suite teardown failed', { suiteId: suite.id, error: error instanceof Error ? error?.message : String(error) });
         }
       }
 
@@ -556,13 +556,13 @@ export class ComprehensiveTestingFramework extends EventEmitter {
           } else {
             throw new Error('Test validation failed');
           }
-        } catch (error) {
+        } catch (error: unknown) {
           lastError = error as Error;
           if (attempt < test.retries) {
             logger.warn('Test attempt failed, retrying', { 
               testId: test.id, 
               attempt: attempt + 1, 
-              error: error.message 
+              error: error instanceof Error ? error?.message : String(error) 
             });
             await new Promise(resolve => setTimeout(resolve, 1000)); // Wait 1 second before retry
           }
@@ -579,24 +579,24 @@ export class ComprehensiveTestingFramework extends EventEmitter {
         message: `Test failed after ${test.retries + 1} attempts: ${lastError?.message}`,
       };
 
-    } catch (error) {
+    } catch (error: unknown) {
       const endTime = performance.now();
-      logger.error('Test execution error', { testId: test.id, error: error.message });
+      logger.error('Test execution error', { testId: test.id, error: error instanceof Error ? error?.message : String(error) });
       
       return {
         testId: test.id,
         status: 'error',
         duration: endTime - startTime,
         error: error as Error,
-        message: error.message,
+        message: error instanceof Error ? error?.message : String(error),
       };
     } finally {
       // Run cleanup if provided
       if (test.cleanup) {
         try {
           await test.cleanup();
-        } catch (error) {
-          logger.warn('Test cleanup failed', { testId: test.id, error: error.message });
+        } catch (error: unknown) {
+          logger.warn('Test cleanup failed', { testId: test.id, error: error instanceof Error ? error?.message : String(error) });
         }
       }
     }
@@ -670,8 +670,8 @@ export class ComprehensiveTestingFramework extends EventEmitter {
       }
 
       return true;
-    } catch (error) {
-      logger.error('Database integrity validation failed', { error: error.message });
+    } catch (error: unknown) {
+      logger.error('Database integrity validation failed', { error: error instanceof Error ? error?.message : String(error) });
       return false;
     }
   }
@@ -721,14 +721,14 @@ export class ComprehensiveTestingFramework extends EventEmitter {
               memoryUsed: 0,
             },
           };
-        } catch (error) {
+        } catch (error: unknown) {
           const endTime = performance.now();
           return {
             testId: 'migration_forward',
             status: 'failed',
             duration: endTime - startTime,
             error: error as Error,
-            message: `Migration forward test failed: ${error.message}`,
+            message: `Migration forward test failed: ${error instanceof Error ? error?.message : String(error)}`,
           };
         }
       },
@@ -780,14 +780,14 @@ export class ComprehensiveTestingFramework extends EventEmitter {
               memoryUsed: 0,
             },
           };
-        } catch (error) {
+        } catch (error: unknown) {
           const endTime = performance.now();
           return {
             testId: 'migration_rollback',
             status: 'failed',
             duration: endTime - startTime,
             error: error as Error,
-            message: `Migration rollback test failed: ${error.message}`,
+            message: `Migration rollback test failed: ${error instanceof Error ? error?.message : String(error)}`,
           };
         }
       },
@@ -834,7 +834,7 @@ export class ComprehensiveTestingFramework extends EventEmitter {
               duration: endTime - startTime,
               message: 'Database connectivity test passed',
             };
-          } catch (error) {
+          } catch (error: unknown) {
             const endTime = performance.now();
             return {
               testId: 'basic_connectivity',

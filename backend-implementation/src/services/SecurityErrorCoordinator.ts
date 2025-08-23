@@ -373,10 +373,10 @@ export class SecurityErrorCoordinator extends EventEmitter {
         this.blockedIPs.add(ip);
         return true;
       }
-    } catch (error) {
+    } catch (error: unknown) {
       logger.warn("Failed to check IP block status", {
         ip,
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
       });
     }
 
@@ -593,12 +593,12 @@ export class SecurityErrorCoordinator extends EventEmitter {
     return {
       id: `sec_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
       code: `SECURITY_${threatType.toUpperCase()}`,
-      message: error.message,
+      message: error instanceof Error ? error?.message : String(error),
       severity,
       category: ErrorCategory.SECURITY,
       timestamp: new Date(),
       context: { ...context },
-      stack: error.stack,
+      stack: error instanceof Error ? error?.stack : undefined,
       securityLevel: this.mapSeverityToSecurityLevel(severity),
       threatType,
       blocked: false,
@@ -703,8 +703,8 @@ export class SecurityErrorCoordinator extends EventEmitter {
       forensicData: {
         error: {
           code: error.code,
-          message: error.message,
-          stack: error.stack,
+          message: error instanceof Error ? error?.message : String(error),
+          stack: error instanceof Error ? error?.stack : undefined,
         },
         context,
         patterns: patterns.map((p) => p.id),

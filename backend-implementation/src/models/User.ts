@@ -29,6 +29,7 @@ import bcrypt from "bcrypt";
 import { config } from "@/config";
 import { UserSession } from "./UserSession";
 import { AuditLog } from "./AuditLog";
+import { encryptDatabaseField, decryptDatabaseField, isEncrypted } from "@/utils/encryption";
 
 // User role enumeration
 export enum UserRole {
@@ -65,6 +66,7 @@ export class User extends Model<
   declare phone?: string | null;
   declare role: UserRole;
   declare status: CreationOptional<UserStatus>;
+  declare organizationId?: string | null;
 
   // Multi-factor authentication
   declare mfa_enabled: CreationOptional<boolean>;
@@ -108,7 +110,7 @@ export class User extends Model<
 
     try {
       return await bcrypt.compare(password, this.password_hash);
-    } catch (error) {
+    } catch (error: unknown) {
       console.error("Password validation error:", error);
       return false;
     }
@@ -119,7 +121,7 @@ export class User extends Model<
       throw new Error("Password must be at least 8 characters long");
     }
 
-    const saltRounds = config.security.bcryptRounds || 12;
+    const saltRounds = config.security?.bcryptRounds || 12;
     this.password_hash = await bcrypt.hash(password, saltRounds);
     this.password_changed_at = new Date();
 
@@ -133,11 +135,11 @@ export class User extends Model<
   }
 
   public async incrementFailedLoginAttempts(): Promise<void> {
-    this.failed_login_attempts = (this.failed_login_attempts || 0) + 1;
+    this.failed_login_attempts = (this?.failed_login_attempts || 0) + 1;
 
-    const maxAttempts = config.security.accountLockout.attempts || 5;
+    const maxAttempts = config.security.accountLockout?.attempts || 5;
     if (this.failed_login_attempts >= maxAttempts) {
-      const lockDuration = config.security.accountLockout.time || 1800000;
+      const lockDuration = config.security.accountLockout?.time || 1800000;
       this.locked_until = new Date(Date.now() + lockDuration);
       this.status = UserStatus.LOCKED;
     }
@@ -153,33 +155,111 @@ export class User extends Model<
       throw new Error("Password must be at least 8 characters long");
     }
 
-    const saltRounds = config.security.bcryptRounds || 12;
+    const saltRounds = config.security?.bcryptRounds || 12;
     return await bcrypt.hash(password, saltRounds);
   }
 
-  // MFA Methods
-  public generateMfaSecret(): string {
+  // MFA Methods (Enhanced for Encryption Support)
+  public async generateMfaSecret(): Promise<string> {
     const { generateSecret } = require("otplib/authenticator");
-    this.mfa_secret = generateSecret();
-    return this.mfa_secret;
+    const plaintextSecret = generateSecret();
+    
+    // Encrypt the secret before storing
+    this.mfa_secret = await encryptDatabaseField(plaintextSecret);
+    return plaintextSecret; // Return plaintext for QR code generation
   }
 
-  public verifyMfaToken(token: string): boolean {
+  public async verifyMfaToken(token: string): Promise<boolean> {
     if (!this.mfa_secret) {
       return false;
     }
 
-    const { verify } = require("otplib/authenticator");
-    return verify({ token, secret: this.mfa_secret });
+    try {
+      // Decrypt the MFA secret for verification
+      const plaintextSecret = await this.getDecryptedMfaSecret();
+      if (!plaintextSecret) {
+        return false;
+      }
+
+      const { verify } = require("otplib/authenticator");
+      return verify({ token, secret: plaintextSecret });
+    } catch (error: unknown) {
+      console.error("MFA token verification error:", error);
+      return false;
+    }
   }
 
-  public getMfaQrCodeUri(): string {
+  public async getMfaQrCodeUri(): Promise<string> {
     if (!this.mfa_secret) {
       throw new Error("MFA secret not generated");
     }
 
-    const { keyuri } = require("otplib/authenticator");
-    return keyuri(this.email, config.security.mfa.issuer, this.mfa_secret);
+    try {
+      const plaintextSecret = await this.getDecryptedMfaSecret();
+      if (!plaintextSecret) {
+        throw new Error("Failed to decrypt MFA secret");
+      }
+
+      const { keyuri } = require("otplib/authenticator");
+      return keyuri(this.email, config.security.mfa.issuer, plaintextSecret);
+    } catch (error: unknown) {
+      console.error("MFA QR code generation error:", error);
+      throw new Error("Failed to generate MFA QR code");
+    }
+  }
+
+  /**
+   * Helper method to decrypt MFA secret safely
+   */
+  private async getDecryptedMfaSecret(): Promise<string | null> {
+    if (!this.mfa_secret) {
+      return null;
+    }
+
+    try {
+      // Check if secret is already encrypted
+      if (isEncrypted(this.mfa_secret)) {
+        return await decryptDatabaseField(this.mfa_secret);
+      } else {
+        // Legacy plaintext secret - encrypt it and save
+        const encryptedSecret = await encryptDatabaseField(this.mfa_secret);
+        await this.update({ mfa_secret: encryptedSecret });
+        return this.mfa_secret; // Return original plaintext for this operation
+      }
+    } catch (error: unknown) {
+      console.error("MFA secret decryption error:", error);
+      return null;
+    }
+  }
+
+  /**
+   * Securely disable MFA and clear encrypted secret
+   */
+  public async disableMfa(): Promise<void> {
+    this.mfa_enabled = false;
+    this.mfa_secret = null;
+    await this.save({ fields: ["mfa_enabled", "mfa_secret"] });
+  }
+
+  /**
+   * Re-encrypt MFA secret with new encryption key (for key rotation)
+   */
+  public async rotateEncryptionKey(): Promise<void> {
+    if (!this.mfa_secret || !this.mfa_enabled) {
+      return;
+    }
+
+    try {
+      const plaintextSecret = await this.getDecryptedMfaSecret();
+      if (plaintextSecret) {
+        // Re-encrypt with current encryption key
+        this.mfa_secret = await encryptDatabaseField(plaintextSecret);
+        await this.save({ fields: ["mfa_secret"] });
+      }
+    } catch (error: unknown) {
+      console.error("MFA secret key rotation error:", error);
+      throw new Error("Failed to rotate MFA secret encryption key");
+    }
   }
 
   public async resetFailedLoginAttempts(): Promise<void> {
@@ -257,6 +337,55 @@ export class User extends Model<
     return await RolePermission.hasPermission(this.role, resource, permissionAction);
   }
 
+  /**
+   * AI/ML Intelligent Routing permission method
+   * Provides synchronous permission checking for routing decisions
+   */
+  public hasPermission(permission: string, organizationId?: string): boolean {
+    // Basic role-based permission mapping for intelligent routing
+    const permissionMap: Record<UserRole, string[]> = {
+      [UserRole.SUPER_ADMIN]: ['*'], // All permissions
+      [UserRole.ADMIN]: [
+        'routing:coordinate', 
+        'routing:monitor', 
+        'routing:manage', 
+        'routing:analytics',
+        'system:architecture'
+      ],
+      [UserRole.DISPATCHER]: [
+        'routing:coordinate', 
+        'routing:monitor', 
+        'routing:analytics'
+      ],
+      [UserRole.OFFICE_STAFF]: [
+        'routing:monitor'
+      ],
+      [UserRole.DRIVER]: [],
+      [UserRole.CUSTOMER]: [],
+      [UserRole.CUSTOMER_STAFF]: []
+    };
+
+    const userPermissions = permissionMap[this.role] || [];
+    
+    // Super admin has all permissions
+    if (userPermissions.includes('*')) {
+      return true;
+    }
+
+    // Check specific permission
+    if (userPermissions.includes(permission)) {
+      return true;
+    }
+
+    // Check wildcard permissions
+    const permissionPrefix = permission.split(':')[0];
+    if (userPermissions.includes(`${permissionPrefix}:*`)) {
+      return true;
+    }
+
+    return false;
+  }
+
   public isPasswordExpired(): boolean {
     if (!this.password_changed_at) return true;
 
@@ -292,6 +421,7 @@ export class User extends Model<
       firstName: values.first_name,
       lastName: values.last_name,
       phone: values.phone,
+      organizationId: values.organizationId,
       role: values.role,
       status: values.status,
       mfaEnabled: values.mfa_enabled,
@@ -354,6 +484,16 @@ User.init(
       allowNull: true,
       validate: {
         len: [10, 20],
+      },
+    },
+
+    organizationId: {
+      type: DataTypes.UUID,
+      allowNull: true,
+      field: 'organization_id',
+      references: {
+        model: 'organizations',
+        key: 'id',
       },
     },
 
@@ -513,6 +653,16 @@ User.init(
         // Ensure email is lowercase
         user.email = user.email.toLowerCase();
 
+        // Encrypt MFA secret before saving
+        if (user.mfa_secret) {
+          try {
+            user.mfa_secret = await encryptDatabaseField(user.mfa_secret);
+          } catch (error: unknown) {
+            console.error("Failed to encrypt MFA secret:", error);
+            throw new Error("MFA secret encryption failed");
+          }
+        }
+
         // Set GDPR consent date if consent is given
         if (user.gdpr_consent_given && !user.gdpr_consent_date) {
           user.gdpr_consent_date = new Date();
@@ -528,11 +678,39 @@ User.init(
 
       beforeUpdate: async (user: User) => {
         // Increment version
-        user.version = (user.version || 1) + 1;
+        user.version = (user?.version || 1) + 1;
+
+        // Encrypt MFA secret if it was modified
+        if (user.changed("mfa_secret") && user.mfa_secret) {
+          try {
+            user.mfa_secret = await encryptDatabaseField(user.mfa_secret);
+          } catch (error: unknown) {
+            console.error("Failed to encrypt MFA secret:", error);
+            throw new Error("MFA secret encryption failed");
+          }
+        }
 
         // Update GDPR consent date if consent status changed
         if (user.changed("gdpr_consent_given") && user.gdpr_consent_given) {
           user.gdpr_consent_date = new Date();
+        }
+      },
+
+      afterFind: async (instanceOrInstances: User | User[] | null) => {
+        if (!instanceOrInstances) return;
+
+        const instances = Array.isArray(instanceOrInstances) ? instanceOrInstances : [instanceOrInstances];
+        
+        for (const user of instances) {
+          if (user && user.mfa_secret) {
+            try {
+              user.mfa_secret = await decryptDatabaseField(user.mfa_secret);
+            } catch (error: unknown) {
+              console.error("Failed to decrypt MFA secret for user:", user.id, error);
+              // Set to null to prevent errors in TOTP verification
+              user.mfa_secret = null;
+            }
+          }
         }
       },
 

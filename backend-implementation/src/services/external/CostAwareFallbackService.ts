@@ -529,7 +529,7 @@ export class CostAwareFallbackService extends EventEmitter {
       // Update cost monitoring
       await this.updateCostMonitoring(
         context.serviceName,
-        selectedProvider.costPerRequest || 0,
+        selectedProvider?.costPerRequest || 0,
         Date.now() - startTime
       );
 
@@ -554,19 +554,19 @@ export class CostAwareFallbackService extends EventEmitter {
 
       return decision;
 
-    } catch (error) {
+    } catch (error: unknown) {
       const decisionTime = Date.now() - startTime;
       
       logger.error("Cost-aware fallback decision failed", {
         serviceName: context.serviceName,
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
         decisionTime
       });
 
       // Emit failure event
       this.emitCostEvent("cost_decision_failed", {
         serviceName: context.serviceName,
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
         decisionTime
       });
 
@@ -623,12 +623,12 @@ export class CostAwareFallbackService extends EventEmitter {
       }
 
       // Check cost per request constraint
-      if ((provider.costPerRequest || 0) > costTier.maxCostPerRequest) {
+      if ((provider?.costPerRequest || 0) > costTier.maxCostPerRequest) {
         return false;
       }
 
       // Check if adding this request would exceed tier budget
-      const projectedCost = costData.spending.totalSpent + (provider.costPerRequest || 0);
+      const projectedCost = costData.spending.totalSpent + (provider?.costPerRequest || 0);
       if (projectedCost > costTier.maxTotalCost) {
         return false;
       }
@@ -663,7 +663,7 @@ export class CostAwareFallbackService extends EventEmitter {
       let score = 0;
       
       // Cost score (lower cost = higher score)
-      const costScore = (costTier.maxCostPerRequest - (provider.costPerRequest || 0)) / costTier.maxCostPerRequest * 100;
+      const costScore = (costTier.maxCostPerRequest - (provider?.costPerRequest || 0)) / costTier.maxCostPerRequest * 100;
       score += costScore * 0.4; // 40% weight on cost
       
       // Performance score (based on capabilities and region)
@@ -716,8 +716,8 @@ export class CostAwareFallbackService extends EventEmitter {
           selectedProvider,
           costJustification: "Emergency budget activated due to no affordable providers",
           budgetImpact: {
-            immediateImpact: selectedProvider.costPerRequest || 0,
-            projectedImpact: (selectedProvider.costPerRequest || 0) * 100, // Assume 100 requests
+            immediateImpact: selectedProvider?.costPerRequest || 0,
+            projectedImpact: (selectedProvider?.costPerRequest || 0) * 100, // Assume 100 requests
             budgetUtilizationAfter: 100 // Emergency budget utilization
           },
           businessImpact: {
@@ -748,8 +748,8 @@ export class CostAwareFallbackService extends EventEmitter {
     costData: CostMonitoringData,
     allocation: BudgetAllocation
   ): any {
-    const immediateImpact = provider.costPerRequest || 0;
-    const projectedHourlyRequests = costData.spending.requestCount || 100; // Estimate
+    const immediateImpact = provider?.costPerRequest || 0;
+    const projectedHourlyRequests = costData.spending?.requestCount || 100; // Estimate
     const projectedImpact = immediateImpact * projectedHourlyRequests;
     
     const newTotalSpent = costData.spending.totalSpent + immediateImpact;
@@ -798,7 +798,7 @@ export class CostAwareFallbackService extends EventEmitter {
       .filter(p => p.providerId !== selectedProvider.providerId)
       .map(provider => ({
         provider,
-        cost: provider.costPerRequest || 0,
+        cost: provider?.costPerRequest || 0,
         performanceTradeoff: this.assessPerformanceTradeoff(provider, selectedProvider),
         recommendation: this.generateProviderRecommendation(provider, costTier)
       }));
@@ -847,9 +847,9 @@ export class CostAwareFallbackService extends EventEmitter {
     for (const serviceName of this.budgetAllocations.keys()) {
       try {
         await this.updateServiceCostMonitoring(serviceName);
-      } catch (error) {
+      } catch (error: unknown) {
         logger.error(`Cost monitoring failed for ${serviceName}`, {
-          error: error.message
+          error: error instanceof Error ? error?.message : String(error)
         });
       }
     }
@@ -1137,7 +1137,7 @@ export class CostAwareFallbackService extends EventEmitter {
   }
 
   private assessPerformanceTradeoff(provider: FallbackProvider, selectedProvider: FallbackProvider): string {
-    const costDiff = (provider.costPerRequest || 0) - (selectedProvider.costPerRequest || 0);
+    const costDiff = (provider?.costPerRequest || 0) - (selectedProvider?.costPerRequest || 0);
     
     if (costDiff > 0.01) {
       return "higher_cost_better_performance";
@@ -1149,9 +1149,9 @@ export class CostAwareFallbackService extends EventEmitter {
   }
 
   private generateProviderRecommendation(provider: FallbackProvider, costTier: CostTier): string {
-    if ((provider.costPerRequest || 0) > costTier.maxCostPerRequest * 0.8) {
+    if ((provider?.costPerRequest || 0) > costTier.maxCostPerRequest * 0.8) {
       return "cost_effective_within_tier";
-    } else if ((provider.costPerRequest || 0) < costTier.maxCostPerRequest * 0.5) {
+    } else if ((provider?.costPerRequest || 0) < costTier.maxCostPerRequest * 0.5) {
       return "highly_cost_effective";
     } else {
       return "balanced_cost_performance";
@@ -1167,7 +1167,7 @@ export class CostAwareFallbackService extends EventEmitter {
     const justifications = [];
     
     justifications.push(`Selected ${provider.providerName} within ${costTier.tierName} tier`);
-    justifications.push(`Cost: $${(provider.costPerRequest || 0).toFixed(4)} per request`);
+    justifications.push(`Cost: $${(provider?.costPerRequest || 0).toFixed(4)} per request`);
     justifications.push(`Budget utilization: ${costData.spending.budgetUtilization.toFixed(1)}%`);
     
     if (context.businessContext?.revenueImpacting) {

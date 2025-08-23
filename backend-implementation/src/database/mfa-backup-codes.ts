@@ -144,10 +144,10 @@ export class MFABackupCodesManager {
         auditInfo,
       };
 
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('Failed to generate MFA backup codes', {
         userSecurityId,
-        error: error instanceof Error ? error.message : 'Unknown error',
+        error: error instanceof Error ? error?.message : 'Unknown error',
         duration: Date.now() - startTime,
       });
       throw error;
@@ -245,10 +245,10 @@ export class MFABackupCodesManager {
         },
       };
 
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('Failed to verify MFA backup code', {
         userSecurityId,
-        error: error instanceof Error ? error.message : 'Unknown error',
+        error: error instanceof Error ? error?.message : 'Unknown error',
         duration: Date.now() - startTime,
       });
       throw error;
@@ -290,10 +290,10 @@ export class MFABackupCodesManager {
         securityGrade: this.calculateSecurityGrade(remainingCodes, detailedInfo),
       };
 
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('Failed to get backup codes status', {
         userSecurityId,
-        error: error instanceof Error ? error.message : 'Unknown error',
+        error: error instanceof Error ? error?.message : 'Unknown error',
       });
       throw error;
     }
@@ -329,11 +329,11 @@ export class MFABackupCodesManager {
         timestamp: new Date(),
       });
 
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('Failed to revoke backup codes', {
         userSecurityId,
         reason,
-        error: error instanceof Error ? error.message : 'Unknown error',
+        error: error instanceof Error ? error?.message : 'Unknown error',
       });
       throw error;
     }

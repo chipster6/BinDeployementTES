@@ -21,7 +21,7 @@
  * Version: 1.0.0
  */
 
-import { Request, Response, NextFunction } from "express";
+import type { Request, Response, NextFunction } from "express";
 import { logger } from "@/utils/logger";
 import { redisClient } from "@/config/redis";
 import { AuditLog } from "@/models/AuditLog";
@@ -109,7 +109,7 @@ export function createThreatIntelligenceMiddleware(
       
       if (threatResult) {
         // Log the threat check
-        if (finalConfig.logAllChecks || threatResult.threatScore >= finalConfig.alertThreshold) {
+        if (finalConfig?.logAllChecks || threatResult.threatScore >= finalConfig.alertThreshold) {
           await logThreatCheck(req, clientIP, threatResult);
         }
 
@@ -184,9 +184,9 @@ export function createThreatIntelligenceMiddleware(
       }
 
       next();
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error("Threat intelligence middleware error", {
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
         ip: getClientIP(req),
         path: req.path,
       });
@@ -224,10 +224,10 @@ async function checkIPThreat(
     }
 
     return result;
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error("Failed to check IP threat intelligence", {
       ip,
-      error: error.message,
+      error: error instanceof Error ? error?.message : String(error),
     });
     return null;
   }
@@ -256,10 +256,10 @@ async function applySuspiciousIPRateLimit(
       blocked: requestCount > maxRequests,
       requestCount,
     };
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error("Failed to apply suspicious IP rate limit", {
       ip,
-      error: error.message,
+      error: error instanceof Error ? error?.message : String(error),
     });
     return { blocked: false, requestCount: 0 };
   }
@@ -294,10 +294,10 @@ async function logThreatCheck(
       ipAddress: ip,
       userAgent: req.get("User-Agent"),
     });
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error("Failed to log threat check", {
       ip,
-      error: error.message,
+      error: error instanceof Error ? error?.message : String(error),
     });
   }
 }
@@ -324,7 +324,7 @@ function getClientIP(req: Request): string {
     return cloudflareIP;
   }
   
-  return req.ip || req.connection.remoteAddress || "unknown";
+  return req?.ip || req.connection?.remoteAddress || "unknown";
 }
 
 /**
@@ -371,9 +371,9 @@ export function threatMonitoringMiddleware() {
       });
 
       next();
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error("Threat monitoring middleware error", {
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
       });
       next();
     }

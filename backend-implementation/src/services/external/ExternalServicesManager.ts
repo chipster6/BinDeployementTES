@@ -167,9 +167,9 @@ export class ExternalServicesManager {
         ipAddress: "system",
         userAgent: "ExternalServicesManager",
       });
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error("Failed to initialize External Services Manager", {
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
       });
       throw error;
     }
@@ -216,9 +216,9 @@ export class ExternalServicesManager {
         apiKey: process.env.SENDGRID_API_KEY,
         webhookVerificationKey: process.env.SENDGRID_WEBHOOK_KEY,
         defaultFromEmail:
-          process.env.DEFAULT_FROM_EMAIL || "noreply@wastemanagement.com",
+          process.env?.DEFAULT_FROM_EMAIL || "noreply@wastemanagement.com",
         defaultFromName:
-          process.env.DEFAULT_FROM_NAME || "Waste Management System",
+          process.env?.DEFAULT_FROM_NAME || "Waste Management System",
       },
     });
 
@@ -249,14 +249,14 @@ export class ExternalServicesManager {
 
     this.configurations.set("maps", {
       enabled: !!(
-        process.env.MAPBOX_ACCESS_TOKEN || process.env.GOOGLE_MAPS_API_KEY
+        process.env?.MAPBOX_ACCESS_TOKEN || process.env.GOOGLE_MAPS_API_KEY
       ),
       priority: 8, // High priority for routing
       fallbackEnabled: true, // Can fall back between Mapbox and Google Maps
       monitoringEnabled: true,
       alertingEnabled: true,
       config: {
-        provider: process.env.MAPS_PROVIDER || "mapbox",
+        provider: process.env?.MAPS_PROVIDER || "mapbox",
         mapboxAccessToken: process.env.MAPBOX_ACCESS_TOKEN,
         googleMapsApiKey: process.env.GOOGLE_MAPS_API_KEY,
       },
@@ -424,14 +424,14 @@ export class ExternalServicesManager {
 
         this.services.set(serviceName, service);
         logger.info(`Service ${serviceName} initialized successfully`);
-      } catch (error) {
+      } catch (error: unknown) {
         logger.error(`Failed to initialize service ${serviceName}`, {
-          error: error.message,
+          error: error instanceof Error ? error?.message : String(error),
         });
 
         if (config.priority >= 8) {
           throw new Error(
-            `Critical service ${serviceName} failed to initialize: ${error.message}`,
+            `Critical service ${serviceName} failed to initialize: ${error instanceof Error ? error?.message : String(error)}`,
           );
         }
       }
@@ -500,9 +500,9 @@ export class ExternalServicesManager {
           lastAudit: new Date().toISOString(),
         })
       );
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('Security audit failed', {
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
       });
     }
   }
@@ -538,9 +538,9 @@ export class ExternalServicesManager {
           recommendations: securityStatus.recommendations,
         });
       }
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('Failed to handle critical security issues', {
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
       });
     }
   }
@@ -579,15 +579,15 @@ export class ExternalServicesManager {
       if (healthStatus.status === "unhealthy") {
         await this.handleUnhealthyService(serviceName, healthStatus);
       }
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error(`Health check failed for service ${serviceName}`, {
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
       });
 
       await this.updateServiceMetrics(serviceName, {
         responseTime: 0,
         success: false,
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
       });
     }
   }
@@ -625,9 +625,9 @@ export class ExternalServicesManager {
       }
 
       await multi.exec();
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error(`Failed to update metrics for service ${serviceName}`, {
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
       });
     }
   }
@@ -729,7 +729,7 @@ export class ExternalServicesManager {
             lastError: "No health data available",
           });
         }
-      } catch (error) {
+      } catch (error: unknown) {
         statuses.push({
           name: serviceName,
           status: "unhealthy",
@@ -739,7 +739,7 @@ export class ExternalServicesManager {
           circuitBreakerState: "open",
           errorCount: 0,
           successCount: 0,
-          lastError: error.message,
+          lastError: error instanceof Error ? error?.message : String(error),
         });
       }
     }
@@ -772,9 +772,9 @@ export class ExternalServicesManager {
       allMetrics.forEach((metrics) => {
         if (metrics.total_requests) {
           totalRequests += parseInt(metrics.total_requests);
-          successfulRequests += parseInt(metrics.successful_requests || "0");
-          failedRequests += parseInt(metrics.failed_requests || "0");
-          totalResponseTime += parseInt(metrics.total_response_time || "0");
+          successfulRequests += parseInt(metrics?.successful_requests || "0");
+          failedRequests += parseInt(metrics?.failed_requests || "0");
+          totalResponseTime += parseInt(metrics?.total_response_time || "0");
         }
       });
 
@@ -796,16 +796,16 @@ export class ExternalServicesManager {
         errorRate,
         uptime,
         lastHourStats: {
-          requests: parseInt(hourlyMetrics.total_requests || "0"),
-          errors: parseInt(hourlyMetrics.failed_requests || "0"),
+          requests: parseInt(hourlyMetrics?.total_requests || "0"),
+          errors: parseInt(hourlyMetrics?.failed_requests || "0"),
           avgResponseTime:
-            parseInt(hourlyMetrics.total_response_time || "0") /
-            Math.max(parseInt(hourlyMetrics.total_requests || "1"), 1),
+            parseInt(hourlyMetrics?.total_response_time || "0") /
+            Math.max(parseInt(hourlyMetrics?.total_requests || "1"), 1),
         },
       };
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error(`Failed to get metrics for service ${serviceName}`, {
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
       });
 
       return {
@@ -831,9 +831,9 @@ export class ExternalServicesManager {
   public async getSecurityStatus(): Promise<any> {
     try {
       return await this.apiKeyRotationService.getSecurityStatus();
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('Failed to get security status', {
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
       });
       return {
         overallStatus: 'critical',
@@ -850,9 +850,9 @@ export class ExternalServicesManager {
   public async generateSecurityComplianceReport(): Promise<any> {
     try {
       return await this.apiKeyRotationService.generateComplianceReport();
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('Failed to generate compliance report', {
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
       });
       return {
         reportDate: new Date(),
@@ -908,10 +908,6 @@ export class ExternalServicesManager {
         oldKeyRevoked: true,
         newKeyActivated: true,
         validationPassed: true,
-        metadata: {
-          rotatedBy,
-          rotationDate: new Date().toISOString(),
-        },
       });
 
       logger.info(`API keys rotated successfully for ${serviceName}`, {
@@ -920,16 +916,16 @@ export class ExternalServicesManager {
       });
 
       return { success: true };
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error(`Failed to rotate API keys for ${serviceName}`, {
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
         serviceName,
         rotatedBy,
       });
 
       return {
         success: false,
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
       };
     }
   }
@@ -963,16 +959,16 @@ export class ExternalServicesManager {
       });
 
       return { success: true };
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error(`Failed to revoke API keys for ${serviceName}`, {
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
         serviceName,
         reason,
       });
 
       return {
         success: false,
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
       };
     }
   }
@@ -1102,9 +1098,9 @@ export class ExternalServicesManager {
       await this.setupWebSocketCoordination();
 
       logger.info('Real-time API coordination initialized successfully');
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('Failed to initialize real-time coordination', {
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
       });
       throw error;
     }
@@ -1161,9 +1157,9 @@ export class ExternalServicesManager {
       );
 
       logger.info('API coordination background jobs scheduled');
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('Failed to schedule coordination jobs', {
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
       });
     }
   }
@@ -1198,9 +1194,9 @@ export class ExternalServicesManager {
       logger.info('WebSocket coordination channels established', {
         rooms: coordinationRooms,
       });
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('Failed to setup WebSocket coordination', {
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
       });
     }
   }
@@ -1268,7 +1264,7 @@ export class ExternalServicesManager {
             socketManager.sendToRole('admin', 'critical_cost_alert', {
               service: event.serviceName,
               costData: event.data,
-              recommendedActions: event.data.recommendedActions || [],
+              recommendedActions: event.data?.recommendedActions || [],
               timestamp: event.timestamp,
             });
           }
@@ -1291,9 +1287,9 @@ export class ExternalServicesManager {
         service: event.serviceName,
         severity: event.severity,
       });
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('Failed to broadcast coordination event', {
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
         event,
       });
     }
@@ -1336,9 +1332,9 @@ export class ExternalServicesManager {
         costSummary,
         lastUpdate: this.lastCoordinationUpdate,
       };
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('Failed to get Frontend coordination data', {
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
       });
       throw error;
     }
@@ -1399,9 +1395,9 @@ export class ExternalServicesManager {
       }
 
       return costSummary;
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('Failed to generate cost summary', {
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
       });
       return {
         totalHourlyCost: 0,
@@ -1448,7 +1444,7 @@ export class ExternalServicesManager {
         eventType: 'webhook_received',
         serviceName,
         data: {
-          webhookType: webhookData.type || 'unknown',
+          webhookType: webhookData?.type || 'unknown',
           processingResult,
           dataSize: JSON.stringify(webhookData).length,
         },
@@ -1458,8 +1454,8 @@ export class ExternalServicesManager {
 
       // Update service metrics with webhook processing
       await this.updateServiceMetrics(serviceName, {
-        responseTime: processingResult.processingTime || 0,
-        success: processingResult.success || false,
+        responseTime: processingResult?.processingTime || 0,
+        success: processingResult?.success || false,
       });
 
       logger.debug('Webhook coordination completed', {
@@ -1467,9 +1463,9 @@ export class ExternalServicesManager {
         webhookType: webhookData.type,
         success: processingResult.success,
       });
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('Failed to handle webhook coordination', {
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
         service: serviceName,
       });
     }
@@ -1531,9 +1527,9 @@ export class ExternalServicesManager {
         optimizationSuggestions,
         analysisTimestamp: new Date(),
       };
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('Cost optimization analysis failed', {
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
       });
       throw error;
     }

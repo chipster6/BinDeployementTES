@@ -290,8 +290,8 @@ export class EnhancedDatabaseOptimizer extends EventEmitter {
       this.emit('optimization_completed', finalResult);
       return finalResult;
 
-    } catch (error) {
-      timer.end({ error: error.message });
+    } catch (error: unknown) {
+      timer.end({ error: error instanceof Error ? error?.message : String(error) });
       logger.error('❌ Database optimization plan failed:', error);
       this.emit('optimization_failed', error);
       throw error;
@@ -389,7 +389,7 @@ export class EnhancedDatabaseOptimizer extends EventEmitter {
         const result = await strategy.implementation();
         results.push(result);
         this.optimizationHistory.push(result);
-      } catch (error) {
+      } catch (error: unknown) {
         logger.error(`Strategy failed: ${strategy.target}`, error);
         results.push({
           strategy: strategy.target,
@@ -398,7 +398,7 @@ export class EnhancedDatabaseOptimizer extends EventEmitter {
           executionTime: 0,
           beforeMetrics: await this.createEmptyMetrics(),
           afterMetrics: await this.createEmptyMetrics(),
-          coordinationNotes: [`Strategy failed: ${error.message}`],
+          coordinationNotes: [`Strategy failed: ${error instanceof Error ? error?.message : String(error)}`],
           nextSteps: ['Review and retry optimization strategy']
         });
       }
@@ -415,7 +415,7 @@ export class EnhancedDatabaseOptimizer extends EventEmitter {
         // For now, assume all coordination is ready (will be implemented during actual coordination)
         coordinationResults[agentName] = true;
         logger.info(`✅ ${agentName} coordination validated`);
-      } catch (error) {
+      } catch (error: unknown) {
         logger.error(`Coordination validation failed for ${agentName}:`, error);
         coordinationResults[agentName] = false;
       }
@@ -438,7 +438,7 @@ export class EnhancedDatabaseOptimizer extends EventEmitter {
         indexEffectiveness: 85, // Would calculate from pg_stat_user_indexes
         spatialQueryPerformance: spatialMetrics.averageQueryTime
       };
-    } catch (error) {
+    } catch (error: unknown) {
       logger.warn('Failed to collect performance baseline, using defaults', error);
       return await this.createEmptyMetrics();
     }

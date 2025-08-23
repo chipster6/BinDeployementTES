@@ -31,7 +31,7 @@ const handler = (req: any, res: any, next: any, options: any) => {
     req.ip,
     "medium",
   );
-  res.status(options.statusCode).send(options.message);
+  res.status(options.statusCode).send(options?.message);
 };
 
 export const generalRateLimiter = rateLimit({
@@ -61,7 +61,7 @@ export const rateLimiter = (options: {
   return rateLimit({
     windowMs: options.windowMs,
     max: options.max,
-    message: options.message,
+    message: options?.message,
     standardHeaders: options.standardHeaders ?? true,
     legacyHeaders: options.legacyHeaders ?? false,
     store: createRedisStore(),
@@ -82,7 +82,7 @@ export const rateLimiter = (options: {
       );
       res.status(429).json({
         success: false,
-        message: options.message,
+        message: options?.message,
         error: 'rate_limit_exceeded',
         retryAfter: Math.round(options.windowMs / 1000)
       });

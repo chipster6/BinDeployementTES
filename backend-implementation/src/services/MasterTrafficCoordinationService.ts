@@ -414,13 +414,7 @@ export class MasterTrafficCoordinationService extends EventEmitter {
         groupIntegrationStatus,
         performanceMetrics,
         coordinationOutcome,
-        monitoringPlan,
-        metadata: {
-          coordinationStrategy: this.determineSystemCoordinationStrategy(context),
-          confidenceScore: this.calculateSystemConfidenceScore(context, systemRoutingDecisions),
-          riskAssessment: this.assessSystemRisk(context, systemRoutingDecisions),
-          nextCoordinationTime: new Date(Date.now() + (monitoringPlan.coordinationReviewInterval * 60000))
-        }
+        monitoringPlan
       };
 
       // Step 8: Start comprehensive system monitoring
@@ -453,13 +447,13 @@ export class MasterTrafficCoordinationService extends EventEmitter {
 
       return coordinationResult;
 
-    } catch (error) {
+    } catch (error: unknown) {
       const coordinationTime = Date.now() - startTime;
       
       logger.error("System-wide traffic coordination failed", {
         coordinationId: context.coordinationId,
         sourceService: context.sourceService,
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
         coordinationTime
       });
 
@@ -467,7 +461,7 @@ export class MasterTrafficCoordinationService extends EventEmitter {
       this.emitSystemCoordinationEvent("system_coordination_failed", {
         coordinationId: context.coordinationId,
         sourceService: context.sourceService,
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
         coordinationTime
       });
 
@@ -525,10 +519,10 @@ export class MasterTrafficCoordinationService extends EventEmitter {
         frontendIntegration: integrationStatus.frontendIntegration
       });
 
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error("Groups A-D coordination failed", {
         coordinationId: context.coordinationId,
-        error: error.message
+        error: error instanceof Error ? error?.message : String(error)
       });
       
       // Continue with partial integration
@@ -570,13 +564,6 @@ export class MasterTrafficCoordinationService extends EventEmitter {
             requireRealTimeMonitoring: context.frontendContext.realTimeUpdates,
             requirePredictiveAnalytics: context.priority === "critical",
             requireEmergencyOverride: context.priority === "critical"
-          },
-          metadata: {
-            coordinationTimestamp: context.metadata.timestamp,
-            requestId: context.metadata.requestId,
-            userId: context.metadata.userId,
-            organizationId: context.metadata.organizationId,
-            sessionId: context.metadata.correlationId
           }
         };
 
@@ -584,11 +571,11 @@ export class MasterTrafficCoordinationService extends EventEmitter {
         const enhancedResult = await this.enhancedRoutingCoordinator.executeEnhancedCoordination(enhancedContext);
         systemRoutingDecisions.set(targetService, enhancedResult.routingDecision);
 
-      } catch (error) {
+      } catch (error: unknown) {
         logger.error(`System routing failed for service ${targetService}`, {
           coordinationId: context.coordinationId,
           targetService,
-          error: error.message
+          error: error instanceof Error ? error?.message : String(error)
         });
         
         // Continue with other services
@@ -1054,9 +1041,9 @@ export class MasterTrafficCoordinationService extends EventEmitter {
     for (const [coordinationId, context] of this.activeSystemCoordinations) {
       try {
         await this.monitorActiveSystemCoordination(coordinationId, context);
-      } catch (error) {
+      } catch (error: unknown) {
         logger.error(`System coordination monitoring failed for ${coordinationId}`, {
-          error: error.message
+          error: error instanceof Error ? error?.message : String(error)
         });
       }
     }
@@ -1066,9 +1053,9 @@ export class MasterTrafficCoordinationService extends EventEmitter {
     for (const serviceName of this.coordinationHistory.keys()) {
       try {
         await this.generateSystemServiceAnalytics(serviceName);
-      } catch (error) {
+      } catch (error: unknown) {
         logger.error(`System analytics update failed for ${serviceName}`, {
-          error: error.message
+          error: error instanceof Error ? error?.message : String(error)
         });
       }
     }
@@ -1261,9 +1248,9 @@ export class MasterTrafficCoordinationService extends EventEmitter {
         userAgent: "MasterTrafficCoordinationService",
         organizationId: context.metadata.organizationId
       });
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error("Failed to create system coordination audit log", {
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
         coordinationId: result.coordinationId
       });
     }

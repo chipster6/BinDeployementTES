@@ -1,0 +1,11 @@
+{
+  "timestamp": "2025-08-20T23:27:21.970Z",
+  "compilationTime": 2.190861917,
+  "memoryUsage": 1.446685791015625,
+  "typeErrors": 5034,
+  "filesProcessed": 301,
+  "success": false,
+  "cacheHitRate": 99.99973,
+  "linesOfCode": 232236,
+  "performanceStatus": "GOOD"
+}

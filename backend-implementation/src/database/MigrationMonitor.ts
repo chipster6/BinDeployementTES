@@ -258,7 +258,7 @@ export class MigrationMonitor extends EventEmitter {
         
         this.emit('metrics_collected', { migrationId, metrics });
       }
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('Failed to collect migration metrics:', error);
     }
   }
@@ -309,7 +309,7 @@ export class MigrationMonitor extends EventEmitter {
       };
 
       return metrics;
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error(`Failed to gather metrics for migration ${migrationId}:`, error);
       return {
         ...previousMetrics,
@@ -426,12 +426,12 @@ export class MigrationMonitor extends EventEmitter {
         { rollbackResult }
       );
 
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error(`Failed to execute automatic rollback for migration ${migrationId}:`, error);
       
       await this.sendAlert(
         'critical',
-        `Automatic rollback failed for migration ${migrationId}: ${error instanceof Error ? error.message : String(error)}`,
+        `Automatic rollback failed for migration ${migrationId}: ${error instanceof Error ? error?.message : String(error)}`,
         { error }
       );
       
@@ -465,7 +465,7 @@ export class MigrationMonitor extends EventEmitter {
         activeMigrations: this.currentMigrations.size,
       });
       
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('Health check failed:', error);
       
       this.emit('health_check_failed', {
@@ -533,7 +533,7 @@ export class MigrationMonitor extends EventEmitter {
         recordsProcessed: data?.records_processed || 0,
         estimatedCompletion: 0, // Would implement based on progress calculation
       };
-    } catch (error) {
+    } catch (error: unknown) {
       return { duration: 0, recordsProcessed: 0, estimatedCompletion: 0 };
     }
   }
@@ -622,7 +622,7 @@ export class MigrationMonitor extends EventEmitter {
         if (!response.ok) {
           logger.warn('Failed to send webhook notification:', response.statusText);
         }
-      } catch (error) {
+      } catch (error: unknown) {
         logger.warn('Failed to send webhook notification:', error);
       }
     }

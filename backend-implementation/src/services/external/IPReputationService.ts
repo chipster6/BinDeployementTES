@@ -185,10 +185,10 @@ class IPReputationService {
       });
 
       return result;
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error("IP reputation check failed", {
         ip,
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
       });
       throw error;
     }
@@ -212,10 +212,10 @@ class IPReputationService {
       const chunkPromises = chunk.map(async (ip) => {
         try {
           return await this.checkIPReputation(ip);
-        } catch (error) {
+        } catch (error: unknown) {
           logger.warn("IP reputation check failed in batch", {
             ip,
-            error: error.message,
+            error: error instanceof Error ? error?.message : String(error),
           });
           errors++;
           return null;
@@ -298,10 +298,10 @@ class IPReputationService {
       });
 
       return result;
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error("IP blacklist check failed", {
         ip,
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
       });
       
       return {
@@ -356,10 +356,10 @@ class IPReputationService {
       await redisClient.setex(cacheKey, 86400, JSON.stringify(context)); // 24 hours
 
       return context;
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error("Failed to fetch IP context", {
         ip,
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
       });
       
       return {
@@ -403,16 +403,16 @@ class IPReputationService {
         const abuseCategories = this.mapToAbuseIPDBCategories(categories);
         await abuseIPDBService.reportAbusiveIP(ip, abuseCategories, comment);
         reportedSources.push("AbuseIPDB");
-      } catch (error) {
-        logger.warn("Failed to report to AbuseIPDB", { ip, error: error.message });
+      } catch (error: unknown) {
+        logger.warn("Failed to report to AbuseIPDB", { ip, error: error instanceof Error ? error?.message : String(error) });
       }
 
       // Report to MISP
       try {
         await mispIntegrationService.submitIOC(ip, "ip-src", "Network activity", comment);
         reportedSources.push("MISP");
-      } catch (error) {
-        logger.warn("Failed to report to MISP", { ip, error: error.message });
+      } catch (error: unknown) {
+        logger.warn("Failed to report to MISP", { ip, error: error instanceof Error ? error?.message : String(error) });
       }
 
       const success = reportedSources.length > 0;
@@ -424,10 +424,10 @@ class IPReputationService {
       });
 
       return { success, sources: reportedSources };
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error("Failed to report malicious IP", {
         ip,
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
       });
       
       return { success: false, sources: [] };
@@ -715,7 +715,7 @@ class IPReputationService {
         metrics: this.getMetrics(),
         lastUpdate: new Date(),
       };
-    } catch (error) {
+    } catch (error: unknown) {
       return {
         status: "unhealthy",
         metrics: this.getMetrics(),

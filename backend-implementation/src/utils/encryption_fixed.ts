@@ -51,7 +51,7 @@ interface EncryptedData {
  */
 function getEncryptionKey(salt?: Buffer): Buffer {
   const masterKey =
-    config.security.encryptionKey || process.env.ENCRYPTION_MASTER_KEY;
+    config.security?.encryptionKey || process.env.ENCRYPTION_MASTER_KEY;
 
   if (!masterKey) {
     throw new Error(
@@ -112,7 +112,7 @@ export async function encryptSensitiveData(
     }
 
     // Create cipher - using AES-256-GCM for proper authenticated encryption
-    const cipher = crypto.createCipherGCM(ENCRYPTION_CONFIG.algorithm, key, iv);
+    const cipher = crypto.createCipheriv(ENCRYPTION_CONFIG.algorithm, key, iv);
 
     // Encrypt the data
     let encrypted = cipher.update(plaintext, "utf8", "base64");
@@ -135,7 +135,7 @@ export async function encryptSensitiveData(
 
     // Return as base64-encoded JSON string
     return Buffer.from(JSON.stringify(encryptedData)).toString("base64");
-  } catch (error) {
+  } catch (error: unknown) {
     console.error("Encryption failed:", error);
     throw new Error("Data encryption failed");
   }
@@ -182,7 +182,7 @@ export async function decryptSensitiveData(
     const tag = Buffer.from(encryptedData.tag, "base64");
 
     // Create decipher - using AES-256-GCM for proper authenticated decryption
-    const decipher = crypto.createDecipherGCM(ENCRYPTION_CONFIG.algorithm, key, iv);
+    const decipher = crypto.createDecipheriv(ENCRYPTION_CONFIG.algorithm, key, iv);
     decipher.setAuthTag(tag);
 
     // Decrypt the data
@@ -190,7 +190,7 @@ export async function decryptSensitiveData(
     decrypted += decipher.final("utf8");
 
     return decrypted;
-  } catch (error) {
+  } catch (error: unknown) {
     console.error("Decryption failed:", error);
     throw new Error(
       "Data decryption failed - data may be corrupted or key may be wrong",
@@ -223,7 +223,7 @@ export async function decryptDatabaseField(
 
   try {
     return await decryptSensitiveData(encryptedValue);
-  } catch (error) {
+  } catch (error: unknown) {
     // Log error but don't throw to prevent application crashes
     console.error("Database field decryption failed:", error);
     return null;
@@ -268,7 +268,7 @@ export function verifySensitiveDataHash(
       Buffer.from(originalHash, "hex"),
       Buffer.from(newHash, "hex"),
     );
-  } catch (error) {
+  } catch (error: unknown) {
     console.error("Hash verification failed:", error);
     return false;
   }
@@ -285,12 +285,12 @@ export function generateSessionKey(): string {
  * Encrypt session data - SECURITY FIXED
  */
 export function encryptSessionData(data: any): string {
-  const sessionKey = process.env.SESSION_SECRET || generateSessionKey();
+  const sessionKey = process.env?.SESSION_SECRET || generateSessionKey();
   const iv = generateIV();
   
   // Use AES-256-GCM for session data encryption - SECURITY FIX
   const key = crypto.scryptSync(sessionKey, "salt", 32);
-  const cipher = crypto.createCipherGCM("aes-256-gcm", key, iv);
+  const cipher = crypto.createCipheriv("aes-256-gcm", key, iv);
   
   let encrypted = cipher.update(JSON.stringify(data), "utf8", "base64");
   encrypted += cipher.final("base64");
@@ -319,14 +319,14 @@ export function decryptSessionData(encryptedData: string): any {
     
     // Use AES-256-GCM for session data decryption - SECURITY FIX
     const key = crypto.scryptSync(sessionKey, "salt", 32);
-    const decipher = crypto.createDecipherGCM("aes-256-gcm", key, iv);
+    const decipher = crypto.createDecipheriv("aes-256-gcm", key, iv);
     decipher.setAuthTag(tag);
     
     let decrypted = decipher.update(encrypted, "base64", "utf8");
     decrypted += decipher.final("utf8");
 
     return JSON.parse(decrypted);
-  } catch (error) {
+  } catch (error: unknown) {
     console.error("Session decryption failed:", error);
     throw new Error("Session decryption failed");
   }
@@ -382,7 +382,7 @@ export function verifyHmacSignature(
       Buffer.from(signature, "hex"),
       Buffer.from(expectedSignature, "hex"),
     );
-  } catch (error) {
+  } catch (error: unknown) {
     console.error("HMAC verification failed:", error);
     return false;
   }
@@ -434,7 +434,7 @@ export async function rotateEncryptionKey(
 
     // Re-encrypt with current key
     return await encryptSensitiveData(decrypted);
-  } catch (error) {
+  } catch (error: unknown) {
     console.error("Key rotation failed:", error);
     throw new Error("Failed to rotate encryption key");
   }

@@ -23,7 +23,7 @@
 
 import { BaseService, ServiceResult, PaginationOptions, PaginatedResult } from "@/services/BaseService";
 import { AuditLog, AuditAction, SensitivityLevel } from "@/models/AuditLog";
-import { User } from "@/models/User";
+import type { User } from "@/models/User";
 import { logger, Timer } from "@/utils/logger";
 import { AppError, ValidationError } from "@/middleware/errorHandler";
 import { redisClient } from "@/config/redis";
@@ -367,11 +367,11 @@ export class SecurityAuditService extends BaseService<AuditLog> {
 
       timer.end({ success: true, entryId: enhancedEntry.id });
       return { success: true, data: enhancedEntry };
-    } catch (error) {
-      timer.end({ error: error.message });
+    } catch (error: unknown) {
+      timer.end({ error: error instanceof Error ? error?.message : String(error) });
       logger.error("Failed to create enhanced audit entry", {
         auditLogId,
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
       });
 
       if (error instanceof ValidationError) {
@@ -414,16 +414,16 @@ export class SecurityAuditService extends BaseService<AuditLog> {
       });
 
       return { success: true, data: report };
-    } catch (error) {
-      timer.end({ error: error.message });
+    } catch (error: unknown) {
+      timer.end({ error: error instanceof Error ? error?.message : String(error) });
       logger.error("Failed to generate compliance report", {
         framework,
         startDate,
         endDate,
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
       });
 
-      return { success: false, errors: [error.message] };
+      return { success: false, errors: [error instanceof Error ? error?.message : String(error)] };
     }
   }
 
@@ -453,7 +453,7 @@ export class SecurityAuditService extends BaseService<AuditLog> {
         whereConditions.userId = filters.userId;
       }
 
-      if (filters.startDate || filters.endDate) {
+      if (filters?.startDate || filters.endDate) {
         whereConditions.accessTimestamp = {};
         if (filters.startDate) {
           whereConditions.accessTimestamp[Op.gte] = filters.startDate;
@@ -488,7 +488,7 @@ export class SecurityAuditService extends BaseService<AuditLog> {
       // Apply post-query filters for enhanced data
       let filteredData = Array.isArray(result) ? result : result.data;
 
-      if (filters.eventType || filters.riskLevel || filters.complianceFramework || filters.anomaliesOnly) {
+      if (filters?.eventType || filters?.riskLevel || filters?.complianceFramework || filters.anomaliesOnly) {
         filteredData = await this.applyEnhancedFilters(filteredData, filters);
       }
 
@@ -502,14 +502,14 @@ export class SecurityAuditService extends BaseService<AuditLog> {
       });
 
       return { success: true, data: finalResult };
-    } catch (error) {
-      timer.end({ error: error.message });
+    } catch (error: unknown) {
+      timer.end({ error: error instanceof Error ? error?.message : String(error) });
       logger.error("Failed to get audit events", {
         filters,
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
       });
 
-      return { success: false, errors: [error.message] };
+      return { success: false, errors: [error instanceof Error ? error?.message : String(error)] };
     }
   }
 
@@ -553,14 +553,14 @@ export class SecurityAuditService extends BaseService<AuditLog> {
       });
 
       return { success: true, data: analytics };
-    } catch (error) {
-      timer.end({ error: error.message });
+    } catch (error: unknown) {
+      timer.end({ error: error instanceof Error ? error?.message : String(error) });
       logger.error("Failed to perform audit analytics", {
         timeframe,
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
       });
 
-      return { success: false, errors: [error.message] };
+      return { success: false, errors: [error instanceof Error ? error?.message : String(error)] };
     }
   }
 
@@ -616,14 +616,14 @@ export class SecurityAuditService extends BaseService<AuditLog> {
       });
 
       return { success: true, data: result };
-    } catch (error) {
-      timer.end({ error: error.message });
+    } catch (error: unknown) {
+      timer.end({ error: error instanceof Error ? error?.message : String(error) });
       logger.error("Failed to search audit events", {
         query,
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
       });
 
-      return { success: false, errors: [error.message] };
+      return { success: false, errors: [error instanceof Error ? error?.message : String(error)] };
     }
   }
 
@@ -654,16 +654,16 @@ export class SecurityAuditService extends BaseService<AuditLog> {
 
       timer.end({ success: true, count: violations.length });
       return { success: true, data: violations };
-    } catch (error) {
-      timer.end({ error: error.message });
+    } catch (error: unknown) {
+      timer.end({ error: error instanceof Error ? error?.message : String(error) });
       logger.error("Failed to get compliance violations", {
         framework,
         status,
         severity,
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
       });
 
-      return { success: false, errors: [error.message] };
+      return { success: false, errors: [error instanceof Error ? error?.message : String(error)] };
     }
   }
 
@@ -735,14 +735,14 @@ export class SecurityAuditService extends BaseService<AuditLog> {
       });
 
       return { success: true, data: result };
-    } catch (error) {
-      timer.end({ error: error.message });
+    } catch (error: unknown) {
+      timer.end({ error: error instanceof Error ? error?.message : String(error) });
       logger.error("Failed to export compliance data", {
         framework,
         startDate,
         endDate,
         format,
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
       });
 
       throw new AppError("Failed to export compliance data", 500);
@@ -1006,7 +1006,7 @@ export class SecurityAuditService extends BaseService<AuditLog> {
     // Framework-specific relevance logic
     switch (framework) {
       case ComplianceFramework.GDPR:
-        return event.sensitiveDataAccessed || event.action === AuditAction.DELETE;
+        return event?.sensitiveDataAccessed || event.action === AuditAction.DELETE;
       case ComplianceFramework.PCI_DSS:
         return event.sensitivityLevel === SensitivityLevel.RESTRICTED;
       default:

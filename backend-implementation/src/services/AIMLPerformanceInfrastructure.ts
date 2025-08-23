@@ -345,17 +345,17 @@ export class AIMLPerformanceInfrastructure extends BaseService<any> {
         message: "AI/ML Performance Infrastructure started successfully"
       };
 
-    } catch (error) {
-      timer.end({ error: error.message });
+    } catch (error: unknown) {
+      timer.end({ error: error instanceof Error ? error?.message : String(error) });
       logger.error("Failed to start AI/ML Performance Infrastructure", {
         service: this.serviceName,
-        error: error.message
+        error: error instanceof Error ? error?.message : String(error)
       });
 
       return {
         success: false,
         message: "Failed to start AI/ML Performance Infrastructure",
-        errors: [error.message]
+        errors: [error instanceof Error ? error?.message : String(error)]
       };
     }
   }
@@ -428,18 +428,18 @@ export class AIMLPerformanceInfrastructure extends BaseService<any> {
         }
       };
 
-    } catch (error) {
-      timer.end({ error: error.message });
+    } catch (error: unknown) {
+      timer.end({ error: error instanceof Error ? error?.message : String(error) });
       logger.error("Model performance analysis failed", {
         service: this.serviceName,
         modelId,
-        error: error.message
+        error: error instanceof Error ? error?.message : String(error)
       });
 
       return {
         success: false,
         message: "Model performance analysis failed",
-        errors: [error.message]
+        errors: [error instanceof Error ? error?.message : String(error)]
       };
     }
   }
@@ -518,17 +518,17 @@ export class AIMLPerformanceInfrastructure extends BaseService<any> {
         }
       };
 
-    } catch (error) {
-      timer.end({ error: error.message });
+    } catch (error: unknown) {
+      timer.end({ error: error instanceof Error ? error?.message : String(error) });
       logger.error("Vector database indexing optimization failed", {
         service: this.serviceName,
-        error: error.message
+        error: error instanceof Error ? error?.message : String(error)
       });
 
       return {
         success: false,
         message: "Vector database indexing optimization failed",
-        errors: [error.message]
+        errors: [error instanceof Error ? error?.message : String(error)]
       };
     }
   }
@@ -619,17 +619,17 @@ export class AIMLPerformanceInfrastructure extends BaseService<any> {
         }
       };
 
-    } catch (error) {
-      timer.end({ error: error.message });
+    } catch (error: unknown) {
+      timer.end({ error: error instanceof Error ? error?.message : String(error) });
       logger.error("ML Pipeline optimization deployment failed", {
         service: this.serviceName,
-        error: error.message
+        error: error instanceof Error ? error?.message : String(error)
       });
 
       return {
         success: false,
         message: "ML Pipeline optimization deployment failed",
-        errors: [error.message]
+        errors: [error instanceof Error ? error?.message : String(error)]
       };
     }
   }
@@ -714,17 +714,17 @@ export class AIMLPerformanceInfrastructure extends BaseService<any> {
         message: "AI/ML Performance dashboard data retrieved successfully"
       };
 
-    } catch (error) {
-      timer.end({ error: error.message });
+    } catch (error: unknown) {
+      timer.end({ error: error instanceof Error ? error?.message : String(error) });
       logger.error("Failed to get AI/ML Performance dashboard", {
         service: this.serviceName,
-        error: error.message
+        error: error instanceof Error ? error?.message : String(error)
       });
 
       return {
         success: false,
         message: "Failed to get AI/ML Performance dashboard",
-        errors: [error.message]
+        errors: [error instanceof Error ? error?.message : String(error)]
       };
     }
   }
@@ -832,10 +832,10 @@ export class AIMLPerformanceInfrastructure extends BaseService<any> {
       // Clean up old metrics (keep last 24 hours)
       await this.cleanupOldMetrics();
 
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error("Failed to collect performance metrics", {
         service: this.serviceName,
-        error: error.message
+        error: error instanceof Error ? error?.message : String(error)
       });
     }
   }

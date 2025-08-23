@@ -106,7 +106,7 @@ class DatabasePerformanceTest {
 
       return results;
 
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error("❌ Database performance test failed:", error);
       throw error;
     }
@@ -144,7 +144,7 @@ class DatabasePerformanceTest {
       for (const connection of connections) {
         try {
           await sequelize.connectionManager.releaseConnection(connection);
-        } catch (error) {
+        } catch (error: unknown) {
           logger.warn("Connection release error:", error);
         }
       }
@@ -222,7 +222,7 @@ class DatabasePerformanceTest {
         logger.info(`Pool recovery status: ${recoveryStats.status}, utilization: ${recoveryStats.pool.utilization}%`);
       }
 
-    } catch (error) {
+    } catch (error: unknown) {
       logger.warn("Connection pool recovery test encountered issue:", error);
     }
 
@@ -242,13 +242,13 @@ class DatabasePerformanceTest {
         const responseTime = endTime - startTime;
         this.responseTimes.push(responseTime);
         
-      } catch (error) {
+      } catch (error: unknown) {
         const endTime = performance.now();
         const responseTime = endTime - startTime;
         this.responseTimes.push(responseTime);
         
         logger.warn(`Query failed: ${query.substring(0, 50)}...`, {
-          error: error instanceof Error ? error.message : error,
+          error: error instanceof Error ? error?.message : error,
           responseTime: `${responseTime}ms`,
         });
       }
@@ -282,7 +282,7 @@ class DatabasePerformanceTest {
       this.alerts.push({
         type: alert.type,
         severity: alert.severity,
-        message: alert.message,
+        message: alert?.message,
       });
     });
   }
@@ -311,7 +311,7 @@ class DatabasePerformanceTest {
 
     const connectionPool = {
       maxUtilization: Math.round(sortedUtilizations[0] || 0),
-      avgUtilization: Math.round(this.connectionUtilizations.reduce((a, b) => a + b, 0) / this.connectionUtilizations.length || 0),
+      avgUtilization: Math.round(this.connectionUtilizations.reduce((a, b) => a + b, 0) / this.connectionUtilizations?.length || 0),
       waitingConnections: 0, // Would track from actual pool stats
       errors: 0,
     };
@@ -426,7 +426,7 @@ async function main() {
     console.log("\n✅ Database performance test completed successfully");
     process.exit(0);
 
-  } catch (error) {
+  } catch (error: unknown) {
     console.error("\n❌ Database performance test failed:", error);
     process.exit(1);
   }

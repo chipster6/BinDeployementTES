@@ -184,7 +184,7 @@ class MISPIntegrationService extends BaseExternalService {
         throw new Error("Failed to search IOCs in MISP");
       }
 
-      const results = this.parseSearchResults(response.data.Attribute || []);
+      const results = this.parseSearchResults(response.data?.Attribute || []);
 
       // Cache the results
       await redisClient.setex(cacheKey, this.cacheTTL, JSON.stringify(results));
@@ -196,10 +196,10 @@ class MISPIntegrationService extends BaseExternalService {
       });
 
       return results;
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error("MISP IOC search failed", {
         searchRequest,
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
       });
       throw error;
     }
@@ -225,11 +225,11 @@ class MISPIntegrationService extends BaseExternalService {
 
       // Return the most recent/relevant result
       return results.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())[0];
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error("MISP indicator search failed", {
         value,
         type,
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
       });
       return null;
     }
@@ -270,10 +270,10 @@ class MISPIntegrationService extends BaseExternalService {
       });
 
       return event;
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error("Failed to fetch MISP event", {
         eventId,
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
       });
       return null;
     }
@@ -318,7 +318,7 @@ class MISPIntegrationService extends BaseExternalService {
         throw new Error("Failed to fetch MISP threat feeds");
       }
 
-      const results = this.parseSearchResults(response.data.Attribute || []);
+      const results = this.parseSearchResults(response.data?.Attribute || []);
 
       // Cache for shorter time for feeds (they change frequently)
       await redisClient.setex(cacheKey, 900, JSON.stringify(results)); // 15 minutes
@@ -331,11 +331,11 @@ class MISPIntegrationService extends BaseExternalService {
       });
 
       return results;
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error("Failed to fetch MISP threat feeds", {
         tags,
         threatLevel,
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
       });
       throw error;
     }
@@ -387,12 +387,12 @@ class MISPIntegrationService extends BaseExternalService {
         success: true,
         attributeId,
       };
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error("Failed to submit IOC to MISP", {
         value,
         type,
         category,
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
       });
       
       return {
@@ -416,10 +416,10 @@ class MISPIntegrationService extends BaseExternalService {
 
       logger.info("STIX export fetched successfully", { eventId });
       return response.data;
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error("Failed to fetch STIX export from MISP", {
         eventId,
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
       });
       throw error;
     }
@@ -492,19 +492,6 @@ class MISPIntegrationService extends BaseExternalService {
       detections: 1, // MISP doesn't provide detection counts like other services
       totalScans: 1,
       vendors: ["MISP"],
-      metadata: {
-        eventId: attribute.event_id,
-        objectId: attribute.object_id,
-        category: attribute.category,
-        type: attribute.type,
-        comment: attribute.comment,
-        toIds: attribute.to_ids,
-        distribution: attribute.distribution,
-        sharingGroupId: attribute.sharing_group_id,
-        tags: attribute.Tag?.map(tag => tag.name) || [],
-        uuid: attribute.uuid,
-        timestamp: attribute.timestamp,
-      },
       timestamp: new Date(parseInt(attribute.timestamp) * 1000),
       source: "misp",
     };
@@ -595,9 +582,9 @@ class MISPIntegrationService extends BaseExternalService {
         attributesToday: todayFeeds.length,
         cacheStats,
       };
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error("Failed to get MISP threat summary", {
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
       });
       
       return {

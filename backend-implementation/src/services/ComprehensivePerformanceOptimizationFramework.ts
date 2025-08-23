@@ -195,14 +195,14 @@ export class ComprehensivePerformanceOptimizationFramework extends BaseService<a
         message: `Performance Optimization Framework deployed with ${estimatedImprovement}% estimated improvement potential`
       };
 
-    } catch (error) {
-      timer.end({ error: error.message });
+    } catch (error: unknown) {
+      timer.end({ error: error instanceof Error ? error?.message : String(error) });
       logger.error("❌ Failed to deploy Performance Optimization Framework", error);
       
       return {
         success: false,
         message: "Failed to deploy Performance Optimization Framework",
-        errors: [error.message]
+        errors: [error instanceof Error ? error?.message : String(error)]
       };
     }
   }
@@ -282,14 +282,14 @@ export class ComprehensivePerformanceOptimizationFramework extends BaseService<a
         message: `Performance optimization completed with ${benchmark.improvement.percentageImprovement}% improvement`
       };
 
-    } catch (error) {
-      timer.end({ error: error.message });
+    } catch (error: unknown) {
+      timer.end({ error: error instanceof Error ? error?.message : String(error) });
       logger.error("❌ Comprehensive performance optimization failed", error);
       
       return {
         success: false,
         message: "Comprehensive performance optimization failed",
-        errors: [error.message]
+        errors: [error instanceof Error ? error?.message : String(error)]
       };
     } finally {
       this.isOptimizing = false;
@@ -348,14 +348,14 @@ export class ComprehensivePerformanceOptimizationFramework extends BaseService<a
         message: "Master Performance Coordinator deployed successfully"
       };
 
-    } catch (error) {
-      timer.end({ error: error.message });
+    } catch (error: unknown) {
+      timer.end({ error: error instanceof Error ? error?.message : String(error) });
       logger.error("❌ Failed to deploy Master Performance Coordinator", error);
       
       return {
         success: false,
         message: "Failed to deploy Master Performance Coordinator",
-        errors: [error.message]
+        errors: [error instanceof Error ? error?.message : String(error)]
       };
     }
   }
@@ -520,9 +520,9 @@ export class ComprehensivePerformanceOptimizationFramework extends BaseService<a
 
       return baselineMetrics;
 
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error("❌ Failed to collect baseline metrics", error);
-      throw new Error(`Baseline metrics collection failed: ${error.message}`);
+      throw new Error(`Baseline metrics collection failed: ${error instanceof Error ? error?.message : String(error)}`);
     }
   }
 
@@ -568,7 +568,7 @@ export class ComprehensivePerformanceOptimizationFramework extends BaseService<a
         // Brief pause between optimizations
         await new Promise(resolve => setTimeout(resolve, 1000));
 
-      } catch (error) {
+      } catch (error: unknown) {
         failed++;
         executed++;
         logger.error(`❌ Optimization error: ${strategy.name}`, error);
@@ -616,9 +616,9 @@ export class ComprehensivePerformanceOptimizationFramework extends BaseService<a
 
       return coordinationResults;
 
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error("❌ Parallel deployment coordination failed", error);
-      return { error: error.message, timestamp: new Date() };
+      return { error: error instanceof Error ? error?.message : String(error), timestamp: new Date() };
     }
   }
 

@@ -21,7 +21,7 @@
 import { Model } from "sequelize";
 import Joi from "joi";
 import { BaseDTO, DTOTransformOptions } from "./BaseDTO";
-import { Bin, BinType, BinStatus } from "@/models/Bin";
+import type { Bin, BinType, BinStatus } from "@/models/Bin";
 import { Customer } from "@/models/Customer";
 
 /**
@@ -256,9 +256,9 @@ export class BinDTO extends BaseDTO<BinDTOData> {
       latitude: binData.latitude,
       longitude: binData.longitude,
       address: binData.address,
-      installationDate: binData.installationDate || undefined,
-      lastServiceDate: binData.lastServiceDate || undefined,
-      nextServiceDate: binData.nextServiceDate || undefined,
+      installationDate: binData?.installationDate || undefined,
+      lastServiceDate: binData?.lastServiceDate || undefined,
+      nextServiceDate: binData?.nextServiceDate || undefined,
       lastCapacityUpdate: binData.lastCapacityUpdate,
       locationUpdatedAt: binData.locationUpdatedAt,
       locationAccuracy: binData.locationAccuracy,
@@ -283,7 +283,7 @@ export class BinDTO extends BaseDTO<BinDTOData> {
         dtoData.customerContactName = customer.organization.contact_name;
         dtoData.customerEmail = customer.organization.email;
       } else {
-        dtoData.customerName = customer.customer_number || "Unknown";
+        dtoData.customerName = customer?.customer_number || "Unknown";
         dtoData.customerContactName = "Unknown";
         dtoData.customerEmail = "Unknown";
       }

@@ -160,9 +160,9 @@ export class ExternalServicePerformanceDashboard {
         cachedDataSets: this.performanceCache.size,
         performanceTargets: Object.keys(this.performanceTargets).length,
       });
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('Failed to initialize External Service Performance Dashboard', {
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
       });
       throw error;
     }
@@ -210,9 +210,9 @@ export class ExternalServicePerformanceDashboard {
       });
 
       return dashboardData;
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('Failed to get dashboard data', {
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
         includeHistorical,
       });
       throw error;
@@ -238,10 +238,10 @@ export class ExternalServicePerformanceDashboard {
       await this.setCachedData(cacheKey, analysis, 30000);
 
       return analysis;
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('Failed to get service performance analysis', {
         serviceName,
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
       });
       throw error;
     }
@@ -265,10 +265,10 @@ export class ExternalServicePerformanceDashboard {
       await this.setCachedData(cacheKey, trends, 300000);
 
       return trends;
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('Failed to get performance trends', {
         timeframe,
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
       });
       throw error;
     }
@@ -311,9 +311,9 @@ export class ExternalServicePerformanceDashboard {
       await this.broadcastOptimizationStatus(optimizationResult);
 
       return optimizationResult;
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('Failed to trigger performance optimization', {
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
         options,
       });
       throw error;
@@ -332,10 +332,10 @@ export class ExternalServicePerformanceDashboard {
       }
 
       return status;
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('Failed to get optimization status', {
         optimizationId,
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
       });
       throw error;
     }
@@ -394,11 +394,11 @@ export class ExternalServicePerformanceDashboard {
       overallHealth,
       totalServices: systemHealth.serviceCount,
       healthyServices: systemHealth.healthyServices,
-      totalMonthlyCost: costSummary.totalMonthlyCost || 0,
-      projectedSavings: batchingReport.totalCostSavings || 0,
+      totalMonthlyCost: costSummary?.totalMonthlyCost || 0,
+      projectedSavings: batchingReport?.totalCostSavings || 0,
       averageResponseTime: await this.calculateAverageResponseTime(),
       totalRequestsToday: await this.calculateTotalRequestsToday(),
-      batchingEfficiency: batchingReport.averageCompressionRatio || 0,
+      batchingEfficiency: batchingReport?.averageCompressionRatio || 0,
       webhookProcessingRate: await this.calculateWebhookProcessingRate(),
       criticalAlerts: await this.getCriticalAlertsCount(),
       optimizationOpportunities: await this.getOptimizationOpportunitiesCount(),
@@ -496,8 +496,8 @@ export class ExternalServicePerformanceDashboard {
   private calculateRequestReduction(serviceBreakdown: any[]): number {
     if (!serviceBreakdown.length) return 0;
     
-    const totalRequests = serviceBreakdown.reduce((sum, service) => sum + (service.totalRequests || 0), 0);
-    const batchedRequests = serviceBreakdown.reduce((sum, service) => sum + (service.batchedRequests || 0), 0);
+    const totalRequests = serviceBreakdown.reduce((sum, service) => sum + (service?.totalRequests || 0), 0);
+    const batchedRequests = serviceBreakdown.reduce((sum, service) => sum + (service?.batchedRequests || 0), 0);
     
     return totalRequests > 0 ? Math.round((batchedRequests / totalRequests) * 100) : 0;
   }
@@ -551,8 +551,8 @@ export class ExternalServicePerformanceDashboard {
       }
 
       return null;
-    } catch (error) {
-      logger.warn('Cache retrieval failed', { key, error: error.message });
+    } catch (error: unknown) {
+      logger.warn('Cache retrieval failed', { key, error: error instanceof Error ? error?.message : String(error) });
       return null;
     }
   }
@@ -565,8 +565,8 @@ export class ExternalServicePerformanceDashboard {
 
       // Set in Redis cache
       await redisClient.setex(`dashboard_cache:${key}`, Math.ceil(ttlMs / 1000), JSON.stringify(data));
-    } catch (error) {
-      logger.warn('Cache storage failed', { key, error: error.message });
+    } catch (error: unknown) {
+      logger.warn('Cache storage failed', { key, error: error instanceof Error ? error?.message : String(error) });
     }
   }
 
@@ -578,7 +578,7 @@ export class ExternalServicePerformanceDashboard {
 
   private async getWebSocketLatency(): number {
     const metrics = realTimeCoordinationServer.getPerformanceMetrics();
-    return metrics.averageLatency || 50; // Default 50ms
+    return metrics?.averageLatency || 50; // Default 50ms
   }
 
   private async getTotalApiCalls(): number {
@@ -608,7 +608,7 @@ export class ExternalServicePerformanceDashboard {
 
   private async calculateWebhookProcessingRate(): Promise<number> {
     const stats = webhookCoordinationService.getCoordinationStats();
-    return stats.totalWebhooksProcessed || 0;
+    return stats?.totalWebhooksProcessed || 0;
   }
 
   private async getCriticalAlertsCount(): Promise<number> {
@@ -636,9 +636,9 @@ export class ExternalServicePerformanceDashboard {
       if (historicalData) {
         this.dashboardMetrics = JSON.parse(historicalData);
       }
-    } catch (error) {
+    } catch (error: unknown) {
       logger.warn('Could not load historical performance data', {
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
       });
     }
   }
@@ -655,9 +655,9 @@ export class ExternalServicePerformanceDashboard {
         
         // Broadcast updates to WebSocket clients
         await this.broadcastDashboardUpdates();
-      } catch (error) {
+      } catch (error: unknown) {
         logger.error('Real-time data collection failed', {
-          error: error.message,
+          error: error instanceof Error ? error?.message : String(error),
         });
       }
     }, 30000);
@@ -670,9 +670,9 @@ export class ExternalServicePerformanceDashboard {
     this.analyticsInterval = setInterval(async () => {
       try {
         await this.performPerformanceAnalytics();
-      } catch (error) {
+      } catch (error: unknown) {
         logger.error('Performance analytics failed', {
-          error: error.message,
+          error: error instanceof Error ? error?.message : String(error),
         });
       }
     }, 300000);

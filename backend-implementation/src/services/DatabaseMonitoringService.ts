@@ -99,7 +99,7 @@ export class DatabaseMonitoringService extends EventEmitter {
 
     sequelize.addHook("afterQuery", (options, query) => {
       const endTime = Date.now();
-      const startTime = (options as any).startTime || endTime;
+      const startTime = (options as any)?.startTime || endTime;
       const duration = endTime - startTime;
 
       this.queryCount++;
@@ -125,12 +125,12 @@ export class DatabaseMonitoringService extends EventEmitter {
     sequelize.addHook("afterQueryError", (error, options) => {
       this.errorCount++;
       logger.error("Database query error", {
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
         sql: options.logging ? error.sql : "[SQL logging disabled]",
       });
 
       this.emit("queryError", {
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
         sql: options.logging ? error.sql : "[SQL logging disabled]",
       });
     });
@@ -152,7 +152,7 @@ export class DatabaseMonitoringService extends EventEmitter {
     this.monitoringInterval = setInterval(async () => {
       try {
         await this.collectMetrics();
-      } catch (error) {
+      } catch (error: unknown) {
         logger.error("Database monitoring collection failed:", error);
       }
     }, intervalMs);
@@ -226,7 +226,7 @@ export class DatabaseMonitoringService extends EventEmitter {
         });
       }
 
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error("Failed to collect database metrics:", error);
     }
   }

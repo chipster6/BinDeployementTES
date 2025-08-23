@@ -114,7 +114,7 @@ export const Result = {
     try {
       const data = await promise;
       return Result.success(data);
-    } catch (error) {
+    } catch (error: unknown) {
       return Result.failure(error instanceof Error ? error : new Error(String(error)));
     }
   },
@@ -126,7 +126,7 @@ export const Result = {
     try {
       const data = fn();
       return Result.success(data);
-    } catch (error) {
+    } catch (error: unknown) {
       return Result.failure(error instanceof Error ? error : new Error(String(error)));
     }
   },
@@ -138,7 +138,7 @@ export const Result = {
     try {
       const data = await fn();
       return Result.success(data);
-    } catch (error) {
+    } catch (error: unknown) {
       return Result.failure(error instanceof Error ? error : new Error(String(error)));
     }
   },
@@ -424,10 +424,10 @@ export const errorToHttpResponse = (error: AppError) => ({
   success: false,
   error: {
     code: error.code,
-    message: error.message,
+    message: error instanceof Error ? error?.message : String(error),
     details: error.details,
   },
-  statusCode: error.statusCode || 500,
+  statusCode: error?.statusCode || 500,
 });
 
 export default Result;

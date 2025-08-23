@@ -15,7 +15,7 @@ import { Router } from "express";
 import { body, query, param } from "express-validator";
 import { BinController } from "@/controllers/BinController";
 import { authenticateToken } from "@/middleware/auth";
-import { BinType, BinStatus, BinMaterial } from "@/models/Bin";
+import type { BinType, BinStatus, BinMaterial } from "@/models/Bin";
 
 const router = Router();
 
@@ -376,7 +376,7 @@ router.get("/near", authenticateToken, (req, res) => {
       location: {
         latitude: req.query.lat,
         longitude: req.query.lng,
-        radius: req.query.radius || 1000,
+        radius: req.query?.radius || 1000,
       },
       totalBins: 0,
     },

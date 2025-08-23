@@ -231,8 +231,8 @@ export class PasswordService {
     try {
       const hash = await bcrypt.hash(password, this.saltRounds);
       return Result.success(hash);
-    } catch (error) {
-      logger.error('Password hashing failed', { error: error.message });
+    } catch (error: unknown) {
+      logger.error('Password hashing failed', { error: error instanceof Error ? error?.message : String(error) });
       return Result.failure(new Error('Password hashing failed'));
     }
   }
@@ -244,8 +244,8 @@ export class PasswordService {
     try {
       const isValid = await bcrypt.compare(password, hash);
       return Result.success(isValid);
-    } catch (error) {
-      logger.error('Password verification failed', { error: error.message });
+    } catch (error: unknown) {
+      logger.error('Password verification failed', { error: error instanceof Error ? error?.message : String(error) });
       return Result.failure(new Error('Password verification failed'));
     }
   }
@@ -327,10 +327,10 @@ export class PasswordService {
       });
 
       return Result.success(true);
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('Password change failed', {
         userId,
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
         ipAddress,
       });
 
@@ -413,12 +413,12 @@ export class PasswordService {
           ...metadata,
         }
       );
-    } catch (error) {
+    } catch (error: unknown) {
       logger.warn('Failed to log password change attempt', {
         userId,
         success,
         reason,
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
       });
     }
   }

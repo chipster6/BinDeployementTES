@@ -313,13 +313,13 @@ export class OptimizedRoute extends Model<
   // Calculate total business value
   public calculateTotalBusinessValue(): number {
     return this.estimatedCostSavings + 
-           (this.fuelSavingsDollars || 0) +
+           (this?.fuelSavingsDollars || 0) +
            (this.efficiencyGain * 10); // Rough efficiency value
   }
 
   // Check if route needs validation
   public needsValidation(): boolean {
-    return !this.validatedAt || this.constraintViolations > 0;
+    return !this?.validatedAt || this.constraintViolations > 0;
   }
 
   // Get processing time formatted
@@ -876,7 +876,7 @@ OptimizedRoute.init(
     hooks: {
       beforeUpdate: (optimizedRoute: OptimizedRoute) => {
         // Increment version for optimistic locking
-        optimizedRoute.version = (optimizedRoute.version || 1) + 1;
+        optimizedRoute.version = (optimizedRoute?.version || 1) + 1;
 
         // Set applied timestamp when status changes to applied
         if (optimizedRoute.changed("status") && optimizedRoute.status === OptimizationStatus.APPLIED) {

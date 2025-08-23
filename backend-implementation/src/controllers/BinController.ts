@@ -19,14 +19,14 @@
  * Version: 1.0.0
  */
 
-import { Request, Response } from "express";
+import type { Request, Response } from "express";
 import { validationResult } from "express-validator";
 import { Op } from "sequelize";
 import { logger } from "@/utils/logger";
 import { Bin, BinType, BinStatus, BinMaterial } from "@/models/Bin";
 import { Customer } from "@/models/Customer";
 import { User, UserRole } from "@/models/User";
-import { AuthenticatedRequest } from "@/middleware/auth";
+import type { AuthenticatedRequest } from "@/middleware/auth";
 
 /**
  * Bin Controller Class
@@ -206,7 +206,7 @@ export class BinController {
         success: false,
         message: "Internal server error while retrieving bins",
         error:
-          process.env.NODE_ENV === "development" ? error.message : undefined,
+          process.env.NODE_ENV === "development" ? error instanceof Error ? error?.message : String(error) : undefined,
       });
     }
   }
@@ -338,7 +338,7 @@ export class BinController {
           message: "Validation error",
           errors: error.errors.map((e: any) => ({
             field: e.path,
-            message: e.message,
+            message: e?.message,
           })),
         });
         return;
@@ -356,7 +356,7 @@ export class BinController {
         success: false,
         message: "Internal server error while creating bin",
         error:
-          process.env.NODE_ENV === "development" ? error.message : undefined,
+          process.env.NODE_ENV === "development" ? error instanceof Error ? error?.message : String(error) : undefined,
       });
     }
   }
@@ -463,7 +463,7 @@ export class BinController {
         success: false,
         message: "Internal server error while retrieving bin",
         error:
-          process.env.NODE_ENV === "development" ? error.message : undefined,
+          process.env.NODE_ENV === "development" ? error instanceof Error ? error?.message : String(error) : undefined,
       });
     }
   }
@@ -620,7 +620,7 @@ export class BinController {
           message: "Validation error",
           errors: error.errors.map((e: any) => ({
             field: e.path,
-            message: e.message,
+            message: e?.message,
           })),
         });
         return;
@@ -630,7 +630,7 @@ export class BinController {
         success: false,
         message: "Internal server error while updating bin",
         error:
-          process.env.NODE_ENV === "development" ? error.message : undefined,
+          process.env.NODE_ENV === "development" ? error instanceof Error ? error?.message : String(error) : undefined,
       });
     }
   }
@@ -694,7 +694,7 @@ export class BinController {
         success: false,
         message: "Internal server error while deleting bin",
         error:
-          process.env.NODE_ENV === "development" ? error.message : undefined,
+          process.env.NODE_ENV === "development" ? error instanceof Error ? error?.message : String(error) : undefined,
       });
     }
   }
@@ -712,6 +712,22 @@ export class BinController {
     try {
       const user = req.user;
       const { customerId } = req.params;
+      
+      if (!user) {
+        res.status(401).json({
+          success: false,
+          message: "Authentication required",
+        });
+        return;
+      }
+      
+      if (!customerId) {
+        res.status(400).json({
+          success: false,
+          message: "Customer ID is required",
+        });
+        return;
+      }
 
       // Check permissions
       if (!user.canAccess("bins", "read")) {
@@ -757,7 +773,7 @@ export class BinController {
         success: false,
         message: "Internal server error while retrieving customer bins",
         error:
-          process.env.NODE_ENV === "development" ? error.message : undefined,
+          process.env.NODE_ENV === "development" ? error instanceof Error ? error?.message : String(error) : undefined,
       });
     }
   }
@@ -845,7 +861,7 @@ export class BinController {
         success: false,
         message: "Internal server error while updating fill level",
         error:
-          process.env.NODE_ENV === "development" ? error.message : undefined,
+          process.env.NODE_ENV === "development" ? error instanceof Error ? error?.message : String(error) : undefined,
       });
     }
   }
@@ -916,7 +932,7 @@ export class BinController {
         success: false,
         message: "Internal server error while retrieving analytics",
         error:
-          process.env.NODE_ENV === "development" ? error.message : undefined,
+          process.env.NODE_ENV === "development" ? error instanceof Error ? error?.message : String(error) : undefined,
       });
     }
   }

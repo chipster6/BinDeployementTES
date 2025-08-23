@@ -94,7 +94,7 @@ export class MLModelManagementService extends BaseService implements IMLModelMan
         deployedAt: new Date(),
         deploymentTime,
         status: "active",
-        endpoint: `${process.env.ML_SERVING_ENDPOINT || 'http://localhost:8080'}/models/${model.modelId}`,
+        endpoint: `${process.env?.ML_SERVING_ENDPOINT || 'http://localhost:8080'}/models/${model.modelId}`,
         resourceUsage: {
           memory: 512, // MB - simulated
           cpu: 0.5,    // cores - simulated
@@ -149,20 +149,20 @@ export class MLModelManagementService extends BaseService implements IMLModelMan
 
       return result;
 
-    } catch (error) {
+    } catch (error: unknown) {
       this.deploymentMetrics.failedDeployments++;
       const deploymentTime = (Date.now() - deploymentStartTime) / 1000;
       
       timer.end({
         modelId: model.modelId,
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
         deploymentTime,
       });
 
       logger.error("Model deployment failed", {
         modelId: model.modelId,
         version: model.version,
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
         deploymentTime,
       });
 
@@ -171,7 +171,7 @@ export class MLModelManagementService extends BaseService implements IMLModelMan
         modelId: model.modelId,
         version: model.version,
         deploymentTime,
-        message: `Model deployment failed: ${error.message}`,
+        message: `Model deployment failed: ${error instanceof Error ? error?.message : String(error)}`,
       };
     }
   }
@@ -235,18 +235,18 @@ export class MLModelManagementService extends BaseService implements IMLModelMan
 
       return result;
 
-    } catch (error) {
+    } catch (error: unknown) {
       const rollbackTime = (Date.now() - rollbackStartTime) / 1000;
       
       timer.end({
         modelId,
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
         rollbackTime,
       });
 
       logger.error("Model rollback failed", {
         modelId,
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
         rollbackTime,
       });
 
@@ -255,7 +255,7 @@ export class MLModelManagementService extends BaseService implements IMLModelMan
         modelId,
         version: targetVersion || "unknown",
         deploymentTime: rollbackTime,
-        message: `Model rollback failed: ${error.message}`,
+        message: `Model rollback failed: ${error instanceof Error ? error?.message : String(error)}`,
       };
     }
   }
@@ -292,11 +292,11 @@ export class MLModelManagementService extends BaseService implements IMLModelMan
       // Start training asynchronously
       this.executeTrainingJob(job, config).catch(error => {
         job.status = "failed";
-        job.error = error.message;
+        job.error = error instanceof Error ? error?.message : String(error);
         logger.error("Training job failed", {
           jobId,
           modelId: config.modelId,
-          error: error.message,
+          error: error instanceof Error ? error?.message : String(error),
         });
       });
 
@@ -310,13 +310,13 @@ export class MLModelManagementService extends BaseService implements IMLModelMan
 
       return jobId;
 
-    } catch (error) {
-      timer.end({ error: error.message });
+    } catch (error: unknown) {
+      timer.end({ error: error instanceof Error ? error?.message : String(error) });
       logger.error("Failed to start training job", {
         modelId: config.modelId,
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
       });
-      throw new AppError(`Failed to start training job: ${error.message}`, 500);
+      throw new AppError(`Failed to start training job: ${error instanceof Error ? error?.message : String(error)}`, 500);
     }
   }
 
@@ -333,12 +333,12 @@ export class MLModelManagementService extends BaseService implements IMLModelMan
 
       return { ...job }; // Return copy to prevent mutations
 
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error("Failed to get training job status", {
         jobId,
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
       });
-      throw new AppError(`Failed to get training job status: ${error.message}`, 500);
+      throw new AppError(`Failed to get training job status: ${error instanceof Error ? error?.message : String(error)}`, 500);
     }
   }
 
@@ -369,13 +369,13 @@ export class MLModelManagementService extends BaseService implements IMLModelMan
 
       return true;
 
-    } catch (error) {
-      timer.end({ error: error.message });
+    } catch (error: unknown) {
+      timer.end({ error: error instanceof Error ? error?.message : String(error) });
       logger.error("Failed to cancel training job", {
         jobId,
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
       });
-      throw new AppError(`Failed to cancel training job: ${error.message}`, 500);
+      throw new AppError(`Failed to cancel training job: ${error instanceof Error ? error?.message : String(error)}`, 500);
     }
   }
 
@@ -421,13 +421,13 @@ export class MLModelManagementService extends BaseService implements IMLModelMan
 
       return performanceData;
 
-    } catch (error) {
-      timer.end({ error: error.message });
+    } catch (error: unknown) {
+      timer.end({ error: error instanceof Error ? error?.message : String(error) });
       logger.error("Failed to get model performance", {
         modelId,
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
       });
-      throw new AppError(`Failed to get model performance: ${error.message}`, 500);
+      throw new AppError(`Failed to get model performance: ${error instanceof Error ? error?.message : String(error)}`, 500);
     }
   }
 
@@ -468,13 +468,13 @@ export class MLModelManagementService extends BaseService implements IMLModelMan
 
       return models;
 
-    } catch (error) {
-      timer.end({ error: error.message });
+    } catch (error: unknown) {
+      timer.end({ error: error instanceof Error ? error?.message : String(error) });
       logger.error("Failed to list models", {
         filters,
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
       });
-      throw new AppError(`Failed to list models: ${error.message}`, 500);
+      throw new AppError(`Failed to list models: ${error instanceof Error ? error?.message : String(error)}`, 500);
     }
   }
 
@@ -510,13 +510,13 @@ export class MLModelManagementService extends BaseService implements IMLModelMan
 
       return updatedModel;
 
-    } catch (error) {
-      timer.end({ error: error.message });
+    } catch (error: unknown) {
+      timer.end({ error: error instanceof Error ? error?.message : String(error) });
       logger.error("Failed to update model configuration", {
         modelId,
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
       });
-      throw new AppError(`Failed to update model configuration: ${error.message}`, 500);
+      throw new AppError(`Failed to update model configuration: ${error instanceof Error ? error?.message : String(error)}`, 500);
     }
   }
 
@@ -555,13 +555,13 @@ export class MLModelManagementService extends BaseService implements IMLModelMan
 
       return true;
 
-    } catch (error) {
-      timer.end({ error: error.message });
+    } catch (error: unknown) {
+      timer.end({ error: error instanceof Error ? error?.message : String(error) });
       logger.error("Failed to delete model", {
         modelId,
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
       });
-      throw new AppError(`Failed to delete model: ${error.message}`, 500);
+      throw new AppError(`Failed to delete model: ${error instanceof Error ? error?.message : String(error)}`, 500);
     }
   }
 
@@ -608,13 +608,13 @@ export class MLModelManagementService extends BaseService implements IMLModelMan
 
       return healthData;
 
-    } catch (error) {
-      timer.end({ error: error.message });
+    } catch (error: unknown) {
+      timer.end({ error: error instanceof Error ? error?.message : String(error) });
       logger.error("Failed to get model health", {
         modelId,
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
       });
-      throw new AppError(`Failed to get model health: ${error.message}`, 500);
+      throw new AppError(`Failed to get model health: ${error instanceof Error ? error?.message : String(error)}`, 500);
     }
   }
 

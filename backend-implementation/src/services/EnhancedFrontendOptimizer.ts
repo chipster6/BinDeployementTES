@@ -114,8 +114,8 @@ export class EnhancedFrontendOptimizer extends BaseService<any> {
       await this.loadComponentMetrics();
 
       logger.info("Enhanced Frontend Optimizer initialized");
-    } catch (error) {
-      logger.error("Failed to initialize Enhanced Frontend Optimizer", { error: error.message });
+    } catch (error: unknown) {
+      logger.error("Failed to initialize Enhanced Frontend Optimizer", { error: error instanceof Error ? error?.message : String(error) });
     }
   }
 
@@ -192,14 +192,14 @@ export class EnhancedFrontendOptimizer extends BaseService<any> {
         message: `Frontend optimization analysis completed in ${duration}ms with ${overallImprovementProjection}% projected improvement`
       };
 
-    } catch (error) {
-      timer.end({ error: error.message });
-      logger.error("Frontend optimization analysis failed", { error: error.message });
+    } catch (error: unknown) {
+      timer.end({ error: error instanceof Error ? error?.message : String(error) });
+      logger.error("Frontend optimization analysis failed", { error: error instanceof Error ? error?.message : String(error) });
       
       return {
         success: false,
         message: "Failed to run frontend optimization analysis",
-        errors: [error.message]
+        errors: [error instanceof Error ? error?.message : String(error)]
       };
     }
   }
@@ -239,8 +239,8 @@ export class EnhancedFrontendOptimizer extends BaseService<any> {
       // Sort by estimated improvement (highest first)
       recommendations.sort((a, b) => b.estimatedImprovement - a.estimatedImprovement);
 
-    } catch (error) {
-      logger.warn("Component virtualization analysis failed", { error: error.message });
+    } catch (error: unknown) {
+      logger.warn("Component virtualization analysis failed", { error: error instanceof Error ? error?.message : String(error) });
     }
 
     return recommendations;
@@ -280,8 +280,8 @@ export class EnhancedFrontendOptimizer extends BaseService<any> {
       // Sort by estimated savings (highest first)
       optimizations.sort((a, b) => b.estimatedSavings - a.estimatedSavings);
 
-    } catch (error) {
-      logger.warn("Lazy loading optimization failed", { error: error.message });
+    } catch (error: unknown) {
+      logger.warn("Lazy loading optimization failed", { error: error instanceof Error ? error?.message : String(error) });
     }
 
     return optimizations;
@@ -308,19 +308,19 @@ export class EnhancedFrontendOptimizer extends BaseService<any> {
             currentConnections: connection.connectionCount,
             optimalConnections: this.calculateOptimalConnections(connection),
             poolingStrategy,
-            messageThroughput: connection.messagesPerSecond,
+            messageThroughput: connection?.messagesPerSecond,
             estimatedImprovement,
             implementation: {
               poolConfiguration: this.getWebSocketPoolConfig(poolingStrategy),
               reconnectionStrategy: this.getReconnectionStrategy(connection.reliability),
-              messageQueueing: connection.messagesPerSecond > 10
+              messageQueueing: connection?.messagesPerSecond > 10
             }
           });
         }
       }
 
-    } catch (error) {
-      logger.warn("WebSocket optimization failed", { error: error.message });
+    } catch (error: unknown) {
+      logger.warn("WebSocket optimization failed", { error: error instanceof Error ? error?.message : String(error) });
     }
 
     return optimizations;
@@ -370,8 +370,8 @@ export class EnhancedFrontendOptimizer extends BaseService<any> {
         });
       }
 
-    } catch (error) {
-      logger.warn("Bundle optimization failed", { error: error.message });
+    } catch (error: unknown) {
+      logger.warn("Bundle optimization failed", { error: error instanceof Error ? error?.message : String(error) });
     }
 
     return optimizations;
@@ -394,8 +394,8 @@ export class EnhancedFrontendOptimizer extends BaseService<any> {
         componentRenderCount: parseInt(performanceSummary.current?.componentRenderCount || '45'),
         virtualizedComponentsRatio: parseFloat(performanceSummary.current?.virtualizedComponentsRatio || '0.15')
       };
-    } catch (error) {
-      logger.warn("Failed to collect frontend performance metrics", { error: error.message });
+    } catch (error: unknown) {
+      logger.warn("Failed to collect frontend performance metrics", { error: error instanceof Error ? error?.message : String(error) });
       
       // Return default metrics
       return {
@@ -612,7 +612,7 @@ export class EnhancedFrontendOptimizer extends BaseService<any> {
   }
 
   private determineOptimalPoolingStrategy(connection: any): 'connection_reuse' | 'multiplexing' | 'shared_worker' {
-    if (connection.messagesPerSecond > 20) {
+    if (connection?.messagesPerSecond > 20) {
       return 'multiplexing';
     } else if (connection.connectionCount > 2) {
       return 'connection_reuse';
@@ -622,7 +622,7 @@ export class EnhancedFrontendOptimizer extends BaseService<any> {
   }
 
   private calculateOptimalConnections(connection: any): number {
-    return Math.max(1, Math.ceil(connection.messagesPerSecond / 15)); // 1 connection per 15 messages/sec
+    return Math.max(1, Math.ceil(connection?.messagesPerSecond / 15)); // 1 connection per 15 messages/sec
   }
 
   private calculateWebSocketImprovement(connection: any, strategy: string): number {
@@ -688,8 +688,8 @@ export class EnhancedFrontendOptimizer extends BaseService<any> {
           this.componentMetrics.set(key, metrics);
         });
       }
-    } catch (error) {
-      logger.warn("Failed to load component metrics", { error: error.message });
+    } catch (error: unknown) {
+      logger.warn("Failed to load component metrics", { error: error instanceof Error ? error?.message : String(error) });
     }
   }
 
@@ -742,11 +742,11 @@ export class EnhancedFrontendOptimizer extends BaseService<any> {
         data: immediate,
         message: `Found ${immediate.length} immediate frontend optimization opportunities`
       };
-    } catch (error) {
+    } catch (error: unknown) {
       return {
         success: false,
         message: "Failed to get immediate frontend recommendations",
-        errors: [error.message]
+        errors: [error instanceof Error ? error?.message : String(error)]
       };
     }
   }

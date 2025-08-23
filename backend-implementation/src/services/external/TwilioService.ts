@@ -160,7 +160,7 @@ export class TwilioService extends BaseExternalService {
     this.encryptPhoneNumbers = config.encryptPhoneNumbers !== false;
     this.auditAllMessages = config.auditAllMessages !== false;
     this.keyRotationEnabled = config.enableKeyRotation === true;
-    this.keyRotationInterval = config.keyRotationIntervalDays || 90;
+    this.keyRotationInterval = config?.keyRotationIntervalDays || 90;
     this.enablePhoneNumberValidation = config.enablePhoneNumberValidation !== false;
 
     // Register webhook security configuration
@@ -281,7 +281,7 @@ export class TwilioService extends BaseExternalService {
         messageData.sendAt = options.scheduleTime.toISOString();
       }
 
-      const message = await this.twilio.messages.create(messageData);
+      const message = await this.twilio?.messages.create(messageData);
 
       const smsMessage: SmsMessage = {
         id: message.sid,
@@ -289,8 +289,8 @@ export class TwilioService extends BaseExternalService {
         from: message.from,
         body: message.body,
         status: message.status as any,
-        errorCode: message.errorCode || undefined,
-        errorMessage: message.errorMessage || undefined,
+        errorCode: message?.errorCode || undefined,
+        errorMessage: message?.errorMessage || undefined,
         direction: message.direction as any,
         dateCreated: message.dateCreated,
         dateUpdated: message.dateUpdated,
@@ -321,20 +321,15 @@ export class TwilioService extends BaseExternalService {
         success: true,
         data: smsMessage,
         statusCode: 200,
-        metadata: {
-          requestId: message.sid,
-          duration: 0,
-          attempt: 1,
-        },
       };
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error("Failed to send SMS message", {
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
         to: this.maskPhoneNumber(to),
         from,
       });
 
-      throw new Error(`SMS sending failed: ${error.message}`);
+      throw new Error(`SMS sending failed: ${error instanceof Error ? error?.message : String(error)}`);
     }
   }
 
@@ -365,14 +360,14 @@ export class TwilioService extends BaseExternalService {
       });
 
       return await this.sendSms(to, body, from, options);
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error("Failed to send templated SMS", {
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
         to: this.maskPhoneNumber(to),
         templateId,
       });
 
-      throw new Error(`Templated SMS sending failed: ${error.message}`);
+      throw new Error(`Templated SMS sending failed: ${error instanceof Error ? error?.message : String(error)}`);
     }
   }
 
@@ -406,7 +401,7 @@ export class TwilioService extends BaseExternalService {
 
         const batchPromises = batch.map(async (recipient) => {
           try {
-            let messageBody = request.body || "";
+            let messageBody = request?.body || "";
 
             // Use template if provided
             if (request.templateId) {
@@ -440,10 +435,10 @@ export class TwilioService extends BaseExternalService {
             if (result.success && result.data) {
               successful.push(result.data);
             }
-          } catch (error) {
+          } catch (error: unknown) {
             failed.push({
               to: recipient.to,
-              error: error.message,
+              error: error instanceof Error ? error?.message : String(error),
             });
           }
         });
@@ -465,18 +460,17 @@ export class TwilioService extends BaseExternalService {
         },
         statusCode: 200,
         metadata: {
-          requestId: `bulk-${Date.now()}`,
           duration: 0,
           attempt: 1,
         },
       };
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error("Failed to send bulk SMS", {
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
         recipientCount: request.recipients.length,
       });
 
-      throw new Error(`Bulk SMS sending failed: ${error.message}`);
+      throw new Error(`Bulk SMS sending failed: ${error instanceof Error ? error?.message : String(error)}`);
     }
   }
 
@@ -487,7 +481,7 @@ export class TwilioService extends BaseExternalService {
     messageSid: string,
   ): Promise<ApiResponse<SmsMessage>> {
     try {
-      const message = await this.twilio.messages(messageSid).fetch();
+      const message = await this.twilio?.messages(messageSid).fetch();
 
       const smsMessage: SmsMessage = {
         id: message.sid,
@@ -495,8 +489,8 @@ export class TwilioService extends BaseExternalService {
         from: message.from,
         body: message.body,
         status: message.status as any,
-        errorCode: message.errorCode || undefined,
-        errorMessage: message.errorMessage || undefined,
+        errorCode: message?.errorCode || undefined,
+        errorMessage: message?.errorMessage || undefined,
         direction: message.direction as any,
         dateCreated: message.dateCreated,
         dateUpdated: message.dateUpdated,
@@ -510,19 +504,14 @@ export class TwilioService extends BaseExternalService {
         success: true,
         data: smsMessage,
         statusCode: 200,
-        metadata: {
-          requestId: messageSid,
-          duration: 0,
-          attempt: 1,
-        },
       };
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error("Failed to get message status", {
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
         messageSid,
       });
 
-      throw new Error(`Message status retrieval failed: ${error.message}`);
+      throw new Error(`Message status retrieval failed: ${error instanceof Error ? error?.message : String(error)}`);
     }
   }
 
@@ -549,7 +538,7 @@ export class TwilioService extends BaseExternalService {
         options.dateSentBefore = endDate;
       }
 
-      const messages = await this.twilio.messages.list(options);
+      const messages = await this.twilio?.messages.list(options);
 
       const smsMessages: SmsMessage[] = messages.map((message) => ({
         id: message.sid,
@@ -557,8 +546,8 @@ export class TwilioService extends BaseExternalService {
         from: message.from,
         body: message.body,
         status: message.status as any,
-        errorCode: message.errorCode || undefined,
-        errorMessage: message.errorMessage || undefined,
+        errorCode: message?.errorCode || undefined,
+        errorMessage: message?.errorMessage || undefined,
         direction: message.direction as any,
         dateCreated: message.dateCreated,
         dateUpdated: message.dateUpdated,
@@ -573,18 +562,17 @@ export class TwilioService extends BaseExternalService {
         data: smsMessages,
         statusCode: 200,
         metadata: {
-          requestId: `history-${phoneNumber}`,
           duration: 0,
           attempt: 1,
         },
       };
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error("Failed to get message history", {
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
         phoneNumber: this.maskPhoneNumber(phoneNumber),
       });
 
-      throw new Error(`Message history retrieval failed: ${error.message}`);
+      throw new Error(`Message history retrieval failed: ${error instanceof Error ? error?.message : String(error)}`);
     }
   }
 
@@ -697,28 +685,23 @@ export class TwilioService extends BaseExternalService {
         success: true,
         data: { processed: true, messageId: webhookPayload.MessageSid },
         statusCode: 200,
-        metadata: {
-          requestId: webhookPayload.MessageSid,
-          duration: 0,
-          attempt: 1,
-        },
       };
-    } catch (error) {
+    } catch (error: unknown) {
       const webhookPayload = typeof body === 'string' ? JSON.parse(body || '{}') : body;
       logger.error("Failed to process Twilio webhook", {
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
         messageSid: webhookPayload?.MessageSid,
         ipAddress,
       });
 
       // Log security failure
       await this.logSecurityEvent('webhook_processing_failed', {
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
         ipAddress,
         signature: maskSensitiveData(signature || ''),
       });
 
-      throw new Error(`Webhook processing failed: ${error.message}`);
+      throw new Error(`Webhook processing failed: ${error instanceof Error ? error?.message : String(error)}`);
     }
   }
 
@@ -762,9 +745,9 @@ export class TwilioService extends BaseExternalService {
               metadata: { type: "emergency", priority: "high" },
             });
             successful++;
-          } catch (error) {
+          } catch (error: unknown) {
             logger.error("Failed to send emergency SMS", {
-              error: error.message,
+              error: error instanceof Error ? error?.message : String(error),
               to: this.maskPhoneNumber(recipient),
             });
             failed++;
@@ -783,18 +766,17 @@ export class TwilioService extends BaseExternalService {
         },
         statusCode: 200,
         metadata: {
-          requestId: `emergency-${Date.now()}`,
           duration: 0,
           attempt: 1,
         },
       };
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error("Failed to send emergency broadcast", {
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
         recipientCount: recipients.length,
       });
 
-      throw new Error(`Emergency broadcast failed: ${error.message}`);
+      throw new Error(`Emergency broadcast failed: ${error instanceof Error ? error?.message : String(error)}`);
     }
   }
 
@@ -916,9 +898,9 @@ export class TwilioService extends BaseExternalService {
           });
         }
       }
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('Failed to initialize key rotation monitoring', {
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
       });
     }
   }
@@ -965,9 +947,9 @@ export class TwilioService extends BaseExternalService {
           });
         }
       }
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('Phone number security validation failed', {
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
         messageId: payload.MessageSid,
       });
     }
@@ -983,21 +965,21 @@ export class TwilioService extends BaseExternalService {
     try {
       await AuditLog.create({
         userId: null,
-        customerId: details.customerId || null,
+        customerId: details?.customerId || null,
         action,
         resourceType: 'twilio_security',
-        resourceId: details.messageId || 'twilio-security',
+        resourceId: details?.messageId || 'twilio-security',
         details: {
           service: 'twilio',
           timestamp: new Date().toISOString(),
           ...details,
         },
-        ipAddress: details.ipAddress || 'twilio-webhook',
+        ipAddress: details?.ipAddress || 'twilio-webhook',
         userAgent: 'TwilioSecurityService',
       });
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('Failed to log security event', {
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
         action,
       });
     }
@@ -1018,10 +1000,10 @@ export class TwilioService extends BaseExternalService {
       if (encrypted[field] && typeof encrypted[field] === 'string') {
         try {
           encrypted[field] = await encryptSensitiveData(encrypted[field]);
-        } catch (error) {
+        } catch (error: unknown) {
           logger.error('Failed to encrypt sensitive field', {
             field,
-            error: error.message,
+            error: error instanceof Error ? error?.message : String(error),
           });
         }
       }
@@ -1045,10 +1027,10 @@ export class TwilioService extends BaseExternalService {
       if (decrypted[field] && typeof decrypted[field] === 'string') {
         try {
           decrypted[field] = await decryptSensitiveData(decrypted[field]);
-        } catch (error) {
+        } catch (error: unknown) {
           logger.error('Failed to decrypt sensitive field', {
             field,
-            error: error.message,
+            error: error instanceof Error ? error?.message : String(error),
           });
         }
       }
@@ -1118,13 +1100,13 @@ export class TwilioService extends BaseExternalService {
       });
       
       logger.info('Twilio API credentials rotated successfully');
-    } catch (error) {
+    } catch (error: unknown) {
       await this.logSecurityEvent('api_credentials_rotation_failed', {
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
         rotationDate: new Date().toISOString(),
       });
       
-      throw new Error(`API credentials rotation failed: ${error.message}`);
+      throw new Error(`API credentials rotation failed: ${error instanceof Error ? error?.message : String(error)}`);
     }
   }
 
@@ -1166,9 +1148,9 @@ export class TwilioService extends BaseExternalService {
         phoneValidationEnabled: this.enablePhoneNumberValidation,
         lastSecurityCheck: new Date(),
       };
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('Failed to get security status', {
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
       });
       
       return {
@@ -1212,12 +1194,12 @@ export class TwilioService extends BaseExternalService {
         lastCheck: new Date(),
         security: securityStatus,
       };
-    } catch (error) {
+    } catch (error: unknown) {
       return {
         service: "twilio",
         status: "unhealthy",
         lastCheck: new Date(),
-        details: { error: error.message },
+        details: { error: error instanceof Error ? error?.message : String(error) },
       };
     }
   }

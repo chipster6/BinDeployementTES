@@ -222,15 +222,15 @@ export class RealTimeTrafficWebSocketService {
         routeCount: routeOptimizationIds?.length || 0
       });
       
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error("Error handling route optimization subscription", {
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
         socketId: socket.id
       });
       
       socket.emit("subscription_error", {
         type: "route_optimization",
-        message: error.message
+        message: error instanceof Error ? error?.message : String(error)
       });
     }
   }
@@ -287,15 +287,15 @@ export class RealTimeTrafficWebSocketService {
         updateInterval
       });
       
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error("Error handling traffic monitoring subscription", {
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
         socketId: socket.id
       });
       
       socket.emit("subscription_error", {
         type: "traffic_monitoring",
-        message: error.message
+        message: error instanceof Error ? error?.message : String(error)
       });
     }
   }
@@ -334,15 +334,15 @@ export class RealTimeTrafficWebSocketService {
         services: services.length
       });
       
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error("Error handling API status subscription", {
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
         socketId: socket.id
       });
       
       socket.emit("subscription_error", {
         type: "api_status",
-        message: error.message
+        message: error instanceof Error ? error?.message : String(error)
       });
     }
   }
@@ -383,15 +383,15 @@ export class RealTimeTrafficWebSocketService {
         services: services.length
       });
       
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error("Error handling cost monitoring subscription", {
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
         socketId: socket.id
       });
       
       socket.emit("subscription_error", {
         type: "cost_monitoring",
-        message: error.message
+        message: error instanceof Error ? error?.message : String(error)
       });
     }
   }
@@ -429,12 +429,7 @@ export class RealTimeTrafficWebSocketService {
       
       socket.emit("real_time_route_response", {
         success: routeResult.success,
-        route: routeResult.data,
-        metadata: {
-          ...routeResult.metadata,
-          executionTime,
-          providersUsed: fallbackProviders ? ["primary", "fallback"] : ["primary"]
-        }
+        route: routeResult.data
       });
       
       logger.info("Real-time route request completed", {
@@ -445,15 +440,15 @@ export class RealTimeTrafficWebSocketService {
         fallbackProviders
       });
       
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error("Error handling real-time route request", {
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
         socketId: socket.id
       });
       
       socket.emit("real_time_route_response", {
         success: false,
-        error: error.message
+        error: error instanceof Error ? error?.message : String(error)
       });
     }
   }
@@ -490,9 +485,9 @@ export class RealTimeTrafficWebSocketService {
         affectedRoutes: update.affectedRoutes.length
       });
       
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error("Error broadcasting traffic update", {
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
         updateId: update.id
       });
     }
@@ -524,9 +519,9 @@ export class RealTimeTrafficWebSocketService {
         costImpact: notification.adaptedRoute.costImpact
       });
       
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error("Error broadcasting route adaptation", {
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
         routeId: notification.routeOptimizationId
       });
     }
@@ -552,9 +547,9 @@ export class RealTimeTrafficWebSocketService {
         healthScore: statusUpdate.healthScore
       });
       
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error("Error broadcasting API status update", {
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
         service: statusUpdate.service
       });
     }
@@ -581,9 +576,9 @@ export class RealTimeTrafficWebSocketService {
         currentCost: alert.currentCost
       });
       
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error("Error broadcasting cost alert", {
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
         alertId: alert.alertId
       });
     }
@@ -628,9 +623,9 @@ export class RealTimeTrafficWebSocketService {
           await this.broadcastAPIStatusUpdate(update);
         }
         
-      } catch (error) {
+      } catch (error: unknown) {
         logger.error("Error in periodic health broadcast", {
-          error: error.message
+          error: error instanceof Error ? error?.message : String(error)
         });
       }
     }, 30000); // Every 30 seconds
@@ -647,9 +642,9 @@ export class RealTimeTrafficWebSocketService {
         // Check for cost anomalies and budget thresholds
         await this.checkCostThresholds();
         
-      } catch (error) {
+      } catch (error: unknown) {
         logger.error("Error in cost monitoring", {
-          error: error.message
+          error: error instanceof Error ? error?.message : String(error)
         });
       }
     }, 300000); // Every 5 minutes

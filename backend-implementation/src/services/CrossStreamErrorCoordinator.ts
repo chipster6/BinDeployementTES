@@ -96,7 +96,7 @@ export class CrossStreamErrorCoordinator extends EventEmitter {
 
     // Report to monitoring service
     await errorMonitoring.trackError(
-      error instanceof AppError ? error : new AppError(error.message),
+      error instanceof AppError ? error : new AppError(error instanceof Error ? error?.message : String(error)),
       context,
       metadata,
     );
@@ -133,17 +133,12 @@ export class CrossStreamErrorCoordinator extends EventEmitter {
     return {
       id: this.generateErrorId(),
       code: errorCode,
-      message: error.message,
+      message: error instanceof Error ? error?.message : String(error),
       severity,
       category,
       timestamp: new Date(),
       context: { ...context },
-      stack: error.stack,
-      metadata: {
-        ...metadata,
-        originalError: error.constructor.name,
-        statusCode: error instanceof AppError ? error.statusCode : undefined,
-      },
+      stack: error instanceof Error ? error?.stack : undefined,
     };
   }
 
@@ -338,7 +333,7 @@ export class CrossStreamErrorCoordinator extends EventEmitter {
         logger.warn("Recovery strategy failed", {
           eventId: event.eventId,
           strategy: strategy.name,
-          error: recoveryError.message,
+          error: recoveryError?.message,
         });
       }
     }
@@ -364,9 +359,9 @@ export class CrossStreamErrorCoordinator extends EventEmitter {
       });
 
       // Update user-friendly error with degradation info
-      event.userFriendly.message = degradationConfig.fallbackMessage;
+      event.userFriendly?.message = degradationConfig.fallbackMessage;
       event.userFriendly.actions = [
-        ...(degradationConfig.alternativeActions || []),
+        ...(degradationConfig?.alternativeActions || []),
         ...event.userFriendly.actions,
       ];
 
@@ -831,11 +826,11 @@ export class CrossStreamErrorCoordinator extends EventEmitter {
     message: ErrorCoordinationMessage,
   ): Promise<void> {
     try {
-      const key = `error_coordination:${message.messageId}`;
+      const key = `error_coordination:${message?.messageId}`;
       await redisClient.setex(key, 3600, JSON.stringify(message)); // 1 hour TTL
-    } catch (error) {
+    } catch (error: unknown) {
       logger.warn("Failed to store coordination message", {
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
       });
     }
   }

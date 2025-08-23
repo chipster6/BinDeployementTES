@@ -90,7 +90,7 @@ export class ErrorCoordinationService extends BaseService implements IErrorCoord
 
     try {
       const streamId = context.streamId;
-      const endpoint = `${process.env.COORDINATION_BASE_URL || 'http://localhost:3000'}/coordination/${streamId}`;
+      const endpoint = `${process.env?.COORDINATION_BASE_URL || 'http://localhost:3000'}/coordination/${streamId}`;
 
       const registration: StreamRegistration = {
         streamId,
@@ -145,13 +145,13 @@ export class ErrorCoordinationService extends BaseService implements IErrorCoord
         coordinationEndpoint: endpoint,
       };
 
-    } catch (error) {
-      timer.end({ error: error.message });
+    } catch (error: unknown) {
+      timer.end({ error: error instanceof Error ? error?.message : String(error) });
       logger.error("Failed to register stream", {
         streamId: context.streamId,
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
       });
-      throw new AppError(`Failed to register stream: ${error.message}`, 500);
+      throw new AppError(`Failed to register stream: ${error instanceof Error ? error?.message : String(error)}`, 500);
     }
   }
 
@@ -184,13 +184,13 @@ export class ErrorCoordinationService extends BaseService implements IErrorCoord
 
       return true;
 
-    } catch (error) {
-      timer.end({ error: error.message });
+    } catch (error: unknown) {
+      timer.end({ error: error instanceof Error ? error?.message : String(error) });
       logger.error("Failed to unregister stream", {
         streamId,
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
       });
-      throw new AppError(`Failed to unregister stream: ${error.message}`, 500);
+      throw new AppError(`Failed to unregister stream: ${error instanceof Error ? error?.message : String(error)}`, 500);
     }
   }
 
@@ -255,18 +255,18 @@ export class ErrorCoordinationService extends BaseService implements IErrorCoord
 
       return result;
 
-    } catch (error) {
+    } catch (error: unknown) {
       const executionTime = Date.now() - coordinationStartTime;
       
       timer.end({
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
         executionTime,
       });
 
       logger.error("Error event coordination failed", {
         eventId: event.eventId,
         sourceStream: event.sourceStream,
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
         executionTime,
       });
 
@@ -282,7 +282,7 @@ export class ErrorCoordinationService extends BaseService implements IErrorCoord
           action: "error_fallback",
           success: false,
           executionTime,
-          details: { error: error.message },
+          details: { error: error instanceof Error ? error?.message : String(error) },
         }],
         businessImpact: {
           prevented: false,
@@ -328,13 +328,13 @@ export class ErrorCoordinationService extends BaseService implements IErrorCoord
 
       return healthStatus;
 
-    } catch (error) {
-      timer.end({ error: error.message });
+    } catch (error: unknown) {
+      timer.end({ error: error instanceof Error ? error?.message : String(error) });
       logger.error("Failed to get stream health", {
         streamId,
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
       });
-      throw new AppError(`Failed to get stream health: ${error.message}`, 500);
+      throw new AppError(`Failed to get stream health: ${error instanceof Error ? error?.message : String(error)}`, 500);
     }
   }
 
@@ -353,8 +353,8 @@ export class ErrorCoordinationService extends BaseService implements IErrorCoord
         try {
           const health = await this.getStreamHealth(streamId);
           return { streamId, health };
-        } catch (error) {
-          logger.warn("Failed to get health for stream", { streamId, error: error.message });
+        } catch (error: unknown) {
+          logger.warn("Failed to get health for stream", { streamId, error: error instanceof Error ? error?.message : String(error) });
           return null;
         }
       });
@@ -374,10 +374,10 @@ export class ErrorCoordinationService extends BaseService implements IErrorCoord
 
       return healthStatuses;
 
-    } catch (error) {
-      timer.end({ error: error.message });
-      logger.error("Failed to get all streams health", { error: error.message });
-      throw new AppError(`Failed to get all streams health: ${error.message}`, 500);
+    } catch (error: unknown) {
+      timer.end({ error: error instanceof Error ? error?.message : String(error) });
+      logger.error("Failed to get all streams health", { error: error instanceof Error ? error?.message : String(error) });
+      throw new AppError(`Failed to get all streams health: ${error instanceof Error ? error?.message : String(error)}`, 500);
     }
   }
 
@@ -395,7 +395,7 @@ export class ErrorCoordinationService extends BaseService implements IErrorCoord
         throw new AppError(`Coordination strategy ${strategyId} not found`, 404);
       }
 
-      const coordinationId = context.coordinationId || this.generateCoordinationId();
+      const coordinationId = context?.coordinationId || this.generateCoordinationId();
       const actions: any[] = [];
       const streamsAffected: string[] = [];
 
@@ -409,7 +409,7 @@ export class ErrorCoordinationService extends BaseService implements IErrorCoord
       if (strategy.actions.isolateStreams) {
         const isolationResult = await this.executeIsolationAction(context);
         actions.push(isolationResult);
-        streamsAffected.push(...isolationResult.details.isolatedStreams || []);
+        streamsAffected.push(...isolationResult.details?.isolatedStreams || []);
       }
 
       if (strategy.actions.throttleProcessing) {
@@ -462,22 +462,22 @@ export class ErrorCoordinationService extends BaseService implements IErrorCoord
 
       return result;
 
-    } catch (error) {
+    } catch (error: unknown) {
       const executionTime = Date.now() - executionStartTime;
       
       timer.end({
         strategyId,
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
         executionTime,
       });
 
       logger.error("Coordination strategy execution failed", {
         strategyId,
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
         executionTime,
       });
 
-      throw new AppError(`Coordination strategy execution failed: ${error.message}`, 500);
+      throw new AppError(`Coordination strategy execution failed: ${error instanceof Error ? error?.message : String(error)}`, 500);
     }
   }
 
@@ -544,13 +544,13 @@ export class ErrorCoordinationService extends BaseService implements IErrorCoord
         mitigationActions,
       };
 
-    } catch (error) {
-      timer.end({ error: error.message });
+    } catch (error: unknown) {
+      timer.end({ error: error instanceof Error ? error?.message : String(error) });
       logger.error("Failed to prevent error cascade", {
         sourceStream,
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
       });
-      throw new AppError(`Failed to prevent error cascade: ${error.message}`, 500);
+      throw new AppError(`Failed to prevent error cascade: ${error instanceof Error ? error?.message : String(error)}`, 500);
     }
   }
 
@@ -594,7 +594,7 @@ export class ErrorCoordinationService extends BaseService implements IErrorCoord
               criticalDependencies.push(depId);
               break;
           }
-        } catch (error) {
+        } catch (error: unknown) {
           // Dependency not found or unhealthy
           criticalDependencies.push(depId);
         }
@@ -619,13 +619,13 @@ export class ErrorCoordinationService extends BaseService implements IErrorCoord
         overallDependencyHealth: healthScore,
       };
 
-    } catch (error) {
-      timer.end({ error: error.message });
+    } catch (error: unknown) {
+      timer.end({ error: error instanceof Error ? error?.message : String(error) });
       logger.error("Failed to monitor dependencies", {
         streamId,
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
       });
-      throw new AppError(`Failed to monitor dependencies: ${error.message}`, 500);
+      throw new AppError(`Failed to monitor dependencies: ${error instanceof Error ? error?.message : String(error)}`, 500);
     }
   }
 
@@ -671,13 +671,13 @@ export class ErrorCoordinationService extends BaseService implements IErrorCoord
 
       return analytics;
 
-    } catch (error) {
-      timer.end({ error: error.message });
+    } catch (error: unknown) {
+      timer.end({ error: error instanceof Error ? error?.message : String(error) });
       logger.error("Failed to get coordination analytics", {
         timeRange,
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
       });
-      throw new AppError(`Failed to get coordination analytics: ${error.message}`, 500);
+      throw new AppError(`Failed to get coordination analytics: ${error instanceof Error ? error?.message : String(error)}`, 500);
     }
   }
 
@@ -712,13 +712,13 @@ export class ErrorCoordinationService extends BaseService implements IErrorCoord
 
       return strategy.strategyId;
 
-    } catch (error) {
-      timer.end({ error: error.message });
+    } catch (error: unknown) {
+      timer.end({ error: error instanceof Error ? error?.message : String(error) });
       logger.error("Failed to create coordination strategy", {
         strategyId: strategy.strategyId,
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
       });
-      throw new AppError(`Failed to create coordination strategy: ${error.message}`, 500);
+      throw new AppError(`Failed to create coordination strategy: ${error instanceof Error ? error?.message : String(error)}`, 500);
     }
   }
 
@@ -756,13 +756,13 @@ export class ErrorCoordinationService extends BaseService implements IErrorCoord
 
       return true;
 
-    } catch (error) {
-      timer.end({ error: error.message });
+    } catch (error: unknown) {
+      timer.end({ error: error instanceof Error ? error?.message : String(error) });
       logger.error("Failed to update coordination strategy", {
         strategyId,
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
       });
-      throw new AppError(`Failed to update coordination strategy: ${error.message}`, 500);
+      throw new AppError(`Failed to update coordination strategy: ${error instanceof Error ? error?.message : String(error)}`, 500);
     }
   }
 
@@ -826,13 +826,13 @@ export class ErrorCoordinationService extends BaseService implements IErrorCoord
         recommendations,
       };
 
-    } catch (error) {
-      timer.end({ error: error.message });
+    } catch (error: unknown) {
+      timer.end({ error: error instanceof Error ? error?.message : String(error) });
       logger.error("Failed to test coordination strategy", {
         strategyId,
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
       });
-      throw new AppError(`Failed to test coordination strategy: ${error.message}`, 500);
+      throw new AppError(`Failed to test coordination strategy: ${error instanceof Error ? error?.message : String(error)}`, 500);
     }
   }
 
@@ -1114,8 +1114,8 @@ export class ErrorCoordinationService extends BaseService implements IErrorCoord
             registration.health.health = "offline";
           }
         }
-      } catch (error) {
-        logger.error("Health monitoring error", { error: error.message });
+      } catch (error: unknown) {
+        logger.error("Health monitoring error", { error: error instanceof Error ? error?.message : String(error) });
       }
     }, 30000);
   }
@@ -1135,8 +1135,8 @@ export class ErrorCoordinationService extends BaseService implements IErrorCoord
         logger.debug("Coordination history cleanup completed", {
           remaining: this.coordinationHistory.size,
         });
-      } catch (error) {
-        logger.error("Coordination cleanup error", { error: error.message });
+      } catch (error: unknown) {
+        logger.error("Coordination cleanup error", { error: error instanceof Error ? error?.message : String(error) });
       }
     }, 3600000); // 1 hour
   }

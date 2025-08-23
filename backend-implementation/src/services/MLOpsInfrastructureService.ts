@@ -148,7 +148,7 @@ export class MLOpsInfrastructureService extends BaseService<any> {
         url: this.config.modelServing.tritonUrl,
         timeout: this.config.modelServing.timeoutMs
       });
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('Failed to initialize Triton client', { error });
       throw error;
     }
@@ -245,14 +245,14 @@ export class MLOpsInfrastructureService extends BaseService<any> {
         message: 'ML infrastructure deployed successfully'
       };
 
-    } catch (error) {
-      timer.end({ status: 'error', error: error.message });
+    } catch (error: unknown) {
+      timer.end({ status: 'error', error: error instanceof Error ? error?.message : String(error) });
       logger.error('ML infrastructure deployment failed', { error, deploymentConfig });
       
       return {
         success: false,
         message: 'ML infrastructure deployment failed',
-        errors: [error.message]
+        errors: [error instanceof Error ? error?.message : String(error)]
       };
     }
   }
@@ -300,13 +300,13 @@ export class MLOpsInfrastructureService extends BaseService<any> {
         message: 'ML performance metrics collected successfully'
       };
 
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('Failed to collect ML performance metrics', { error });
       
       return {
         success: false,
         message: 'Failed to collect ML performance metrics',
-        errors: [error.message]
+        errors: [error instanceof Error ? error?.message : String(error)]
       };
     }
   }
@@ -376,14 +376,14 @@ export class MLOpsInfrastructureService extends BaseService<any> {
 
       return scalingResult;
 
-    } catch (error) {
-      timer.end({ status: 'error', error: error.message });
+    } catch (error: unknown) {
+      timer.end({ status: 'error', error: error instanceof Error ? error?.message : String(error) });
       logger.error('ML infrastructure scaling failed', { error, scalingConfig });
       
       return {
         success: false,
         message: 'ML infrastructure scaling failed',
-        errors: [error.message]
+        errors: [error instanceof Error ? error?.message : String(error)]
       };
     }
   }
@@ -435,13 +435,13 @@ export class MLOpsInfrastructureService extends BaseService<any> {
         message: 'ML cost optimization completed'
       };
 
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('ML cost optimization failed', { error });
       
       return {
         success: false,
         message: 'ML cost optimization failed',
-        errors: [error.message]
+        errors: [error instanceof Error ? error?.message : String(error)]
       };
     }
   }

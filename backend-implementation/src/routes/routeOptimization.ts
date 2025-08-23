@@ -364,10 +364,10 @@ router.get(
         }
       );
 
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error("Failed to retrieve optimization history", {
         userId: req.user?.id,
-        error: error.message
+        error: error instanceof Error ? error?.message : String(error)
       });
 
       return ResponseHelper.error(
@@ -431,10 +431,10 @@ router.get(
         }
       );
 
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error("Failed to retrieve optimization service status", {
         userId: req.user?.id,
-        error: error.message
+        error: error instanceof Error ? error?.message : String(error)
       });
 
       return ResponseHelper.error(
@@ -475,7 +475,7 @@ router.get(
   async (req, res) => {
     try {
       const { optimizationId } = req.params;
-      const format = req.query.format || "json";
+      const format = req.query?.format || "json";
 
       logger.info("Optimization export request", {
         userId: req.user?.id,
@@ -500,11 +500,11 @@ router.get(
         }
       );
 
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error("Failed to export optimization results", {
         userId: req.user?.id,
         optimizationId: req.params.optimizationId,
-        error: error.message
+        error: error instanceof Error ? error?.message : String(error)
       });
 
       return ResponseHelper.error(

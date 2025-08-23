@@ -306,17 +306,17 @@ export class AIPerformanceMonitoringService extends BaseService<any> {
         message: "Performance metric recorded successfully"
       };
 
-    } catch (error) {
-      timer.end({ error: error.message });
+    } catch (error: unknown) {
+      timer.end({ error: error instanceof Error ? error?.message : String(error) });
       logger.error("AIPerformanceMonitoringService.recordPerformanceMetric failed", {
         metricId,
-        error: error.message
+        error: error instanceof Error ? error?.message : String(error)
       });
 
       return {
         success: false,
         message: "Failed to record performance metric",
-        errors: [error.message]
+        errors: [error instanceof Error ? error?.message : String(error)]
       };
     }
   }
@@ -361,16 +361,16 @@ export class AIPerformanceMonitoringService extends BaseService<any> {
         message: "Business impact metric recorded successfully"
       };
 
-    } catch (error) {
-      timer.end({ error: error.message });
+    } catch (error: unknown) {
+      timer.end({ error: error instanceof Error ? error?.message : String(error) });
       logger.error("AIPerformanceMonitoringService.recordBusinessImpact failed", {
-        error: error.message
+        error: error instanceof Error ? error?.message : String(error)
       });
 
       return {
         success: false,
         message: "Failed to record business impact",
-        errors: [error.message]
+        errors: [error instanceof Error ? error?.message : String(error)]
       };
     }
   }
@@ -411,16 +411,16 @@ export class AIPerformanceMonitoringService extends BaseService<any> {
         message: "Cost metric tracked successfully"
       };
 
-    } catch (error) {
-      timer.end({ error: error.message });
+    } catch (error: unknown) {
+      timer.end({ error: error instanceof Error ? error?.message : String(error) });
       logger.error("AIPerformanceMonitoringService.trackCosts failed", {
-        error: error.message
+        error: error instanceof Error ? error?.message : String(error)
       });
 
       return {
         success: false,
         message: "Failed to track costs",
-        errors: [error.message]
+        errors: [error instanceof Error ? error?.message : String(error)]
       };
     }
   }
@@ -476,17 +476,17 @@ export class AIPerformanceMonitoringService extends BaseService<any> {
         message: "Model performance analysis completed"
       };
 
-    } catch (error) {
-      timer.end({ error: error.message });
+    } catch (error: unknown) {
+      timer.end({ error: error instanceof Error ? error?.message : String(error) });
       logger.error("AIPerformanceMonitoringService.analyzeModelPerformance failed", {
         modelId,
-        error: error.message
+        error: error instanceof Error ? error?.message : String(error)
       });
 
       return {
         success: false,
         message: "Failed to analyze model performance",
-        errors: [error.message]
+        errors: [error instanceof Error ? error?.message : String(error)]
       };
     }
   }
@@ -587,16 +587,16 @@ export class AIPerformanceMonitoringService extends BaseService<any> {
         message: "Performance dashboard generated successfully"
       };
 
-    } catch (error) {
-      timer.end({ error: error.message });
+    } catch (error: unknown) {
+      timer.end({ error: error instanceof Error ? error?.message : String(error) });
       logger.error("AIPerformanceMonitoringService.getPerformanceDashboard failed", {
-        error: error.message
+        error: error instanceof Error ? error?.message : String(error)
       });
 
       return {
         success: false,
         message: "Failed to generate performance dashboard",
-        errors: [error.message]
+        errors: [error instanceof Error ? error?.message : String(error)]
       };
     }
   }
@@ -651,16 +651,16 @@ export class AIPerformanceMonitoringService extends BaseService<any> {
         message: "Cost optimization analysis completed"
       };
 
-    } catch (error) {
-      timer.end({ error: error.message });
+    } catch (error: unknown) {
+      timer.end({ error: error instanceof Error ? error?.message : String(error) });
       logger.error("AIPerformanceMonitoringService.optimizeCosts failed", {
-        error: error.message
+        error: error instanceof Error ? error?.message : String(error)
       });
 
       return {
         success: false,
         message: "Failed to optimize costs",
-        errors: [error.message]
+        errors: [error instanceof Error ? error?.message : String(error)]
       };
     }
   }
@@ -959,11 +959,7 @@ export class AIPerformanceMonitoringService extends BaseService<any> {
       value: dataPoint.value,
       threshold: rule.threshold,
       triggeredAt: new Date(),
-      status: "active",
-      metadata: {
-        serviceCategory: metric.serviceCategory,
-        serviceName: metric.serviceName
-      }
+      status: "active"
     };
 
     // Store alert
@@ -1000,11 +996,11 @@ export class AIPerformanceMonitoringService extends BaseService<any> {
             await this.sendSMSNotification(alert, channel.destination);
             break;
         }
-      } catch (error) {
+      } catch (error: unknown) {
         logger.error("Failed to send alert notification", {
           alertId: alert.id,
           channel: channel.type,
-          error: error.message
+          error: error instanceof Error ? error?.message : String(error)
         });
       }
     }
@@ -1102,11 +1098,7 @@ export class AIPerformanceMonitoringService extends BaseService<any> {
         value: metric.budget.utilizationRate,
         threshold: 0.8,
         triggeredAt: new Date(),
-        status: "active",
-        metadata: {
-          serviceCategory: metric.serviceCategory,
-          serviceName: metric.serviceName
-        }
+        status: "active"
       };
 
       this.activeAlerts.set(alert.id, alert);
@@ -1179,10 +1171,7 @@ export class AIPerformanceMonitoringService extends BaseService<any> {
         value: analysis.drift.magnitude,
         threshold: 0.1,
         triggeredAt: new Date(),
-        status: "active",
-        metadata: {
-          serviceCategory: AIServiceCategory.PREDICTIVE_ANALYTICS,
-          serviceName: `Model_${analysis.modelId}`
+        status: "active"
         }
       };
 

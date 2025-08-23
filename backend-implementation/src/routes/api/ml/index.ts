@@ -102,16 +102,16 @@ router.get('/health', async (req, res) => {
       }
     });
 
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error('ML/AI health check error', {
-      error: error.message,
+      error: error instanceof Error ? error?.message : String(error),
       userId: req.user?.id
     });
 
     res.status(500).json({
       success: false,
       message: 'ML/AI health check failed',
-      error: error.message
+      error: error instanceof Error ? error?.message : String(error)
     });
   }
 });

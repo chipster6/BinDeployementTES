@@ -201,7 +201,7 @@ export class BackupService extends EventEmitter {
       await this.loadBackupHistory();
       
       logger.info('Backup service initialized successfully');
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('Failed to initialize backup service:', error);
       throw error;
     }
@@ -278,7 +278,7 @@ export class BackupService extends EventEmitter {
       `, { type: QueryTypes.RAW });
 
       logger.info('Backup tracking system initialized');
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('Failed to setup backup tracking:', error);
       throw error;
     }
@@ -322,7 +322,7 @@ export class BackupService extends EventEmitter {
       isUploaded: false,
       createdBy: 'backup-service',
       environment: config.app.nodeEnv,
-      tags: options.tags || [],
+      tags: options?.tags || [],
       description: options.description,
     };
 
@@ -367,7 +367,7 @@ export class BackupService extends EventEmitter {
       logger.info(`Full backup completed: ${backupId} (${metadata.duration}s, ${this.formatFileSize(metadata.fileSize)})`);
       return metadata;
 
-    } catch (error) {
+    } catch (error: unknown) {
       metadata.status = BackupStatus.FAILED;
       metadata.endTime = new Date();
       metadata.duration = (metadata.endTime.getTime() - metadata.startTime.getTime()) / 1000;
@@ -439,7 +439,7 @@ export class BackupService extends EventEmitter {
         warnings,
       };
 
-    } catch (error) {
+    } catch (error: unknown) {
       const duration = (Date.now() - startTime) / 1000;
       logger.error(`Restore failed after ${duration}s:`, error);
       throw error;
@@ -501,7 +501,7 @@ export class BackupService extends EventEmitter {
       metadata.pgDumpVersion = stdout.trim();
 
       logger.info('pg_dump backup completed successfully');
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('pg_dump backup failed:', error);
       throw error;
     }
@@ -527,7 +527,7 @@ export class BackupService extends EventEmitter {
       }
 
       logger.info('Backup post-processing completed');
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('Backup post-processing failed:', error);
       throw error;
     }
@@ -565,8 +565,8 @@ export class BackupService extends EventEmitter {
       metadata.validationTime = new Date();
       
       logger.info('Backup validation completed successfully');
-    } catch (error) {
-      metadata.validationErrors = [error instanceof Error ? error.message : String(error)];
+    } catch (error: unknown) {
+      metadata.validationErrors = [error instanceof Error ? error?.message : String(error)];
       logger.error('Backup validation failed:', error);
       throw error;
     }
@@ -595,7 +595,7 @@ export class BackupService extends EventEmitter {
       metadata.uploadTime = new Date();
       
       logger.info('Cloud storage upload completed');
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('Cloud storage upload failed:', error);
       throw error;
     }
@@ -635,10 +635,10 @@ export class BackupService extends EventEmitter {
 
       metadata.tableCounts = {};
       for (const table of tablesResult) {
-        metadata.tableCounts[`${table.schemaname}.${table.tablename}`] = table.total_changes || 0;
+        metadata.tableCounts[`${table.schemaname}.${table.tablename}`] = table?.total_changes || 0;
       }
 
-    } catch (error) {
+    } catch (error: unknown) {
       logger.warn('Failed to collect some database info:', error);
     }
   }
@@ -713,7 +713,7 @@ export class BackupService extends EventEmitter {
           description: metadata.description,
         },
       });
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('Failed to update backup metadata:', error);
     }
   }
@@ -728,7 +728,7 @@ export class BackupService extends EventEmitter {
       });
       
       return results as BackupMetadata || null;
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('Failed to get backup metadata:', error);
       return null;
     }
@@ -743,7 +743,7 @@ export class BackupService extends EventEmitter {
       `, { type: QueryTypes.SELECT });
       
       this.backupHistory = results as BackupMetadata[];
-    } catch (error) {
+    } catch (error: unknown) {
       logger.warn('Failed to load backup history:', error);
       this.backupHistory = [];
     }

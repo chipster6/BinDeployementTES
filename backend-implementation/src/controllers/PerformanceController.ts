@@ -19,7 +19,7 @@
  * Version: 1.0.0 - Performance Optimization Phase 2
  */
 
-import { Request, Response } from 'express';
+import type { Request, Response } from 'express';
 import { z } from 'zod';
 import { BaseController } from './BaseController';
 import { performanceAnalyzer } from '@/database/PerformanceAnalyzer';
@@ -94,7 +94,7 @@ export class PerformanceController extends BaseController {
       };
 
       res.json(new SuccessResponse(dashboardData, 'Performance dashboard data retrieved successfully'));
-    } catch (error) {
+    } catch (error: unknown) {
       this.handleError(res, error, 'Failed to retrieve performance dashboard');
     }
   }
@@ -127,7 +127,7 @@ export class PerformanceController extends BaseController {
       };
 
       res.json(new SuccessResponse(analysisData, 'Performance analysis retrieved successfully'));
-    } catch (error) {
+    } catch (error: unknown) {
       this.handleError(res, error, 'Failed to retrieve performance analysis');
     }
   }
@@ -166,7 +166,7 @@ export class PerformanceController extends BaseController {
           estimatedTimesSaved: patterns.reduce((sum, p) => sum + this.calculateNPlusOneSavings(p), 0),
         },
       }, 'N+1 query patterns retrieved successfully'));
-    } catch (error) {
+    } catch (error: unknown) {
       this.handleError(res, error, 'Failed to retrieve N+1 patterns');
     }
   }
@@ -207,7 +207,7 @@ export class PerformanceController extends BaseController {
       };
 
       res.json(new SuccessResponse(recommendationsData, 'Optimization recommendations retrieved successfully'));
-    } catch (error) {
+    } catch (error: unknown) {
       this.handleError(res, error, 'Failed to retrieve optimization recommendations');
     }
   }
@@ -254,9 +254,9 @@ export class PerformanceController extends BaseController {
         res.json(new SuccessResponse(responseData, 
           dryRun ? 'Optimization analysis completed' : 'Optimization applied successfully'));
       } else {
-        this.handleError(res, new Error(result.error || 'Optimization failed'), 'Optimization failed');
+        this.handleError(res, new Error(result?.error || 'Optimization failed'), 'Optimization failed');
       }
-    } catch (error) {
+    } catch (error: unknown) {
       this.handleError(res, error, 'Failed to apply optimization');
     }
   }
@@ -297,10 +297,10 @@ export class PerformanceController extends BaseController {
         res.json(new SuccessResponse(responseData, 
           dryRun ? 'Recommendation analysis completed' : 'Recommendation applied successfully'));
       } else {
-        this.handleError(res, new Error(result.error || 'Recommendation application failed'), 
+        this.handleError(res, new Error(result?.error || 'Recommendation application failed'), 
           'Failed to apply recommendation');
       }
-    } catch (error) {
+    } catch (error: unknown) {
       this.handleError(res, error, 'Failed to apply recommendation');
     }
   }
@@ -342,14 +342,14 @@ export class PerformanceController extends BaseController {
         alerts: recentAlerts.map(alert => ({
           level: alert.level,
           type: alert.type,
-          message: alert.message,
+          message: alert?.message,
           timestamp: alert.timestamp,
           acknowledged: alert.acknowledged,
         })),
       };
 
       res.json(new SuccessResponse(realtimeData, 'Real-time metrics retrieved successfully'));
-    } catch (error) {
+    } catch (error: unknown) {
       this.handleError(res, error, 'Failed to retrieve real-time metrics');
     }
   }
@@ -376,7 +376,7 @@ export class PerformanceController extends BaseController {
         },
         metrics: aggregatedData,
       }, 'Performance history retrieved successfully'));
-    } catch (error) {
+    } catch (error: unknown) {
       this.handleError(res, error, 'Failed to retrieve performance history');
     }
   }
@@ -397,7 +397,7 @@ export class PerformanceController extends BaseController {
       });
 
       res.json(new SuccessResponse({ acknowledged: true }, 'Alert acknowledged successfully'));
-    } catch (error) {
+    } catch (error: unknown) {
       this.handleError(res, error, 'Failed to acknowledge alert');
     }
   }
@@ -430,7 +430,7 @@ export class PerformanceController extends BaseController {
       };
 
       res.json(new SuccessResponse(impactAnalysis, 'Impact analysis retrieved successfully'));
-    } catch (error) {
+    } catch (error: unknown) {
       this.handleError(res, error, 'Failed to retrieve impact analysis');
     }
   }

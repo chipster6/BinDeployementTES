@@ -11,7 +11,7 @@
  * Version: 1.0.0
  */
 
-import { Request, Response } from "express";
+import type { Request, Response } from "express";
 import { validationResult } from "express-validator";
 import { Op } from "sequelize";
 import {
@@ -154,8 +154,9 @@ export class CustomerController {
           },
         },
       });
-    } catch (error) {
-      logger.error("Get customers failed:", error);
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error?.message : 'Unknown error';
+      logger.error("Get customers failed:", { error: errorMessage });
       res.status(500).json({
         success: false,
         message: "Internal server error",
@@ -208,8 +209,9 @@ export class CustomerController {
           },
         },
       });
-    } catch (error) {
-      logger.error("Get customer by ID failed:", error);
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error?.message : 'Unknown error';
+      logger.error("Get customer by ID failed:", { error: errorMessage });
       res.status(500).json({
         success: false,
         message: "Internal server error",
@@ -290,9 +292,7 @@ export class CustomerController {
           service_config: serviceConfig,
           billing_method: billingMethod,
           payment_terms: paymentTerms,
-          service_start_date: serviceStartDate
-            ? new Date(serviceStartDate)
-            : undefined,
+          ...(serviceStartDate && { service_start_date: new Date(serviceStartDate) }),
           rates,
           account_manager_id: accountManagerId,
           created_by: currentUser.id,
@@ -335,8 +335,9 @@ export class CustomerController {
           },
         },
       });
-    } catch (error) {
-      logger.error("Create customer failed:", error);
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error?.message : 'Unknown error';
+      logger.error("Create customer failed:", { error: errorMessage });
       res.status(500).json({
         success: false,
         message: "Internal server error",
@@ -457,8 +458,9 @@ export class CustomerController {
           },
         },
       });
-    } catch (error) {
-      logger.error("Update customer failed:", error);
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error?.message : 'Unknown error';
+      logger.error("Update customer failed:", { error: errorMessage });
       res.status(500).json({
         success: false,
         message: "Internal server error",
@@ -516,8 +518,9 @@ export class CustomerController {
         success: true,
         message: "Customer deleted successfully",
       });
-    } catch (error) {
-      logger.error("Delete customer failed:", error);
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error?.message : 'Unknown error';
+      logger.error("Delete customer failed:", { error: errorMessage });
       res.status(500).json({
         success: false,
         message: "Internal server error",
@@ -564,8 +567,9 @@ export class CustomerController {
           count: customers.length,
         },
       });
-    } catch (error) {
-      logger.error("Get customers by status failed:", error);
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error?.message : 'Unknown error';
+      logger.error("Get customers by status failed:", { error: errorMessage });
       res.status(500).json({
         success: false,
         message: "Internal server error",
@@ -605,8 +609,9 @@ export class CustomerController {
           count: customers.length,
         },
       });
-    } catch (error) {
-      logger.error("Get customers due for service failed:", error);
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error?.message : 'Unknown error';
+      logger.error("Get customers due for service failed:", { error: errorMessage });
       res.status(500).json({
         success: false,
         message: "Internal server error",
@@ -657,8 +662,9 @@ export class CustomerController {
           count: customers.length,
         },
       });
-    } catch (error) {
-      logger.error("Get customers by frequency failed:", error);
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error?.message : 'Unknown error';
+      logger.error("Get customers by frequency failed:", { error: errorMessage });
       res.status(500).json({
         success: false,
         message: "Internal server error",
@@ -676,6 +682,14 @@ export class CustomerController {
     try {
       const currentUser = (req as any).user as UserModel;
       const { managerId } = req.params;
+
+      if (!managerId) {
+        res.status(400).json({
+          success: false,
+          message: "Manager ID is required",
+        });
+        return;
+      }
 
       // Check permission
       if (!currentUser.canAccess("customers", "read")) {
@@ -696,8 +710,9 @@ export class CustomerController {
           count: customers.length,
         },
       });
-    } catch (error) {
-      logger.error("Get customers by account manager failed:", error);
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error?.message : 'Unknown error';
+      logger.error("Get customers by account manager failed:", { error: errorMessage });
       res.status(500).json({
         success: false,
         message: "Internal server error",
@@ -763,8 +778,9 @@ export class CustomerController {
           customer: customer.toSafeJSON(),
         },
       });
-    } catch (error) {
-      logger.error("Update service config failed:", error);
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error?.message : 'Unknown error';
+      logger.error("Update service config failed:", { error: errorMessage });
       res.status(500).json({
         success: false,
         message: "Internal server error",

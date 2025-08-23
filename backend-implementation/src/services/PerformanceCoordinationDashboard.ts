@@ -211,8 +211,8 @@ class PerformanceCoordinationDashboard {
       });
 
       return metrics;
-    } catch (error) {
-      timer.end({ error: error.message });
+    } catch (error: unknown) {
+      timer.end({ error: error instanceof Error ? error?.message : String(error) });
       logger.error("Failed to collect coordination metrics", error);
       throw new AppError("Failed to collect performance coordination metrics", 500);
     }
@@ -324,8 +324,8 @@ class PerformanceCoordinationDashboard {
         const priorityOrder = { critical: 0, high: 1, medium: 2, low: 3 };
         return priorityOrder[a.priority] - priorityOrder[b.priority];
       });
-    } catch (error) {
-      timer.end({ error: error.message });
+    } catch (error: unknown) {
+      timer.end({ error: error instanceof Error ? error?.message : String(error) });
       logger.error("Failed to generate optimization recommendations", error);
       throw new AppError("Failed to generate optimization recommendations", 500);
     }
@@ -383,8 +383,8 @@ class PerformanceCoordinationDashboard {
       });
 
       return results;
-    } catch (error) {
-      timer.end({ error: error.message });
+    } catch (error: unknown) {
+      timer.end({ error: error instanceof Error ? error?.message : String(error) });
       logger.error("Performance benchmark failed", error);
       throw new AppError("Performance benchmark failed", 500);
     }
@@ -418,7 +418,7 @@ class PerformanceCoordinationDashboard {
         completedOptimizations: completedOptimizations.length,
         lastSync: this.lastCoordinationSync,
       });
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error("Failed to update coordination status", error);
     }
   }
@@ -512,7 +512,7 @@ class PerformanceCoordinationDashboard {
         responseTime,
         memoryUsage: "Unknown", // Would implement Redis INFO parsing
       };
-    } catch (error) {
+    } catch (error: unknown) {
       return {
         status: "unhealthy" as const,
         responseTime: Date.now() - startTime,
@@ -528,7 +528,7 @@ class PerformanceCoordinationDashboard {
         cachedStatisticsService.getBinStatistics(undefined, { forceRefresh: false }),
         cachedStatisticsService.getDashboardStatistics(undefined, { forceRefresh: false }),
       ]);
-    } catch (error) {
+    } catch (error: unknown) {
       logger.warn("Statistics cache warmup failed", error);
     }
   }

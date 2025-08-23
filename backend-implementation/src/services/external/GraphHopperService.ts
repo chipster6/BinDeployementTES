@@ -214,12 +214,7 @@ export class GraphHopperService extends BaseExternalService {
         timer.end({ cached: true });
         return {
           success: true,
-          data: cached,
-          metadata: {
-            duration: timer.duration,
-            attempt: 1,
-            fromCache: true
-          }
+          data: cached
         };
       }
       
@@ -273,12 +268,12 @@ export class GraphHopperService extends BaseExternalService {
       
       return response;
       
-    } catch (error) {
-      timer.end({ error: error.message });
+    } catch (error: unknown) {
+      timer.end({ error: error instanceof Error ? error?.message : String(error) });
       logger.error('GraphHopper matrix calculation failed', {
         locationCount: locations.length,
         vehicle: options.vehicle,
-        error: error.message
+        error: error instanceof Error ? error?.message : String(error)
       });
       
       // Try fallback to historical/cached data
@@ -286,23 +281,13 @@ export class GraphHopperService extends BaseExternalService {
       if (fallbackData) {
         return {
           success: true,
-          data: fallbackData,
-          metadata: {
-            duration: timer.duration,
-            attempt: 1,
-            fallbackUsed: true,
-            fallbackStrategy: 'historical_data'
-          }
+          data: fallbackData
         };
       }
       
       return {
         success: false,
-        error: `Matrix calculation failed: ${error.message}`,
-        metadata: {
-          duration: timer.duration,
-          attempt: 1
-        }
+        error: `Matrix calculation failed: ${error instanceof Error ? error?.message : String(error)}`
       };
     }
   }
@@ -340,12 +325,7 @@ export class GraphHopperService extends BaseExternalService {
         timer.end({ cached: true });
         return {
           success: true,
-          data: cached,
-          metadata: {
-            duration: timer.duration,
-            attempt: 1,
-            fromCache: true
-          }
+          data: cached
         };
       }
       
@@ -353,7 +333,7 @@ export class GraphHopperService extends BaseExternalService {
       const params = new URLSearchParams({
         point: `${start.latitude},${start.longitude}`,
         'point': `${end.latitude},${end.longitude}`,
-        vehicle: options.vehicle || 'truck',
+        vehicle: options?.vehicle || 'truck',
         ...options.traffic && { traffic: 'true' },
         ...options.instructions !== false && { instructions: 'true' },
         ...options.details && { details: options.details.join(',') },
@@ -399,31 +379,23 @@ export class GraphHopperService extends BaseExternalService {
         
         return {
           success: true,
-          data: route,
-          metadata: {
-            duration: timer.duration,
-            attempt: 1
-          }
+          data: route
         };
       }
       
       throw new Error('No route found');
       
-    } catch (error) {
-      timer.end({ error: error.message });
+    } catch (error: unknown) {
+      timer.end({ error: error instanceof Error ? error?.message : String(error) });
       logger.error('GraphHopper traffic-aware route calculation failed', {
         start: `${start.latitude},${start.longitude}`,
         end: `${end.latitude},${end.longitude}`,
-        error: error.message
+        error: error instanceof Error ? error?.message : String(error)
       });
       
       return {
         success: false,
-        error: `Route calculation failed: ${error.message}`,
-        metadata: {
-          duration: timer.duration,
-          attempt: 1
-        }
+        error: `Route calculation failed: ${error instanceof Error ? error?.message : String(error)}`
       };
     }
   }
@@ -456,8 +428,8 @@ export class GraphHopperService extends BaseExternalService {
       const params = new URLSearchParams({
         point: `${center.latitude},${center.longitude}`,
         time_limit: timeLimit.toString(),
-        vehicle: options.vehicle || 'truck',
-        buckets: (options.buckets || 1).toString(),
+        vehicle: options?.vehicle || 'truck',
+        buckets: (options?.buckets || 1).toString(),
         ...options.traffic && { traffic: 'true' }
       });
       
@@ -466,12 +438,7 @@ export class GraphHopperService extends BaseExternalService {
         `/isochrone?${params.toString()}`,
         undefined,
         {
-          timeout: 10000,
-          metadata: {
-            operation: 'isochrone',
-            vehicle: options.vehicle,
-            timeLimit
-          }
+          timeout: 10000
         }
       );
       
@@ -493,21 +460,17 @@ export class GraphHopperService extends BaseExternalService {
       
       return response;
       
-    } catch (error) {
-      timer.end({ error: error.message });
+    } catch (error: unknown) {
+      timer.end({ error: error instanceof Error ? error?.message : String(error) });
       logger.error('GraphHopper service area calculation failed', {
         center: `${center.latitude},${center.longitude}`,
         timeLimit,
-        error: error.message
+        error: error instanceof Error ? error?.message : String(error)
       });
       
       return {
         success: false,
-        error: `Service area calculation failed: ${error.message}`,
-        metadata: {
-          duration: timer.duration,
-          attempt: 1
-        }
+        error: `Service area calculation failed: ${error instanceof Error ? error?.message : String(error)}`
       };
     }
   }
@@ -540,7 +503,7 @@ export class GraphHopperService extends BaseExternalService {
       // Prepare request parameters
       const params = new URLSearchParams({
         q: address.trim(),
-        limit: (options.limit || 5).toString(),
+        limit: (options?.limit || 5).toString(),
         ...options.country && { country: options.country },
         ...options.bbox && { bbox: options.bbox.join(',') }
       });
@@ -550,11 +513,7 @@ export class GraphHopperService extends BaseExternalService {
         `/geocoding?${params.toString()}`,
         undefined,
         {
-          timeout: 5000,
-          metadata: {
-            operation: 'geocoding',
-            address: address.substring(0, 50) // Limit for logging
-          }
+          timeout: 5000
         }
       );
       
@@ -574,20 +533,16 @@ export class GraphHopperService extends BaseExternalService {
       
       return response;
       
-    } catch (error) {
-      timer.end({ error: error.message });
+    } catch (error: unknown) {
+      timer.end({ error: error instanceof Error ? error?.message : String(error) });
       logger.error('GraphHopper geocoding failed', {
         address: address.substring(0, 50),
-        error: error.message
+        error: error instanceof Error ? error?.message : String(error)
       });
       
       return {
         success: false,
-        error: `Geocoding failed: ${error.message}`,
-        metadata: {
-          duration: timer.duration,
-          attempt: 1
-        }
+        error: `Geocoding failed: ${error instanceof Error ? error?.message : String(error)}`
       };
     }
   }
@@ -689,8 +644,8 @@ export class GraphHopperService extends BaseExternalService {
     const optionsKey = [
       options.vehicle,
       options.traffic ? 'traffic' : 'no-traffic',
-      options.block_area || '',
-      (options.avoid || []).sort().join(','),
+      options?.block_area || '',
+      (options?.avoid || []).sort().join(','),
       options.ch ? 'ch' : 'no-ch'
     ].join(':');
     
@@ -703,9 +658,9 @@ export class GraphHopperService extends BaseExternalService {
   private generateRouteCacheKey(start: Location, end: Location, options: any): string {
     const routeKey = `${start.latitude.toFixed(6)},${start.longitude.toFixed(6)}_${end.latitude.toFixed(6)},${end.longitude.toFixed(6)}`;
     const optionsKey = [
-      options.vehicle || 'truck',
+      options?.vehicle || 'truck',
       options.traffic ? 'traffic' : 'no-traffic',
-      (options.avoid || []).sort().join(',')
+      (options?.avoid || []).sort().join(',')
     ].join(':');
     
     const timeKey = Math.floor(Date.now() / (5 * 60 * 1000)); // 5-minute buckets
@@ -743,9 +698,9 @@ export class GraphHopperService extends BaseExternalService {
       });
       
       return fallbackMatrix;
-    } catch (error) {
+    } catch (error: unknown) {
       logger.warn('Fallback matrix data generation failed', {
-        error: error.message
+        error: error instanceof Error ? error?.message : String(error)
       });
       return null;
     }

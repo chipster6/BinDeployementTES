@@ -412,12 +412,12 @@ export class PerformanceAnalyzer extends EventEmitter {
       }
 
       return { success: true, changes };
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('Failed to apply performance optimization', {
         type,
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
       });
-      return { success: false, changes: [], error: error.message };
+      return { success: false, changes: [], error: error instanceof Error ? error?.message : String(error) };
     }
   }
 
@@ -526,8 +526,8 @@ export class PerformanceAnalyzer extends EventEmitter {
         });
       }
 
-    } catch (error) {
-      logger.error('Bottleneck detection failed', { error: error.message });
+    } catch (error: unknown) {
+      logger.error('Bottleneck detection failed', { error: error instanceof Error ? error?.message : String(error) });
     }
   }
 
@@ -596,15 +596,15 @@ export class PerformanceAnalyzer extends EventEmitter {
         usage: {
           scans: stat.idx_scan,
           tuples: stat.idx_tup_read,
-          efficiency: stat.efficiency || 0,
+          efficiency: stat?.efficiency || 0,
         },
         recommendation: this.determineIndexRecommendation(stat),
         reasoning: this.generateIndexReasoning(stat),
         impact: this.assessIndexImpact(stat),
       }));
 
-    } catch (error) {
-      logger.error('Index usage analysis failed', { error: error.message });
+    } catch (error: unknown) {
+      logger.error('Index usage analysis failed', { error: error instanceof Error ? error?.message : String(error) });
     }
   }
 
@@ -682,8 +682,8 @@ export class PerformanceAnalyzer extends EventEmitter {
           dataPoints: historicalData.length,
         });
       }
-    } catch (error) {
-      logger.warn('Could not initialize performance baselines', { error: error.message });
+    } catch (error: unknown) {
+      logger.warn('Could not initialize performance baselines', { error: error instanceof Error ? error?.message : String(error) });
     }
   }
 

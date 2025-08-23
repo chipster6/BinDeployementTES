@@ -11,7 +11,7 @@
  * Version: 1.0.0
  */
 
-import { Request, Response, NextFunction } from "express";
+import { Request, type Response, type NextFunction } from "express";
 import xss from "xss";
 import validator from "validator";
 import { config } from "@/config";
@@ -419,14 +419,14 @@ export const securityMiddleware = async (
     res.removeHeader("Server");
 
     // Add custom security headers
-    res.setHeader("X-Security-Scan", req.security?.threats.length || 0);
+    res.setHeader("X-Security-Scan", req.security?.threats?.length || 0);
     res.setHeader(
       "X-Request-Sanitized",
       req.security?.sanitized ? "true" : "false",
     );
 
     next();
-  } catch (error) {
+  } catch (error: unknown) {
     next(error);
   }
 };
@@ -445,7 +445,7 @@ export const cspMiddleware = (
       "script-src 'self' 'unsafe-inline' cdn.mapbox.com",
       "style-src 'self' 'unsafe-inline' fonts.googleapis.com",
       "font-src 'self' fonts.gstatic.com",
-      `img-src 'self' data: *.mapbox.com ${config.aws.cloudFrontUrl || ""}`,
+      `img-src 'self' data: *.mapbox.com ${config.aws?.cloudFrontUrl || ""}`,
       "connect-src 'self' api.stripe.com *.samsara.com",
       "object-src 'none'",
       "media-src 'self'",

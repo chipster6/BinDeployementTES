@@ -87,6 +87,7 @@
     "migration:deploy:production": "ENVIRONMENT=production ./scripts/migration-deploy.sh",
     "migration:deploy:staging": "ENVIRONMENT=staging ./scripts/migration-deploy.sh",
     "migration:deploy:dry-run": "./scripts/migration-deploy.sh --dry-run",
+    "migrate:encrypt-mfa": "node scripts/encrypt-existing-mfa-secrets.js",
     "docker:build": "docker build -t waste-management-backend .",
     "docker:run": "docker run -p 3001:3001 waste-management-backend",
     "docker:dev": "docker-compose up --build",
@@ -102,7 +103,15 @@
     "deps:update": "npx npm-check-updates -u && npm install",
     "validate:baseservice": "ts-node scripts/validate-baseservice-compliance.ts",
     "validate:baseservice:json": "ts-node scripts/validate-baseservice-compliance.ts > validation-reports/latest-compliance.json",
-    "validate:hub-compliance": "npm run validate:baseservice"
+    "validate:hub-compliance": "npm run validate:baseservice",
+    "typescript-modernization:monitor": "ts-node scripts/monitor-typescript-modernization-performance.ts",
+    "typescript-modernization:benchmark": "ts-node -e \"import('./src/services/TypeScriptConfigurationOptimizer.ts').then(m => new m.TypeScriptConfigurationOptimizer().benchmarkConfigurations())\"",
+    "typescript-modernization:optimize": "ts-node -e \"import('./src/services/TypeScriptConfigurationOptimizer.ts').then(m => new m.TypeScriptConfigurationOptimizer().optimizeBuildCache())\"",
+    "typescript-modernization:validate": "ts-node -e \"import('./src/services/TypeScriptStrictnessPerformanceOptimizer.ts').then(m => new m.TypeScriptStrictnessPerformanceOptimizer().validateBuildPerformance())\"",
+    "typescript-modernization:report": "ts-node -e \"import('./src/services/TypeScriptStrictnessPerformanceOptimizer.ts').then(m => new m.TypeScriptStrictnessPerformanceOptimizer().generatePerformanceReport())\"",
+    "performance:typescript:baseline": "npm run typescript-modernization:validate && echo '✅ TypeScript performance baseline established'",
+    "performance:typescript:monitor": "npm run typescript-modernization:monitor",
+    "performance:typescript:optimize": "npm run typescript-modernization:optimize && npm run typescript-modernization:benchmark"
   },
   "keywords": [
     "waste-management",
@@ -138,6 +147,7 @@
     "jsonwebtoken": "^9.0.2",
     "moment-timezone": "^0.5.48",
     "morgan": "^1.10.1",
+    "node-vault": "^0.10.5",
     "ora": "^5.4.1",
     "pg": "^8.16.3",
     "reflect-metadata": "^0.2.2",
@@ -152,7 +162,8 @@
     "weaviate-ts-client": "^1.4.0",
     "winston": "^3.17.0",
     "winston-daily-rotate-file": "^5.0.0",
-    "ws": "^8.18.3"
+    "ws": "^8.18.3",
+    "zod": "^4.0.17"
   },
   "devDependencies": {
     "@babel/core": "^7.28.3",

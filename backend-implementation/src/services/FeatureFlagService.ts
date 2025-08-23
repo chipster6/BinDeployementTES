@@ -206,7 +206,7 @@ export class FeatureFlagService extends BaseService<any> {
       }
 
       // Check if feature is globally disabled
-      if (!feature.enabled || feature.status === FeatureFlagStatus.DISABLED) {
+      if (!feature?.enabled || feature.status === FeatureFlagStatus.DISABLED) {
         timer.end({ enabled: false, reason: "globally_disabled" });
         return {
           success: true,
@@ -214,7 +214,6 @@ export class FeatureFlagService extends BaseService<any> {
             featureId,
             enabled: false,
             reason: "Feature is globally disabled",
-            metadata: { status: feature.status },
             evaluationTime: timer.elapsed
           },
           message: "Feature evaluation completed"
@@ -231,7 +230,6 @@ export class FeatureFlagService extends BaseService<any> {
             featureId,
             enabled: false,
             reason: "Feature dependencies not met",
-            metadata: { missingDependencies: dependencyCheck.missing },
             evaluationTime: timer.elapsed
           },
           message: "Feature evaluation completed"
@@ -250,7 +248,6 @@ export class FeatureFlagService extends BaseService<any> {
             featureId,
             enabled: false,
             reason: "User not in target segments",
-            metadata: { userSegment, targetSegments: feature.targetSegments },
             evaluationTime: timer.elapsed
           },
           message: "Feature evaluation completed"
@@ -269,7 +266,6 @@ export class FeatureFlagService extends BaseService<any> {
             featureId,
             enabled: false,
             reason: "User not in rollout percentage",
-            metadata: { rolloutPercentage: feature.rolloutPercentage },
             evaluationTime: timer.elapsed
           },
           message: "Feature evaluation completed"
@@ -287,28 +283,23 @@ export class FeatureFlagService extends BaseService<any> {
           enabled: true,
           variant: testAssignment?.variant,
           reason: "Feature enabled for user",
-          metadata: {
-            userSegment,
-            rolloutPercentage: feature.rolloutPercentage,
-            testAssignment
-          },
           evaluationTime: timer.elapsed
         },
         message: "Feature evaluation completed"
       };
 
-    } catch (error) {
-      timer.end({ error: error.message });
+    } catch (error: unknown) {
+      timer.end({ error: error instanceof Error ? error?.message : String(error) });
       logger.error("FeatureFlagService.evaluateFeature failed", {
         featureId,
         userId,
-        error: error.message
+        error: error instanceof Error ? error?.message : String(error)
       });
 
       return {
         success: false,
         message: "Failed to evaluate feature",
-        errors: [error.message]
+        errors: [error instanceof Error ? error?.message : String(error)]
       };
     }
   }
@@ -358,16 +349,16 @@ export class FeatureFlagService extends BaseService<any> {
         message: "Feature flag created successfully"
       };
 
-    } catch (error) {
-      timer.end({ error: error.message });
+    } catch (error: unknown) {
+      timer.end({ error: error instanceof Error ? error?.message : String(error) });
       logger.error("FeatureFlagService.createFeatureFlag failed", {
-        error: error.message
+        error: error instanceof Error ? error?.message : String(error)
       });
 
       return {
         success: false,
         message: "Failed to create feature flag",
-        errors: [error.message]
+        errors: [error instanceof Error ? error?.message : String(error)]
       };
     }
   }
@@ -437,17 +428,17 @@ export class FeatureFlagService extends BaseService<any> {
         message: "Gradual rollout started successfully"
       };
 
-    } catch (error) {
-      timer.end({ error: error.message });
+    } catch (error: unknown) {
+      timer.end({ error: error instanceof Error ? error?.message : String(error) });
       logger.error("FeatureFlagService.startGradualRollout failed", {
         featureId: rolloutConfig.featureId,
-        error: error.message
+        error: error instanceof Error ? error?.message : String(error)
       });
 
       return {
         success: false,
         message: "Failed to start gradual rollout",
-        errors: [error.message]
+        errors: [error instanceof Error ? error?.message : String(error)]
       };
     }
   }
@@ -505,17 +496,17 @@ export class FeatureFlagService extends BaseService<any> {
         message: "A/B test created successfully"
       };
 
-    } catch (error) {
-      timer.end({ error: error.message });
+    } catch (error: unknown) {
+      timer.end({ error: error instanceof Error ? error?.message : String(error) });
       logger.error("FeatureFlagService.createABTest failed", {
         testId: testConfig.id,
-        error: error.message
+        error: error instanceof Error ? error?.message : String(error)
       });
 
       return {
         success: false,
         message: "Failed to create A/B test",
-        errors: [error.message]
+        errors: [error instanceof Error ? error?.message : String(error)]
       };
     }
   }
@@ -566,17 +557,17 @@ export class FeatureFlagService extends BaseService<any> {
         message: "Performance impact monitoring completed"
       };
 
-    } catch (error) {
-      timer.end({ error: error.message });
+    } catch (error: unknown) {
+      timer.end({ error: error instanceof Error ? error?.message : String(error) });
       logger.error("FeatureFlagService.monitorPerformanceImpact failed", {
         featureId,
-        error: error.message
+        error: error instanceof Error ? error?.message : String(error)
       });
 
       return {
         success: false,
         message: "Failed to monitor performance impact",
-        errors: [error.message]
+        errors: [error instanceof Error ? error?.message : String(error)]
       };
     }
   }
@@ -656,18 +647,18 @@ export class FeatureFlagService extends BaseService<any> {
         message: "Emergency rollback completed successfully"
       };
 
-    } catch (error) {
-      timer.end({ error: error.message });
+    } catch (error: unknown) {
+      timer.end({ error: error instanceof Error ? error?.message : String(error) });
       logger.error("FeatureFlagService.emergencyRollback failed", {
         featureId,
         reason,
-        error: error.message
+        error: error instanceof Error ? error?.message : String(error)
       });
 
       return {
         success: false,
         message: "Failed to execute emergency rollback",
-        errors: [error.message]
+        errors: [error instanceof Error ? error?.message : String(error)]
       };
     }
   }
@@ -739,16 +730,16 @@ export class FeatureFlagService extends BaseService<any> {
         message: "Feature flag dashboard data retrieved successfully"
       };
 
-    } catch (error) {
-      timer.end({ error: error.message });
+    } catch (error: unknown) {
+      timer.end({ error: error instanceof Error ? error?.message : String(error) });
       logger.error("FeatureFlagService.getFeatureFlagDashboard failed", {
-        error: error.message
+        error: error instanceof Error ? error?.message : String(error)
       });
 
       return {
         success: false,
         message: "Failed to get feature flag dashboard data",
-        errors: [error.message]
+        errors: [error instanceof Error ? error?.message : String(error)]
       };
     }
   }
@@ -770,13 +761,7 @@ export class FeatureFlagService extends BaseService<any> {
         dependencies: ["weaviate_connection", "openai_api"],
         healthChecks: ["vector_db_health", "search_response_time"],
         createdBy: "system",
-        lastModifiedBy: "system",
-        metadata: {
-          estimatedImpact: "medium",
-          rollbackThreshold: 0.1,
-          performanceMetrics: ["search_latency", "search_accuracy"],
-          businessMetrics: ["user_engagement", "search_success_rate"]
-        }
+        lastModifiedBy: "system"
       },
       {
         name: "operational_insights",
@@ -789,13 +774,7 @@ export class FeatureFlagService extends BaseService<any> {
         dependencies: ["vector_search", "llm_service"],
         healthChecks: ["insight_generation_time", "insight_accuracy"],
         createdBy: "system",
-        lastModifiedBy: "system",
-        metadata: {
-          estimatedImpact: "high",
-          rollbackThreshold: 0.05,
-          performanceMetrics: ["generation_time", "accuracy_score"],
-          businessMetrics: ["decision_quality", "time_savings"]
-        }
+        lastModifiedBy: "system"
       },
 
       // Phase 2: Route Optimization
@@ -810,13 +789,7 @@ export class FeatureFlagService extends BaseService<any> {
         dependencies: ["ortools_service", "graphhopper_api"],
         healthChecks: ["optimization_speed", "route_quality"],
         createdBy: "system",
-        lastModifiedBy: "system",
-        metadata: {
-          estimatedImpact: "critical",
-          rollbackThreshold: 0.02,
-          performanceMetrics: ["optimization_time", "fuel_savings"],
-          businessMetrics: ["cost_reduction", "delivery_time"]
-        }
+        lastModifiedBy: "system"
       },
       {
         name: "real_time_route_adjustment",
@@ -829,13 +802,7 @@ export class FeatureFlagService extends BaseService<any> {
         dependencies: ["ml_route_optimization", "traffic_data"],
         healthChecks: ["adjustment_speed", "route_improvement"],
         createdBy: "system",
-        lastModifiedBy: "system",
-        metadata: {
-          estimatedImpact: "high",
-          rollbackThreshold: 0.05,
-          performanceMetrics: ["adjustment_latency", "improvement_percentage"],
-          businessMetrics: ["on_time_delivery", "customer_satisfaction"]
-        }
+        lastModifiedBy: "system"
       },
 
       // Phase 3: Predictive Analytics
@@ -850,13 +817,7 @@ export class FeatureFlagService extends BaseService<any> {
         dependencies: ["historical_data", "ml_models"],
         healthChecks: ["forecast_accuracy", "model_performance"],
         createdBy: "system",
-        lastModifiedBy: "system",
-        metadata: {
-          estimatedImpact: "high",
-          rollbackThreshold: 0.1,
-          performanceMetrics: ["forecast_accuracy", "prediction_time"],
-          businessMetrics: ["capacity_planning", "resource_optimization"]
-        }
+        lastModifiedBy: "system"
       },
       {
         name: "predictive_maintenance",
@@ -869,13 +830,7 @@ export class FeatureFlagService extends BaseService<any> {
         dependencies: ["sensor_data", "maintenance_history"],
         healthChecks: ["prediction_accuracy", "alert_reliability"],
         createdBy: "system",
-        lastModifiedBy: "system",
-        metadata: {
-          estimatedImpact: "critical",
-          rollbackThreshold: 0.02,
-          performanceMetrics: ["prediction_accuracy", "false_positive_rate"],
-          businessMetrics: ["maintenance_cost", "equipment_uptime"]
-        }
+        lastModifiedBy: "system"
       },
 
       // Phase 4: LLM Intelligence
@@ -890,13 +845,7 @@ export class FeatureFlagService extends BaseService<any> {
         dependencies: ["llm_service", "customer_data"],
         healthChecks: ["response_quality", "automation_rate"],
         createdBy: "system",
-        lastModifiedBy: "system",
-        metadata: {
-          estimatedImpact: "high",
-          rollbackThreshold: 0.05,
-          performanceMetrics: ["response_time", "automation_success_rate"],
-          businessMetrics: ["customer_satisfaction", "support_cost"]
-        }
+        lastModifiedBy: "system"
       },
       {
         name: "business_intelligence_generation",
@@ -909,13 +858,7 @@ export class FeatureFlagService extends BaseService<any> {
         dependencies: ["llm_service", "business_data"],
         healthChecks: ["insight_quality", "generation_speed"],
         createdBy: "system",
-        lastModifiedBy: "system",
-        metadata: {
-          estimatedImpact: "medium",
-          rollbackThreshold: 0.1,
-          performanceMetrics: ["generation_time", "insight_relevance"],
-          businessMetrics: ["decision_speed", "strategic_alignment"]
-        }
+        lastModifiedBy: "system"
       }
     ];
 
@@ -945,11 +888,11 @@ export class FeatureFlagService extends BaseService<any> {
   private async validateFeatureFlag(flag: FeatureFlag): Promise<{ valid: boolean; errors: string[] }> {
     const errors: string[] = [];
     
-    if (!flag.name || flag.name.trim().length === 0) {
+    if (!flag?.name || flag.name.trim().length === 0) {
       errors.push("Feature name is required");
     }
     
-    if (!flag.description || flag.description.trim().length === 0) {
+    if (!flag?.description || flag.description.trim().length === 0) {
       errors.push("Feature description is required");
     }
     
@@ -981,7 +924,7 @@ export class FeatureFlagService extends BaseService<any> {
   private async validateABTestConfig(config: ABTestConfig): Promise<{ valid: boolean; errors: string[] }> {
     const errors: string[] = [];
     
-    if (!config.variants || config.variants.length < 2) {
+    if (!config?.variants || config.variants.length < 2) {
       errors.push("At least 2 variants are required for A/B test");
     }
     

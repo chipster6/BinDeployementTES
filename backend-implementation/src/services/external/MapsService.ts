@@ -201,7 +201,7 @@ export class MapsService extends BaseExternalService {
     this.provider = config.provider;
     this.mapboxAccessToken = config.mapboxAccessToken;
     this.googleMapsApiKey = config.googleMapsApiKey;
-    this.defaultProfile = config.defaultProfile || "driving";
+    this.defaultProfile = config?.defaultProfile || "driving";
   }
 
   /**
@@ -237,14 +237,14 @@ export class MapsService extends BaseExternalService {
       } else {
         return this.googleGeocode(address, options);
       }
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error("Failed to geocode address", {
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
         address,
         provider: this.provider,
       });
 
-      throw new Error(`Geocoding failed: ${error.message}`);
+      throw new Error(`Geocoding failed: ${error instanceof Error ? error?.message : String(error)}`);
     }
   }
 
@@ -269,14 +269,14 @@ export class MapsService extends BaseExternalService {
       } else {
         return this.googleReverseGeocode(coordinate, options);
       }
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error("Failed to reverse geocode", {
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
         coordinate,
         provider: this.provider,
       });
 
-      throw new Error(`Reverse geocoding failed: ${error.message}`);
+      throw new Error(`Reverse geocoding failed: ${error instanceof Error ? error?.message : String(error)}`);
     }
   }
 
@@ -299,7 +299,7 @@ export class MapsService extends BaseExternalService {
     try {
       logger.info("Getting route", {
         waypoints: coordinates.length,
-        profile: options.profile || this.defaultProfile,
+        profile: options?.profile || this.defaultProfile,
         provider: this.provider,
       });
 
@@ -308,14 +308,14 @@ export class MapsService extends BaseExternalService {
       } else {
         return this.googleDirections(coordinates, options);
       }
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error("Failed to get route", {
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
         waypoints: coordinates.length,
         provider: this.provider,
       });
 
-      throw new Error(`Route calculation failed: ${error.message}`);
+      throw new Error(`Route calculation failed: ${error instanceof Error ? error?.message : String(error)}`);
     }
   }
 
@@ -342,15 +342,15 @@ export class MapsService extends BaseExternalService {
       } else {
         return this.googleMatrix(sources, destinations, options);
       }
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error("Failed to calculate distance matrix", {
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
         sources: sources.length,
         destinations: destinations.length,
         provider: this.provider,
       });
 
-      throw new Error(`Distance matrix calculation failed: ${error.message}`);
+      throw new Error(`Distance matrix calculation failed: ${error instanceof Error ? error?.message : String(error)}`);
     }
   }
 
@@ -378,15 +378,15 @@ export class MapsService extends BaseExternalService {
       } else {
         throw new Error("Isochrones not supported by Google Maps API");
       }
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error("Failed to generate isochrones", {
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
         center,
         contours,
         provider: this.provider,
       });
 
-      throw new Error(`Isochrone generation failed: ${error.message}`);
+      throw new Error(`Isochrone generation failed: ${error instanceof Error ? error?.message : String(error)}`);
     }
   }
 
@@ -455,14 +455,14 @@ export class MapsService extends BaseExternalService {
         // Implement basic TSP for Google Maps
         return this.basicTSP(depot, stops, options);
       }
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error("Failed to optimize route", {
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
         stops: stops.length,
         provider: this.provider,
       });
 
-      throw new Error(`Route optimization failed: ${error.message}`);
+      throw new Error(`Route optimization failed: ${error instanceof Error ? error?.message : String(error)}`);
     }
   }
 
@@ -475,7 +475,7 @@ export class MapsService extends BaseExternalService {
   ): Promise<ApiResponse<GeocodingResult[]>> {
     const params: Record<string, any> = {
       access_token: this.mapboxAccessToken,
-      limit: options.limit || 5,
+      limit: options?.limit || 5,
     };
 
     if (options.country) params.country = options.country;
@@ -530,7 +530,6 @@ export class MapsService extends BaseExternalService {
       data: results,
       statusCode: 200,
       metadata: {
-        requestId: `geocode-${Date.now()}`,
         duration: 0,
         attempt: 1,
       },
@@ -571,7 +570,7 @@ export class MapsService extends BaseExternalService {
       }>;
     }>("/geocode/json", params);
 
-    if (!response.success || !response.data || response.data.status !== "OK") {
+    if (!response.success || !response?.data || response.data.status !== "OK") {
       throw new Error(`Google geocoding failed: ${response.data?.status}`);
     }
 
@@ -593,7 +592,6 @@ export class MapsService extends BaseExternalService {
       data: results,
       statusCode: 200,
       metadata: {
-        requestId: `geocode-${Date.now()}`,
         duration: 0,
         attempt: 1,
       },
@@ -653,7 +651,6 @@ export class MapsService extends BaseExternalService {
       data: results,
       statusCode: 200,
       metadata: {
-        requestId: `reverse-geocode-${Date.now()}`,
         duration: 0,
         attempt: 1,
       },
@@ -694,7 +691,7 @@ export class MapsService extends BaseExternalService {
       }>;
     }>("/geocode/json", params);
 
-    if (!response.success || !response.data || response.data.status !== "OK") {
+    if (!response.success || !response?.data || response.data.status !== "OK") {
       throw new Error(
         `Google reverse geocoding failed: ${response.data?.status}`,
       );
@@ -718,7 +715,6 @@ export class MapsService extends BaseExternalService {
       data: results,
       statusCode: 200,
       metadata: {
-        requestId: `reverse-geocode-${Date.now()}`,
         duration: 0,
         attempt: 1,
       },
@@ -732,17 +728,17 @@ export class MapsService extends BaseExternalService {
     coordinates: Coordinate[],
     options: any,
   ): Promise<ApiResponse<Route[]>> {
-    const profile = options.profile || this.defaultProfile;
+    const profile = options?.profile || this.defaultProfile;
     const coordinatesString = coordinates
       .map((c) => `${c.longitude},${c.latitude}`)
       .join(";");
 
     const params: Record<string, any> = {
       access_token: this.mapboxAccessToken,
-      alternatives: options.alternatives || false,
+      alternatives: options?.alternatives || false,
       steps: options.steps !== false,
-      geometries: options.geometries || "geojson",
-      overview: options.overview || "full",
+      geometries: options?.geometries || "geojson",
+      overview: options?.overview || "full",
     };
 
     const response = await this.get<{
@@ -786,9 +782,7 @@ export class MapsService extends BaseExternalService {
     return {
       success: true,
       data: routes,
-      statusCode: 200,
-      metadata: {
-        requestId: `directions-${Date.now()}`,
+      statusCode: 200`,
         duration: 0,
         attempt: 1,
       },
@@ -809,7 +803,7 @@ export class MapsService extends BaseExternalService {
       key: this.googleMapsApiKey,
       origin,
       destination,
-      alternatives: options.alternatives || false,
+      alternatives: options?.alternatives || false,
     };
 
     if (coordinates.length > 2) {
@@ -864,7 +858,7 @@ export class MapsService extends BaseExternalService {
       }>;
     }>("/directions/json", params);
 
-    if (!response.success || !response.data || response.data.status !== "OK") {
+    if (!response.success || !response?.data || response.data.status !== "OK") {
       throw new Error(`Google directions failed: ${response.data?.status}`);
     }
 
@@ -888,7 +882,7 @@ export class MapsService extends BaseExternalService {
             duration: step.duration.value,
             geometry: this.decodePolyline(step.polyline.points),
             maneuver: {
-              type: step.maneuver || "straight",
+              type: step?.maneuver || "straight",
               instruction: step.html_instructions.replace(/<[^>]*>/g, ""),
               location: [step.start_location.lng, step.start_location.lat],
             },
@@ -900,9 +894,7 @@ export class MapsService extends BaseExternalService {
     return {
       success: true,
       data: routes,
-      statusCode: 200,
-      metadata: {
-        requestId: `directions-${Date.now()}`,
+      statusCode: 200`,
         duration: 0,
         attempt: 1,
       },
@@ -917,7 +909,7 @@ export class MapsService extends BaseExternalService {
     destinations: Coordinate[],
     options: any,
   ): Promise<ApiResponse<DistanceMatrix>> {
-    const profile = options.profile || this.defaultProfile;
+    const profile = options?.profile || this.defaultProfile;
     const allCoordinates = [...sources, ...destinations];
     const coordinatesString = allCoordinates
       .map((c) => `${c.longitude},${c.latitude}`)
@@ -955,9 +947,7 @@ export class MapsService extends BaseExternalService {
         durations: response.data.durations,
         distances: response.data.distances,
       },
-      statusCode: 200,
-      metadata: {
-        requestId: `matrix-${Date.now()}`,
+      statusCode: 200`,
         duration: 0,
         attempt: 1,
       },
@@ -1001,7 +991,7 @@ export class MapsService extends BaseExternalService {
       }>;
     }>("/distancematrix/json", params);
 
-    if (!response.success || !response.data || response.data.status !== "OK") {
+    if (!response.success || !response?.data || response.data.status !== "OK") {
       throw new Error(
         `Google distance matrix failed: ${response.data?.status}`,
       );
@@ -1029,9 +1019,7 @@ export class MapsService extends BaseExternalService {
         durations,
         distances,
       },
-      statusCode: 200,
-      metadata: {
-        requestId: `matrix-${Date.now()}`,
+      statusCode: 200`,
         duration: 0,
         attempt: 1,
       },
@@ -1046,7 +1034,7 @@ export class MapsService extends BaseExternalService {
     contours: number[],
     options: any,
   ): Promise<ApiResponse<Isochrone[]>> {
-    const profile = options.profile || this.defaultProfile;
+    const profile = options?.profile || this.defaultProfile;
     const coordinateString = `${center.longitude},${center.latitude}`;
 
     const params: Record<string, any> = {
@@ -1081,9 +1069,7 @@ export class MapsService extends BaseExternalService {
     return {
       success: true,
       data: isochrones,
-      statusCode: 200,
-      metadata: {
-        requestId: `isochrones-${Date.now()}`,
+      statusCode: 200`,
         duration: 0,
         attempt: 1,
       },
@@ -1098,7 +1084,7 @@ export class MapsService extends BaseExternalService {
     stops: any[],
     options: any,
   ): Promise<ApiResponse<any>> {
-    const profile = options.profile || this.defaultProfile;
+    const profile = options?.profile || this.defaultProfile;
     const allCoordinates = [depot, ...stops.map((s) => s.coordinates)];
 
     if (options.returnToDepot !== false) {
@@ -1135,7 +1121,7 @@ export class MapsService extends BaseExternalService {
       }>;
     }>(`/optimized-trips/v1/mapbox/${profile}/${coordinatesString}`, params);
 
-    if (!response.success || !response.data || response.data.code !== "Ok") {
+    if (!response.success || !response?.data || response.data.code !== "Ok") {
       throw new Error(`Optimization failed: ${response.data?.code}`);
     }
 
@@ -1157,9 +1143,7 @@ export class MapsService extends BaseExternalService {
         totalDistance: trip.distance,
         totalDuration: trip.duration,
       },
-      statusCode: 200,
-      metadata: {
-        requestId: `optimization-${Date.now()}`,
+      statusCode: 200`,
         duration: 0,
         attempt: 1,
       },
@@ -1228,9 +1212,7 @@ export class MapsService extends BaseExternalService {
         totalDistance: route.distance,
         totalDuration: route.duration,
       },
-      statusCode: 200,
-      metadata: {
-        requestId: `tsp-${Date.now()}`,
+      statusCode: 200`,
         duration: 0,
         attempt: 1,
       },
@@ -1388,12 +1370,12 @@ export class MapsService extends BaseExternalService {
         status: "healthy",
         lastCheck: new Date(),
       };
-    } catch (error) {
+    } catch (error: unknown) {
       return {
         service: `maps-${this.provider}`,
         status: "unhealthy",
         lastCheck: new Date(),
-        details: { error: error.message },
+        details: { error: error instanceof Error ? error?.message : String(error) },
       };
     }
   }

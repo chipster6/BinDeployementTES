@@ -23,7 +23,7 @@
  * Version: 2.0.0
  */
 
-import { Request, Response, NextFunction } from "express";
+import type { Request, Response, NextFunction } from "express";
 import { AppError, errorHandler, gracefulDegradation } from "./errorHandler";
 import { errorRecoveryMiddleware } from "./errorRecoveryMiddleware";
 import { errorOrchestration } from "@/services/ErrorOrchestrationService";
@@ -137,7 +137,7 @@ class EnhancedErrorHandler {
     const context = this.buildErrorContext(req);
     
     logger.info("ENHANCED ERROR PROCESSING INITIATED", {
-      errorMessage: error.message,
+      errorMessage: error instanceof Error ? error?.message : String(error),
       requestId: context.requestId,
       endpoint: context.endpoint,
       method: context.method
@@ -178,8 +178,8 @@ class EnhancedErrorHandler {
     } catch (processingError) {
       logger.error("ENHANCED ERROR PROCESSING FAILED", {
         requestId: context.requestId,
-        processingError: processingError.message,
-        originalError: error.message
+        processingError: processingError?.message,
+        originalError: error instanceof Error ? error?.message : String(error)
       });
 
       // Fallback to basic error handling
@@ -197,7 +197,7 @@ class EnhancedErrorHandler {
     res: Response
   ): Promise<EnhancedErrorResult> {
     const startTime = Date.now();
-    let appError = error instanceof AppError ? error : new AppError(error.message, error.statusCode || 500);
+    let appError = error instanceof AppError ? error : new AppError(error instanceof Error ? error?.message : String(error), error?.statusCode || 500);
     
     // Initialize result
     const result: EnhancedErrorResult = {
@@ -231,7 +231,7 @@ class EnhancedErrorHandler {
 
         // Update error with classification insights
         if (classification.primaryCategory) {
-          appError.code = `${appError.code || "UNKNOWN"}_${classification.primaryCategory}`;
+          appError.code = `${appError?.code || "UNKNOWN"}_${classification.primaryCategory}`;
         }
       }
 
@@ -242,12 +242,7 @@ class EnhancedErrorHandler {
           this.determineSystemLayer(appError),
           {
             operationType: `${context.method}_${context.endpoint}`,
-            affectedResources: [context.endpoint],
-            metadata: {
-              userId: context.userId,
-              organizationId: context.organizationId,
-              businessContext: context.businessContext
-            }
+            affectedResources: [context.endpoint]
           }
         );
         
@@ -296,7 +291,7 @@ class EnhancedErrorHandler {
       if (this.config.enableServiceMeshCoordination && this.isServiceMeshApplicable(appError)) {
         const recoveryRecommendations = await enterpriseErrorRecoveryStrategies.getRecoveryStrategyRecommendations(
           appError,
-          context.systemContext || {
+          context?.systemContext || {
             currentLoad: 50,
             availableCapacity: 80,
             healthScore: 0.9,
@@ -360,8 +355,8 @@ class EnhancedErrorHandler {
 
     } catch (processingError) {
       logger.error("Error during enhanced processing", {
-        processingError: processingError.message,
-        originalError: appError.message,
+        processingError: processingError?.message,
+        originalError: appError?.message,
         requestId: context.requestId
       });
       
@@ -383,8 +378,8 @@ class EnhancedErrorHandler {
       success: false,
       error: {
         id: result.errorId,
-        code: error.code || "INTERNAL_ERROR",
-        message: error.message,
+        code: error?.code || "INTERNAL_ERROR",
+        message: error instanceof Error ? error?.message : String(error),
         classification: result.classificationId,
         recovery: {
           attempted: result.recoveryExecuted,
@@ -395,20 +390,13 @@ class EnhancedErrorHandler {
           threatDetected: result.securityThreatDetected,
           requiresAttention: result.securityThreatDetected && result.escalated
         }
-      },
-      metadata: {
-        requestId: context.requestId,
-        timestamp: context.timestamp.toISOString(),
-        processingTime: result.processingTime,
-        orchestrated: !!result.orchestrationId,
-        analyticsRecorded: result.analyticsRecorded
       }
     };
 
     // Add development details if in development mode
     if (config.app.nodeEnv === "development") {
       (response as any).debug = {
-        stack: error.stack,
+        stack: error instanceof Error ? error?.stack : undefined,
         classification: result.classificationId,
         orchestration: result.orchestrationId,
         businessImpact: result.businessImpactAssessment
@@ -447,7 +435,7 @@ class EnhancedErrorHandler {
                  `req_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
       userId: (req as any).user?.id,
       organizationId: (req as any).user?.organizationId,
-      ip: req.ip || req.connection.remoteAddress || "unknown",
+      ip: req?.ip || req.connection?.remoteAddress || "unknown",
       userAgent: req.get("User-Agent"),
       sessionId: (req as any).sessionID,
       endpoint: req.originalUrl,

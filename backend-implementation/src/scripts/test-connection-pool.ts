@@ -64,7 +64,7 @@ async function testConnectionPoolScaling(): Promise<void> {
     });
 
     databaseMonitoring.on("alert", (alert) => {
-      logger.warn(`🚨 Database Alert [${alert.level}]: ${alert.message}`, alert.context);
+      logger.warn(`🚨 Database Alert [${alert.level}]: ${alert?.message}`, alert.context);
     });
 
     // 5. Simulate load by creating multiple concurrent connections
@@ -140,10 +140,10 @@ async function testConnectionPoolScaling(): Promise<void> {
       logger.info("🧹 Test cleanup completed");
     }, 30000); // Stop monitoring after 30 seconds
 
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error("❌ Connection pool scaling test failed:", {
-      error: error.message,
-      stack: error.stack,
+      error: error instanceof Error ? error?.message : String(error),
+      stack: error instanceof Error ? error?.stack : undefined,
     });
     throw error;
   }
@@ -205,10 +205,10 @@ async function stressTestConnectionPool(): Promise<void> {
       logger.warn("⚠️ STRESS TEST WARNINGS - MONITOR CLOSELY IN PRODUCTION");
     }
 
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error("❌ Connection pool stress test failed:", {
-      error: error.message,
-      stack: error.stack,
+      error: error instanceof Error ? error?.message : String(error),
+      stack: error instanceof Error ? error?.stack : undefined,
     });
     throw error;
   }
@@ -223,7 +223,7 @@ if (require.main === module) {
       
       logger.info("🏁 All connection pool tests completed");
       process.exit(0);
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error("❌ Test suite failed:", error);
       process.exit(1);
     }

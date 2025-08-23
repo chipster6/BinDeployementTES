@@ -155,7 +155,7 @@ export async function checkSecurityServicesHealth() {
       timestamp: new Date().toISOString(),
       version: SECURITY_CONFIG.version,
     };
-  } catch (error) {
+  } catch (error: unknown) {
     return {
       status: "critical",
       services: {
@@ -164,7 +164,7 @@ export async function checkSecurityServicesHealth() {
         incidentResponse: "unknown",
         securityAudit: "unknown",
       },
-      error: error.message,
+      error: error instanceof Error ? error?.message : String(error),
       timestamp: new Date().toISOString(),
       version: SECURITY_CONFIG.version,
     };

@@ -276,16 +276,16 @@ export class ABTestingService extends BaseService<any> {
         message: "Experiment created successfully"
       };
 
-    } catch (error) {
-      timer.end({ error: error.message });
+    } catch (error: unknown) {
+      timer.end({ error: error instanceof Error ? error?.message : String(error) });
       logger.error("ABTestingService.createExperiment failed", {
-        error: error.message
+        error: error instanceof Error ? error?.message : String(error)
       });
 
       return {
         success: false,
         message: "Failed to create experiment",
-        errors: [error.message]
+        errors: [error instanceof Error ? error?.message : String(error)]
       };
     }
   }
@@ -343,17 +343,17 @@ export class ABTestingService extends BaseService<any> {
         message: "Experiment started successfully"
       };
 
-    } catch (error) {
-      timer.end({ error: error.message });
+    } catch (error: unknown) {
+      timer.end({ error: error instanceof Error ? error?.message : String(error) });
       logger.error("ABTestingService.startExperiment failed", {
         experimentId,
-        error: error.message
+        error: error instanceof Error ? error?.message : String(error)
       });
 
       return {
         success: false,
         message: "Failed to start experiment",
-        errors: [error.message]
+        errors: [error instanceof Error ? error?.message : String(error)]
       };
     }
   }
@@ -426,18 +426,18 @@ export class ABTestingService extends BaseService<any> {
         message: "User assigned to experiment variant"
       };
 
-    } catch (error) {
-      timer.end({ error: error.message });
+    } catch (error: unknown) {
+      timer.end({ error: error instanceof Error ? error?.message : String(error) });
       logger.error("ABTestingService.assignUserToExperiment failed", {
         experimentId,
         userId,
-        error: error.message
+        error: error instanceof Error ? error?.message : String(error)
       });
 
       return {
         success: false,
         message: "Failed to assign user to experiment",
-        errors: [error.message]
+        errors: [error instanceof Error ? error?.message : String(error)]
       };
     }
   }
@@ -514,19 +514,19 @@ export class ABTestingService extends BaseService<any> {
         message: "Metric tracked successfully"
       };
 
-    } catch (error) {
-      timer.end({ error: error.message });
+    } catch (error: unknown) {
+      timer.end({ error: error instanceof Error ? error?.message : String(error) });
       logger.error("ABTestingService.trackMetric failed", {
         experimentId,
         userId,
         metricId,
-        error: error.message
+        error: error instanceof Error ? error?.message : String(error)
       });
 
       return {
         success: false,
         message: "Failed to track metric",
-        errors: [error.message]
+        errors: [error instanceof Error ? error?.message : String(error)]
       };
     }
   }
@@ -622,17 +622,17 @@ export class ABTestingService extends BaseService<any> {
         message: "Experiment analysis completed successfully"
       };
 
-    } catch (error) {
-      timer.end({ error: error.message });
+    } catch (error: unknown) {
+      timer.end({ error: error instanceof Error ? error?.message : String(error) });
       logger.error("ABTestingService.analyzeExperimentResults failed", {
         experimentId,
-        error: error.message
+        error: error instanceof Error ? error?.message : String(error)
       });
 
       return {
         success: false,
         message: "Failed to analyze experiment results",
-        errors: [error.message]
+        errors: [error instanceof Error ? error?.message : String(error)]
       };
     }
   }
@@ -703,17 +703,17 @@ export class ABTestingService extends BaseService<any> {
         message: "Experiment stopped successfully"
       };
 
-    } catch (error) {
-      timer.end({ error: error.message });
+    } catch (error: unknown) {
+      timer.end({ error: error instanceof Error ? error?.message : String(error) });
       logger.error("ABTestingService.stopExperiment failed", {
         experimentId,
-        error: error.message
+        error: error instanceof Error ? error?.message : String(error)
       });
 
       return {
         success: false,
         message: "Failed to stop experiment",
-        errors: [error.message]
+        errors: [error instanceof Error ? error?.message : String(error)]
       };
     }
   }
@@ -809,16 +809,16 @@ export class ABTestingService extends BaseService<any> {
         message: "Experiment dashboard data retrieved successfully"
       };
 
-    } catch (error) {
-      timer.end({ error: error.message });
+    } catch (error: unknown) {
+      timer.end({ error: error instanceof Error ? error?.message : String(error) });
       logger.error("ABTestingService.getExperimentDashboard failed", {
-        error: error.message
+        error: error instanceof Error ? error?.message : String(error)
       });
 
       return {
         success: false,
         message: "Failed to get experiment dashboard data",
-        errors: [error.message]
+        errors: [error instanceof Error ? error?.message : String(error)]
       };
     }
   }
@@ -835,11 +835,11 @@ export class ABTestingService extends BaseService<any> {
   ): Promise<{ valid: boolean; errors: string[] }> {
     const errors: string[] = [];
 
-    if (!config.name || config.name.trim().length === 0) {
+    if (!config?.name || config.name.trim().length === 0) {
       errors.push("Experiment name is required");
     }
 
-    if (!config.variants || config.variants.length < 2) {
+    if (!config?.variants || config.variants.length < 2) {
       errors.push("At least 2 variants are required");
     }
 
@@ -855,7 +855,7 @@ export class ABTestingService extends BaseService<any> {
       }
     }
 
-    if (!config.metrics || config.metrics.length === 0) {
+    if (!config?.metrics || config.metrics.length === 0) {
       errors.push("At least one metric is required");
     }
 
@@ -904,7 +904,7 @@ export class ABTestingService extends BaseService<any> {
         alpha,
         beta,
         mde,
-        baselineConversion: primaryMetric.baselineValue || 0.1
+        baselineConversion: primaryMetric?.baselineValue || 0.1
       }
     };
   }
@@ -1460,10 +1460,10 @@ export class ABTestingService extends BaseService<any> {
     for (const experiment of runningExperiments) {
       try {
         await this.analyzeExperimentResults(experiment.id);
-      } catch (error) {
+      } catch (error: unknown) {
         logger.error("Scheduled analysis failed", {
           experimentId: experiment.id,
-          error: error.message
+          error: error instanceof Error ? error?.message : String(error)
         });
       }
     }

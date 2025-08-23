@@ -253,7 +253,7 @@ export class ExternalServiceErrorManager extends EventEmitter {
           operation: queuedOp.operation,
           retryCount: queuedOp.retryCount,
         });
-      } catch (error) {
+      } catch (error: unknown) {
         queuedOp.retryCount++;
 
         if (queuedOp.retryCount >= 5) {
@@ -262,7 +262,7 @@ export class ExternalServiceErrorManager extends EventEmitter {
           logger.error(`Max retries reached for queued operation`, {
             service,
             operation: queuedOp.operation,
-            error: error.message,
+            error: error instanceof Error ? error?.message : String(error),
           });
         }
       }
@@ -440,7 +440,7 @@ export class ExternalServiceErrorManager extends EventEmitter {
     return {
       id: `api_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
       code: `EXTERNAL_API_ERROR_${service.toUpperCase()}`,
-      message: error.message,
+      message: error instanceof Error ? error?.message : String(error),
       severity: this.determineSeverity(service, operation),
       category: ErrorCategory.EXTERNAL_SERVICE,
       timestamp: new Date(),
@@ -453,10 +453,6 @@ export class ExternalServiceErrorManager extends EventEmitter {
       nextRetryIn: isRetryable ? 5000 : undefined,
       circuitBreakerState: "closed",
       fallbackAvailable: this.hasFallbackStrategy(service, operation),
-      metadata: {
-        requestData,
-        originalError: error.constructor.name,
-      },
     };
   }
 
@@ -534,12 +530,12 @@ export class ExternalServiceErrorManager extends EventEmitter {
         service: error.service,
         operation,
         strategy: strategy.type,
-        error: strategyError.message,
+        error: strategyError?.message,
       });
 
       return {
         success: false,
-        shouldQueue: strategy.queueForRetry || false,
+        shouldQueue: strategy?.queueForRetry || false,
         userMessage: "Service temporarily unavailable",
       };
     }
@@ -583,7 +579,7 @@ export class ExternalServiceErrorManager extends EventEmitter {
         };
       }
     } catch (redisError) {
-      logger.warn("Redis cache access failed", { error: redisError.message });
+      logger.warn("Redis cache access failed", { error: redisError?.message });
     }
 
     return {
@@ -744,7 +740,7 @@ export class ExternalServiceErrorManager extends EventEmitter {
       );
     } catch (redisError) {
       logger.warn("Failed to persist service health", {
-        error: redisError.message,
+        error: redisError?.message,
       });
     }
   }
@@ -853,7 +849,7 @@ export class ExternalServiceErrorManager extends EventEmitter {
     logger.warn("Unknown service error handling", {
       service,
       operation,
-      error: error.message,
+      error: error instanceof Error ? error?.message : String(error),
     });
 
     return Promise.resolve({

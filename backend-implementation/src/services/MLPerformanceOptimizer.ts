@@ -12,7 +12,8 @@
  * Version: 1.0.0 - ML Performance Foundation
  */
 
-import { BaseMlService, MLInferenceRequest, MLInferenceResponse } from './BaseMlService';
+import type { MLInferenceRequest, MLInferenceResponse } from './BaseMlService';
+import { BaseMlService } from './BaseMlService';
 import { ServiceResult } from './BaseService';
 import { logger, Timer } from '@/utils/logger';
 import { redisClient } from '@/config/redis';
@@ -109,7 +110,7 @@ export class MLPerformanceOptimizer extends BaseMlService {
     this.trainingQueue = new Bull('ml-training', {
       redis: {
         host: process.env.REDIS_HOST,
-        port: parseInt(process.env.REDIS_PORT || '6379'),
+        port: parseInt(process.env?.REDIS_PORT || '6379'),
       },
       defaultJobOptions: {
         removeOnComplete: 10,
@@ -122,7 +123,7 @@ export class MLPerformanceOptimizer extends BaseMlService {
     this.predictionQueue = new Bull('ml-prediction', {
       redis: {
         host: process.env.REDIS_HOST,
-        port: parseInt(process.env.REDIS_PORT || '6379'),
+        port: parseInt(process.env?.REDIS_PORT || '6379'),
       },
       defaultJobOptions: {
         removeOnComplete: 100,
@@ -218,8 +219,8 @@ export class MLPerformanceOptimizer extends BaseMlService {
         return await this.executeFallbackStrategy(request, 'inference_failed');
       }
 
-    } catch (error) {
-      timer.end({ error: error.message, latency: timer.elapsed() });
+    } catch (error: unknown) {
+      timer.end({ error: error instanceof Error ? error?.message : String(error), latency: timer.elapsed() });
       
       // Error occurred - try fallback
       const fallbackResult = await this.executeFallbackStrategy(request, 'error_occurred');
@@ -227,7 +228,7 @@ export class MLPerformanceOptimizer extends BaseMlService {
       if (!fallbackResult.success) {
         logger.error('All inference strategies failed', {
           requestId,
-          originalError: error.message,
+          originalError: error instanceof Error ? error?.message : String(error),
           totalTime: timer.elapsed()
         });
       }
@@ -254,8 +255,8 @@ export class MLPerformanceOptimizer extends BaseMlService {
 
     try {
       return await Promise.race([inferencePromise, timeoutPromise]);
-    } catch (error) {
-      if (error.message === 'Inference timeout') {
+    } catch (error: unknown) {
+      if (error instanceof Error ? error?.message : String(error) === 'Inference timeout') {
         logger.warn('ML inference timeout', {
           modelId: request.modelId,
           timeBudget: timeBudgetMs
@@ -351,8 +352,8 @@ export class MLPerformanceOptimizer extends BaseMlService {
           scheduledAt: new Date()
         },
         {
-          priority: options.priority || 0,
-          delay: options.delay || 0,
+          priority: options?.priority || 0,
+          delay: options?.delay || 0,
         }
       );
 
@@ -361,16 +362,16 @@ export class MLPerformanceOptimizer extends BaseMlService {
         data: { jobId: job.id.toString() },
         message: 'Async inference scheduled successfully'
       };
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('Failed to schedule async inference', {
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
         modelId: request.modelId
       });
 
       return {
         success: false,
         message: 'Failed to schedule async inference',
-        errors: [error.message]
+        errors: [error instanceof Error ? error?.message : String(error)]
       };
     }
   }
@@ -419,13 +420,13 @@ export class MLPerformanceOptimizer extends BaseMlService {
         data: { warmedCount },
         message: `Cache warmed with ${warmedCount} predictions`
       };
-    } catch (error) {
-      timer.end({ error: error.message, warmedCount });
+    } catch (error: unknown) {
+      timer.end({ error: error instanceof Error ? error?.message : String(error), warmedCount });
 
       return {
         success: false,
         message: 'Cache warmup failed',
-        errors: [error.message]
+        errors: [error instanceof Error ? error?.message : String(error)]
       };
     }
   }
@@ -443,11 +444,11 @@ export class MLPerformanceOptimizer extends BaseMlService {
         data: this.performanceMetrics,
         message: 'Performance metrics retrieved successfully'
       };
-    } catch (error) {
+    } catch (error: unknown) {
       return {
         success: false,
         message: 'Failed to retrieve performance metrics',
-        errors: [error.message]
+        errors: [error instanceof Error ? error?.message : String(error)]
       };
     }
   }
@@ -569,10 +570,10 @@ export class MLPerformanceOptimizer extends BaseMlService {
       }
       
       return result;
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('Async prediction job failed', {
         jobId: job.id,
-        error: error.message
+        error: error instanceof Error ? error?.message : String(error)
       });
       throw error;
     }

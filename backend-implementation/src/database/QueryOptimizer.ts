@@ -23,7 +23,7 @@ import { EventEmitter } from 'events';
 import { sequelize } from '@/config/database';
 import { redisClient } from '@/config/redis';
 import { logger } from '@/utils/logger';
-import { QueryTypes, Op } from 'sequelize';
+import { QueryTypes, type Op } from 'sequelize';
 import { databasePerformanceMonitor } from './performance-monitor';
 
 /**
@@ -277,12 +277,12 @@ export class QueryOptimizer extends EventEmitter {
       }
 
       return { success: true, result };
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('Failed to apply optimization', {
         recommendationId,
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
       });
-      return { success: false, error: error.message };
+      return { success: false, error: error instanceof Error ? error?.message : String(error) };
     }
   }
 
@@ -324,7 +324,7 @@ export class QueryOptimizer extends EventEmitter {
       
       // Add to query buffer for N+1 detection
       queryBuffer.push({
-        sql: options.sql || '',
+        sql: options?.sql || '',
         timestamp: Date.now(),
       });
 
@@ -335,13 +335,13 @@ export class QueryOptimizer extends EventEmitter {
     });
 
     sequelize.addHook('afterQuery', (options: any) => {
-      const duration = Date.now() - (options._optimizerStartTime || Date.now());
-      const sql = options.sql || '';
+      const duration = Date.now() - (options?._optimizerStartTime || Date.now());
+      const sql = options?.sql || '';
 
       // Update query buffer with duration
       const query = queryBuffer.find(q => 
         q.sql === sql && 
-        Math.abs(q.timestamp - (options._optimizerStartTime || 0)) < 100
+        Math.abs(q.timestamp - (options?._optimizerStartTime || 0)) < 100
       );
       if (query) {
         query.duration = duration;
@@ -350,7 +350,7 @@ export class QueryOptimizer extends EventEmitter {
       // Analyze if slow query
       if (duration > this.SLOW_QUERY_THRESHOLD) {
         this.analyzeQuery(sql, duration, options).catch(error => {
-          logger.warn('Query analysis failed', { error: error.message });
+          logger.warn('Query analysis failed', { error: error instanceof Error ? error?.message : String(error) });
         });
       }
 
@@ -379,7 +379,7 @@ export class QueryOptimizer extends EventEmitter {
 
     if (similarQueries.length >= this.NPLUS_ONE_THRESHOLD) {
       const patternId = this.hashQuery(normalizedQuery);
-      const totalDuration = similarQueries.reduce((sum, q) => sum + (q.duration || 0), 0);
+      const totalDuration = similarQueries.reduce((sum, q) => sum + (q?.duration || 0), 0);
       
       let severity: 'low' | 'medium' | 'high' | 'critical' = 'low';
       if (similarQueries.length > 20) severity = 'critical';
@@ -446,8 +446,8 @@ export class QueryOptimizer extends EventEmitter {
           await this.analyzeQuery(slowQuery.sql, slowQuery.avgDuration);
         }
       }
-    } catch (error) {
-      logger.error('Query analysis failed', { error: error.message });
+    } catch (error: unknown) {
+      logger.error('Query analysis failed', { error: error instanceof Error ? error?.message : String(error) });
     }
   }
 
@@ -479,8 +479,8 @@ export class QueryOptimizer extends EventEmitter {
       const explainQuery = `EXPLAIN (ANALYZE, BUFFERS, FORMAT JSON) ${sql}`;
       const result = await sequelize.query(explainQuery, { type: QueryTypes.SELECT });
       return result[0];
-    } catch (error) {
-      logger.debug('Could not get execution plan', { error: error.message });
+    } catch (error: unknown) {
+      logger.debug('Could not get execution plan', { error: error instanceof Error ? error?.message : String(error) });
       return null;
     }
   }

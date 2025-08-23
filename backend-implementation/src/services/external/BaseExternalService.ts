@@ -202,7 +202,7 @@ export abstract class BaseExternalService {
       },
       (error) => {
         logger.error(`${this.serviceName} Request Error`, {
-          error: error.message,
+          error: error instanceof Error ? error?.message : String(error),
         });
         return Promise.reject(error);
       },
@@ -223,7 +223,7 @@ export abstract class BaseExternalService {
         logger.error(`${this.serviceName} Response Error`, {
           status: error.response?.status,
           url: error.config?.url,
-          message: error.message,
+          message: error instanceof Error ? error?.message : String(error),
           data: error.response?.data,
         });
 
@@ -258,7 +258,7 @@ export abstract class BaseExternalService {
       } catch (meshError) {
         logger.warn("Service mesh request failed, falling back to direct request", {
           serviceName: this.serviceName,
-          error: meshError.message
+          error: meshError?.message
         });
         // Continue with direct request as fallback
       }
@@ -309,19 +309,9 @@ export abstract class BaseExternalService {
         success: true,
         data: result.data,
         statusCode: 200,
-        metadata: {
-          requestId,
-          duration,
-          attempt: 1,
-          serviceMeshNodeId: result.provider || result.nodeId,
-          fallbackUsed: result.fallback || false,
-          fallbackStrategy: result.strategy,
-          costImpact: result.costImpact || 0,
-          degradationLevel: result.degradationLevel || "none"
-        },
       };
 
-    } catch (error) {
+    } catch (error: unknown) {
       // If service mesh fails, try advanced fallback if enabled
       if (this.config.enableAdvancedFallback && options.useAdvancedFallback !== false) {
         return await this.executeAdvancedFallback<T>(
@@ -350,7 +340,7 @@ export abstract class BaseExternalService {
     requestId: string
   ): Promise<ApiResponse<T>> {
     let attempt = 0;
-    const maxAttempts = options.retries || this.config.retryAttempts || 3;
+    const maxAttempts = options?.retries || this.config?.retryAttempts || 3;
 
     try {
       // Check circuit breaker
@@ -370,7 +360,7 @@ export abstract class BaseExternalService {
           const requestConfig: AxiosRequestConfig = {
             method,
             url: endpoint,
-            timeout: options.timeout || this.config.timeout,
+            timeout: options?.timeout || this.config.timeout,
             metadata: options.metadata,
           };
 
@@ -407,15 +397,8 @@ export abstract class BaseExternalService {
             data: response.data,
             statusCode: response.status,
             headers: response.headers,
-            metadata: {
-              requestId,
-              duration,
-              attempt,
-              fallbackUsed: false,
-              degradationLevel: "none"
-            },
           };
-        } catch (error) {
+        } catch (error: unknown) {
           const axiosError = error as AxiosError;
           const isRetryableError = this.isRetryableError(axiosError);
 
@@ -431,7 +414,7 @@ export abstract class BaseExternalService {
             options.skipRetry
           ) {
             const duration = timer.end({
-              error: axiosError.message,
+              error: axiosError?.message,
               attempt,
               statusCode: axiosError.response?.status,
             });
@@ -457,8 +440,8 @@ export abstract class BaseExternalService {
               } catch (fallbackError) {
                 logger.error("Advanced fallback failed", {
                   serviceName: this.serviceName,
-                  originalError: serviceError.message,
-                  fallbackError: fallbackError.message
+                  originalError: serviceError?.message,
+                  fallbackError: fallbackError?.message
                 });
               }
             }
@@ -476,16 +459,8 @@ export abstract class BaseExternalService {
                 return {
                   success: false,
                   data: fallbackResult,
-                  error: serviceError.message,
+                  error: serviceError?.message,
                   statusCode: serviceError.statusCode,
-                  metadata: {
-                    requestId,
-                    duration,
-                    attempt,
-                    fallbackUsed: true,
-                    fallbackStrategy: "basic_graceful_degradation",
-                    degradationLevel: "moderate"
-                  },
                 };
               } catch (degradationError) {
                 // Graceful degradation failed, continue with original error
@@ -503,18 +478,18 @@ export abstract class BaseExternalService {
             attempt,
             maxAttempts,
             delay,
-            error: axiosError.message,
+            error: axiosError?.message,
           });
         }
       }
-    } catch (error) {
-      timer.end({ error: error.message });
+    } catch (error: unknown) {
+      timer.end({ error: error instanceof Error ? error?.message : String(error) });
 
       if (error instanceof ExternalServiceError) {
         throw error;
       }
 
-      throw new ExternalServiceError(this.serviceName, error.message);
+      throw new ExternalServiceError(this.serviceName, error instanceof Error ? error?.message : String(error));
     }
 
     // This should never be reached
@@ -540,7 +515,7 @@ export abstract class BaseExternalService {
       serviceName: this.serviceName,
       method,
       endpoint,
-      error: error.message
+      error: error instanceof Error ? error?.message : String(error)
     });
 
     // Create fallback context
@@ -549,14 +524,6 @@ export abstract class BaseExternalService {
       operation: `${method}:${endpoint}`,
       originalRequest: { method, endpoint, data, options },
       error,
-      metadata: {
-        requestId,
-        userId: options.metadata?.userId,
-        organizationId: options.metadata?.organizationId,
-        timestamp: new Date(),
-        retryCount: options.retries || this.config.retryAttempts || 3,
-        maxRetries: options.retries || this.config.retryAttempts || 3
-      },
       businessContext: options.businessContext
     };
 
@@ -572,24 +539,15 @@ export abstract class BaseExternalService {
       return {
         success: fallbackResult.success,
         data: fallbackResult.data,
-        error: fallbackResult.success ? undefined : error.message,
-        statusCode: fallbackResult.success ? 200 : (error.statusCode || 503),
-        metadata: {
-          requestId,
-          duration,
-          attempt: fallbackContext.metadata.retryCount,
-          fallbackUsed: true,
-          fallbackStrategy: fallbackResult.strategy.strategyId,
-          costImpact: fallbackResult.metadata.costImpact,
-          degradationLevel: fallbackResult.metadata.degradationLevel
-        },
+        error: fallbackResult.success ? undefined : error instanceof Error ? error?.message : String(error),
+        statusCode: fallbackResult.success ? 200 : (error?.statusCode || 503),
       };
 
     } catch (fallbackError) {
       logger.error("Advanced fallback execution failed", {
         serviceName: this.serviceName,
-        originalError: error.message,
-        fallbackError: fallbackError.message
+        originalError: error instanceof Error ? error?.message : String(error),
+        fallbackError: fallbackError?.message
       });
       
       throw error; // Return original error if fallback fails
@@ -671,15 +629,11 @@ export abstract class BaseExternalService {
         serviceType: this.getServiceType(),
         region: this.config.regions?.[0] || 'us-east-1',
         endpoint: this.config.baseURL,
-        healthCheckEndpoint: this.config.healthCheckEndpoint || `${this.config.baseURL}/health`,
-        priority: this.config.servicePriority || ServicePriority.MEDIUM,
-        businessCriticality: this.config.businessCriticality || BusinessCriticality.PERFORMANCE_OPTIMIZATION,
+        healthCheckEndpoint: this.config?.healthCheckEndpoint || `${this.config.baseURL}/health`,
+        priority: this.config?.servicePriority || ServicePriority.MEDIUM,
+        businessCriticality: this.config?.businessCriticality || BusinessCriticality.PERFORMANCE_OPTIMIZATION,
         capabilities: this.getServiceCapabilities(),
-        dependencies: [],
-        metadata: {
-          version: "1.0.0",
-          environment: process.env.NODE_ENV || "development",
-          deploymentId: `${this.serviceName}-deployment-001`,
+        dependencies: []-deployment-001`,
           lastHealthCheck: new Date(),
           uptime: 100,
           requestCount: 0,
@@ -687,15 +641,15 @@ export abstract class BaseExternalService {
         },
         config: {
           maxConcurrentConnections: 50,
-          timeout: this.config.timeout || 10000,
+          timeout: this.config?.timeout || 10000,
           retryPolicy: {
-            maxRetries: this.config.retryAttempts || 3,
+            maxRetries: this.config?.retryAttempts || 3,
             backoffMultiplier: 2,
             maxBackoffMs: 10000
           },
           circuitBreaker: {
-            threshold: this.config.circuitBreakerThreshold || 5,
-            timeout: this.config.circuitBreakerTimeout || 30000,
+            threshold: this.config?.circuitBreakerThreshold || 5,
+            timeout: this.config?.circuitBreakerTimeout || 30000,
             monitoringPeriod: 60000
           }
         }
@@ -708,10 +662,10 @@ export abstract class BaseExternalService {
         businessCriticality: this.config.businessCriticality
       });
 
-    } catch (error) {
+    } catch (error: unknown) {
       logger.warn("Failed to register service with service mesh", {
         serviceName: this.serviceName,
-        error: error.message
+        error: error instanceof Error ? error?.message : String(error)
       });
     }
   }
@@ -756,10 +710,10 @@ export abstract class BaseExternalService {
           healthyNodes: meshStatus.healthyNodes,
           openCircuitBreakers: meshStatus.openCircuitBreakers
         };
-      } catch (error) {
+      } catch (error: unknown) {
         logger.warn("Failed to get service mesh health", {
           serviceName: this.serviceName,
-          error: error.message
+          error: error instanceof Error ? error?.message : String(error)
         });
       }
     }
@@ -775,10 +729,10 @@ export abstract class BaseExternalService {
           healthyProviders: serviceStrategies.reduce((sum: number, strategy: any) => sum + strategy.healthyProviders, 0),
           totalProviders: serviceStrategies.reduce((sum: number, strategy: any) => sum + strategy.totalProviders, 0)
         };
-      } catch (error) {
+      } catch (error: unknown) {
         logger.warn("Failed to get fallback strategies health", {
           serviceName: this.serviceName,
-          error: error.message
+          error: error instanceof Error ? error?.message : String(error)
         });
       }
     }
@@ -808,11 +762,7 @@ export abstract class BaseExternalService {
     const options: ApiRequestOptions = {
       useServiceMesh: true,
       useAdvancedFallback: true,
-      businessContext,
-      metadata: {
-        userId: businessContext?.userId,
-        organizationId: businessContext?.organizationId
-      }
+      businessContext
     };
 
     // Adjust timeouts based on business context
@@ -828,7 +778,7 @@ export abstract class BaseExternalService {
           break;
         case "low":
           options.timeout = this.config.timeout ? this.config.timeout * 1.5 : 15000; // More time for low priority
-          options.retries = this.config.retryAttempts || 3;
+          options.retries = this.config?.retryAttempts || 3;
           break;
       }
 
@@ -869,13 +819,13 @@ export abstract class BaseExternalService {
           );
         }
       }
-    } catch (error) {
+    } catch (error: unknown) {
       if (error instanceof ExternalServiceError) {
         throw error;
       }
       // If Redis is down, just log and continue
       logger.warn(`Circuit breaker check failed for ${this.serviceName}`, {
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
       });
     }
   }
@@ -897,9 +847,9 @@ export abstract class BaseExternalService {
         300, // 5 minutes
         JSON.stringify(circuit),
       );
-    } catch (error) {
+    } catch (error: unknown) {
       logger.warn(`Failed to record success for ${this.serviceName}`, {
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
       });
     }
   }
@@ -927,10 +877,10 @@ export abstract class BaseExternalService {
       circuit.lastFailureTime = Date.now();
 
       // Open circuit if threshold reached
-      if (circuit.failureCount >= (this.config.circuitBreakerThreshold || 5)) {
+      if (circuit.failureCount >= (this.config?.circuitBreakerThreshold || 5)) {
         circuit.state = CircuitState.OPEN;
         circuit.nextRetryTime =
-          Date.now() + (this.config.circuitBreakerTimeout || 30000);
+          Date.now() + (this.config?.circuitBreakerTimeout || 30000);
       }
 
       await redisClient.setex(
@@ -938,9 +888,9 @@ export abstract class BaseExternalService {
         300, // 5 minutes
         JSON.stringify(circuit),
       );
-    } catch (error) {
+    } catch (error: unknown) {
       logger.warn(`Failed to record failure for ${this.serviceName}`, {
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
       });
     }
   }
@@ -964,13 +914,13 @@ export abstract class BaseExternalService {
           `Rate limit exceeded (${requests} requests per ${window}s)`,
         );
       }
-    } catch (error) {
+    } catch (error: unknown) {
       if (error instanceof ExternalServiceError) {
         throw error;
       }
       // If Redis is down, just log and continue
       logger.warn(`Rate limit check failed for ${this.serviceName}`, {
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
       });
     }
   }
@@ -999,7 +949,7 @@ export abstract class BaseExternalService {
    * Calculate retry delay with exponential backoff
    */
   private calculateRetryDelay(attempt: number): number {
-    const baseDelay = this.config.retryDelay || 1000;
+    const baseDelay = this.config?.retryDelay || 1000;
     return baseDelay * Math.pow(2, attempt - 1) + Math.random() * 1000;
   }
 
@@ -1050,7 +1000,7 @@ export abstract class BaseExternalService {
     } else if (error.request) {
       return "Network error: No response received";
     } else {
-      return `Request error: ${error.message}`;
+      return `Request error: ${error instanceof Error ? error?.message : String(error)}`;
     }
   }
 
@@ -1084,7 +1034,7 @@ export abstract class BaseExternalService {
         circuitBreaker: circuit,
         lastCheck: new Date(),
       };
-    } catch (error) {
+    } catch (error: unknown) {
       return {
         service: this.serviceName,
         status: "unhealthy",

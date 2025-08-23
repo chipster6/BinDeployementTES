@@ -26,10 +26,10 @@ import { MLModelManagementService } from "@/services/ai/MLModelManagementService
 import { ErrorAnalyticsService } from "@/services/ai/ErrorAnalyticsService";
 import { ErrorCoordinationService } from "@/services/ai/ErrorCoordinationService";
 
-import { IErrorPredictionEngine } from "@/interfaces/ai/IErrorPredictionEngine";
-import { IMLModelManager } from "@/interfaces/ai/IMLModelManager";
-import { IErrorAnalytics } from "@/interfaces/ai/IErrorAnalytics";
-import { IErrorCoordination } from "@/interfaces/ai/IErrorCoordination";
+import type { IErrorPredictionEngine } from "@/interfaces/ai/IErrorPredictionEngine";
+import type { IMLModelManager } from "@/interfaces/ai/IMLModelManager";
+import type { IErrorAnalytics } from "@/interfaces/ai/IErrorAnalytics";
+import type { IErrorCoordination } from "@/interfaces/ai/IErrorCoordination";
 
 /**
  * Validation result for individual service
@@ -143,9 +143,9 @@ export class BaseServiceValidator {
 
       return summary;
 
-    } catch (error) {
-      logger.error("BaseService validation failed", { error: error.message });
-      throw new Error(`BaseService validation failed: ${error.message}`);
+    } catch (error: unknown) {
+      logger.error("BaseService validation failed", { error: error instanceof Error ? error?.message : String(error) });
+      throw new Error(`BaseService validation failed: ${error instanceof Error ? error?.message : String(error)}`);
     }
   }
 
@@ -209,9 +209,9 @@ export class BaseServiceValidator {
 
       return result;
 
-    } catch (error) {
-      logger.error(`Service validation failed for ${serviceName}`, { error: error.message });
-      result.hubRequirements.issues.push(`Validation error: ${error.message}`);
+    } catch (error: unknown) {
+      logger.error(`Service validation failed for ${serviceName}`, { error: error instanceof Error ? error?.message : String(error) });
+      result.hubRequirements.issues.push(`Validation error: ${error instanceof Error ? error?.message : String(error)}`);
       return result;
     }
   }
@@ -244,8 +244,8 @@ export class BaseServiceValidator {
       // Check interface implementation (duck typing validation)
       validation.implementsInterface = this.validateInterfaceMethods(serviceInstance, serviceConfig.interface);
 
-    } catch (error) {
-      logger.warn(`Class structure validation error for ${serviceConfig.name}`, { error: error.message });
+    } catch (error: unknown) {
+      logger.warn(`Class structure validation error for ${serviceConfig.name}`, { error: error instanceof Error ? error?.message : String(error) });
     }
 
     return validation;
@@ -281,8 +281,8 @@ export class BaseServiceValidator {
       // Check timer integration for performance monitoring
       validation.hasTimerIntegration = this.hasTimerIntegration(serviceInstance);
 
-    } catch (error) {
-      logger.warn(`Performance validation error for ${serviceInstance.serviceName}`, { error: error.message });
+    } catch (error: unknown) {
+      logger.warn(`Performance validation error for ${serviceInstance.serviceName}`, { error: error instanceof Error ? error?.message : String(error) });
     }
 
     return validation;
@@ -309,8 +309,8 @@ export class BaseServiceValidator {
       // Check service container integration
       validation.serviceContainerIntegration = await this.validateServiceContainerIntegration(serviceConfig);
 
-    } catch (error) {
-      logger.warn(`Dependency injection validation error for ${serviceConfig.name}`, { error: error.message });
+    } catch (error: unknown) {
+      logger.warn(`Dependency injection validation error for ${serviceConfig.name}`, { error: error instanceof Error ? error?.message : String(error) });
     }
 
     return validation;
@@ -340,8 +340,8 @@ export class BaseServiceValidator {
       // Check async return types (Promise-based)
       validation.returnTypes = this.validateReturnTypes(serviceInstance, interfaceRequirements);
 
-    } catch (error) {
-      logger.warn(`Interface compliance validation error for ${serviceConfig.name}`, { error: error.message });
+    } catch (error: unknown) {
+      logger.warn(`Interface compliance validation error for ${serviceConfig.name}`, { error: error instanceof Error ? error?.message : String(error) });
     }
 
     return validation;
@@ -539,7 +539,7 @@ export class BaseServiceValidator {
     try {
       // Check if service can resolve its dependencies (if any)
       return serviceInstance instanceof BaseService;
-    } catch (error) {
+    } catch (error: unknown) {
       return false;
     }
   }
@@ -549,7 +549,7 @@ export class BaseServiceValidator {
       // Check if service can be retrieved from container
       const instance = serviceConfig.containerGetter();
       return instance !== null && instance !== undefined;
-    } catch (error) {
+    } catch (error: unknown) {
       return false;
     }
   }

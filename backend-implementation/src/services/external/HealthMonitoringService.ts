@@ -288,15 +288,15 @@ export class HealthMonitoringService extends BaseService<any> {
         message: "Health monitoring started for all services"
       };
       
-    } catch (error) {
-      timer.end({ error: error.message });
+    } catch (error: unknown) {
+      timer.end({ error: error instanceof Error ? error?.message : String(error) });
       logger.error('Error starting health monitoring', {
-        error: error.message
+        error: error instanceof Error ? error?.message : String(error)
       });
       
       return {
         success: false,
-        message: `Failed to start health monitoring: ${error.message}`
+        message: `Failed to start health monitoring: ${error instanceof Error ? error?.message : String(error)}`
       };
     }
   }
@@ -364,16 +364,16 @@ export class HealthMonitoringService extends BaseService<any> {
         message: `Health check completed for ${serviceName}`
       };
       
-    } catch (error) {
-      timer.end({ error: error.message });
+    } catch (error: unknown) {
+      timer.end({ error: error instanceof Error ? error?.message : String(error) });
       logger.error('Error performing health check', {
         service: serviceName,
-        error: error.message
+        error: error instanceof Error ? error?.message : String(error)
       });
       
       return {
         success: false,
-        message: `Health check failed for ${serviceName}: ${error.message}`
+        message: `Health check failed for ${serviceName}: ${error instanceof Error ? error?.message : String(error)}`
       };
     }
   }
@@ -437,15 +437,15 @@ export class HealthMonitoringService extends BaseService<any> {
         message: "Health overview generated successfully"
       };
       
-    } catch (error) {
-      timer.end({ error: error.message });
+    } catch (error: unknown) {
+      timer.end({ error: error instanceof Error ? error?.message : String(error) });
       logger.error('Error generating health overview', {
-        error: error.message
+        error: error instanceof Error ? error?.message : String(error)
       });
       
       return {
         success: false,
-        message: `Failed to generate health overview: ${error.message}`
+        message: `Failed to generate health overview: ${error instanceof Error ? error?.message : String(error)}`
       };
     }
   }
@@ -530,17 +530,17 @@ export class HealthMonitoringService extends BaseService<any> {
         message: `Incident ${incidentId} created for ${service}`
       };
       
-    } catch (error) {
-      timer.end({ error: error.message });
+    } catch (error: unknown) {
+      timer.end({ error: error instanceof Error ? error?.message : String(error) });
       logger.error('Error creating incident', {
         service,
         type,
-        error: error.message
+        error: error instanceof Error ? error?.message : String(error)
       });
       
       return {
         success: false,
-        message: `Failed to create incident: ${error.message}`
+        message: `Failed to create incident: ${error instanceof Error ? error?.message : String(error)}`
       };
     }
   }
@@ -603,16 +603,16 @@ export class HealthMonitoringService extends BaseService<any> {
         message: `Predictive analysis completed for ${service}`
       };
       
-    } catch (error) {
-      timer.end({ error: error.message });
+    } catch (error: unknown) {
+      timer.end({ error: error instanceof Error ? error?.message : String(error) });
       logger.error('Error in predictive health analysis', {
         service,
-        error: error.message
+        error: error instanceof Error ? error?.message : String(error)
       });
       
       return {
         success: false,
-        message: `Predictive analysis failed for ${service}: ${error.message}`
+        message: `Predictive analysis failed for ${service}: ${error instanceof Error ? error?.message : String(error)}`
       };
     }
   }
@@ -777,9 +777,9 @@ export class HealthMonitoringService extends BaseService<any> {
     setInterval(async () => {
       try {
         await this.generateAggregatedReport();
-      } catch (error) {
+      } catch (error: unknown) {
         logger.error('Error in aggregated reporting', {
-          error: error.message
+          error: error instanceof Error ? error?.message : String(error)
         });
       }
     }, 300000); // Every 5 minutes
@@ -794,9 +794,9 @@ export class HealthMonitoringService extends BaseService<any> {
     setInterval(async () => {
       try {
         await this.checkSLACompliance();
-      } catch (error) {
+      } catch (error: unknown) {
         logger.error('Error in SLA monitoring', {
-          error: error.message
+          error: error instanceof Error ? error?.message : String(error)
         });
       }
     }, 600000); // Every 10 minutes
@@ -813,9 +813,9 @@ export class HealthMonitoringService extends BaseService<any> {
         for (const serviceName of this.healthConfigs.keys()) {
           await this.analyzePredictiveHealth(serviceName);
         }
-      } catch (error) {
+      } catch (error: unknown) {
         logger.error('Error in predictive analysis', {
-          error: error.message
+          error: error instanceof Error ? error?.message : String(error)
         });
       }
     }, 900000); // Every 15 minutes
@@ -830,9 +830,9 @@ export class HealthMonitoringService extends BaseService<any> {
     setInterval(async () => {
       try {
         await this.processActiveIncidents();
-      } catch (error) {
+      } catch (error: unknown) {
         logger.error('Error in incident management', {
-          error: error.message
+          error: error instanceof Error ? error?.message : String(error)
         });
       }
     }, 60000); // Every minute

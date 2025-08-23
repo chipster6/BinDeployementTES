@@ -194,14 +194,14 @@ export class DatabaseRecoveryService extends EventEmitter {
       }
 
       // Execute operation with timeout
-      const timeout = options.timeout || this.recoveryConfig.queryTimeoutMs;
+      const timeout = options?.timeout || this.recoveryConfig.queryTimeoutMs;
       const result = await this.executeWithTimeout(operation, timeout);
 
       // Record success
       this.recordSuccess(Date.now() - startTime);
 
       return result;
-    } catch (error) {
+    } catch (error: unknown) {
       const duration = Date.now() - startTime;
       await this.handleOperationFailure(error, operationType, duration);
 
@@ -260,9 +260,9 @@ export class DatabaseRecoveryService extends EventEmitter {
       }
 
       return true;
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error("Database connection check failed", {
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
       });
       await this.handleConnectionFailure(error);
       return false;
@@ -300,10 +300,10 @@ export class DatabaseRecoveryService extends EventEmitter {
     try {
       const cached = await redisClient.get(`db_fallback:${key}`);
       return cached ? JSON.parse(cached) : null;
-    } catch (error) {
+    } catch (error: unknown) {
       logger.warn("Failed to get cached fallback", {
         key,
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
       });
       return null;
     }
@@ -323,10 +323,10 @@ export class DatabaseRecoveryService extends EventEmitter {
         ttlSeconds,
         JSON.stringify(data),
       );
-    } catch (error) {
+    } catch (error: unknown) {
       logger.warn("Failed to set cached fallback", {
         key,
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
       });
     }
   }
@@ -412,7 +412,7 @@ export class DatabaseRecoveryService extends EventEmitter {
       logger.error("Database circuit breaker opened", {
         failureCount: this.circuitBreaker.failureCount,
         operationType,
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
       });
 
       this.emit("circuitBreakerOpened", {
@@ -445,7 +445,7 @@ export class DatabaseRecoveryService extends EventEmitter {
 
     if (wasHealthy) {
       logger.error("Database connection became unhealthy", {
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
       });
       this.emit("connectionUnhealthy", error);
     }
@@ -492,9 +492,9 @@ export class DatabaseRecoveryService extends EventEmitter {
         // Success - transition to healthy state
         await this.transitionToHealthy();
         break;
-      } catch (error) {
+      } catch (error: unknown) {
         logger.warn(`Database recovery attempt ${attempt} failed`, {
-          error: error.message,
+          error: error instanceof Error ? error?.message : String(error),
           nextDelay: delay * this.recoveryConfig.backoffMultiplier,
         });
 
@@ -549,7 +549,7 @@ export class DatabaseRecoveryService extends EventEmitter {
       try {
         const result = await operation();
         resolve(result);
-      } catch (error) {
+      } catch (error: unknown) {
         reject(error);
       }
     }
@@ -567,7 +567,7 @@ export class DatabaseRecoveryService extends EventEmitter {
       skipCircuitBreaker?: boolean;
     },
   ): Promise<T> {
-    const maxRetries = options.retries || this.recoveryConfig.maxRetries;
+    const maxRetries = options?.retries || this.recoveryConfig.maxRetries;
 
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
       try {
@@ -580,7 +580,7 @@ export class DatabaseRecoveryService extends EventEmitter {
           ...options,
           retries: 0, // Prevent nested retries
         });
-      } catch (error) {
+      } catch (error: unknown) {
         if (attempt === maxRetries) {
           throw error;
         }
@@ -589,7 +589,7 @@ export class DatabaseRecoveryService extends EventEmitter {
           `Database operation retry ${attempt}/${maxRetries} failed`,
           {
             operationType,
-            error: error.message,
+            error: error instanceof Error ? error?.message : String(error),
           },
         );
       }
@@ -668,7 +668,7 @@ export class DatabaseRecoveryService extends EventEmitter {
     }
 
     return new DatabaseOperationError(
-      `Database operation failed: ${error.message}`,
+      `Database operation failed: ${error instanceof Error ? error?.message : String(error)}`,
       "operation",
     );
   }
@@ -704,7 +704,7 @@ export class DatabaseRecoveryService extends EventEmitter {
         this.connectionState = ConnectionState.HEALTHY;
         this.emit("connectionImproved");
       }
-    } catch (error) {
+    } catch (error: unknown) {
       await this.handleConnectionFailure(error);
     }
   }
@@ -718,17 +718,17 @@ export class DatabaseRecoveryService extends EventEmitter {
       const pool = (database as any).connectionManager?.pool;
 
       if (pool) {
-        this.healthMetrics.connectionCount = pool.size || 0;
-        this.healthMetrics.activeConnections = pool.borrowed || 0;
-        this.healthMetrics.idleConnections = pool.available || 0;
-        this.healthMetrics.waitingClients = pool.pending || 0;
+        this.healthMetrics.connectionCount = pool?.size || 0;
+        this.healthMetrics.activeConnections = pool?.borrowed || 0;
+        this.healthMetrics.idleConnections = pool?.available || 0;
+        this.healthMetrics.waitingClients = pool?.pending || 0;
       }
 
       this.healthMetrics.totalConnections =
         this.healthMetrics.activeConnections +
         this.healthMetrics.idleConnections;
-    } catch (error) {
-      logger.warn("Failed to update health metrics", { error: error.message });
+    } catch (error: unknown) {
+      logger.warn("Failed to update health metrics", { error: error instanceof Error ? error?.message : String(error) });
     }
   }
 

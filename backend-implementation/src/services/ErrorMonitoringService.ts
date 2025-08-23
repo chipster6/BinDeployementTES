@@ -237,7 +237,7 @@ export class ErrorMonitoringService extends EventEmitter {
       logger.info("Error resolved", {
         errorId,
         resolution,
-        originalError: errorEvent.error.message,
+        originalError: errorEvent.error instanceof Error ? error?.message : String(error),
       });
 
       return true;
@@ -262,7 +262,7 @@ export class ErrorMonitoringService extends EventEmitter {
       resolved: recentErrors.filter((e) => e.resolved).length,
       bySeverity: this.groupBy(recentErrors, "severity"),
       byCategory: this.groupBy(recentErrors, "category"),
-      byErrorCode: this.groupBy(recentErrors, (e) => e.error.code || "UNKNOWN"),
+      byErrorCode: this.groupBy(recentErrors, (e) => e.error?.code || "UNKNOWN"),
       trends: await this.calculateTrends(timeRange),
       patterns: Array.from(this.errorPatterns.values()).filter(
         (pattern) => pattern.lastOccurrence.getTime() >= since,
@@ -463,18 +463,18 @@ export class ErrorMonitoringService extends EventEmitter {
       const data = {
         ...errorEvent,
         error: {
-          message: errorEvent.error.message,
+          message: errorEvent.error instanceof Error ? error?.message : String(error),
           code: errorEvent.error.code,
           statusCode: errorEvent.error.statusCode,
-          stack: errorEvent.error.stack,
+          stack: errorEvent.error instanceof Error ? error?.stack : undefined,
         },
       };
 
       await redisClient.setex(key, 86400, JSON.stringify(data)); // 24 hours TTL
-    } catch (error) {
+    } catch (error: unknown) {
       logger.warn("Failed to persist error to Redis", {
         errorId: errorEvent.id,
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
       });
     }
   }
@@ -526,7 +526,7 @@ export class ErrorMonitoringService extends EventEmitter {
    * Generate pattern key for error grouping
    */
   private generatePatternKey(errorEvent: ErrorEvent): string {
-    return `${errorEvent.category}_${errorEvent.error.code || "UNKNOWN"}`;
+    return `${errorEvent.category}_${errorEvent.error?.code || "UNKNOWN"}`;
   }
 
   /**
@@ -553,7 +553,7 @@ export class ErrorMonitoringService extends EventEmitter {
   private logError(errorEvent: ErrorEvent): void {
     const logData = {
       errorId: errorEvent.id,
-      error: errorEvent.error.message,
+      error: errorEvent.error instanceof Error ? error?.message : String(error),
       code: errorEvent.error.code,
       severity: errorEvent.severity,
       category: errorEvent.category,
@@ -637,7 +637,7 @@ export class ErrorMonitoringService extends EventEmitter {
       pattern,
       triggerEvent: {
         id: triggerEvent.id,
-        message: triggerEvent.error.message,
+        message: triggerEvent.error instanceof Error ? error?.message : String(error),
         timestamp: triggerEvent.timestamp,
       },
       affectedUsersCount: pattern.affectedUsers.size,
@@ -842,9 +842,9 @@ export class ErrorMonitoringService extends EventEmitter {
       try {
         const modelInsights = await this.runPredictionModel(model);
         insights.push(...modelInsights);
-      } catch (error) {
+      } catch (error: unknown) {
         logger.warn(`Prediction model ${modelId} failed`, {
-          error: error.message,
+          error: error instanceof Error ? error?.message : String(error),
           modelType: model.modelType
         });
       }
@@ -915,12 +915,7 @@ export class ErrorMonitoringService extends EventEmitter {
           "Activate circuit breakers",
           "Enable rate limiting"
         ],
-        businessImpact: this.calculateAggregateBusinessImpact(recentErrors),
-        metadata: {
-          currentRate: currentErrorRate,
-          historicalAverage,
-          threshold: historicalAverage * 2.5
-        }
+        businessImpact: this.calculateAggregateBusinessImpact(recentErrors)
       });
     }
 
@@ -955,13 +950,7 @@ export class ErrorMonitoringService extends EventEmitter {
               "Prepare fallback mechanisms",
               "Alert relevant teams"
             ],
-            businessImpact: pattern.businessImpact,
-            metadata: {
-              patternKey,
-              frequency: pattern.count,
-              avgInterval,
-              lastOccurrence: pattern.lastOccurrence
-            }
+            businessImpact: pattern.businessImpact
           });
         }
       }
@@ -994,13 +983,7 @@ export class ErrorMonitoringService extends EventEmitter {
               "Activate fallback services",
               "Break dependency chains"
             ],
-            businessImpact: correlation.businessImpact,
-            metadata: {
-              correlationId,
-              primarySystemHealth,
-              correlationStrength: correlation.correlationStrength,
-              timeLag: correlation.timeLag
-            }
+            businessImpact: correlation.businessImpact
           });
         }
       }
@@ -1035,12 +1018,7 @@ export class ErrorMonitoringService extends EventEmitter {
           "Escalate to business continuity team",
           "Implement emergency fallbacks"
         ],
-        businessImpact: BusinessImpact.REVENUE_BLOCKING,
-        metadata: {
-          criticalErrorCount: businessCriticalErrors.length,
-          estimatedRevenueAtRisk: revenueAtRisk,
-          affectedCustomers: await this.getAffectedCustomerCount(businessCriticalErrors)
-        }
+        businessImpact: BusinessImpact.REVENUE_BLOCKING
       });
     }
 

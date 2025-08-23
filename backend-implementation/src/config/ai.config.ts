@@ -75,7 +75,7 @@ export const aiEnvSchema = Joi.object({
 export const validateAiEnv = () => {
   const { error, value } = aiEnvSchema.validate(process.env);
   if (error) {
-    throw new Error(`AI/ML configuration validation error: ${error.message}`);
+    throw new Error(`AI/ML configuration validation error: ${error instanceof Error ? error?.message : String(error)}`);
   }
   return value;
 };

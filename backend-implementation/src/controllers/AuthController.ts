@@ -20,7 +20,7 @@
  * Version: 1.0.0
  */
 
-import { Request, Response, NextFunction } from "express";
+import type { Request, Response, NextFunction } from "express";
 import { body, validationResult } from "express-validator";
 import rateLimit from "express-rate-limit";
 import { User, UserRole, UserStatus } from "@/models/User";
@@ -31,8 +31,8 @@ import {
   generateToken,
   generateRefreshToken,
   verifyRefreshToken,
-  AuthenticatedRequest,
 } from "@/middleware/auth";
+import type { AuthenticatedRequest } from "@/middleware/auth";
 import {
   encryptDatabaseField,
   generateSecureToken,
@@ -265,11 +265,11 @@ export class AuthController {
         password_hash: passwordHash,
         first_name: firstName,
         last_name: lastName,
-        phone,
+        phone: phone || null,
         role,
         status: UserStatus.ACTIVE,
         gdpr_consent_given: gdprConsentGiven,
-        gdpr_consent_date: gdprConsentGiven ? new Date() : undefined,
+        gdpr_consent_date: gdprConsentGiven ? new Date() : null,
       });
 
       // Log user registration
@@ -305,7 +305,7 @@ export class AuthController {
           mfaEnabled: user.mfa_enabled,
         },
       });
-    } catch (error) {
+    } catch (error: unknown) {
       next(error);
     }
   }
@@ -406,9 +406,9 @@ export class AuthController {
       const sessionData = await SessionService.createSession({
         userId: user.id,
         userRole: user.role,
-        ipAddress: req.ip || undefined,
-        userAgent: req.headers["user-agent"] || undefined,
-        deviceFingerprint: deviceFingerprint || undefined,
+        ipAddress: req?.ip || "unknown",
+        userAgent: req.headers["user-agent"] || "unknown",
+        deviceFingerprint: deviceFingerprint || "unknown",
         rememberMe,
         mfaVerified: user.mfa_enabled ? true : false,
       });
@@ -476,7 +476,7 @@ export class AuthController {
           sessionId: sessionData.id,
         },
       });
-    } catch (error) {
+    } catch (error: unknown) {
       next(error);
     }
   }
@@ -490,7 +490,7 @@ export class AuthController {
     next: NextFunction,
   ): Promise<void> {
     try {
-      const refreshToken = req.cookies.refreshToken || req.body.refreshToken;
+      const refreshToken = req.cookies?.refreshToken || req.body.refreshToken;
 
       if (!refreshToken) {
         throw new AuthenticationError("Refresh token required");
@@ -498,6 +498,10 @@ export class AuthController {
 
       // Verify refresh token
       const payload = verifyRefreshToken(refreshToken);
+      
+      if (!payload || !payload.sessionId) {
+        throw new AuthenticationError("Invalid refresh token payload");
+      }
 
       // Get session data
       const sessionData = await SessionService.getSession(payload.sessionId);
@@ -507,6 +511,10 @@ export class AuthController {
 
       // Get user
       const user = await User.findByPk(payload.userId);
+      
+      if (!payload.userId) {
+        throw new AuthenticationError("Invalid user ID in token payload");
+      }
       if (!user || user.status !== UserStatus.ACTIVE) {
         throw new AuthenticationError("Invalid user");
       }
@@ -538,7 +546,7 @@ export class AuthController {
           expiresIn: "15m",
         },
       });
-    } catch (error) {
+    } catch (error: unknown) {
       next(error);
     }
   }
@@ -569,7 +577,7 @@ export class AuthController {
         success: true,
         message: "Logout successful",
       });
-    } catch (error) {
+    } catch (error: unknown) {
       next(error);
     }
   }
@@ -600,7 +608,7 @@ export class AuthController {
         success: true,
         message: `Logged out from ${req.body.includeCurrent ? "all" : "other"} devices successfully`,
       });
-    } catch (error) {
+    } catch (error: unknown) {
       next(error);
     }
   }
@@ -671,7 +679,7 @@ export class AuthController {
         success: true,
         message: "Password changed successfully",
       });
-    } catch (error) {
+    } catch (error: unknown) {
       next(error);
     }
   }
@@ -715,7 +723,7 @@ export class AuthController {
           backupCodes: [], // TODO: Generate backup codes
         },
       });
-    } catch (error) {
+    } catch (error: unknown) {
       next(error);
     }
   }
@@ -771,7 +779,7 @@ export class AuthController {
         success: true,
         message: "MFA enabled successfully",
       });
-    } catch (error) {
+    } catch (error: unknown) {
       next(error);
     }
   }
@@ -807,7 +815,7 @@ export class AuthController {
           updatedAt: user.updated_at,
         },
       });
-    } catch (error) {
+    } catch (error: unknown) {
       next(error);
     }
   }
@@ -841,7 +849,7 @@ export class AuthController {
           total: sessionData.length,
         },
       });
-    } catch (error) {
+    } catch (error: unknown) {
       next(error);
     }
   }
@@ -882,7 +890,7 @@ export class AuthController {
         success: true,
         message: "Session revoked successfully",
       });
-    } catch (error) {
+    } catch (error: unknown) {
       next(error);
     }
   }

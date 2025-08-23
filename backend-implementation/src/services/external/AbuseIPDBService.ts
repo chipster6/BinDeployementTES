@@ -154,10 +154,10 @@ class AbuseIPDBService extends BaseExternalService {
       });
 
       return result;
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error("AbuseIPDB IP reputation check failed", {
         ip,
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
       });
       throw error;
     }
@@ -214,9 +214,9 @@ class AbuseIPDBService extends BaseExternalService {
       });
 
       return results;
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error("AbuseIPDB batch IP check failed", {
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
         totalIPs: ips.length,
       });
       throw error;
@@ -252,10 +252,10 @@ class AbuseIPDBService extends BaseExternalService {
         success: true,
         message: "IP reported successfully",
       };
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error("Failed to report abusive IP to AbuseIPDB", {
         ip,
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
       });
       throw error;
     }
@@ -306,9 +306,9 @@ class AbuseIPDBService extends BaseExternalService {
       });
 
       return blacklist;
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error("Failed to fetch AbuseIPDB blacklist", {
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
         confidenceMinimum,
         limit,
       });
@@ -323,10 +323,10 @@ class AbuseIPDBService extends BaseExternalService {
     try {
       const blacklist = await this.getBlacklist(confidenceMinimum);
       return blacklist.includes(ip);
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error("Failed to check if IP is blacklisted", {
         ip,
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
       });
       return false; // Default to false if check fails
     }
@@ -380,11 +380,6 @@ class AbuseIPDBService extends BaseExternalService {
       detections: 0, // Batch responses don't include total reports
       totalScans: 0,
       vendors: ["AbuseIPDB"],
-      metadata: {
-        countryCode: data.countryCode,
-        usageType: data.usageType,
-        lastReportedAt: data.lastReportedAt,
-      },
       timestamp: new Date(),
       source: "abuseipdb",
     };
@@ -468,9 +463,9 @@ class AbuseIPDBService extends BaseExternalService {
         },
         cacheStats,
       };
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error("Failed to get AbuseIPDB threat summary", {
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
       });
       
       return {

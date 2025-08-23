@@ -539,13 +539,7 @@ export class IntelligentTrafficRoutingService extends EventEmitter {
         estimatedCost: estimates.cost,
         estimatedLatency: estimates.latency,
         estimatedSuccessRate: estimates.successRate,
-        fallbackPlan,
-        metadata: {
-          decisionTime: Date.now() - startTime,
-          confidenceScore: this.calculateConfidenceScore(selectedNode, context),
-          riskAssessment: this.assessRisk(selectedNode, context),
-          optimizationApplied: this.getAppliedOptimizations(distribution.strategy, context)
-        }
+        fallbackPlan
       };
 
       // Record decision for analytics
@@ -572,19 +566,19 @@ export class IntelligentTrafficRoutingService extends EventEmitter {
 
       return decision;
 
-    } catch (error) {
+    } catch (error: unknown) {
       const decisionTime = Date.now() - startTime;
       
       logger.error("Routing decision failed", {
         serviceName: context.serviceName,
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
         decisionTime
       });
 
       // Emit failure event
       this.emitRoutingEvent("routing_decision_failed", {
         serviceName: context.serviceName,
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
         decisionTime
       });
 
@@ -930,7 +924,7 @@ export class IntelligentTrafficRoutingService extends EventEmitter {
    * Calculate cost score (higher is better for cost optimization)
    */
   private calculateCostScore(node: RoutingNode, context: RoutingDecisionContext): number {
-    const maxCost = context.budgetConstraints.costPerRequestLimit || 1.0;
+    const maxCost = context.budgetConstraints?.costPerRequestLimit || 1.0;
     return Math.max(0, 100 - ((node.costPerRequest / maxCost) * 100));
   }
 
@@ -980,9 +974,9 @@ export class IntelligentTrafficRoutingService extends EventEmitter {
     for (const serviceName of this.trafficDistributions.keys()) {
       try {
         await this.generatePredictiveAnalytics(serviceName);
-      } catch (error) {
+      } catch (error: unknown) {
         logger.error(`Failed to update predictive analytics for ${serviceName}`, {
-          error: error.message
+          error: error instanceof Error ? error?.message : String(error)
         });
       }
     }
@@ -1095,9 +1089,9 @@ export class IntelligentTrafficRoutingService extends EventEmitter {
     for (const node of nodes) {
       try {
         await this.performNodeHealthCheck(node);
-      } catch (error) {
+      } catch (error: unknown) {
         logger.error(`Health check failed for node ${node.nodeId}`, {
-          error: error.message
+          error: error instanceof Error ? error?.message : String(error)
         });
         
         // Mark node as unhealthy

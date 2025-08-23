@@ -313,10 +313,10 @@ export class SecurityAnalyticsService extends BaseService<any> {
         message: "Threat predictions generated successfully"
       };
 
-    } catch (error) {
-      timer.end({ error: error.message });
+    } catch (error: unknown) {
+      timer.end({ error: error instanceof Error ? error?.message : String(error) });
       logger.error("SecurityAnalyticsService.generateThreatPredictions failed", {
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
         modelTypes,
         horizons
       });
@@ -324,7 +324,7 @@ export class SecurityAnalyticsService extends BaseService<any> {
       return {
         success: false,
         message: "Failed to generate threat predictions",
-        errors: [error.message]
+        errors: [error instanceof Error ? error?.message : String(error)]
       };
     }
   }
@@ -391,17 +391,17 @@ export class SecurityAnalyticsService extends BaseService<any> {
         message: "Risk trajectory analysis completed successfully"
       };
 
-    } catch (error) {
-      timer.end({ error: error.message });
+    } catch (error: unknown) {
+      timer.end({ error: error instanceof Error ? error?.message : String(error) });
       logger.error("SecurityAnalyticsService.analyzeRiskTrajectories failed", {
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
         targetCount: targets.length
       });
 
       return {
         success: false,
         message: "Failed to analyze risk trajectories",
-        errors: [error.message]
+        errors: [error instanceof Error ? error?.message : String(error)]
       };
     }
   }
@@ -467,16 +467,16 @@ export class SecurityAnalyticsService extends BaseService<any> {
         message: "Attack pattern analysis completed successfully"
       };
 
-    } catch (error) {
-      timer.end({ error: error.message });
+    } catch (error: unknown) {
+      timer.end({ error: error instanceof Error ? error?.message : String(error) });
       logger.error("SecurityAnalyticsService.analyzeAttackPatterns failed", {
-        error: error.message
+        error: error instanceof Error ? error?.message : String(error)
       });
 
       return {
         success: false,
         message: "Failed to analyze attack patterns",
-        errors: [error.message]
+        errors: [error instanceof Error ? error?.message : String(error)]
       };
     }
   }
@@ -544,17 +544,17 @@ export class SecurityAnalyticsService extends BaseService<any> {
         message: "Security capacity planning completed successfully"
       };
 
-    } catch (error) {
-      timer.end({ error: error.message });
+    } catch (error: unknown) {
+      timer.end({ error: error instanceof Error ? error?.message : String(error) });
       logger.error("SecurityAnalyticsService.generateCapacityPlan failed", {
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
         scopes
       });
 
       return {
         success: false,
         message: "Failed to generate capacity plan",
-        errors: [error.message]
+        errors: [error instanceof Error ? error?.message : String(error)]
       };
     }
   }
@@ -605,17 +605,17 @@ export class SecurityAnalyticsService extends BaseService<any> {
         message: "Threat landscape evolution analysis completed successfully"
       };
 
-    } catch (error) {
-      timer.end({ error: error.message });
+    } catch (error: unknown) {
+      timer.end({ error: error instanceof Error ? error?.message : String(error) });
       logger.error("SecurityAnalyticsService.analyzeThreatLandscapeEvolution failed", {
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
         timeframe
       });
 
       return {
         success: false,
         message: "Failed to analyze threat landscape evolution",
-        errors: [error.message]
+        errors: [error instanceof Error ? error?.message : String(error)]
       };
     }
   }
@@ -707,16 +707,16 @@ export class SecurityAnalyticsService extends BaseService<any> {
         message: "Security analytics dashboard generated successfully"
       };
 
-    } catch (error) {
-      timer.end({ error: error.message });
+    } catch (error: unknown) {
+      timer.end({ error: error instanceof Error ? error?.message : String(error) });
       logger.error("SecurityAnalyticsService.getSecurityAnalyticsDashboard failed", {
-        error: error.message
+        error: error instanceof Error ? error?.message : String(error)
       });
 
       return {
         success: false,
         message: "Failed to generate security analytics dashboard",
-        errors: [error.message]
+        errors: [error instanceof Error ? error?.message : String(error)]
       };
     }
   }
@@ -1185,8 +1185,8 @@ export class SecurityAnalyticsService extends BaseService<any> {
       
       await this.generateThreatPredictions(criticalModels, horizons);
       
-    } catch (error) {
-      logger.error("Scheduled predictions failed", { error: error.message });
+    } catch (error: unknown) {
+      logger.error("Scheduled predictions failed", { error: error instanceof Error ? error?.message : String(error) });
     }
   }
 }

@@ -11,7 +11,8 @@
  * Version: 1.0.0
  */
 
-import Bull, { Queue, Job, JobOptions } from "bull";
+import type { Queue, Job, JobOptions } from "bull";
+import Bull from "bull";
 import { config } from "@/config";
 import { queueRedisClient } from "@/config/redis";
 import { logger, Timer } from "@/utils/logger";
@@ -105,7 +106,7 @@ class JobQueueManager {
 
       this.isInitialized = true;
       logger.info("✅ Job queue manager initialized successfully");
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error("❌ Failed to initialize job queue manager:", error);
       throw error;
     }
@@ -176,8 +177,8 @@ class JobQueueManager {
           type: job.name,
           attempt: job.attemptsMade,
           maxAttempts: job.opts.attempts,
-          error: error.message,
-          stack: error.stack,
+          error: error instanceof Error ? error?.message : String(error),
+          stack: error instanceof Error ? error?.stack : undefined,
         });
       });
 
@@ -307,8 +308,8 @@ class JobQueueManager {
         duration: `${duration}ms`,
         timestamp: new Date().toISOString(),
       };
-    } catch (error) {
-      timer.end({ error: error.message });
+    } catch (error: unknown) {
+      timer.end({ error: error instanceof Error ? error?.message : String(error) });
       throw error;
     }
   }
@@ -351,7 +352,7 @@ class JobQueueManager {
       socketManager.broadcastToRoom('webhook_events', 'webhook_processed', {
         eventId,
         serviceName,
-        webhookType: webhookData.type || 'unknown',
+        webhookType: webhookData?.type || 'unknown',
         result: processingResult,
         processedAt: new Date().toISOString(),
         backgroundProcessed: true,
@@ -371,11 +372,11 @@ class JobQueueManager {
       });
 
       return processingResult;
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('Webhook job processing failed', {
         serviceName,
         eventId,
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
       });
       throw error;
     }
@@ -412,9 +413,9 @@ class JobQueueManager {
         healthyServices: coordinationData.serviceStatuses.filter(s => s.status === 'healthy').length,
         frontendUpdated: true,
       };
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('API metrics collection job failed', {
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
       });
       throw error;
     }
@@ -461,9 +462,9 @@ class JobQueueManager {
         criticalAlerts: criticalAlerts.length,
         optimizationSuggestions: optimizationResult.optimizationSuggestions.length,
       };
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('Cost monitoring job failed', {
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
       });
       throw error;
     }
@@ -528,9 +529,9 @@ class JobQueueManager {
         securityStatus: systemHealth.securityStatus,
         coordinatedSystems: targetSystems,
       };
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('API health coordination job failed', {
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
       });
       throw error;
     }
@@ -563,9 +564,9 @@ class JobQueueManager {
         systemStatus: systemHealth.status,
         healthyServices: systemHealth.healthyServices,
       });
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('Failed to update backend coordination metrics', {
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
       });
     }
   }
@@ -709,8 +710,8 @@ class JobQueueManager {
         duration: `${duration}ms`,
         timestamp: new Date().toISOString(),
       };
-    } catch (error) {
-      timer.end({ error: error.message });
+    } catch (error: unknown) {
+      timer.end({ error: error instanceof Error ? error?.message : String(error) });
       throw error;
     }
   }
@@ -750,8 +751,8 @@ class JobQueueManager {
         duration: `${duration}ms`,
         timestamp: new Date().toISOString(),
       };
-    } catch (error) {
-      timer.end({ error: error.message });
+    } catch (error: unknown) {
+      timer.end({ error: error instanceof Error ? error?.message : String(error) });
       throw error;
     }
   }
@@ -804,8 +805,8 @@ class JobQueueManager {
         duration: `${duration}ms`,
         timestamp: new Date().toISOString(),
       };
-    } catch (error) {
-      timer.end({ error: error.message });
+    } catch (error: unknown) {
+      timer.end({ error: error instanceof Error ? error?.message : String(error) });
       throw error;
     }
   }
@@ -850,8 +851,8 @@ class JobQueueManager {
         duration: `${duration}ms`,
         timestamp: new Date().toISOString(),
       };
-    } catch (error) {
-      timer.end({ error: error.message });
+    } catch (error: unknown) {
+      timer.end({ error: error instanceof Error ? error?.message : String(error) });
       throw error;
     }
   }
@@ -893,8 +894,8 @@ class JobQueueManager {
         duration: `${duration}ms`,
         timestamp: new Date().toISOString(),
       };
-    } catch (error) {
-      timer.end({ error: error.message });
+    } catch (error: unknown) {
+      timer.end({ error: error instanceof Error ? error?.message : String(error) });
       throw error;
     }
   }
@@ -927,8 +928,8 @@ class JobQueueManager {
         duration: `${duration}ms`,
         timestamp: new Date().toISOString(),
       };
-    } catch (error) {
-      timer.end({ error: error.message });
+    } catch (error: unknown) {
+      timer.end({ error: error instanceof Error ? error?.message : String(error) });
       throw error;
     }
   }
@@ -958,8 +959,8 @@ class JobQueueManager {
         duration: `${duration}ms`,
         timestamp: new Date().toISOString(),
       };
-    } catch (error) {
-      timer.end({ error: error.message });
+    } catch (error: unknown) {
+      timer.end({ error: error instanceof Error ? error?.message : String(error) });
       throw error;
     }
   }
@@ -995,16 +996,16 @@ class JobQueueManager {
     }
 
     const job = await queue.add(jobName, data, {
-      priority: options.priority || 0,
-      delay: options.delay || 0,
-      attempts: options.attempts || 3,
+      priority: options?.priority || 0,
+      delay: options?.delay || 0,
+      attempts: options?.attempts || 3,
       ...options,
     });
 
     logger.info(`Job added to queue '${queueName}'`, {
       jobId: job.id,
       jobName,
-      priority: options.priority || 0,
+      priority: options?.priority || 0,
     });
 
     return job;

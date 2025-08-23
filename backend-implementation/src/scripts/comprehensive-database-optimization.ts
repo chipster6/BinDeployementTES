@@ -215,13 +215,13 @@ class ComprehensiveDatabaseOptimizer {
 
       return result;
 
-    } catch (error) {
+    } catch (error: unknown) {
       const endTime = performance.now();
       result.success = false;
       result.summary.totalDuration = endTime - this.startTime;
 
       logger.error('❌ Comprehensive database optimization failed', {
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
         duration: `${Math.round(result.summary.totalDuration)}ms`,
       });
 
@@ -272,12 +272,12 @@ class ComprehensiveDatabaseOptimizer {
         },
       };
 
-    } catch (error) {
+    } catch (error: unknown) {
       const phaseEnd = performance.now();
       const duration = phaseEnd - phaseStart;
 
       logger.error('❌ Performance analysis phase failed', {
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
         duration: `${Math.round(duration)}ms`,
       });
 
@@ -286,7 +286,7 @@ class ComprehensiveDatabaseOptimizer {
         success: false,
         duration,
         details: {},
-        errors: [error.message],
+        errors: [error instanceof Error ? error?.message : String(error)],
       };
     }
   }
@@ -332,12 +332,12 @@ class ComprehensiveDatabaseOptimizer {
         },
       };
 
-    } catch (error) {
+    } catch (error: unknown) {
       const phaseEnd = performance.now();
       const duration = phaseEnd - phaseStart;
 
       logger.error('❌ N+1 detection phase failed', {
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
         duration: `${Math.round(duration)}ms`,
       });
 
@@ -346,7 +346,7 @@ class ComprehensiveDatabaseOptimizer {
         success: false,
         duration,
         details: {},
-        errors: [error.message],
+        errors: [error instanceof Error ? error?.message : String(error)],
       };
     }
   }
@@ -405,12 +405,12 @@ class ComprehensiveDatabaseOptimizer {
         },
       };
 
-    } catch (error) {
+    } catch (error: unknown) {
       const phaseEnd = performance.now();
       const duration = phaseEnd - phaseStart;
 
       logger.error('❌ Spatial optimization phase failed', {
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
         duration: `${Math.round(duration)}ms`,
       });
 
@@ -419,7 +419,7 @@ class ComprehensiveDatabaseOptimizer {
         success: false,
         duration,
         details: {},
-        errors: [error.message],
+        errors: [error instanceof Error ? error?.message : String(error)],
       };
     }
   }
@@ -468,12 +468,12 @@ class ComprehensiveDatabaseOptimizer {
         },
       };
 
-    } catch (error) {
+    } catch (error: unknown) {
       const phaseEnd = performance.now();
       const duration = phaseEnd - phaseStart;
 
       logger.error('❌ Connection pool optimization phase failed', {
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
         duration: `${Math.round(duration)}ms`,
       });
 
@@ -482,7 +482,7 @@ class ComprehensiveDatabaseOptimizer {
         success: false,
         duration,
         details: {},
-        errors: [error.message],
+        errors: [error instanceof Error ? error?.message : String(error)],
       };
     }
   }
@@ -536,12 +536,12 @@ class ComprehensiveDatabaseOptimizer {
         },
       };
 
-    } catch (error) {
+    } catch (error: unknown) {
       const phaseEnd = performance.now();
       const duration = phaseEnd - phaseStart;
 
       logger.error('❌ Comprehensive testing phase failed', {
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
         duration: `${Math.round(duration)}ms`,
       });
 
@@ -550,7 +550,7 @@ class ComprehensiveDatabaseOptimizer {
         success: false,
         duration,
         details: {},
-        errors: [error.message],
+        errors: [error instanceof Error ? error?.message : String(error)],
       };
     }
   }
@@ -606,12 +606,12 @@ class ComprehensiveDatabaseOptimizer {
         },
       };
 
-    } catch (error) {
+    } catch (error: unknown) {
       const phaseEnd = performance.now();
       const duration = phaseEnd - phaseStart;
 
       logger.error('❌ Performance monitoring setup phase failed', {
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
         duration: `${Math.round(duration)}ms`,
       });
 
@@ -620,7 +620,7 @@ class ComprehensiveDatabaseOptimizer {
         success: false,
         duration,
         details: {},
-        errors: [error.message],
+        errors: [error instanceof Error ? error?.message : String(error)],
       };
     }
   }
@@ -643,16 +643,16 @@ class ComprehensiveDatabaseOptimizer {
 
     if (result.phases.nPlusOneDetection.success) {
       const nPlusOneDetails = result.phases.nPlusOneDetection.details;
-      optimizationsApplied += nPlusOneDetails.patternsResolved || 0;
-      performanceImprovement += nPlusOneDetails.estimatedImprovement || 0;
-      issuesResolved += nPlusOneDetails.patternsResolved || 0;
+      optimizationsApplied += nPlusOneDetails?.patternsResolved || 0;
+      performanceImprovement += nPlusOneDetails?.estimatedImprovement || 0;
+      issuesResolved += nPlusOneDetails?.patternsResolved || 0;
     }
 
     if (result.phases.spatialOptimization.success) {
       const spatialDetails = result.phases.spatialOptimization.details;
       optimizationsApplied += spatialDetails.indexOptimization?.created?.length || 0;
       optimizationsApplied += spatialDetails.indexOptimization?.optimized?.length || 0;
-      performanceImprovement += spatialDetails.estimatedImprovement || 0;
+      performanceImprovement += spatialDetails?.estimatedImprovement || 0;
     }
 
     if (result.phases.connectionPoolOptimization.success) {
@@ -803,11 +803,11 @@ async function main() {
     console.log('\n✅ Comprehensive database optimization completed successfully!');
     process.exit(0);
 
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('\n❌ Comprehensive database optimization failed:');
     console.error('==============================================');
-    console.error(error.message);
-    console.error(error.stack);
+    console.error(error instanceof Error ? error?.message : String(error));
+    console.error(error instanceof Error ? error?.stack : undefined);
     process.exit(1);
   }
 }

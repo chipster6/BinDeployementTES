@@ -11,7 +11,7 @@
  * Version: 1.0.0
  */
 
-import { Request, Response, NextFunction } from "express";
+import type { Request, Response, NextFunction } from "express";
 import { ValidationError as JoiValidationError } from "joi";
 import {
   ValidationError as SequelizeValidationError,
@@ -209,7 +209,7 @@ export class DatabaseOperationError extends AppError {
 const handleJoiError = (error: JoiValidationError): AppError => {
   const errors = error.details.map((detail) => ({
     field: detail.path.join("."),
-    message: detail.message,
+    message: detail?.message,
     value: detail.context?.value,
   }));
 
@@ -224,7 +224,7 @@ const handleSequelizeValidationError = (
 ): AppError => {
   const errors = error.errors.map((err) => ({
     field: err.path,
-    message: err.message,
+    message: err?.message,
     value: err.value,
     type: err.type,
   }));
@@ -267,7 +267,7 @@ const handleSequelizeDatabaseError = (error: DatabaseError): AppError => {
       return new DatabaseOperationError(
         config.app.nodeEnv === "production"
           ? "Database operation failed"
-          : error.message,
+          : error instanceof Error ? error?.message : String(error),
       );
   }
 };
@@ -315,8 +315,8 @@ const sendErrorResponse = (
   const response: any = {
     status: error.status,
     error: {
-      code: error.code || "INTERNAL_ERROR",
-      message: error.message,
+      code: error?.code || "INTERNAL_ERROR",
+      message: error instanceof Error ? error?.message : String(error),
     },
     timestamp: new Date().toISOString(),
     requestId,
@@ -325,7 +325,7 @@ const sendErrorResponse = (
   // Include error details in development
   if (config.app.nodeEnv === "development") {
     response.error.details = error.details;
-    response.error.stack = error.stack;
+    response.error instanceof Error ? error?.stack : undefined = error instanceof Error ? error?.stack : undefined;
   }
 
   // Include validation errors
@@ -343,8 +343,8 @@ const sendErrorDev = (err: AppError, req: Request, res: Response) => {
   const requestId = req.headers["x-request-id"] as string;
 
   logger.error("Error in development mode:", {
-    error: err.message,
-    stack: err.stack,
+    error: err?.message,
+    stack: err?.stack,
     requestId,
     url: req.originalUrl,
     method: req.method,
@@ -379,8 +379,8 @@ const sendErrorProd = (err: AppError, req: Request, res: Response) => {
   } else {
     // Log programming errors
     logger.error("Non-operational error in production:", {
-      error: err.message,
-      stack: err.stack,
+      error: err?.message,
+      stack: err?.stack,
       requestId,
       url: req.originalUrl,
       method: req.method,
@@ -429,10 +429,10 @@ export const errorHandler = (
     error = new AppError(
       config.app.nodeEnv === "production"
         ? "Internal server error"
-        : err.message,
-      err.statusCode || 500,
+        : err?.message,
+      err?.statusCode || 500,
     );
-    error.stack = err.stack;
+    error instanceof Error ? error?.stack : undefined = err?.stack;
     error.isOperational = false;
   }
 
@@ -441,7 +441,7 @@ export const errorHandler = (
     logSecurityEvent(
       "authorization_failed",
       {
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
         url: req.originalUrl,
         method: req.method,
         userAgent: req.get("User-Agent"),
@@ -518,7 +518,7 @@ export const withErrorHandling = async <T>(
 ): Promise<T> => {
   try {
     return await operation();
-  } catch (error) {
+  } catch (error: unknown) {
     if (error instanceof SequelizeValidationError) {
       throw handleSequelizeValidationError(error);
     } else if (error instanceof DatabaseError) {
@@ -526,7 +526,8 @@ export const withErrorHandling = async <T>(
     } else if (error instanceof AppError) {
       throw error;
     } else {
-      throw new DatabaseOperationError(`${context} failed: ${error.message}`);
+      const errorMessage = error instanceof Error ? error?.message : 'Unknown error';
+      throw new DatabaseOperationError(`${context} failed: ${errorMessage}`);
     }
   }
 };
@@ -550,14 +551,15 @@ export class GracefulDegradationHandler {
   }
 
   async handleGracefully(error: AppError, context?: any): Promise<any> {
-    const handler = this.fallbackHandlers.get(error.code || "DEFAULT");
+    const handler = this.fallbackHandlers.get(error?.code || "DEFAULT");
     if (handler) {
       try {
         return await handler(error, context);
-      } catch (fallbackError) {
+      } catch (fallbackError: unknown) {
+        const fallbackErrorMessage = fallbackError instanceof Error ? fallbackError?.message : 'Unknown fallback error';
         logger.error("Fallback handler failed", {
-          originalError: error.message,
-          fallbackError: fallbackError.message,
+          originalError: error instanceof Error ? error?.message : String(error),
+          fallbackError: fallbackErrorMessage,
         });
       }
     }

@@ -150,18 +150,18 @@ export class ErrorPredictionEngineService extends BaseService implements IErrorP
 
       return result;
 
-    } catch (error) {
+    } catch (error: unknown) {
       this.performanceMetrics.errors++;
-      timer.end({ error: error.message, predictionId });
+      timer.end({ error: error instanceof Error ? error?.message : String(error), predictionId });
       logger.error("Prediction generation failed", {
         predictionId,
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
         context: {
           predictionWindow: context.predictionWindow,
           systemLayer: context.systemLayer,
         },
       });
-      throw new AppError(`Prediction generation failed: ${error.message}`, 500);
+      throw new AppError(`Prediction generation failed: ${error instanceof Error ? error?.message : String(error)}`, 500);
     }
   }
 
@@ -186,13 +186,13 @@ export class ErrorPredictionEngineService extends BaseService implements IErrorP
 
       timer.end({ modelId: modelData.modelId });
 
-    } catch (error) {
-      timer.end({ error: error.message });
+    } catch (error: unknown) {
+      timer.end({ error: error instanceof Error ? error?.message : String(error) });
       logger.error("Model update failed", {
         modelId: modelData.modelId,
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
       });
-      throw new AppError(`Model update failed: ${error.message}`, 500);
+      throw new AppError(`Model update failed: ${error instanceof Error ? error?.message : String(error)}`, 500);
     }
   }
 
@@ -240,10 +240,10 @@ export class ErrorPredictionEngineService extends BaseService implements IErrorP
 
       return validationResults;
 
-    } catch (error) {
-      timer.end({ error: error.message });
-      logger.error("Accuracy validation failed", { error: error.message });
-      throw new AppError(`Accuracy validation failed: ${error.message}`, 500);
+    } catch (error: unknown) {
+      timer.end({ error: error instanceof Error ? error?.message : String(error) });
+      logger.error("Accuracy validation failed", { error: error instanceof Error ? error?.message : String(error) });
+      throw new AppError(`Accuracy validation failed: ${error instanceof Error ? error?.message : String(error)}`, 500);
     }
   }
 
@@ -276,9 +276,9 @@ export class ErrorPredictionEngineService extends BaseService implements IErrorP
         cacheHitRate,
       };
 
-    } catch (error) {
-      logger.error("Performance metrics retrieval failed", { error: error.message });
-      throw new AppError(`Performance metrics failed: ${error.message}`, 500);
+    } catch (error: unknown) {
+      logger.error("Performance metrics retrieval failed", { error: error instanceof Error ? error?.message : String(error) });
+      throw new AppError(`Performance metrics failed: ${error instanceof Error ? error?.message : String(error)}`, 500);
     }
   }
 
@@ -309,13 +309,13 @@ export class ErrorPredictionEngineService extends BaseService implements IErrorP
 
       return results;
 
-    } catch (error) {
-      timer.end({ error: error.message });
+    } catch (error: unknown) {
+      timer.end({ error: error instanceof Error ? error?.message : String(error) });
       logger.error("Batch prediction failed", {
         contextCount: contexts.length,
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
       });
-      throw new AppError(`Batch prediction failed: ${error.message}`, 500);
+      throw new AppError(`Batch prediction failed: ${error instanceof Error ? error?.message : String(error)}`, 500);
     }
   }
 
@@ -327,7 +327,7 @@ export class ErrorPredictionEngineService extends BaseService implements IErrorP
 
   private buildPredictionCacheKey(context: PredictionContext): string {
     const windowKey = `${context.predictionWindow.start.getTime()}-${context.predictionWindow.end.getTime()}`;
-    const contextKey = `${context.systemLayer || 'all'}_${JSON.stringify(context.businessContext || {})}`;
+    const contextKey = `${context?.systemLayer || 'all'}_${JSON.stringify(context?.businessContext || {})}`;
     return `prediction:${windowKey}:${contextKey}`;
   }
 
@@ -338,7 +338,7 @@ export class ErrorPredictionEngineService extends BaseService implements IErrorP
   private async enhanceFeatures(context: PredictionContext): Promise<any[]> {
     // Enhanced feature engineering for 85%+ accuracy
     const baseFeatures = context.features;
-    const historicalData = context.historicalData || [];
+    const historicalData = context?.historicalData || [];
 
     return [{
       ...baseFeatures,

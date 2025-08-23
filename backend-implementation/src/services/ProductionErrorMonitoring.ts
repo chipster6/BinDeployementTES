@@ -331,7 +331,7 @@ export class ProductionErrorMonitoring extends EventEmitter {
       timestamp: new Date(),
       event: `Status changed to ${status}`,
       author: update.author,
-      data: { message: update.message },
+      data: { message: update?.message },
     });
 
     // Broadcast update
@@ -585,7 +585,7 @@ export class ProductionErrorMonitoring extends EventEmitter {
       });
 
       ws.on("error", (error) => {
-        logger.error("WebSocket error", { error: error.message });
+        logger.error("WebSocket error", { error: error instanceof Error ? error?.message : String(error) });
         this.connectedClients.delete(ws);
       });
 

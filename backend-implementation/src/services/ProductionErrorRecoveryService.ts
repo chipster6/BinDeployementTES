@@ -215,7 +215,7 @@ export class ProductionErrorRecoveryService extends EventEmitter {
     } catch (recoveryError) {
       logger.error("PRODUCTION RECOVERY FAILED - ESCALATING", {
         recoveryId: recoveryContext.recoveryId,
-        error: recoveryError.message,
+        error: recoveryError?.message,
         businessImpact: recoveryContext.businessImpact
       });
 
@@ -241,7 +241,7 @@ export class ProductionErrorRecoveryService extends EventEmitter {
     logger.error("DATABASE MIGRATION ERROR DETECTED", {
       migrationId,
       migrationStep,
-      error: error.message
+      error: error instanceof Error ? error?.message : String(error)
     });
 
     try {
@@ -292,8 +292,8 @@ export class ProductionErrorRecoveryService extends EventEmitter {
     } catch (handlingError) {
       logger.error("DATABASE ERROR HANDLING FAILED", {
         migrationId,
-        originalError: error.message,
-        handlingError: handlingError.message
+        originalError: error instanceof Error ? error?.message : String(error),
+        handlingError: handlingError?.message
       });
 
       // Emergency database protection
@@ -326,7 +326,7 @@ export class ProductionErrorRecoveryService extends EventEmitter {
       pipelineId,
       modelVersion,
       stage,
-      error: error.message
+      error: error instanceof Error ? error?.message : String(error)
     });
 
     try {
@@ -397,8 +397,8 @@ export class ProductionErrorRecoveryService extends EventEmitter {
     } catch (handlingError) {
       logger.error("AI/ML PIPELINE ERROR HANDLING FAILED", {
         pipelineId,
-        originalError: error.message,
-        handlingError: handlingError.message
+        originalError: error instanceof Error ? error?.message : String(error),
+        handlingError: handlingError?.message
       });
 
       return {
@@ -426,7 +426,7 @@ export class ProductionErrorRecoveryService extends EventEmitter {
     logger.error("SECRETS MANAGEMENT ERROR DETECTED", {
       secretId,
       operation,
-      error: error.message
+      error: error instanceof Error ? error?.message : String(error)
     });
 
     try {
@@ -478,7 +478,7 @@ export class ProductionErrorRecoveryService extends EventEmitter {
         {
           secretId,
           operation,
-          error: error.message,
+          error: error instanceof Error ? error?.message : String(error),
           businessImpact,
           securityActions,
           secretsIntegrity
@@ -509,8 +509,8 @@ export class ProductionErrorRecoveryService extends EventEmitter {
     } catch (handlingError) {
       logger.error("SECRETS MANAGEMENT ERROR HANDLING FAILED", {
         secretId,
-        originalError: error.message,
-        handlingError: handlingError.message
+        originalError: error instanceof Error ? error?.message : String(error),
+        handlingError: handlingError?.message
       });
 
       // Emergency security lockdown
@@ -603,19 +603,14 @@ export class ProductionErrorRecoveryService extends EventEmitter {
       recoveryId,
       environment,
       businessImpact,
-      affectedServices: context.affectedServices || await this.identifyAffectedServices(error),
-      errorSource: context.errorSource || this.determineErrorSource(error),
-      estimatedDowntime: context.estimatedDowntime || this.estimateDowntime(businessImpact),
-      revenueAtRisk: context.revenueAtRisk || await this.calculateRevenueAtRisk(businessImpact, environment),
-      affectedCustomers: context.affectedCustomers || await this.estimateAffectedCustomers(error),
-      slaBreaches: context.slaBreaches || await this.calculateSLABreaches(businessImpact),
+      affectedServices: context?.affectedServices || await this.identifyAffectedServices(error),
+      errorSource: context?.errorSource || this.determineErrorSource(error),
+      estimatedDowntime: context?.estimatedDowntime || this.estimateDowntime(businessImpact),
+      revenueAtRisk: context?.revenueAtRisk || await this.calculateRevenueAtRisk(businessImpact, environment),
+      affectedCustomers: context?.affectedCustomers || await this.estimateAffectedCustomers(error),
+      slaBreaches: context?.slaBreaches || await this.calculateSLABreaches(businessImpact),
       recoveryDeadline: new Date(Date.now() + this.getRecoveryDeadline(businessImpact)),
-      escalationLevel: 0,
-      metadata: {
-        ...context.metadata,
-        timestamp: new Date(),
-        initiatedBy: "production_error_recovery_service"
-      }
+      escalationLevel: 0
     };
   }
 
@@ -724,8 +719,7 @@ export class ProductionErrorRecoveryService extends EventEmitter {
       message: "Recovery completed",
       duration: 30000,
       costImpact: 0,
-      businessContinuity: true,
-      metadata: {}
+      businessContinuity: true
     };
   }
   private async validateRecoveryAndBusinessContinuity(context: ProductionRecoveryContext, result: RecoveryResult): Promise<void> {}
@@ -737,8 +731,7 @@ export class ProductionErrorRecoveryService extends EventEmitter {
       message: "Escalated to manual intervention",
       duration: 0,
       costImpact: 0,
-      businessContinuity: false,
-      metadata: { escalated: true }
+      businessContinuity: false
     };
   }
   private async assessDatabaseHealth(): Promise<any> { return { status: "healthy" }; }
@@ -838,10 +831,10 @@ export class ProductionErrorRecoveryService extends EventEmitter {
 
       logger.info("Automated secrets rollback completed successfully", { secretId });
 
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error("Automated secrets rollback failed", { 
         secretId, 
-        error: error.message 
+        error: error instanceof Error ? error?.message : String(error) 
       });
       throw error;
     }
@@ -909,11 +902,11 @@ export class ProductionErrorRecoveryService extends EventEmitter {
       logger.info("Enhanced database rollback completed", result);
       return result;
 
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error("Enhanced database rollback failed", {
         migrationId,
         rollbackStrategy,
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
         duration: Date.now() - startTime
       });
 
@@ -991,12 +984,12 @@ export class ProductionErrorRecoveryService extends EventEmitter {
       logger.info("Enhanced ML pipeline rollback completed", result);
       return result;
 
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error("Enhanced ML pipeline rollback failed", {
         pipelineId,
         rollbackTarget,
         rollbackStrategy,
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
         duration: Date.now() - startTime
       });
 
@@ -1066,7 +1059,7 @@ export class ProductionErrorRecoveryService extends EventEmitter {
 
       const result = {
         rollbackExecuted: rollbackResult.success,
-        downtime: rollbackResult.downtime || 0,
+        downtime: rollbackResult?.downtime || 0,
         rollbackStrategy,
         healthChecksPassed: postHealthChecks.passed,
         rollbackDuration: Date.now() - startTime,
@@ -1076,12 +1069,12 @@ export class ProductionErrorRecoveryService extends EventEmitter {
       logger.info("Zero-downtime service rollback completed", result);
       return result;
 
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error("Zero-downtime service rollback failed", {
         serviceId,
         rollbackVersion,
         rollbackStrategy,
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
         duration: Date.now() - startTime
       });
 

@@ -133,9 +133,9 @@ export class IntelligentBatchingService {
         configuredServices: this.batchConfigurations.size,
         totalQueues: this.requestQueues.size,
       });
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('Failed to initialize Intelligent Batching Service', {
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
       });
       throw error;
     }
@@ -336,7 +336,7 @@ export class IntelligentBatchingService {
         options,
         priority,
         timestamp: Date.now(),
-        timeout: options.timeout || config.maxWaitTime,
+        timeout: options?.timeout || config.maxWaitTime,
         deduplicationKey,
         resolve,
         reject,
@@ -397,7 +397,7 @@ export class IntelligentBatchingService {
       if (urgency === 'low') return 'low';
     }
 
-    return options.priority || 'medium';
+    return options?.priority || 'medium';
   }
 
   /**
@@ -414,7 +414,7 @@ export class IntelligentBatchingService {
       };
       
       return btoa(JSON.stringify(keyData)).replace(/[+/=]/g, '');
-    } catch (error) {
+    } catch (error: unknown) {
       return undefined;
     }
   }
@@ -556,17 +556,17 @@ export class IntelligentBatchingService {
         costSavings: result.costSavings,
       });
 
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('Batch execution failed', {
         serviceName,
         batchId,
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
         requestCount: batchRequests.length,
       });
 
       // Reject all requests in the failed batch
       batchRequests.forEach(request => {
-        request.reject(new Error(`Batch execution failed: ${error.message}`));
+        request.reject(new Error(`Batch execution failed: ${error instanceof Error ? error?.message : String(error)}`));
       });
     }
 
@@ -627,14 +627,14 @@ export class IntelligentBatchingService {
           }
         });
 
-      } catch (error) {
+      } catch (error: unknown) {
         // Handle strategy-level failures
         groupRequests.forEach(request => {
           request.reject(error);
           results.failureCount++;
           results.errors.push({
             requestId: request.id,
-            error: error.message,
+            error: error instanceof Error ? error?.message : String(error),
           });
         });
       }
@@ -800,7 +800,7 @@ export class IntelligentBatchingService {
     if (!config || !stats) return config?.maxBatchSize || 10;
 
     // Adaptive sizing based on historical performance
-    let optimalSize = stats.averageBatchSize || config.maxBatchSize;
+    let optimalSize = stats?.averageBatchSize || config.maxBatchSize;
 
     // Adjust based on current queue size and performance
     const queue = this.requestQueues.get(serviceName);
@@ -917,10 +917,10 @@ export class IntelligentBatchingService {
             lastUpdated: new Date(stats.lastUpdated),
           });
         }
-      } catch (error) {
+      } catch (error: unknown) {
         logger.warn('Could not load batch statistics', {
           serviceName,
-          error: error.message,
+          error: error instanceof Error ? error?.message : String(error),
         });
       }
     }
@@ -933,10 +933,10 @@ export class IntelligentBatchingService {
         86400, // 24 hours
         JSON.stringify(stats)
       );
-    } catch (error) {
+    } catch (error: unknown) {
       logger.warn('Could not save batch statistics', {
         serviceName,
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
       });
     }
   }

@@ -489,12 +489,12 @@ export class RouteOptimizationEngine extends BaseService {
 
       return finalSolution;
       
-    } catch (error) {
-      timer.end({ error: error.message });
+    } catch (error: unknown) {
+      timer.end({ error: error instanceof Error ? error?.message : String(error) });
       logger.error("Route optimization failed", {
         problemId: problem.id,
-        error: error.message,
-        stack: error.stack
+        error: error instanceof Error ? error?.message : String(error),
+        stack: error instanceof Error ? error?.stack : undefined
       });
       
       if (error instanceof ValidationError) {
@@ -502,7 +502,7 @@ export class RouteOptimizationEngine extends BaseService {
       }
       
       throw new AppError(
-        `Route optimization failed: ${error.message}`,
+        `Route optimization failed: ${error instanceof Error ? error?.message : String(error)}`,
         500
       );
     }
@@ -558,15 +558,15 @@ export class RouteOptimizationEngine extends BaseService {
 
       return adaptationResult;
       
-    } catch (error) {
-      timer.end({ error: error.message });
+    } catch (error: unknown) {
+      timer.end({ error: error instanceof Error ? error?.message : String(error) });
       logger.error("Real-time route adaptation failed", {
         changeId: changes.changeId,
-        error: error.message
+        error: error instanceof Error ? error?.message : String(error)
       });
       
       throw new AppError(
-        `Real-time route adaptation failed: ${error.message}`,
+        `Real-time route adaptation failed: ${error instanceof Error ? error?.message : String(error)}`,
         500
       );
     }
@@ -642,15 +642,15 @@ export class RouteOptimizationEngine extends BaseService {
 
       return finalResult;
       
-    } catch (error) {
-      timer.end({ error: error.message });
+    } catch (error: unknown) {
+      timer.end({ error: error instanceof Error ? error?.message : String(error) });
       logger.error("Multi-objective optimization failed", {
         problemId: problem.id,
-        error: error.message
+        error: error instanceof Error ? error?.message : String(error)
       });
       
       throw new AppError(
-        `Multi-objective optimization failed: ${error.message}`,
+        `Multi-objective optimization failed: ${error instanceof Error ? error?.message : String(error)}`,
         500
       );
     }
@@ -898,11 +898,11 @@ export class RouteOptimizationEngine extends BaseService {
    * Validate VRP problem input
    */
   private validateVRPProblem(problem: VRPProblem): void {
-    if (!problem.bins || problem.bins.length === 0) {
+    if (!problem?.bins || problem.bins.length === 0) {
       throw new ValidationError("Problem must contain at least one bin");
     }
     
-    if (!problem.vehicles || problem.vehicles.length === 0) {
+    if (!problem?.vehicles || problem.vehicles.length === 0) {
       throw new ValidationError("Problem must contain at least one vehicle");
     }
     

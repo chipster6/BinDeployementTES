@@ -139,8 +139,8 @@ export class MasterPerformanceOptimizer extends BaseService<any> {
       this.startPerformanceMonitoring();
 
       logger.info("Master Performance Optimizer initialized");
-    } catch (error) {
-      logger.error("Failed to initialize Master Performance Optimizer", { error: error.message });
+    } catch (error: unknown) {
+      logger.error("Failed to initialize Master Performance Optimizer", { error: error instanceof Error ? error?.message : String(error) });
     }
   }
 
@@ -223,14 +223,14 @@ export class MasterPerformanceOptimizer extends BaseService<any> {
         message: `Comprehensive optimization analysis completed in ${duration}ms with ${estimatedOverallImprovement}% projected improvement`
       };
 
-    } catch (error) {
-      timer.end({ error: error.message });
-      logger.error("Comprehensive optimization analysis failed", { error: error.message });
+    } catch (error: unknown) {
+      timer.end({ error: error instanceof Error ? error?.message : String(error) });
+      logger.error("Comprehensive optimization analysis failed", { error: error instanceof Error ? error?.message : String(error) });
       
       return {
         success: false,
         message: "Failed to run comprehensive optimization analysis",
-        errors: [error.message]
+        errors: [error instanceof Error ? error?.message : String(error)]
       };
     }
   }
@@ -300,14 +300,14 @@ export class MasterPerformanceOptimizer extends BaseService<any> {
         message: `Optimization ${dryRun ? 'simulation' : 'execution'} completed in ${duration}ms`
       };
 
-    } catch (error) {
-      timer.end({ error: error.message });
-      logger.error("Optimization execution failed", { error: error.message, optimizationId });
+    } catch (error: unknown) {
+      timer.end({ error: error instanceof Error ? error?.message : String(error) });
+      logger.error("Optimization execution failed", { error: error instanceof Error ? error?.message : String(error), optimizationId });
       
       return {
         success: false,
         message: "Failed to execute optimization",
-        errors: [error.message]
+        errors: [error instanceof Error ? error?.message : String(error)]
       };
     }
   }
@@ -343,11 +343,11 @@ export class MasterPerformanceOptimizer extends BaseService<any> {
         },
         message: "Performance dashboard data retrieved successfully"
       };
-    } catch (error) {
+    } catch (error: unknown) {
       return {
         success: false,
         message: "Failed to get performance dashboard",
-        errors: [error.message]
+        errors: [error instanceof Error ? error?.message : String(error)]
       };
     }
   }
@@ -389,8 +389,8 @@ export class MasterPerformanceOptimizer extends BaseService<any> {
           networkLatency: parseFloat(performanceSummary.current?.networkLatency || '25')
         }
       };
-    } catch (error) {
-      logger.warn("Failed to collect system performance metrics", { error: error.message });
+    } catch (error: unknown) {
+      logger.warn("Failed to collect system performance metrics", { error: error instanceof Error ? error?.message : String(error) });
       
       // Return default metrics
       return {

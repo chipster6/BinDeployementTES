@@ -21,7 +21,7 @@
  * Version: 1.0.0
  */
 
-import { Request, Response, NextFunction } from "express";
+import type { Request, Response, NextFunction } from "express";
 import { MLSecurityService } from "@/services/MLSecurityService";
 import { FraudDetectionService } from "@/services/FraudDetectionService";
 import { APTDetectionService } from "@/services/APTDetectionService";
@@ -77,7 +77,7 @@ export class MLSecurityController {
         const result = await this.mlSecurityService.analyzeBehavioralAnomaly(context);
 
         if (!result.success) {
-          return ResponseHelper.error(res, result.message, 400, result.errors);
+          return ResponseHelper.error(res, result?.message, 400, result.errors);
         }
 
         logger.info("Behavioral anomaly analysis completed", {
@@ -87,11 +87,11 @@ export class MLSecurityController {
           requestId: req.headers["x-request-id"]
         });
 
-        return ResponseHelper.success(res, result.data, result.message);
+        return ResponseHelper.success(res, result.data, result?.message);
 
-      } catch (error) {
+      } catch (error: unknown) {
         logger.error("MLSecurityController.analyzeBehavioralAnomaly failed", {
-          error: error.message,
+          error: error instanceof Error ? error?.message : String(error),
           requestId: req.headers["x-request-id"]
         });
         next(error);
@@ -116,14 +116,14 @@ export class MLSecurityController {
         const result = await this.mlSecurityService.getRealTimeThreatScore(userId, sessionId);
 
         if (!result.success) {
-          return ResponseHelper.error(res, result.message, 400, result.errors);
+          return ResponseHelper.error(res, result?.message, 400, result.errors);
         }
 
-        return ResponseHelper.success(res, result.data, result.message);
+        return ResponseHelper.success(res, result.data, result?.message);
 
-      } catch (error) {
+      } catch (error: unknown) {
         logger.error("MLSecurityController.getRealTimeThreatScore failed", {
-          error: error.message,
+          error: error instanceof Error ? error?.message : String(error),
           userId: req.params.userId,
           sessionId: req.params.sessionId,
           requestId: req.headers["x-request-id"]
@@ -153,7 +153,7 @@ export class MLSecurityController {
         const result = await this.fraudDetectionService.analyzeTransaction(transaction);
 
         if (!result.success) {
-          return ResponseHelper.error(res, result.message, 400, result.errors);
+          return ResponseHelper.error(res, result?.message, 400, result.errors);
         }
 
         logger.info("Fraud risk analysis completed", {
@@ -165,11 +165,11 @@ export class MLSecurityController {
           requestId: req.headers["x-request-id"]
         });
 
-        return ResponseHelper.success(res, result.data, result.message);
+        return ResponseHelper.success(res, result.data, result?.message);
 
-      } catch (error) {
+      } catch (error: unknown) {
         logger.error("MLSecurityController.analyzeFraudRisk failed", {
-          error: error.message,
+          error: error instanceof Error ? error?.message : String(error),
           transactionId: req.body.transaction?.id,
           requestId: req.headers["x-request-id"]
         });
@@ -189,14 +189,14 @@ export class MLSecurityController {
         const result = await this.fraudDetectionService.getFraudMetrics();
 
         if (!result.success) {
-          return ResponseHelper.error(res, result.message, 500, result.errors);
+          return ResponseHelper.error(res, result?.message, 500, result.errors);
         }
 
-        return ResponseHelper.success(res, result.data, result.message);
+        return ResponseHelper.success(res, result.data, result?.message);
 
-      } catch (error) {
+      } catch (error: unknown) {
         logger.error("MLSecurityController.getFraudMetrics failed", {
-          error: error.message,
+          error: error instanceof Error ? error?.message : String(error),
           requestId: req.headers["x-request-id"]
         });
         next(error);
@@ -228,7 +228,7 @@ export class MLSecurityController {
         );
 
         if (!result.success) {
-          return ResponseHelper.error(res, result.message, 400, result.errors);
+          return ResponseHelper.error(res, result?.message, 400, result.errors);
         }
 
         logger.info("APT behavior analysis completed", {
@@ -240,11 +240,11 @@ export class MLSecurityController {
           requestId: req.headers["x-request-id"]
         });
 
-        return ResponseHelper.success(res, result.data, result.message);
+        return ResponseHelper.success(res, result.data, result?.message);
 
-      } catch (error) {
+      } catch (error: unknown) {
         logger.error("MLSecurityController.analyzeAPTBehavior failed", {
-          error: error.message,
+          error: error instanceof Error ? error?.message : String(error),
           userId: req.body.userId,
           sessionId: req.body.sessionId,
           requestId: req.headers["x-request-id"]
@@ -273,7 +273,7 @@ export class MLSecurityController {
         const result = await this.aptDetectionService.detectLateralMovement(networkEvents);
 
         if (!result.success) {
-          return ResponseHelper.error(res, result.message, 400, result.errors);
+          return ResponseHelper.error(res, result?.message, 400, result.errors);
         }
 
         logger.info("Lateral movement detection completed", {
@@ -283,12 +283,12 @@ export class MLSecurityController {
           requestId: req.headers["x-request-id"]
         });
 
-        return ResponseHelper.success(res, result.data, result.message);
+        return ResponseHelper.success(res, result.data, result?.message);
 
-      } catch (error) {
+      } catch (error: unknown) {
         logger.error("MLSecurityController.detectLateralMovement failed", {
-          error: error.message,
-          eventCount: req.body.networkEvents?.length,
+          error: error instanceof Error ? error?.message : String(error),
+          eventCount: req.body?.networkEvents?.length,
           requestId: req.headers["x-request-id"]
         });
         next(error);
@@ -315,7 +315,7 @@ export class MLSecurityController {
         const result = await this.aptDetectionService.detectC2Communications(networkTraffic);
 
         if (!result.success) {
-          return ResponseHelper.error(res, result.message, 400, result.errors);
+          return ResponseHelper.error(res, result?.message, 400, result.errors);
         }
 
         logger.info("C2 communication detection completed", {
@@ -326,12 +326,12 @@ export class MLSecurityController {
           requestId: req.headers["x-request-id"]
         });
 
-        return ResponseHelper.success(res, result.data, result.message);
+        return ResponseHelper.success(res, result.data, result?.message);
 
-      } catch (error) {
+      } catch (error: unknown) {
         logger.error("MLSecurityController.detectC2Communications failed", {
-          error: error.message,
-          trafficCount: req.body.networkTraffic?.length,
+          error: error instanceof Error ? error?.message : String(error),
+          trafficCount: req.body?.networkTraffic?.length,
           requestId: req.headers["x-request-id"]
         });
         next(error);
@@ -362,7 +362,7 @@ export class MLSecurityController {
         const result = await this.aptDetectionService.runThreatHunting(queryIds, timeRangeObj);
 
         if (!result.success) {
-          return ResponseHelper.error(res, result.message, 400, result.errors);
+          return ResponseHelper.error(res, result?.message, 400, result.errors);
         }
 
         logger.info("Threat hunting completed", {
@@ -373,11 +373,11 @@ export class MLSecurityController {
           requestId: req.headers["x-request-id"]
         });
 
-        return ResponseHelper.success(res, result.data, result.message);
+        return ResponseHelper.success(res, result.data, result?.message);
 
-      } catch (error) {
+      } catch (error: unknown) {
         logger.error("MLSecurityController.runThreatHunting failed", {
-          error: error.message,
+          error: error instanceof Error ? error?.message : String(error),
           queryIds: req.body.queryIds,
           requestId: req.headers["x-request-id"]
         });
@@ -397,14 +397,14 @@ export class MLSecurityController {
         const result = await this.aptDetectionService.getAPTDashboard();
 
         if (!result.success) {
-          return ResponseHelper.error(res, result.message, 500, result.errors);
+          return ResponseHelper.error(res, result?.message, 500, result.errors);
         }
 
-        return ResponseHelper.success(res, result.data, result.message);
+        return ResponseHelper.success(res, result.data, result?.message);
 
-      } catch (error) {
+      } catch (error: unknown) {
         logger.error("MLSecurityController.getAPTDashboard failed", {
-          error: error.message,
+          error: error instanceof Error ? error?.message : String(error),
           requestId: req.headers["x-request-id"]
         });
         next(error);
@@ -435,7 +435,7 @@ export class MLSecurityController {
         );
 
         if (!result.success) {
-          return ResponseHelper.error(res, result.message, 400, result.errors);
+          return ResponseHelper.error(res, result?.message, 400, result.errors);
         }
 
         logger.info("Threat predictions generated", {
@@ -446,11 +446,11 @@ export class MLSecurityController {
           requestId: req.headers["x-request-id"]
         });
 
-        return ResponseHelper.success(res, result.data, result.message);
+        return ResponseHelper.success(res, result.data, result?.message);
 
-      } catch (error) {
+      } catch (error: unknown) {
         logger.error("MLSecurityController.generateThreatPredictions failed", {
-          error: error.message,
+          error: error instanceof Error ? error?.message : String(error),
           modelTypes: req.body.modelTypes,
           requestId: req.headers["x-request-id"]
         });
@@ -478,7 +478,7 @@ export class MLSecurityController {
         const result = await this.securityAnalyticsService.analyzeRiskTrajectories(targets, horizon);
 
         if (!result.success) {
-          return ResponseHelper.error(res, result.message, 400, result.errors);
+          return ResponseHelper.error(res, result?.message, 400, result.errors);
         }
 
         logger.info("Risk trajectory analysis completed", {
@@ -488,12 +488,12 @@ export class MLSecurityController {
           requestId: req.headers["x-request-id"]
         });
 
-        return ResponseHelper.success(res, result.data, result.message);
+        return ResponseHelper.success(res, result.data, result?.message);
 
-      } catch (error) {
+      } catch (error: unknown) {
         logger.error("MLSecurityController.analyzeRiskTrajectories failed", {
-          error: error.message,
-          targetCount: req.body.targets?.length,
+          error: error instanceof Error ? error?.message : String(error),
+          targetCount: req.body?.targets?.length,
           requestId: req.headers["x-request-id"]
         });
         next(error);
@@ -512,14 +512,14 @@ export class MLSecurityController {
         const result = await this.securityAnalyticsService.getSecurityAnalyticsDashboard();
 
         if (!result.success) {
-          return ResponseHelper.error(res, result.message, 500, result.errors);
+          return ResponseHelper.error(res, result?.message, 500, result.errors);
         }
 
-        return ResponseHelper.success(res, result.data, result.message);
+        return ResponseHelper.success(res, result.data, result?.message);
 
-      } catch (error) {
+      } catch (error: unknown) {
         logger.error("MLSecurityController.getSecurityAnalyticsDashboard failed", {
-          error: error.message,
+          error: error instanceof Error ? error?.message : String(error),
           requestId: req.headers["x-request-id"]
         });
         next(error);
@@ -546,7 +546,7 @@ export class MLSecurityController {
         const result = await this.mlModelTrainingService.submitTrainingJob(config);
 
         if (!result.success) {
-          return ResponseHelper.error(res, result.message, 400, result.errors);
+          return ResponseHelper.error(res, result?.message, 400, result.errors);
         }
 
         logger.info("ML training job submitted", {
@@ -557,11 +557,11 @@ export class MLSecurityController {
           requestId: req.headers["x-request-id"]
         });
 
-        return ResponseHelper.success(res, result.data, result.message);
+        return ResponseHelper.success(res, result.data, result?.message);
 
-      } catch (error) {
+      } catch (error: unknown) {
         logger.error("MLSecurityController.submitTrainingJob failed", {
-          error: error.message,
+          error: error instanceof Error ? error?.message : String(error),
           modelType: req.body.config?.modelType,
           requestId: req.headers["x-request-id"]
         });
@@ -586,14 +586,14 @@ export class MLSecurityController {
         const result = await this.mlModelTrainingService.getTrainingJobStatus(jobId);
 
         if (!result.success) {
-          return ResponseHelper.error(res, result.message, 404, result.errors);
+          return ResponseHelper.error(res, result?.message, 404, result.errors);
         }
 
-        return ResponseHelper.success(res, result.data, result.message);
+        return ResponseHelper.success(res, result.data, result?.message);
 
-      } catch (error) {
+      } catch (error: unknown) {
         logger.error("MLSecurityController.getTrainingJobStatus failed", {
-          error: error.message,
+          error: error instanceof Error ? error?.message : String(error),
           jobId: req.params.jobId,
           requestId: req.headers["x-request-id"]
         });
@@ -624,7 +624,7 @@ export class MLSecurityController {
         );
 
         if (!result.success) {
-          return ResponseHelper.error(res, result.message, 400, result.errors);
+          return ResponseHelper.error(res, result?.message, 400, result.errors);
         }
 
         logger.info("Model deployment initiated", {
@@ -635,11 +635,11 @@ export class MLSecurityController {
           requestId: req.headers["x-request-id"]
         });
 
-        return ResponseHelper.success(res, result.data, result.message);
+        return ResponseHelper.success(res, result.data, result?.message);
 
-      } catch (error) {
+      } catch (error: unknown) {
         logger.error("MLSecurityController.deployModel failed", {
-          error: error.message,
+          error: error instanceof Error ? error?.message : String(error),
           modelId: req.body.modelId,
           environment: req.body.environment,
           requestId: req.headers["x-request-id"]
@@ -673,14 +673,14 @@ export class MLSecurityController {
         const result = await this.mlModelTrainingService.monitorModelPerformance(modelId, timeRange);
 
         if (!result.success) {
-          return ResponseHelper.error(res, result.message, 404, result.errors);
+          return ResponseHelper.error(res, result?.message, 404, result.errors);
         }
 
-        return ResponseHelper.success(res, result.data, result.message);
+        return ResponseHelper.success(res, result.data, result?.message);
 
-      } catch (error) {
+      } catch (error: unknown) {
         logger.error("MLSecurityController.monitorModelPerformance failed", {
-          error: error.message,
+          error: error instanceof Error ? error?.message : String(error),
           modelId: req.params.modelId,
           requestId: req.headers["x-request-id"]
         });
@@ -700,14 +700,14 @@ export class MLSecurityController {
         const result = await this.mlModelTrainingService.getTrainingDashboard();
 
         if (!result.success) {
-          return ResponseHelper.error(res, result.message, 500, result.errors);
+          return ResponseHelper.error(res, result?.message, 500, result.errors);
         }
 
-        return ResponseHelper.success(res, result.data, result.message);
+        return ResponseHelper.success(res, result.data, result?.message);
 
-      } catch (error) {
+      } catch (error: unknown) {
         logger.error("MLSecurityController.getTrainingDashboard failed", {
-          error: error.message,
+          error: error instanceof Error ? error?.message : String(error),
           requestId: req.headers["x-request-id"]
         });
         next(error);
@@ -739,7 +739,7 @@ export class MLSecurityController {
         );
 
         if (!result.success) {
-          return ResponseHelper.error(res, result.message, 400, result.errors);
+          return ResponseHelper.error(res, result?.message, 400, result.errors);
         }
 
         logger.warn("Entity blocked for fraud prevention", {
@@ -751,11 +751,11 @@ export class MLSecurityController {
           requestId: req.headers["x-request-id"]
         });
 
-        return ResponseHelper.success(res, undefined, result.message);
+        return ResponseHelper.success(res, undefined, result?.message);
 
-      } catch (error) {
+      } catch (error: unknown) {
         logger.error("MLSecurityController.blockEntity failed", {
-          error: error.message,
+          error: error instanceof Error ? error?.message : String(error),
           entityType: req.body.entityType,
           entityId: req.body.entityId,
           requestId: req.headers["x-request-id"]
@@ -788,7 +788,7 @@ export class MLSecurityController {
         );
 
         if (!result.success) {
-          return ResponseHelper.error(res, result.message, 400, result.errors);
+          return ResponseHelper.error(res, result?.message, 400, result.errors);
         }
 
         logger.info("Model retraining triggered", {
@@ -799,11 +799,11 @@ export class MLSecurityController {
           requestId: req.headers["x-request-id"]
         });
 
-        return ResponseHelper.success(res, result.data, result.message);
+        return ResponseHelper.success(res, result.data, result?.message);
 
-      } catch (error) {
+      } catch (error: unknown) {
         logger.error("MLSecurityController.triggerRetraining failed", {
-          error: error.message,
+          error: error instanceof Error ? error?.message : String(error),
           modelId: req.params.modelId,
           reason: req.body.reason,
           requestId: req.headers["x-request-id"]

@@ -19,7 +19,8 @@
  * Version: 1.0.0
  */
 
-import { Op, Transaction } from "sequelize";
+import type { Transaction } from "sequelize";
+import { Op } from "sequelize";
 import { User } from "@/models/User";
 import { UserSession } from "@/models/UserSession";
 import { AuditLog } from "@/models/AuditLog";
@@ -155,7 +156,7 @@ export class UserService extends BaseService<User> {
             phone: encryptedPhone,
             role: userData.role,
             organizationId: userData.organizationId,
-            permissions: userData.permissions || [],
+            permissions: userData?.permissions || [],
             isActive: userData.isActive ?? true,
             requiresPasswordChange: userData.requiresPasswordChange ?? false,
             lastLoginAt: null,
@@ -180,10 +181,6 @@ export class UserService extends BaseService<User> {
               role: userData.role,
               organizationId: userData.organizationId,
             },
-            metadata: {
-              createdBy: createdBy || "system",
-              ip: null,
-            },
           },
           { transaction: tx },
         );
@@ -204,11 +201,11 @@ export class UserService extends BaseService<User> {
         data: result,
         message: "User created successfully",
       };
-    } catch (error) {
-      timer.end({ error: error.message });
+    } catch (error: unknown) {
+      timer.end({ error: error instanceof Error ? error?.message : String(error) });
       logger.error("User creation failed", {
         email: maskSensitiveData(userData.email),
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
       });
 
       if (error instanceof AppError) {
@@ -277,11 +274,6 @@ export class UserService extends BaseService<User> {
         token: refreshToken,
         expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days
         isActive: true,
-        metadata: {
-          ip,
-          userAgent,
-          loginTime: new Date(),
-        },
       });
 
       // Update user login info
@@ -297,7 +289,6 @@ export class UserService extends BaseService<User> {
         action: "user_login",
         entityType: "User",
         entityId: user.id,
-        metadata: { ip, userAgent },
       });
 
       const result: AuthResult = {
@@ -321,8 +312,8 @@ export class UserService extends BaseService<User> {
         data: result,
         message: "Authentication successful",
       };
-    } catch (error) {
-      timer.end({ error: error.message });
+    } catch (error: unknown) {
+      timer.end({ error: error instanceof Error ? error?.message : String(error) });
 
       if (error instanceof AppError) {
         throw error;
@@ -435,11 +426,11 @@ export class UserService extends BaseService<User> {
         data: result,
         message: "Profile updated successfully",
       };
-    } catch (error) {
-      timer.end({ error: error.message });
+    } catch (error: unknown) {
+      timer.end({ error: error instanceof Error ? error?.message : String(error) });
       logger.error("Profile update failed", {
         userId,
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
       });
 
       if (error instanceof AppError) {
@@ -513,9 +504,6 @@ export class UserService extends BaseService<User> {
             action: "password_changed",
             entityType: "User",
             entityId: userId,
-            metadata: {
-              timestamp: new Date(),
-            },
           },
           { transaction },
         );
@@ -528,11 +516,11 @@ export class UserService extends BaseService<User> {
         success: true,
         message: "Password changed successfully",
       };
-    } catch (error) {
-      timer.end({ error: error.message });
+    } catch (error: unknown) {
+      timer.end({ error: error instanceof Error ? error?.message : String(error) });
       logger.error("Password change failed", {
         userId,
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
       });
 
       if (error instanceof AppError) {
@@ -557,10 +545,10 @@ export class UserService extends BaseService<User> {
       if (user.phone) {
         try {
           (user as any).phone = await decryptSensitiveData(user.phone);
-        } catch (error) {
+        } catch (error: unknown) {
           logger.warn("Failed to decrypt user phone", {
             userId,
-            error: error.message,
+            error: error instanceof Error ? error?.message : String(error),
           });
           (user as any).phone = null;
         }
@@ -570,7 +558,7 @@ export class UserService extends BaseService<User> {
         success: true,
         data: user,
       };
-    } catch (error) {
+    } catch (error: unknown) {
       if (error instanceof AppError) {
         throw error;
       }
@@ -643,11 +631,11 @@ export class UserService extends BaseService<User> {
         success: true,
         message: "User deactivated successfully",
       };
-    } catch (error) {
-      timer.end({ error: error.message });
+    } catch (error: unknown) {
+      timer.end({ error: error instanceof Error ? error?.message : String(error) });
       logger.error("User deactivation failed", {
         userId,
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
       });
 
       if (error instanceof AppError) {
@@ -669,18 +657,18 @@ export class UserService extends BaseService<User> {
       errors.push({ field: "email", message: "Valid email is required" });
     }
 
-    if (!userData.password || userData.password.length < 8) {
+    if (!userData?.password || userData.password.length < 8) {
       errors.push({
         field: "password",
         message: "Password must be at least 8 characters",
       });
     }
 
-    if (!userData.firstName || userData.firstName.trim().length === 0) {
+    if (!userData?.firstName || userData.firstName.trim().length === 0) {
       errors.push({ field: "firstName", message: "First name is required" });
     }
 
-    if (!userData.lastName || userData.lastName.trim().length === 0) {
+    if (!userData?.lastName || userData.lastName.trim().length === 0) {
       errors.push({ field: "lastName", message: "Last name is required" });
     }
 
@@ -753,16 +741,10 @@ export class UserService extends BaseService<User> {
         action: "login_failed",
         entityType: "User",
         entityId: userId || null,
-        metadata: {
-          email: maskSensitiveData(email),
-          reason,
-          ip,
-          timestamp: new Date(),
-        },
       });
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error("Failed to log failed login attempt", {
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
       });
     }
   }

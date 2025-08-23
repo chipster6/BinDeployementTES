@@ -22,7 +22,7 @@
  * Version: 1.0.0
  */
 
-import { Router, Request, Response } from "express";
+import { Router, type Request, type Response } from "express";
 import { body, param, query, validationResult } from "express-validator";
 import { authenticateToken, requirePermission } from "@/middleware/auth";
 import { rateLimitMiddleware } from "@/middleware/rateLimiting";
@@ -72,13 +72,13 @@ router.get(
       });
 
       return ResponseHelper.success(res, status, "Threat intelligence service status retrieved");
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error("Failed to fetch threat intelligence service status", {
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
         userId: req.user?.id,
       });
 
-      return ResponseHelper.error(res, "Failed to fetch service status", 500);
+      return ResponseHelper.error(res, req, { message: "Failed to fetch service status", statusCode: 500 });
     }
   }
 );
@@ -140,15 +140,15 @@ router.post(
       });
 
       return ResponseHelper.success(res, result, "Threat analysis completed");
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error("Failed to perform threat analysis", {
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
         target: req.body.target,
         type: req.body.type,
         userId: req.user?.id,
       });
 
-      return ResponseHelper.error(res, "Failed to perform threat analysis", 500);
+      return ResponseHelper.error(res, req, { message: "Failed to perform threat analysis", statusCode: 500 });
     }
   }
 );
@@ -215,14 +215,14 @@ router.post(
           high_risk: results.filter(r => r.overallThreatScore >= 70).length,
         },
       }, "Batch threat analysis completed");
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error("Failed to perform batch threat analysis", {
-        error: error.message,
-        indicatorCount: req.body.indicators?.length,
+        error: error instanceof Error ? error?.message : String(error),
+        indicatorCount: req.body?.indicators?.length,
         userId: req.user?.id,
       });
 
-      return ResponseHelper.error(res, "Failed to perform batch threat analysis", 500);
+      return ResponseHelper.error(res, req, { message: "Failed to perform batch threat analysis", statusCode: 500 });
     }
   }
 );
@@ -273,14 +273,14 @@ router.get(
       });
 
       return ResponseHelper.success(res, result, "IP reputation retrieved");
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error("Failed to check IP reputation", {
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
         ip: req.params.ip,
         userId: req.user?.id,
       });
 
-      return ResponseHelper.error(res, "Failed to check IP reputation", 500);
+      return ResponseHelper.error(res, req, { message: "Failed to check IP reputation", statusCode: 500 });
     }
   }
 );
@@ -332,14 +332,14 @@ router.post(
       });
 
       return ResponseHelper.success(res, result, "Batch IP reputation check completed");
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error("Failed to perform batch IP reputation check", {
-        error: error.message,
-        ipCount: req.body.ips?.length,
+        error: error instanceof Error ? error?.message : String(error),
+        ipCount: req.body?.ips?.length,
         userId: req.user?.id,
       });
 
-      return ResponseHelper.error(res, "Failed to perform batch IP reputation check", 500);
+      return ResponseHelper.error(res, req, { message: "Failed to perform batch IP reputation check", statusCode: 500 });
     }
   }
 );
@@ -401,13 +401,13 @@ router.get(
         filters,
         timestamp: new Date(),
       }, "Threat feeds retrieved");
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error("Failed to fetch threat feeds", {
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
         userId: req.user?.id,
       });
 
-      return ResponseHelper.error(res, "Failed to fetch threat feeds", 500);
+      return ResponseHelper.error(res, req, { message: "Failed to fetch threat feeds", statusCode: 500 });
     }
   }
 );
@@ -479,15 +479,15 @@ router.post(
       });
 
       return ResponseHelper.success(res, result, "Malicious indicator reported");
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error("Failed to report malicious indicator", {
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
         target: req.body.target,
         type: req.body.type,
         userId: req.user?.id,
       });
 
-      return ResponseHelper.error(res, "Failed to report malicious indicator", 500);
+      return ResponseHelper.error(res, req, { message: "Failed to report malicious indicator", statusCode: 500 });
     }
   }
 );
@@ -549,13 +549,13 @@ router.get(
       });
 
       return ResponseHelper.success(res, metrics, "Threat intelligence metrics retrieved");
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error("Failed to fetch threat intelligence metrics", {
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
         userId: req.user?.id,
       });
 
-      return ResponseHelper.error(res, "Failed to fetch threat intelligence metrics", 500);
+      return ResponseHelper.error(res, req, { message: "Failed to fetch threat intelligence metrics", statusCode: 500 });
     }
   }
 );
@@ -627,13 +627,13 @@ router.get(
       });
 
       return ResponseHelper.success(res, dashboardData, "Threat intelligence dashboard data retrieved");
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error("Failed to fetch threat intelligence dashboard data", {
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
         userId: req.user?.id,
       });
 
-      return ResponseHelper.error(res, "Failed to fetch dashboard data", 500);
+      return ResponseHelper.error(res, req, { message: "Failed to fetch dashboard data", statusCode: 500 });
     }
   }
 );

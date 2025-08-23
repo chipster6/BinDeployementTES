@@ -154,15 +154,15 @@ export class AutomatedDependencyScanner extends BaseService {
   constructor() {
     super();
     this.projectRoot = process.cwd();
-    this.cveApiKey = process.env.CVE_API_KEY || null;
+    this.cveApiKey = process.env?.CVE_API_KEY || null;
     
     this.scanConfig = {
       enabled: process.env.AUTO_DEPENDENCY_SCAN === 'true',
-      interval: parseInt(process.env.DEPENDENCY_SCAN_INTERVAL || '3600000'), // 1 hour
+      interval: parseInt(process.env?.DEPENDENCY_SCAN_INTERVAL || '3600000'), // 1 hour
       autoApplySecurityPatches: process.env.AUTO_APPLY_SECURITY_PATCHES === 'true',
       autoResolveConflicts: process.env.AUTO_RESOLVE_CONFLICTS === 'true',
       enableOptimizations: process.env.ENABLE_OPTIMIZATIONS !== 'false',
-      maxDowntimeMinutes: parseInt(process.env.MAX_DOWNTIME_MINUTES || '2'),
+      maxDowntimeMinutes: parseInt(process.env?.MAX_DOWNTIME_MINUTES || '2'),
       requireApproval: process.env.REQUIRE_PATCH_APPROVAL !== 'false'
     };
 
@@ -203,9 +203,9 @@ export class AutomatedDependencyScanner extends BaseService {
         vulnerabilities: initialScan.vulnerabilities.found.length,
         optimizationTargets: initialScan.optimizations.identified.length
       });
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('Failed to initialize Automated Dependency Scanner', {
-        error: error instanceof Error ? error.message : 'Unknown error'
+        error: error instanceof Error ? error?.message : 'Unknown error'
       });
       throw error;
     }
@@ -268,7 +268,7 @@ export class AutomatedDependencyScanner extends BaseService {
       await this.saveScanReport(report);
 
       // Apply automated resolutions if enabled
-      if (this.scanConfig.autoApplySecurityPatches || this.scanConfig.autoResolveConflicts) {
+      if (this.scanConfig?.autoApplySecurityPatches || this.scanConfig.autoResolveConflicts) {
         await this.applyAutomatedResolutions(report);
       }
 
@@ -281,10 +281,10 @@ export class AutomatedDependencyScanner extends BaseService {
       });
 
       return report;
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('Comprehensive dependency scan failed', {
         scanId,
-        error: error instanceof Error ? error.message : 'Unknown error',
+        error: error instanceof Error ? error?.message : 'Unknown error',
         duration: Date.now() - scanStart
       });
       throw error;
@@ -322,9 +322,9 @@ export class AutomatedDependencyScanner extends BaseService {
       });
 
       return vulnerabilities;
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('Vulnerability scanning failed', {
-        error: error instanceof Error ? error.message : 'Unknown error'
+        error: error instanceof Error ? error?.message : 'Unknown error'
       });
       return vulnerabilities;
     }
@@ -349,9 +349,9 @@ export class AutomatedDependencyScanner extends BaseService {
       }
 
       return vulnerabilities;
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('NPM vulnerability scan failed', {
-        error: error instanceof Error ? error.message : 'Unknown error'
+        error: error instanceof Error ? error?.message : 'Unknown error'
       });
       return [];
     }
@@ -383,16 +383,16 @@ export class AutomatedDependencyScanner extends BaseService {
       }
 
       // Process audit results
-      const advisories = auditResult.advisories || {};
+      const advisories = auditResult?.advisories || {};
       
       Object.values(advisories).forEach((advisory: any) => {
         const vulnerability: VulnerabilityData = {
           cveId: advisory.cves?.[0] || `NPM-${advisory.id}`,
           severity: this.mapSeverity(advisory.severity),
-          description: advisory.title || 'Unknown vulnerability',
+          description: advisory?.title || 'Unknown vulnerability',
           publishedDate: new Date(advisory.created),
           lastModifiedDate: new Date(advisory.updated),
-          affectedVersions: [advisory.vulnerable_versions || 'unknown'],
+          affectedVersions: [advisory?.vulnerable_versions || 'unknown'],
           patchedVersions: advisory.patched_versions ? [advisory.patched_versions] : [],
           exploitabilityScore: this.calculateExploitabilityScore(advisory),
           impactScore: this.calculateImpactScore(advisory),
@@ -405,10 +405,10 @@ export class AutomatedDependencyScanner extends BaseService {
       });
 
       return vulnerabilities;
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('NPM project vulnerability scan failed', {
         projectPath,
-        error: error instanceof Error ? error.message : 'Unknown error'
+        error: error instanceof Error ? error?.message : 'Unknown error'
       });
       return [];
     }
@@ -433,9 +433,9 @@ export class AutomatedDependencyScanner extends BaseService {
       }
 
       return vulnerabilities;
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('Python vulnerability scan failed', {
-        error: error instanceof Error ? error.message : 'Unknown error'
+        error: error instanceof Error ? error?.message : 'Unknown error'
       });
       return [];
     }
@@ -460,12 +460,12 @@ export class AutomatedDependencyScanner extends BaseService {
         
         safetyResults.forEach((result: any) => {
           const vulnerability: VulnerabilityData = {
-            cveId: result.vulnerability_id || 'SAFETY-' + result.id,
+            cveId: result?.vulnerability_id || 'SAFETY-' + result.id,
             severity: this.mapPythonSeverity(result.vulnerability_id),
-            description: result.advisory || 'Security vulnerability',
+            description: result?.advisory || 'Security vulnerability',
             publishedDate: new Date(),
             lastModifiedDate: new Date(),
-            affectedVersions: [result.analyzed_version || 'unknown'],
+            affectedVersions: [result?.analyzed_version || 'unknown'],
             patchedVersions: result.more_info_url ? ['latest'] : [],
             exploitabilityScore: 5.0,
             impactScore: this.calculatePythonImpactScore(result),
@@ -492,10 +492,10 @@ export class AutomatedDependencyScanner extends BaseService {
       }
 
       return vulnerabilities;
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('Python requirements vulnerability scan failed', {
         requirementsPath,
-        error: error instanceof Error ? error.message : 'Unknown error'
+        error: error instanceof Error ? error?.message : 'Unknown error'
       });
       return [];
     }
@@ -525,9 +525,9 @@ export class AutomatedDependencyScanner extends BaseService {
       }
 
       return vulnerabilities;
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('Docker vulnerability scan failed', {
-        error: error instanceof Error ? error.message : 'Unknown error'
+        error: error instanceof Error ? error?.message : 'Unknown error'
       });
       return [];
     }
@@ -560,9 +560,9 @@ export class AutomatedDependencyScanner extends BaseService {
       });
 
       return conflicts;
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('Conflict analysis failed', {
-        error: error instanceof Error ? error.message : 'Unknown error'
+        error: error instanceof Error ? error?.message : 'Unknown error'
       });
       return [];
     }
@@ -597,9 +597,9 @@ export class AutomatedDependencyScanner extends BaseService {
       });
 
       return targets;
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('Optimization analysis failed', {
-        error: error instanceof Error ? error.message : 'Unknown error'
+        error: error instanceof Error ? error?.message : 'Unknown error'
       });
       return [];
     }
@@ -650,15 +650,15 @@ export class AutomatedDependencyScanner extends BaseService {
           }
         } catch (imageError) {
           logger.debug(`Image ${imageName} not found or not accessible`, {
-            error: imageError instanceof Error ? imageError.message : 'Unknown error'
+            error: imageError instanceof Error ? imageError?.message : 'Unknown error'
           });
         }
       }
 
       return targets;
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('Container size analysis failed', {
-        error: error instanceof Error ? error.message : 'Unknown error'
+        error: error instanceof Error ? error?.message : 'Unknown error'
       });
       return [];
     }
@@ -707,9 +707,9 @@ export class AutomatedDependencyScanner extends BaseService {
       });
 
       return patchPlans;
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('Automated patch plan generation failed', {
-        error: error instanceof Error ? error.message : 'Unknown error'
+        error: error instanceof Error ? error?.message : 'Unknown error'
       });
       return [];
     }
@@ -755,9 +755,9 @@ export class AutomatedDependencyScanner extends BaseService {
         conflictsResolved: report.conflicts.resolved
       });
 
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('Automated resolution application failed', {
-        error: error instanceof Error ? error.message : 'Unknown error'
+        error: error instanceof Error ? error?.message : 'Unknown error'
       });
     }
   }
@@ -785,10 +785,10 @@ export class AutomatedDependencyScanner extends BaseService {
           package: patch.packageName,
           version: `${patch.currentVersion} -> ${patch.targetVersion}`
         });
-      } catch (error) {
+      } catch (error: unknown) {
         logger.error('Failed to apply critical security patch', {
           package: patch.packageName,
-          error: error instanceof Error ? error.message : 'Unknown error'
+          error: error instanceof Error ? error?.message : 'Unknown error'
         });
       }
     }
@@ -803,7 +803,7 @@ export class AutomatedDependencyScanner extends BaseService {
     for (const tool of requiredTools) {
       try {
         execSync(`which ${tool}`, { encoding: 'utf8', timeout: 5000 });
-      } catch (error) {
+      } catch (error: unknown) {
         logger.warn(`Required tool ${tool} not found in PATH`);
       }
     }
@@ -819,9 +819,9 @@ export class AutomatedDependencyScanner extends BaseService {
       if (criticalVulns.length > 0) {
         await this.sendCriticalVulnerabilityAlert(criticalVulns);
       }
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('Scheduled scan failed', {
-        error: error instanceof Error ? error.message : 'Unknown error'
+        error: error instanceof Error ? error?.message : 'Unknown error'
       });
     }
   }
@@ -882,10 +882,10 @@ export class AutomatedDependencyScanner extends BaseService {
         try {
           const cveData = await this.fetchCVEData(vuln.cveId);
           if (cveData) {
-            vuln.exploitabilityScore = cveData.exploitabilityScore || vuln.exploitabilityScore;
-            vuln.impactScore = cveData.impactScore || vuln.impactScore;
+            vuln.exploitabilityScore = cveData?.exploitabilityScore || vuln.exploitabilityScore;
+            vuln.impactScore = cveData?.impactScore || vuln.impactScore;
           }
-        } catch (error) {
+        } catch (error: unknown) {
           logger.debug(`Failed to enrich CVE data for ${vuln.cveId}`);
         }
       }
@@ -904,7 +904,7 @@ export class AutomatedDependencyScanner extends BaseService {
       });
       
       return response.data.vulnerabilities?.[0];
-    } catch (error) {
+    } catch (error: unknown) {
       logger.debug(`CVE API request failed for ${cveId}`);
       return null;
     }
@@ -961,9 +961,9 @@ export class AutomatedDependencyScanner extends BaseService {
       fs.writeFileSync(reportFile, JSON.stringify(report, null, 2));
 
       logger.debug('Scan report saved', { reportFile, scanId: report.scanId });
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('Failed to save scan report', {
-        error: error instanceof Error ? error.message : 'Unknown error'
+        error: error instanceof Error ? error?.message : 'Unknown error'
       });
     }
   }

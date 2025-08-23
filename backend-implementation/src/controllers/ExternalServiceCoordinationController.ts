@@ -23,7 +23,8 @@
  * Coordination: Group D - Frontend Agent Integration
  */
 
-import { Request, Response } from 'express';
+import type { Request, Response } from 'express';
+import type { AuthenticatedRequest } from '@/middleware/auth';
 import { logger } from '@/utils/logger';
 import { ResponseHelper } from '@/utils/ResponseHelper';
 import { externalServicesManager } from '@/services/external/ExternalServicesManager';
@@ -82,13 +83,21 @@ export class ExternalServiceCoordinationController {
         await this.broadcastServiceStatusUpdate(response);
       }
 
-      ResponseHelper.success(res, response, 'Service status retrieved successfully');
-    } catch (error) {
-      logger.error('Failed to get service status', {
-        error: error.message,
-        stack: error.stack,
+      ResponseHelper.success(res, req, { 
+        data: response, 
+        message: 'Service status retrieved successfully' 
       });
-      ResponseHelper.error(res, 'Failed to retrieve service status', 500);
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error?.message : 'Unknown error';
+      const errorStack = error instanceof Error ? error?.stack : undefined;
+      logger.error('Failed to get service status', {
+        error: errorMessage,
+        stack: errorStack,
+      });
+      ResponseHelper.error(res, req, {
+        message: 'Failed to retrieve service status',
+        statusCode: 500
+      });
     }
   }
 
@@ -129,13 +138,15 @@ export class ExternalServiceCoordinationController {
         },
       };
 
-      ResponseHelper.success(res, response, 'Cost monitoring data retrieved successfully');
-    } catch (error) {
+      ResponseHelper.success(res, req, { data: response, message: 'Cost monitoring data retrieved successfully' });
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error?.message : 'Unknown error';
+      const errorStack = error instanceof Error ? error?.stack : undefined;
       logger.error('Failed to get cost monitoring data', {
-        error: error.message,
-        stack: error.stack,
+        error: errorMessage,
+        stack: errorStack,
       });
-      ResponseHelper.error(res, 'Failed to retrieve cost monitoring data', 500);
+      ResponseHelper.error(res, req, { message: 'Failed to retrieve cost monitoring data', statusCode: 500 });
     }
   }
 
@@ -157,7 +168,7 @@ export class ExternalServiceCoordinationController {
         : batchStatistics;
 
       const filteredQueueStatus = serviceName
-        ? queueStatus.filter(queue => queue.serviceName === serviceName)
+        ? queueStatus.filter((queue: { serviceName: string }) => queue.serviceName === serviceName)
         : queueStatus;
 
       const response = {
@@ -178,17 +189,19 @@ export class ExternalServiceCoordinationController {
         realtime: {
           lastUpdate: new Date(),
           wsEndpoint: '/ws/batching-performance',
-          activeBatches: queueStatus.reduce((sum: number, queue: any) => sum + queue.queueSize, 0),
+          activeBatches: queueStatus.reduce((sum: number, queue: { queueSize: number }) => sum + queue.queueSize, 0),
         },
       };
 
-      ResponseHelper.success(res, response, 'Batching performance data retrieved successfully');
-    } catch (error) {
+      ResponseHelper.success(res, req, { data: response, message: 'Batching performance data retrieved successfully' });
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error?.message : 'Unknown error';
+      const errorStack = error instanceof Error ? error?.stack : undefined;
       logger.error('Failed to get batching performance data', {
-        error: error.message,
-        stack: error.stack,
+        error: errorMessage,
+        stack: errorStack,
       });
-      ResponseHelper.error(res, 'Failed to retrieve batching performance data', 500);
+      ResponseHelper.error(res, req, { message: 'Failed to retrieve batching performance data', statusCode: 500 });
     }
   }
 
@@ -224,13 +237,15 @@ export class ExternalServiceCoordinationController {
         securityMetrics: await this.getWebhookSecurityMetrics(),
       };
 
-      ResponseHelper.success(res, response, 'Webhook coordination data retrieved successfully');
-    } catch (error) {
+      ResponseHelper.success(res, req, { data: response, message: 'Webhook coordination data retrieved successfully' });
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error?.message : 'Unknown error';
+      const errorStack = error instanceof Error ? error?.stack : undefined;
       logger.error('Failed to get webhook coordination data', {
-        error: error.message,
-        stack: error.stack,
+        error: errorMessage,
+        stack: errorStack,
       });
-      ResponseHelper.error(res, 'Failed to retrieve webhook coordination data', 500);
+      ResponseHelper.error(res, req, { message: 'Failed to retrieve webhook coordination data', statusCode: 500 });
     }
   }
 
@@ -238,7 +253,7 @@ export class ExternalServiceCoordinationController {
    * Trigger cost optimization analysis
    * POST /api/external-services/trigger-optimization
    */
-  public async triggerOptimization(req: Request, res: Response): Promise<void> {
+  public async triggerOptimization(req: AuthenticatedRequest, res: Response): Promise<void> {
     try {
       const { 
         optimizationType = 'comprehensive',
@@ -290,13 +305,15 @@ export class ExternalServiceCoordinationController {
         },
       };
 
-      ResponseHelper.success(res, response, 'Cost optimization analysis triggered successfully');
-    } catch (error) {
+      ResponseHelper.success(res, req, { data: response, message: 'Cost optimization analysis triggered successfully' });
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error?.message : 'Unknown error';
+      const errorStack = error instanceof Error ? error?.stack : undefined;
       logger.error('Failed to trigger optimization analysis', {
-        error: error.message,
-        stack: error.stack,
+        error: errorMessage,
+        stack: errorStack,
       });
-      ResponseHelper.error(res, 'Failed to trigger optimization analysis', 500);
+      ResponseHelper.error(res, req, { message: 'Failed to trigger optimization analysis', statusCode: 500 });
     }
   }
 
@@ -350,13 +367,15 @@ export class ExternalServiceCoordinationController {
         },
       };
 
-      ResponseHelper.success(res, enhancedData, 'Frontend coordination data retrieved successfully');
-    } catch (error) {
+      ResponseHelper.success(res, req, { data: enhancedData, message: 'Frontend coordination data retrieved successfully' });
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error?.message : 'Unknown error';
+      const errorStack = error instanceof Error ? error?.stack : undefined;
       logger.error('Failed to get frontend coordination data', {
-        error: error.message,
-        stack: error.stack,
+        error: errorMessage,
+        stack: errorStack,
       });
-      ResponseHelper.error(res, 'Failed to retrieve frontend coordination data', 500);
+      ResponseHelper.error(res, req, { message: 'Failed to retrieve frontend coordination data', statusCode: 500 });
     }
   }
 
@@ -364,7 +383,7 @@ export class ExternalServiceCoordinationController {
    * Submit batch request through intelligent batching
    * POST /api/external-services/batch-request
    */
-  public async submitBatchRequest(req: Request, res: Response): Promise<void> {
+  public async submitBatchRequest(req: AuthenticatedRequest, res: Response): Promise<void> {
     try {
       const {
         serviceName,
@@ -378,9 +397,9 @@ export class ExternalServiceCoordinationController {
       const enhancedOptions = {
         ...options,
         businessContext: {
-          urgency: options.urgency || 'medium',
-          customerFacing: options.customerFacing || false,
-          revenueImpacting: options.revenueImpacting || false,
+          urgency: options?.urgency || 'medium',
+          customerFacing: options?.customerFacing || false,
+          revenueImpacting: options?.revenueImpacting || false,
         },
         submittedBy: req.user?.id || 'system',
         submittedAt: new Date().toISOString(),
@@ -397,7 +416,7 @@ export class ExternalServiceCoordinationController {
 
       // Get current queue status for Frontend feedback
       const queueStatus = intelligentBatchingService.getQueueStatus()
-        .find(q => q.serviceName === serviceName);
+        .find((q: { serviceName: string }) => q.serviceName === serviceName);
 
       const response = {
         result,
@@ -413,14 +432,16 @@ export class ExternalServiceCoordinationController {
         },
       };
 
-      ResponseHelper.success(res, response, 'Batch request submitted successfully');
-    } catch (error) {
+      ResponseHelper.success(res, req, { data: response, message: 'Batch request submitted successfully' });
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error?.message : 'Unknown error';
+      const errorStack = error instanceof Error ? error?.stack : undefined;
       logger.error('Failed to submit batch request', {
-        error: error.message,
-        stack: error.stack,
+        error: errorMessage,
+        stack: errorStack,
         serviceName: req.body.serviceName,
       });
-      ResponseHelper.error(res, 'Failed to submit batch request', 500);
+      ResponseHelper.error(res, req, { message: 'Failed to submit batch request', statusCode: 500 });
     }
   }
 
@@ -431,6 +452,14 @@ export class ExternalServiceCoordinationController {
   public async processWebhook(req: Request, res: Response): Promise<void> {
     try {
       const serviceName = req.params.serviceName;
+      if (!serviceName) {
+        ResponseHelper.error(res, req, { 
+          message: 'Service name is required', 
+          statusCode: 400 
+        });
+        return;
+      }
+
       const webhookData = req.body;
       const headers = req.headers as Record<string, string>;
 
@@ -450,14 +479,17 @@ export class ExternalServiceCoordinationController {
         },
       };
 
-      ResponseHelper.success(res, response, 'Webhook processed successfully');
-    } catch (error) {
+      ResponseHelper.success(res, req, { data: response, message: 'Webhook processed successfully' });
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error?.message : 'Unknown error';
+      const errorStack = error instanceof Error ? error?.stack : undefined;
       logger.error('Failed to process webhook', {
-        error: error.message,
+        error: errorMessage,
+        stack: errorStack,
         serviceName: req.params.serviceName,
         webhookType: req.body.type,
       });
-      ResponseHelper.error(res, 'Failed to process webhook', 500);
+      ResponseHelper.error(res, req, { message: 'Failed to process webhook', statusCode: 500 });
     }
   }
 
@@ -468,11 +500,18 @@ export class ExternalServiceCoordinationController {
   public async getRateLimitStatus(req: Request, res: Response): Promise<void> {
     try {
       const serviceName = req.params.serviceName;
+      if (!serviceName) {
+        ResponseHelper.error(res, req, { 
+          message: 'Service name is required', 
+          statusCode: 400 
+        });
+        return;
+      }
 
       // Check current rate limit status
       const rateLimitCheck = await costOptimizationService.checkRateLimit(serviceName, 'medium');
       const rateLimitStatus = costOptimizationService.getRateLimitStatus()
-        .find(status => status.serviceName === serviceName);
+        .find((status: { serviceName: string }) => status.serviceName === serviceName);
 
       const response = {
         serviceName,
@@ -481,13 +520,16 @@ export class ExternalServiceCoordinationController {
         recommendations: this.getRateLimitRecommendations(rateLimitCheck, rateLimitStatus),
       };
 
-      ResponseHelper.success(res, response, 'Rate limit status retrieved successfully');
-    } catch (error) {
+      ResponseHelper.success(res, req, { data: response, message: 'Rate limit status retrieved successfully' });
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error?.message : 'Unknown error';
+      const errorStack = error instanceof Error ? error?.stack : undefined;
       logger.error('Failed to get rate limit status', {
-        error: error.message,
+        error: errorMessage,
+        stack: errorStack,
         serviceName: req.params.serviceName,
       });
-      ResponseHelper.error(res, 'Failed to retrieve rate limit status', 500);
+      ResponseHelper.error(res, req, { message: 'Failed to retrieve rate limit status', statusCode: 500 });
     }
   }
 
@@ -525,8 +567,8 @@ export class ExternalServiceCoordinationController {
     const rateLimitStatus = costOptimizationService.getRateLimitStatus();
     
     return rateLimitStatus
-      .filter(status => status.blocked)
-      .map(status => ({
+      .filter((status: { blocked: boolean }) => status.blocked)
+      .map((status: { serviceName: string; blockReason: string; blockUntil?: string }) => ({
         serviceName: status.serviceName,
         alertType: 'budget_exceeded',
         severity: 'critical',

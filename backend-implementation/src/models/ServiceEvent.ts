@@ -953,7 +953,7 @@ ServiceEvent.init(
       },
       beforeUpdate: (serviceEvent: ServiceEvent) => {
         // Increment version for optimistic locking
-        serviceEvent.version = (serviceEvent.version || 1) + 1;
+        serviceEvent.version = (serviceEvent?.version || 1) + 1;
 
         // Auto-set start time when status changes to in_progress
         if (

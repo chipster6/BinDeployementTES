@@ -249,8 +249,8 @@ export class AutomatedPerformanceOptimizer extends EventEmitter {
       this.emit('nplus_one_analysis_complete', result);
       return result;
 
-    } catch (error) {
-      logger.error('N+1 query detection failed', { error: error.message });
+    } catch (error: unknown) {
+      logger.error('N+1 query detection failed', { error: error instanceof Error ? error?.message : String(error) });
       throw error;
     }
   }
@@ -279,8 +279,8 @@ export class AutomatedPerformanceOptimizer extends EventEmitter {
         }
       }
 
-    } catch (error) {
-      logger.error('Optimization cycle failed', { error: error.message });
+    } catch (error: unknown) {
+      logger.error('Optimization cycle failed', { error: error instanceof Error ? error?.message : String(error) });
     }
   }
 
@@ -480,14 +480,14 @@ export class AutomatedPerformanceOptimizer extends EventEmitter {
 
       return result;
 
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('Optimization execution failed', {
         optimizationId,
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
       });
 
       result.execution.status = 'failed';
-      result.execution.errors = [error.message];
+      result.execution.errors = [error instanceof Error ? error?.message : String(error)];
       result.execution.completedAt = new Date();
       result.execution.duration = result.execution.completedAt.getTime() - startTime.getTime();
 
@@ -496,7 +496,7 @@ export class AutomatedPerformanceOptimizer extends EventEmitter {
         await this.rollbackOptimization(strategy);
         logger.info('Rollback completed after optimization failure', { optimizationId });
       } catch (rollbackError) {
-        logger.error('Rollback failed', { optimizationId, error: rollbackError.message });
+        logger.error('Rollback failed', { optimizationId, error: rollbackError?.message });
       }
 
       this.optimizationHistory.push(result);
@@ -717,8 +717,8 @@ export class AutomatedPerformanceOptimizer extends EventEmitter {
           await sequelize.query(action);
           logger.info('Executed rollback action', { action });
         }
-      } catch (error) {
-        logger.error('Rollback action failed', { action, error: error.message });
+      } catch (error: unknown) {
+        logger.error('Rollback action failed', { action, error: error instanceof Error ? error?.message : String(error) });
       }
     }
   }

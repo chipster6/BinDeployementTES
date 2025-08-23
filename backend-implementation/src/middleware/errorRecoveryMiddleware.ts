@@ -20,7 +20,7 @@
  * Version: 1.0.0
  */
 
-import { Request, Response, NextFunction } from "express";
+import type { Request, Response, NextFunction } from "express";
 import {
   AppError,
   ExternalServiceError,
@@ -143,8 +143,8 @@ export class ErrorRecoveryMiddleware {
     } catch (recoveryError) {
       // Recovery process failed - fall back to basic error handling
       logger.error("Error recovery process failed", {
-        originalError: appError.message,
-        recoveryError: recoveryError.message,
+        originalError: appError?.message,
+        recoveryError: recoveryError?.message,
         context,
       });
 
@@ -181,7 +181,7 @@ export class ErrorRecoveryMiddleware {
         (req.headers["x-request-id"] as string) ||
         `req_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
       userId: (req as any).user?.id,
-      ip: req.ip || req.connection.remoteAddress || "unknown",
+      ip: req?.ip || req.connection?.remoteAddress || "unknown",
       userAgent: req.get("User-Agent"),
       url: req.originalUrl,
       method: req.method,
@@ -204,7 +204,7 @@ export class ErrorRecoveryMiddleware {
     // Convert common error types
     if (error.name === "ValidationError") {
       return new AppError(
-        error.message,
+        error instanceof Error ? error?.message : String(error),
         400,
         "VALIDATION_ERROR",
         error.details,
@@ -227,9 +227,9 @@ export class ErrorRecoveryMiddleware {
     return new AppError(
       config.app.nodeEnv === "production"
         ? "Internal server error"
-        : error.message,
-      error.statusCode || error.status || 500,
-      error.code || "INTERNAL_ERROR",
+        : error instanceof Error ? error?.message : String(error),
+      error?.statusCode || error?.status || 500,
+      error?.code || "INTERNAL_ERROR",
     );
   }
 
@@ -245,7 +245,7 @@ export class ErrorRecoveryMiddleware {
       if (strategy.canHandle(error, context)) {
         try {
           logger.info(`Attempting recovery with strategy: ${strategy.name}`, {
-            error: error.message,
+            error: error instanceof Error ? error?.message : String(error),
             context: context.url,
           });
 
@@ -259,8 +259,8 @@ export class ErrorRecoveryMiddleware {
           };
         } catch (strategyError) {
           logger.warn(`Recovery strategy ${strategy.name} failed`, {
-            error: error.message,
-            strategyError: strategyError.message,
+            error: error instanceof Error ? error?.message : String(error),
+            strategyError: strategyError?.message,
           });
         }
       }
@@ -299,18 +299,12 @@ export class ErrorRecoveryMiddleware {
     const response = {
       success: false,
       recovered: true,
-      message: recovery.message,
+      message: recovery?.message,
       data: recovery.fallbackData,
       error: {
         code: error.code,
-        message: error.message,
+        message: error instanceof Error ? error?.message : String(error),
         recoveredBy: recovery.strategy,
-      },
-      metadata: {
-        requestId: context.requestId,
-        duration: Date.now() - context.startTime,
-        timestamp: new Date().toISOString(),
-        retryAfter: recovery.retryAfter,
       },
     };
 
@@ -340,13 +334,8 @@ export class ErrorRecoveryMiddleware {
     const response: any = {
       success: false,
       error: {
-        code: error.code || "INTERNAL_ERROR",
-        message: error.message,
-      },
-      metadata: {
-        requestId: context.requestId,
-        duration: Date.now() - context.startTime,
-        timestamp: new Date().toISOString(),
+        code: error?.code || "INTERNAL_ERROR",
+        message: error instanceof Error ? error?.message : String(error),
       },
     };
 
@@ -369,7 +358,7 @@ export class ErrorRecoveryMiddleware {
     // Include error details in development
     if (config.app.nodeEnv === "development") {
       response.error.details = error.details;
-      response.error.stack = error.stack;
+      response.error instanceof Error ? error?.stack : undefined = error instanceof Error ? error?.stack : undefined;
     }
 
     // Include validation errors
@@ -417,7 +406,7 @@ export class ErrorRecoveryMiddleware {
       logSecurityEvent(
         "security_error_detected",
         {
-          error: error.message,
+          error: error instanceof Error ? error?.message : String(error),
           code: error.code,
           url: context.url,
           method: context.method,
@@ -431,16 +420,16 @@ export class ErrorRecoveryMiddleware {
       // Check for potential attacks
       const suspiciousPatterns = this.securityThresholds.suspiciousPatterns;
       const isSuspicious = suspiciousPatterns.some((pattern) =>
-        error.message.toLowerCase().includes(pattern.toLowerCase()),
+        error instanceof Error ? error?.message : String(error).toLowerCase().includes(pattern.toLowerCase()),
       );
 
       if (isSuspicious) {
         logSecurityEvent(
           "potential_security_attack",
           {
-            error: error.message,
+            error: error instanceof Error ? error?.message : String(error),
             pattern: suspiciousPatterns.find((p) =>
-              error.message.toLowerCase().includes(p.toLowerCase()),
+              error instanceof Error ? error?.message : String(error).toLowerCase().includes(p.toLowerCase()),
             ),
             context,
           },

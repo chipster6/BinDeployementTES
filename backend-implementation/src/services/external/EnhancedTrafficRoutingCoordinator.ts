@@ -286,13 +286,7 @@ export class EnhancedTrafficRoutingCoordinator extends EventEmitter {
           optimizationTime
         },
         businessOutcome,
-        monitoringPlan,
-        metadata: {
-          confidenceScore: this.calculateCoordinationConfidence(context, routingDecision, optimizationDecision),
-          coordinationStrategy: this.determineCoordinationStrategy(context),
-          appliedOptimizations: this.getAppliedOptimizations(context, routingDecision, optimizationDecision),
-          nextReviewTime: new Date(Date.now() + (monitoringPlan.reviewInterval * 60000))
-        }
+        monitoringPlan
       };
 
       // Step 6: Start enhanced monitoring
@@ -325,13 +319,13 @@ export class EnhancedTrafficRoutingCoordinator extends EventEmitter {
 
       return coordinationResult;
 
-    } catch (error) {
+    } catch (error: unknown) {
       const coordinationTime = Date.now() - startTime;
       
       logger.error("Enhanced traffic routing coordination failed", {
         coordinationId: context.coordinationId,
         serviceName: context.serviceName,
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
         coordinationTime
       });
 
@@ -339,7 +333,7 @@ export class EnhancedTrafficRoutingCoordinator extends EventEmitter {
       this.emitCoordinationEvent("enhanced_coordination_failed", {
         coordinationId: context.coordinationId,
         serviceName: context.serviceName,
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
         coordinationTime
       });
 
@@ -395,7 +389,7 @@ export class EnhancedTrafficRoutingCoordinator extends EventEmitter {
       // Start real-time monitoring if required
       if (context.coordinationRequirements.requireRealTimeMonitoring) {
         await this.monitoringService.startMonitoringSession(
-          context.backendAgentContext.monitoringSessionId || context.coordinationId,
+          context.backendAgentContext?.monitoringSessionId || context.coordinationId,
           {
             serviceName: context.serviceName,
             operation: context.operation,
@@ -427,10 +421,10 @@ export class EnhancedTrafficRoutingCoordinator extends EventEmitter {
         registrationTime: new Date()
       });
 
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error("Backend Agent coordination failed", {
         coordinationId: context.coordinationId,
-        error: error.message
+        error: error instanceof Error ? error?.message : String(error)
       });
       
       // Continue with partial integration
@@ -454,7 +448,7 @@ export class EnhancedTrafficRoutingCoordinator extends EventEmitter {
       const coordinationContext: EnhancedCoordinationContext = {
         coordinationId: `backend_error_${Date.now()}_${Math.random().toString(36).substring(7)}`,
         serviceName: errorEvent.serviceName,
-        operation: errorEvent.operation || "unknown",
+        operation: errorEvent?.operation || "unknown",
         routingContext: this.createRoutingContextFromError(errorEvent),
         errorScenarioContext: this.createErrorScenarioFromBackendError(errorEvent),
         backendAgentContext: {
@@ -474,13 +468,6 @@ export class EnhancedTrafficRoutingCoordinator extends EventEmitter {
           requireRealTimeMonitoring: true,
           requirePredictiveAnalytics: errorEvent.severity === "critical",
           requireEmergencyOverride: errorEvent.severity === "critical"
-        },
-        metadata: {
-          coordinationTimestamp: new Date(),
-          requestId: errorEvent.requestId,
-          userId: errorEvent.userId,
-          organizationId: errorEvent.organizationId,
-          sessionId: errorEvent.sessionId
         }
       };
 
@@ -493,10 +480,10 @@ export class EnhancedTrafficRoutingCoordinator extends EventEmitter {
         coordinationResult
       );
 
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error("Failed to handle Backend Agent error", {
         errorEvent,
-        error: error.message
+        error: error instanceof Error ? error?.message : String(error)
       });
     }
   }
@@ -546,8 +533,8 @@ export class EnhancedTrafficRoutingCoordinator extends EventEmitter {
             ...context.routingContext,
             performanceContext: {
               ...context.routingContext.performanceContext,
-              currentLatency: performanceEvent.currentLatency || context.routingContext.performanceContext.currentLatency,
-              currentThroughput: performanceEvent.currentThroughput || context.routingContext.performanceContext.currentThroughput
+              currentLatency: performanceEvent?.currentLatency || context.routingContext.performanceContext.currentLatency,
+              currentThroughput: performanceEvent?.currentThroughput || context.routingContext.performanceContext.currentThroughput
             }
           }
         };
@@ -688,9 +675,9 @@ export class EnhancedTrafficRoutingCoordinator extends EventEmitter {
     for (const [coordinationId, context] of this.activeCoordinations) {
       try {
         await this.monitorActiveCoordination(coordinationId, context);
-      } catch (error) {
+      } catch (error: unknown) {
         logger.error(`Coordination monitoring failed for ${coordinationId}`, {
-          error: error.message
+          error: error instanceof Error ? error?.message : String(error)
         });
       }
     }
@@ -729,9 +716,9 @@ export class EnhancedTrafficRoutingCoordinator extends EventEmitter {
     for (const serviceName of this.coordinationHistory.keys()) {
       try {
         await this.generateServiceAnalytics(serviceName);
-      } catch (error) {
+      } catch (error: unknown) {
         logger.error(`Analytics update failed for ${serviceName}`, {
-          error: error.message
+          error: error instanceof Error ? error?.message : String(error)
         });
       }
     }
@@ -883,19 +870,19 @@ export class EnhancedTrafficRoutingCoordinator extends EventEmitter {
   private createRoutingContextFromError(errorEvent: any): RoutingDecisionContext {
     return {
       serviceName: errorEvent.serviceName,
-      operation: errorEvent.operation || "unknown",
+      operation: errorEvent?.operation || "unknown",
       requestMetadata: {
         requestId: errorEvent.requestId,
         userId: errorEvent.userId,
         organizationId: errorEvent.organizationId,
-        priority: errorEvent.priority || ServicePriority.HIGH,
-        businessCriticality: errorEvent.businessCriticality || BusinessCriticality.CUSTOMER_FACING,
-        retryCount: errorEvent.retryCount || 0,
+        priority: errorEvent?.priority || ServicePriority.HIGH,
+        businessCriticality: errorEvent?.businessCriticality || BusinessCriticality.CUSTOMER_FACING,
+        retryCount: errorEvent?.retryCount || 0,
         maxRetries: 3
       },
       errorHistory: {
-        recentErrors: errorEvent.recentErrors || [],
-        failurePatterns: errorEvent.failurePatterns || []
+        recentErrors: errorEvent?.recentErrors || [],
+        failurePatterns: errorEvent?.failurePatterns || []
       },
       budgetConstraints: {
         remainingBudget: errorEvent.budgetConstraints?.remainingBudget || 1000,
@@ -903,10 +890,10 @@ export class EnhancedTrafficRoutingCoordinator extends EventEmitter {
         budgetPeriod: errorEvent.budgetConstraints?.budgetPeriod || "daily"
       },
       performanceContext: {
-        currentLatency: errorEvent.currentLatency || 1000,
-        targetLatency: errorEvent.targetLatency || 300,
-        currentThroughput: errorEvent.currentThroughput || 0.5,
-        targetThroughput: errorEvent.targetThroughput || 100
+        currentLatency: errorEvent?.currentLatency || 1000,
+        targetLatency: errorEvent?.targetLatency || 300,
+        currentThroughput: errorEvent?.currentThroughput || 0.5,
+        targetThroughput: errorEvent?.targetThroughput || 100
       }
     };
   }
@@ -916,8 +903,8 @@ export class EnhancedTrafficRoutingCoordinator extends EventEmitter {
       scenarioId: `backend_scenario_${Date.now()}`,
       scenarioType: this.mapErrorTypeToScenarioType(errorEvent.errorType),
       serviceName: errorEvent.serviceName,
-      operation: errorEvent.operation || "unknown",
-      severity: errorEvent.severity || "medium",
+      operation: errorEvent?.operation || "unknown",
+      severity: errorEvent?.severity || "medium",
       businessImpact: {
         revenueAtRisk: errorEvent.businessImpact?.revenueAtRisk || 0,
         customerImpact: errorEvent.businessImpact?.customerImpact || "minor",
@@ -925,11 +912,11 @@ export class EnhancedTrafficRoutingCoordinator extends EventEmitter {
         timeToResolution: errorEvent.businessImpact?.timeToResolution || 30
       },
       errorDetails: {
-        originalError: new Error(errorEvent.errorMessage || "Backend Agent error"),
-        failedProviders: errorEvent.failedProviders || [],
-        retryAttempts: errorEvent.retryAttempts || 0,
-        errorPattern: errorEvent.errorPattern || "backend_error",
-        cascadingServices: errorEvent.cascadingServices || []
+        originalError: new Error(errorEvent?.errorMessage || "Backend Agent error"),
+        failedProviders: errorEvent?.failedProviders || [],
+        retryAttempts: errorEvent?.retryAttempts || 0,
+        errorPattern: errorEvent?.errorPattern || "backend_error",
+        cascadingServices: errorEvent?.cascadingServices || []
       },
       budgetConstraints: {
         remainingBudget: errorEvent.budgetConstraints?.remainingBudget || 1000,
@@ -941,14 +928,6 @@ export class EnhancedTrafficRoutingCoordinator extends EventEmitter {
         maxLatency: errorEvent.performanceRequirements?.maxLatency || 1000,
         minThroughput: errorEvent.performanceRequirements?.minThroughput || 100,
         minSuccessRate: errorEvent.performanceRequirements?.minSuccessRate || 95
-      },
-      metadata: {
-        requestId: errorEvent.requestId,
-        userId: errorEvent.userId,
-        organizationId: errorEvent.organizationId,
-        timestamp: new Date(),
-        priority: errorEvent.priority || ServicePriority.HIGH,
-        businessCriticality: errorEvent.businessCriticality || BusinessCriticality.CUSTOMER_FACING
       }
     };
   }
@@ -1122,9 +1101,9 @@ export class EnhancedTrafficRoutingCoordinator extends EventEmitter {
         userAgent: "EnhancedTrafficRoutingCoordinator",
         organizationId: context.metadata.organizationId
       });
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error("Failed to create coordination audit log", {
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
         coordinationId: result.coordinationId
       });
     }

@@ -119,7 +119,7 @@ export class UserExperienceErrorHandler extends EventEmitter {
 
     return {
       title: template.title,
-      message: personalizedMessage.message,
+      message: personalizedMessage?.message,
       actionable: actions.length > 0,
       actions,
       severity,
@@ -200,7 +200,7 @@ export class UserExperienceErrorHandler extends EventEmitter {
 
     return {
       canUserRecover: this.canUserRecover(error, userContext),
-      steps: template.recoverySteps || [],
+      steps: template?.recoverySteps || [],
       estimatedTime: this.estimateRecoveryTime(error.code),
       requiredPermissions: this.getRequiredPermissions(error.code, context),
       contactSupport: this.shouldContactSupport(error.severity, userContext),
@@ -250,7 +250,7 @@ export class UserExperienceErrorHandler extends EventEmitter {
    */
   private initializeMessageTemplates(): void {
     // Waste management specific templates
-    this.messageTemplates.set(ERROR_TAXONOMY.FRONTEND.COMPONENT_CRASH, {
+    this?.messageTemplates.set(ERROR_TAXONOMY.FRONTEND.COMPONENT_CRASH, {
       title: "Display Issue",
       message:
         "We're having trouble displaying this information. The page will refresh automatically.",
@@ -262,7 +262,7 @@ export class UserExperienceErrorHandler extends EventEmitter {
       estimatedResolution: "30 seconds",
     });
 
-    this.messageTemplates.set(ERROR_TAXONOMY.BACKEND.DATABASE_ERROR, {
+    this?.messageTemplates.set(ERROR_TAXONOMY.BACKEND.DATABASE_ERROR, {
       title: "Service Temporarily Unavailable",
       message:
         "We're having trouble accessing your waste management data. Your information is safe and we're working to restore access.",
@@ -278,7 +278,7 @@ export class UserExperienceErrorHandler extends EventEmitter {
       ],
     });
 
-    this.messageTemplates.set(ERROR_TAXONOMY.EXTERNAL_API.SERVICE_UNAVAILABLE, {
+    this?.messageTemplates.set(ERROR_TAXONOMY.EXTERNAL_API.SERVICE_UNAVAILABLE, {
       title: "Third-party Service Issue",
       message:
         "One of our partner services is temporarily unavailable. Some features may be limited.",
@@ -295,7 +295,7 @@ export class UserExperienceErrorHandler extends EventEmitter {
       estimatedResolution: "15-30 minutes",
     });
 
-    this.messageTemplates.set(ERROR_TAXONOMY.SECURITY.UNAUTHORIZED_ACCESS, {
+    this?.messageTemplates.set(ERROR_TAXONOMY.SECURITY.UNAUTHORIZED_ACCESS, {
       title: "Access Denied",
       message:
         "You don't have permission to access this waste management feature. Contact your administrator if you believe this is incorrect.",
@@ -307,7 +307,7 @@ export class UserExperienceErrorHandler extends EventEmitter {
     });
 
     // Business-specific templates
-    this.messageTemplates.set("BILLING_ERROR", {
+    this?.messageTemplates.set("BILLING_ERROR", {
       title: "Billing System Issue",
       message:
         "We're having trouble processing billing information. No charges have been processed incorrectly.",
@@ -319,7 +319,7 @@ export class UserExperienceErrorHandler extends EventEmitter {
       estimatedResolution: "10-15 minutes",
     });
 
-    this.messageTemplates.set("ROUTE_OPTIMIZATION_ERROR", {
+    this?.messageTemplates.set("ROUTE_OPTIMIZATION_ERROR", {
       title: "Route Planning Unavailable",
       message:
         "Our route optimization service is temporarily unavailable. You can still create manual routes.",
@@ -435,7 +435,7 @@ export class UserExperienceErrorHandler extends EventEmitter {
     context: CrossStreamErrorContext,
     userContext?: UserContext,
   ): ErrorMessageTemplate {
-    let template = this.messageTemplates.get(errorCode);
+    let template = this?.messageTemplates.get(errorCode);
 
     if (!template) {
       // Fallback to generic template based on category
@@ -538,7 +538,7 @@ export class UserExperienceErrorHandler extends EventEmitter {
     userContext?: UserContext,
     context?: CrossStreamErrorContext,
   ): { message: string } {
-    let message = template.message;
+    let message = template?.message;
 
     if (userContext?.preferences?.verboseErrors && template.technicalDetails) {
       message += ` (Technical: ${template.technicalDetails})`;
@@ -719,7 +719,7 @@ export class UserExperienceErrorHandler extends EventEmitter {
     severity: ErrorSeverity,
     mode: DegradationMode,
   ): boolean {
-    return severity >= ErrorSeverity.MEDIUM || mode.name === "maintenance";
+    return severity >= ErrorSeverity?.MEDIUM || mode.name === "maintenance";
   }
 
   private canUserRecover(
@@ -760,7 +760,7 @@ export class UserExperienceErrorHandler extends EventEmitter {
     severity: ErrorSeverity,
     userContext?: UserContext,
   ): boolean {
-    return severity >= ErrorSeverity.HIGH || userContext?.type === "customer";
+    return severity >= ErrorSeverity?.HIGH || userContext?.type === "customer";
   }
 
   private getGenericTemplate(errorCode: string): ErrorMessageTemplate {
@@ -785,7 +785,7 @@ export class UserExperienceErrorHandler extends EventEmitter {
     if (userContext.experience === "novice") {
       return {
         ...template,
-        message: this.simplifyMessage(template.message),
+        message: this.simplifyMessage(template?.message),
         recoverySteps: template.recoverySteps?.slice(0, 2), // Show fewer steps
       };
     }

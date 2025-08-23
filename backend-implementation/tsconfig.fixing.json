@@ -1,0 +1,72 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    // Performance optimizations for type fixing phase
+    "sourceMap": false,
+    "declarationMap": false,
+    "declaration": false,
+    "removeComments": true,
+    
+    // Enhanced incremental compilation for large-scale fixes
+    "incremental": true,
+    "tsBuildInfoFile": "./dist/.tsbuildinfo.fixing",
+    "assumeChangesOnlyAffectDirectDependencies": true,
+    
+    // Memory optimization during error resolution
+    "preserveWatchOutput": true,
+    "skipLibCheck": false,
+    
+    // Enable all strict checks for comprehensive error detection
+    "strict": true,
+    "noImplicitAny": true,
+    "noImplicitReturns": true,
+    "noFallthroughCasesInSwitch": true,
+    "noUncheckedIndexedAccess": true,
+    "exactOptionalPropertyTypes": true,
+    "noImplicitThis": true,
+    "noImplicitOverride": true,
+    "useUnknownInCatchVariables": true,
+    "allowUnreachableCode": false,
+    "allowUnusedLabels": false,
+    
+    // Enhanced error reporting
+    "noErrorTruncation": true,
+    "preserveConstEnums": false,
+    
+    // Module resolution optimizations
+    "moduleResolution": "bundler",
+    "allowSyntheticDefaultImports": true,
+    "esModuleInterop": true,
+    "verbatimModuleSyntax": true
+  },
+  
+  // Include test files for comprehensive type checking during fixing
+  "include": [
+    "src/**/*",
+    "tests/**/*.ts"
+  ],
+  
+  // Exclude only essential directories during fixing phase
+  "exclude": [
+    "node_modules",
+    "dist",
+    "coverage"
+  ],
+  
+  // Optimized watch options for rapid feedback during fixing
+  "watchOptions": {
+    "watchFile": "priorityPollingInterval",
+    "watchDirectory": "dynamicPriorityPolling",
+    "fallbackPolling": "dynamicPriority",
+    "synchronousWatchDirectory": true,
+    "excludeDirectories": ["**/node_modules", "dist", "coverage"],
+    "excludeFiles": []
+  },
+  
+  // TypeScript 5.0+ performance improvements
+  "ts-node": {
+    "swc": false,
+    "transpileOnly": false,
+    "require": ["tsconfig-paths/register"]
+  }
+}

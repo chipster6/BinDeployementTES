@@ -68,7 +68,7 @@ class SocketManager {
 
         // Verify JWT token
         const decoded = jwt.verify(token, config.jwt.secret) as any;
-        socket.userId = decoded.userId || decoded.sub;
+        socket.userId = decoded?.userId || decoded.sub;
         socket.userRole = decoded.role;
         socket.sessionId = decoded.sessionId;
 
@@ -81,10 +81,10 @@ class SocketManager {
         });
 
         next();
-      } catch (error) {
+      } catch (error: unknown) {
         logSecurityEvent(
           "socket_auth_failed",
-          { error: error.message },
+          { error: error instanceof Error ? error?.message : String(error) },
           undefined,
           socket.handshake.address,
           "medium",
@@ -258,7 +258,7 @@ class SocketManager {
         userId: socket.userId,
         coordinates: [latitude, longitude],
       });
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error("Error handling location update:", error);
       socket.emit("error", { message: "Failed to process location update" });
     }
@@ -285,7 +285,7 @@ class SocketManager {
       this.broadcastToRoom("role:dispatcher", "route_progress", progressData);
 
       logger.debug("Route progress updated", { routeId, progress });
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error("Error handling route progress:", error);
       socket.emit("error", { message: "Failed to process route progress" });
     }
@@ -321,7 +321,7 @@ class SocketManager {
         serviceType,
         status,
       });
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error("Error handling service event:", error);
       socket.emit("error", { message: "Failed to process service event" });
     }
@@ -356,7 +356,7 @@ class SocketManager {
         room,
         reason,
       });
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error("Error joining room:", error);
       socket.emit("error", { message: "Failed to join room" });
     }
@@ -383,7 +383,7 @@ class SocketManager {
         userId: socket.userId,
         room,
       });
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error("Error leaving room:", error);
     }
   }
@@ -405,7 +405,7 @@ class SocketManager {
         message: "Message received",
         timestamp: new Date().toISOString(),
       });
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error("Error handling message:", error);
     }
   }
@@ -451,7 +451,7 @@ class SocketManager {
     try {
       const key = `location:vehicle:${vehicleId}`;
       await redisClient.set(key, JSON.stringify(locationData), "EX", 300); // 5 minute expiry
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error("Failed to store location data in Redis:", error);
     }
   }
@@ -533,6 +533,15 @@ class SocketManager {
   getUserConnections(userId: string): string[] {
     const sockets = this.userSockets.get(userId);
     return sockets ? Array.from(sockets) : [];
+  }
+
+  /**
+   * Get active connections count for a room
+   */
+  getActiveConnections(room: string): number {
+    if (!this.io) return 0;
+    const roomConnections = this.io.sockets.adapter.rooms.get(room);
+    return roomConnections ? roomConnections.size : 0;
   }
 
   /**

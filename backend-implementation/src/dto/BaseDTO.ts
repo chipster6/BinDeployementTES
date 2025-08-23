@@ -164,7 +164,7 @@ export abstract class BaseDTO<T = any> {
     if (error) {
       const errors = error.details.map((detail) => ({
         field: detail.path.join("."),
-        message: detail.message,
+        message: detail?.message,
         value: detail.context?.value,
       }));
 

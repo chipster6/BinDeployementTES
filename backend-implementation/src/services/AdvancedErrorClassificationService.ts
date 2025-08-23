@@ -241,7 +241,7 @@ export class AdvancedErrorClassificationService extends EventEmitter {
     
     logger.info("ADVANCED ERROR CLASSIFICATION INITIATED", {
       classificationId,
-      error: error.message,
+      error: error instanceof Error ? error?.message : String(error),
       code: error.code,
       context: {
         userId: context.userId,
@@ -284,13 +284,7 @@ export class AdvancedErrorClassificationService extends EventEmitter {
         securityThreat,
         businessRisk,
         responseRecommendations,
-        timestamp: new Date(),
-        metadata: {
-          aiConfidence: await this.calculateOverallConfidence(securityThreat, businessRisk),
-          analysisTime: Date.now() - startTime,
-          correlatedEvents,
-          threatIntelligence
-        }
+        timestamp: new Date()
       };
 
       // Cache classification result
@@ -314,8 +308,8 @@ export class AdvancedErrorClassificationService extends EventEmitter {
     } catch (classificationError) {
       logger.error("ERROR CLASSIFICATION FAILED", {
         classificationId,
-        error: classificationError.message,
-        originalError: error.message
+        error: classificationError?.message,
+        originalError: error instanceof Error ? error?.message : String(error)
       });
 
       // Return basic classification as fallback
@@ -376,9 +370,9 @@ export class AdvancedErrorClassificationService extends EventEmitter {
 
       return significantAnomalies;
 
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error("BEHAVIORAL ANOMALY DETECTION FAILED", {
-        error: error.message
+        error: error instanceof Error ? error?.message : String(error)
       });
       return [];
     }
@@ -392,7 +386,7 @@ export class AdvancedErrorClassificationService extends EventEmitter {
     context: any
   ): Promise<SecurityEventCorrelation | null> {
     logger.info("SECURITY EVENT CORRELATION INITIATED", {
-      primaryError: primaryError.message,
+      primaryError: primaryError?.message,
       userId: context.userId,
       ip: context.ip
     });
@@ -436,10 +430,10 @@ export class AdvancedErrorClassificationService extends EventEmitter {
 
       return correlation;
 
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error("SECURITY EVENT CORRELATION FAILED", {
-        error: error.message,
-        primaryError: primaryError.message
+        error: error instanceof Error ? error?.message : String(error),
+        primaryError: primaryError?.message
       });
       return null;
     }
@@ -477,9 +471,9 @@ export class AdvancedErrorClassificationService extends EventEmitter {
 
       return intelligence;
 
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error("THREAT INTELLIGENCE QUERY FAILED", {
-        error: error.message
+        error: error instanceof Error ? error?.message : String(error)
       });
       return [];
     }
@@ -570,10 +564,10 @@ export class AdvancedErrorClassificationService extends EventEmitter {
 
       return report;
 
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error("SECURITY REPORT GENERATION FAILED", {
         reportId,
-        error: error.message
+        error: error instanceof Error ? error?.message : String(error)
       });
       throw error;
     }
@@ -647,9 +641,9 @@ export class AdvancedErrorClassificationService extends EventEmitter {
         count: this.threatIntelligence.size
       });
 
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error("Failed to load threat intelligence", {
-        error: error.message
+        error: error instanceof Error ? error?.message : String(error)
       });
     }
   }
@@ -820,13 +814,7 @@ export class AdvancedErrorClassificationService extends EventEmitter {
         longTerm: [],
         escalation: "none"
       },
-      timestamp: new Date(),
-      metadata: {
-        aiConfidence: 0,
-        analysisTime: 0,
-        correlatedEvents: [],
-        threatIntelligence: []
-      }
+      timestamp: new Date()
     };
   }
 

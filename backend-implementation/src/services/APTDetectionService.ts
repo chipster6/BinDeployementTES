@@ -360,18 +360,18 @@ export class APTDetectionService extends BaseService<any> {
         message: "APT behavior analysis completed successfully"
       };
 
-    } catch (error) {
-      timer.end({ error: error.message });
+    } catch (error: unknown) {
+      timer.end({ error: error instanceof Error ? error?.message : String(error) });
       logger.error("APTDetectionService.analyzeAPTBehavior failed", {
         userId,
         sessionId,
-        error: error.message
+        error: error instanceof Error ? error?.message : String(error)
       });
 
       return {
         success: false,
         message: "Failed to analyze APT behavior",
-        errors: [error.message]
+        errors: [error instanceof Error ? error?.message : String(error)]
       };
     }
   }
@@ -442,17 +442,17 @@ export class APTDetectionService extends BaseService<any> {
         message: "Lateral movement detection completed successfully"
       };
 
-    } catch (error) {
-      timer.end({ error: error.message });
+    } catch (error: unknown) {
+      timer.end({ error: error instanceof Error ? error?.message : String(error) });
       logger.error("APTDetectionService.detectLateralMovement failed", {
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
         eventCount: networkEvents.length
       });
 
       return {
         success: false,
         message: "Failed to detect lateral movement",
-        errors: [error.message]
+        errors: [error instanceof Error ? error?.message : String(error)]
       };
     }
   }
@@ -535,17 +535,17 @@ export class APTDetectionService extends BaseService<any> {
         message: "C2 communication detection completed successfully"
       };
 
-    } catch (error) {
-      timer.end({ error: error.message });
+    } catch (error: unknown) {
+      timer.end({ error: error instanceof Error ? error?.message : String(error) });
       logger.error("APTDetectionService.detectC2Communications failed", {
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
         trafficCount: networkTraffic.length
       });
 
       return {
         success: false,
         message: "Failed to detect C2 communications",
-        errors: [error.message]
+        errors: [error instanceof Error ? error?.message : String(error)]
       };
     }
   }
@@ -633,17 +633,17 @@ export class APTDetectionService extends BaseService<any> {
         message: "Threat hunting completed successfully"
       };
 
-    } catch (error) {
-      timer.end({ error: error.message });
+    } catch (error: unknown) {
+      timer.end({ error: error instanceof Error ? error?.message : String(error) });
       logger.error("APTDetectionService.runThreatHunting failed", {
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
         queryIds
       });
 
       return {
         success: false,
         message: "Failed to run threat hunting",
-        errors: [error.message]
+        errors: [error instanceof Error ? error?.message : String(error)]
       };
     }
   }
@@ -737,16 +737,16 @@ export class APTDetectionService extends BaseService<any> {
         message: "APT dashboard data generated successfully"
       };
 
-    } catch (error) {
-      timer.end({ error: error.message });
+    } catch (error: unknown) {
+      timer.end({ error: error instanceof Error ? error?.message : String(error) });
       logger.error("APTDetectionService.getAPTDashboard failed", {
-        error: error.message
+        error: error instanceof Error ? error?.message : String(error)
       });
 
       return {
         success: false,
         message: "Failed to generate APT dashboard data",
-        errors: [error.message]
+        errors: [error instanceof Error ? error?.message : String(error)]
       };
     }
   }
@@ -890,7 +890,7 @@ export class APTDetectionService extends BaseService<any> {
     return actions.slice(0, 2).map((action, index) => ({
       id: `anomaly_${userId}_${index}`,
       userId,
-      sessionId: action.sessionId || "unknown",
+      sessionId: action?.sessionId || "unknown",
       timestamp: action.timestamp,
       anomalyType: "access_pattern" as const,
       severity: 0.3 + Math.random() * 0.4,

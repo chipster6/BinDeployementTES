@@ -20,7 +20,7 @@
  * Version: 1.0.0
  */
 
-import { Router, Request, Response } from "express";
+import { Router, type Request, type Response } from "express";
 import { errorMonitoring } from "@/services/ErrorMonitoringService";
 import { databaseRecovery } from "@/services/DatabaseRecoveryService";
 import { databaseMonitoring } from "@/services/DatabaseMonitoringService";
@@ -93,8 +93,8 @@ router.get(
         status: overallStatus,
         timestamp: new Date().toISOString(),
         uptime: process.uptime(),
-        version: process.env.npm_package_version || "1.0.0",
-        environment: process.env.NODE_ENV || "development",
+        version: process.env?.npm_package_version || "1.0.0",
+        environment: process.env?.NODE_ENV || "development",
         duration: `${duration}ms`,
         components: componentsHealth,
         summary: {
@@ -114,8 +114,8 @@ router.get(
             : 503;
 
       res.status(statusCode).json(response);
-    } catch (error) {
-      logger.error("Health check failed", { error: error.message });
+    } catch (error: unknown) {
+      logger.error("Health check failed", { error: error instanceof Error ? error?.message : String(error) });
 
       res.status(503).json({
         status: "unhealthy",
@@ -153,13 +153,13 @@ router.get(
         performanceMetrics,
         healthChecks: await getDetailedHealthChecks(),
       });
-    } catch (error) {
-      logger.error("Detailed health check failed", { error: error.message });
+    } catch (error: unknown) {
+      logger.error("Detailed health check failed", { error: error instanceof Error ? error?.message : String(error) });
 
       res.status(500).json({
         status: "error",
         message: "Failed to retrieve detailed health information",
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
       });
     }
   }),
@@ -185,15 +185,15 @@ router.get(
         statistics: errorStats,
         recommendations: generateErrorRecommendations(errorStats, healthStatus),
       });
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error("Error monitoring health check failed", {
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
       });
 
       res.status(500).json({
         status: "error",
         message: "Failed to retrieve error monitoring information",
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
       });
     }
   }),
@@ -223,13 +223,13 @@ router.get(
         optimization: optimizationStatus,
         recommendations: generateDatabaseRecommendations(dbHealth, performanceMetrics),
       });
-    } catch (error) {
-      logger.error("Database health check failed", { error: error.message });
+    } catch (error: unknown) {
+      logger.error("Database health check failed", { error: error instanceof Error ? error?.message : String(error) });
 
       res.status(500).json({
         status: "error",
         message: "Failed to retrieve database health information",
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
       });
     }
   }),
@@ -267,12 +267,12 @@ router.get(
           healthCritical: currentMetrics.health.overall === "critical",
         } : {},
       });
-    } catch (error) {
-      logger.error("Database performance metrics failed", { error: error.message });
+    } catch (error: unknown) {
+      logger.error("Database performance metrics failed", { error: error instanceof Error ? error?.message : String(error) });
       res.status(500).json({
         status: "error",
         message: "Failed to retrieve database performance metrics",
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
       });
     }
   }),
@@ -295,12 +295,12 @@ router.get(
         optimizationStatus: status,
         criticalRecommendations: analysis.recommendations.filter(r => r.priority === "high"),
       });
-    } catch (error) {
-      logger.error("Database optimization analysis failed", { error: error.message });
+    } catch (error: unknown) {
+      logger.error("Database optimization analysis failed", { error: error instanceof Error ? error?.message : String(error) });
       res.status(500).json({
         status: "error",
         message: "Failed to retrieve database optimization analysis",
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
       });
     }
   }),
@@ -321,12 +321,12 @@ router.post(
         message: "Performance metrics collected successfully",
         metrics,
       });
-    } catch (error) {
-      logger.error("Forced metrics collection failed", { error: error.message });
+    } catch (error: unknown) {
+      logger.error("Forced metrics collection failed", { error: error instanceof Error ? error?.message : String(error) });
       res.status(500).json({
         status: "error",
         message: "Failed to collect performance metrics",
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
       });
     }
   }),
@@ -366,12 +366,12 @@ router.get(
         connectionPool: healthStatus,
         recentPerformance: currentMetrics?.connectionPool,
       });
-    } catch (error) {
-      logger.error("Connection pool health check failed", { error: error.message });
+    } catch (error: unknown) {
+      logger.error("Connection pool health check failed", { error: error instanceof Error ? error?.message : String(error) });
       res.status(500).json({
         status: "error",
         message: "Failed to retrieve connection pool health",
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
       });
     }
   }),
@@ -413,13 +413,13 @@ router.get(
           alerting: true,
         },
       });
-    } catch (error) {
-      logger.error("Recovery status check failed", { error: error.message });
+    } catch (error: unknown) {
+      logger.error("Recovery status check failed", { error: error instanceof Error ? error?.message : String(error) });
 
       res.status(500).json({
         status: "error",
         message: "Failed to retrieve recovery status information",
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
       });
     }
   }),
@@ -474,11 +474,11 @@ router.get(
           }, {} as any),
         });
       }
-    } catch (error) {
+    } catch (error: unknown) {
       res.status(503).json({
         status: "not_ready",
         timestamp: new Date().toISOString(),
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
       });
     }
   }),
@@ -503,10 +503,10 @@ async function checkDatabaseHealth(): Promise<{
       status: responseTime > 1000 ? "degraded" : "healthy",
       responseTime,
     };
-  } catch (error) {
+  } catch (error: unknown) {
     return {
       status: "unhealthy",
-      error: error.message,
+      error: error instanceof Error ? error?.message : String(error),
       responseTime: Date.now() - startTime,
     };
   }
@@ -527,10 +527,10 @@ async function checkRedisHealth(): Promise<{
       status: responseTime > 100 ? "degraded" : "healthy",
       responseTime,
     };
-  } catch (error) {
+  } catch (error: unknown) {
     return {
       status: "unhealthy",
-      error: error.message,
+      error: error instanceof Error ? error?.message : String(error),
       responseTime: Date.now() - startTime,
     };
   }
@@ -545,10 +545,10 @@ async function checkErrorMonitoringHealth(): Promise<{
     return {
       status: health.status,
     };
-  } catch (error) {
+  } catch (error: unknown) {
     return {
       status: "unhealthy",
-      error: error.message,
+      error: error instanceof Error ? error?.message : String(error),
     };
   }
 }
@@ -562,10 +562,10 @@ async function checkDatabaseRecoveryHealth(): Promise<{
     return {
       status: health.state === "healthy" ? "healthy" : "degraded",
     };
-  } catch (error) {
+  } catch (error: unknown) {
     return {
       status: "unhealthy",
-      error: error.message,
+      error: error instanceof Error ? error?.message : String(error),
     };
   }
 }

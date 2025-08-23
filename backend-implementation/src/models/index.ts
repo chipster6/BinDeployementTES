@@ -48,7 +48,32 @@ import RolePermission from "./RolePermission";
 // Audit models
 // import DataAccessLog from './audit/DataAccessLog';
 
-// Analytics and IoT models
+// Analytics models - Phase 3 Predictive Foundation
+import type { TimeSeriesMetrics, MetricType, AggregationLevel, DataQuality } from './analytics/TimeSeriesMetrics';
+import { 
+  CustomerBehaviorAggregates, 
+  OperationalMetricsAggregates, 
+  BehaviorPeriod, 
+  TrendDirection 
+} from './analytics/HistoricalAggregates';
+import { 
+  ModelFeatureStore, 
+  ModelPredictionResults, 
+  ModelPerformanceTracking,
+  PredictionModelType,
+  ModelAlgorithm,
+  PredictionHorizon
+} from './analytics/PredictiveModels';
+
+// Analytics Data Warehouse models - Enterprise BI Foundation
+import {
+  OperationalMetricsWarehouse,
+  CustomerAnalyticsWarehouse,
+  FinancialAnalyticsWarehouse,
+  RouteOptimizationAnalytics
+} from './analytics/AnalyticsDataWarehouse';
+
+// Legacy analytics models (will be migrated)
 // import GpsTracking from './analytics/GpsTracking';
 // import SensorData from './analytics/SensorData';
 // import DailyMetrics from './analytics/DailyMetrics';
@@ -331,7 +356,7 @@ export async function initializeModels(): Promise<void> {
     }
 
     console.log("✅ All models initialized successfully");
-  } catch (error) {
+  } catch (error: unknown) {
     console.error("❌ Error initializing models:", error);
     throw error;
   }
@@ -350,6 +375,20 @@ export {
   Bin,
   Permission,
   RolePermission,
+
+  // Analytics models - Phase 3 Predictive Foundation
+  TimeSeriesMetrics,
+  CustomerBehaviorAggregates,
+  OperationalMetricsAggregates,
+  ModelFeatureStore,
+  ModelPredictionResults,
+  ModelPerformanceTracking,
+
+  // Analytics Data Warehouse models - Enterprise BI Foundation
+  OperationalMetricsWarehouse,
+  CustomerAnalyticsWarehouse,
+  FinancialAnalyticsWarehouse,
+  RouteOptimizationAnalytics,
 
   // User enums
   UserRole,
@@ -391,6 +430,16 @@ export {
   // Permission enums
   PermissionAction,
 
+  // Analytics enums - Phase 3 Predictive Foundation
+  MetricType,
+  AggregationLevel,
+  DataQuality,
+  BehaviorPeriod,
+  TrendDirection,
+  PredictionModelType,
+  ModelAlgorithm,
+  PredictionHorizon,
+
   // Database instance
   database,
 };
@@ -407,6 +456,21 @@ export default {
   Bin,
   Permission,
   RolePermission,
+  
+  // Analytics models - Phase 3 Predictive Foundation
+  TimeSeriesMetrics,
+  CustomerBehaviorAggregates,
+  OperationalMetricsAggregates,
+  ModelFeatureStore,
+  ModelPredictionResults,
+  ModelPerformanceTracking,
+
+  // Analytics Data Warehouse models - Enterprise BI Foundation
+  OperationalMetricsWarehouse,
+  CustomerAnalyticsWarehouse,
+  FinancialAnalyticsWarehouse,
+  RouteOptimizationAnalytics,
+  
   database,
   initializeModels,
 };

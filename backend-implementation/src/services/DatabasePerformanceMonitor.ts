@@ -212,7 +212,7 @@ class DatabasePerformanceMonitor extends EventEmitter {
         redisResponseTime: `${redisResponseTime}ms`,
       });
 
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error("❌ Failed to collect database metrics:", error);
       
       // Emit critical error alert
@@ -242,7 +242,7 @@ class DatabasePerformanceMonitor extends EventEmitter {
       // Track slow queries
       if (duration > this.thresholds.slowQueryThreshold) {
         this.addSlowQuery({
-          query: options.sql || "Unknown query",
+          query: options?.sql || "Unknown query",
           duration,
           timestamp: new Date(),
           parameters: options.bind,
@@ -297,7 +297,7 @@ class DatabasePerformanceMonitor extends EventEmitter {
         diskUsage: parseInt(performanceData.db_size_bytes) || 0,
       };
 
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error("Failed to get database resource stats:", error);
       return {};
     }
@@ -431,7 +431,7 @@ class DatabasePerformanceMonitor extends EventEmitter {
       await CacheService.set("database:performance:current", metrics, 300); // 5 minutes
       await CacheService.set("database:performance:history", this.metrics.slice(-100), 3600); // 1 hour
       await CacheService.set("database:slow_queries", this.slowQueries.slice(-50), 3600);
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error("Failed to cache performance metrics:", error);
     }
   }
@@ -514,7 +514,7 @@ databasePerformanceMonitor.on("alert", (alert: PerformanceAlert) => {
   logger[logLevel]("🚨 Database performance alert", {
     type: alert.type,
     severity: alert.severity,
-    message: alert.message,
+    message: alert?.message,
     timestamp: alert.timestamp,
   });
 });

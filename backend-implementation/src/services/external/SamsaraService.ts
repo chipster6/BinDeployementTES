@@ -322,17 +322,16 @@ export class SamsaraService extends BaseExternalService {
         },
         statusCode: 200,
         metadata: {
-          requestId: `vehicles-${Date.now()}`,
           duration: 0,
           attempt: 1,
         },
       };
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error("Failed to get vehicles", {
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
       });
 
-      throw new Error(`Vehicle retrieval failed: ${error.message}`);
+      throw new Error(`Vehicle retrieval failed: ${error instanceof Error ? error?.message : String(error)}`);
     }
   }
 
@@ -408,17 +407,16 @@ export class SamsaraService extends BaseExternalService {
         },
         statusCode: 200,
         metadata: {
-          requestId: `drivers-${Date.now()}`,
           duration: 0,
           attempt: 1,
         },
       };
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error("Failed to get drivers", {
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
       });
 
-      throw new Error(`Driver retrieval failed: ${error.message}`);
+      throw new Error(`Driver retrieval failed: ${error instanceof Error ? error?.message : String(error)}`);
     }
   }
 
@@ -481,18 +479,17 @@ export class SamsaraService extends BaseExternalService {
         data: locations,
         statusCode: 200,
         metadata: {
-          requestId: `locations-${vehicleIds.join("-")}`,
           duration: 0,
           attempt: 1,
         },
       };
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error("Failed to get vehicle locations", {
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
         vehicleIds,
       });
 
-      throw new Error(`Vehicle location retrieval failed: ${error.message}`);
+      throw new Error(`Vehicle location retrieval failed: ${error instanceof Error ? error?.message : String(error)}`);
     }
   }
 
@@ -573,17 +570,16 @@ export class SamsaraService extends BaseExternalService {
         data: safetyEvents,
         statusCode: 200,
         metadata: {
-          requestId: `safety-events-${Date.now()}`,
           duration: 0,
           attempt: 1,
         },
       };
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error("Failed to get driver safety events", {
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
       });
 
-      throw new Error(`Safety event retrieval failed: ${error.message}`);
+      throw new Error(`Safety event retrieval failed: ${error instanceof Error ? error?.message : String(error)}`);
     }
   }
 
@@ -651,18 +647,17 @@ export class SamsaraService extends BaseExternalService {
         data: diagnostics,
         statusCode: 200,
         metadata: {
-          requestId: `diagnostics-${vehicleIds.join("-")}`,
           duration: 0,
           attempt: 1,
         },
       };
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error("Failed to get vehicle diagnostics", {
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
         vehicleIds,
       });
 
-      throw new Error(`Vehicle diagnostics retrieval failed: ${error.message}`);
+      throw new Error(`Vehicle diagnostics retrieval failed: ${error instanceof Error ? error?.message : String(error)}`);
     }
   }
 
@@ -726,19 +721,14 @@ export class SamsaraService extends BaseExternalService {
         success: true,
         data: response.data,
         statusCode: 200,
-        metadata: {
-          requestId: response.data.id,
-          duration: 0,
-          attempt: 1,
-        },
       };
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error("Failed to create dispatch route", {
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
         routeName: route.name,
       });
 
-      throw new Error(`Route creation failed: ${error.message}`);
+      throw new Error(`Route creation failed: ${error instanceof Error ? error?.message : String(error)}`);
     }
   }
 
@@ -785,19 +775,14 @@ export class SamsaraService extends BaseExternalService {
         success: true,
         data: response.data,
         statusCode: 200,
-        metadata: {
-          requestId: response.data.id,
-          duration: 0,
-          attempt: 1,
-        },
       };
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error("Failed to update dispatch route", {
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
         routeId,
       });
 
-      throw new Error(`Route update failed: ${error.message}`);
+      throw new Error(`Route update failed: ${error instanceof Error ? error?.message : String(error)}`);
     }
   }
 
@@ -878,19 +863,14 @@ export class SamsaraService extends BaseExternalService {
           eventType: event.eventType,
         },
         statusCode: 200,
-        metadata: {
-          requestId: event.eventId,
-          duration: 0,
-          attempt: 1,
-        },
       };
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error("Failed to process Samsara webhook event", {
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
         eventId: event.eventId,
       });
 
-      throw new Error(`Webhook processing failed: ${error.message}`);
+      throw new Error(`Webhook processing failed: ${error instanceof Error ? error?.message : String(error)}`);
     }
   }
 
@@ -980,12 +960,12 @@ export class SamsaraService extends BaseExternalService {
         status: "healthy",
         lastCheck: new Date(),
       };
-    } catch (error) {
+    } catch (error: unknown) {
       return {
         service: "samsara",
         status: "unhealthy",
         lastCheck: new Date(),
-        details: { error: error.message },
+        details: { error: error instanceof Error ? error?.message : String(error) },
       };
     }
   }

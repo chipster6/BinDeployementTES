@@ -349,7 +349,6 @@ export class WeatherRoutingService extends BaseExternalService {
           data: cached,
           statusCode: 200,
           metadata: {
-            requestId: `weather-cached-${Date.now()}`,
             duration: 0,
             attempt: 1,
             fromCache: true,
@@ -395,7 +394,6 @@ export class WeatherRoutingService extends BaseExternalService {
               data: weather,
               statusCode: 200,
               metadata: {
-                requestId: `weather-${Date.now()}`,
                 duration: 0,
                 attempt: 1,
                 fallbackUsed: provider.name !== sortedProviders[0].name,
@@ -403,10 +401,10 @@ export class WeatherRoutingService extends BaseExternalService {
               },
             };
           }
-        } catch (error) {
+        } catch (error: unknown) {
           lastError = error;
           logger.warn(`Weather provider ${provider.name} failed`, {
-            error: error.message,
+            error: error instanceof Error ? error?.message : String(error),
             location: `${location.latitude},${location.longitude}`,
           });
           continue;
@@ -414,14 +412,14 @@ export class WeatherRoutingService extends BaseExternalService {
       }
 
       throw lastError || new Error("All weather providers failed");
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error("Failed to get current weather", {
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
         location: `${location.latitude},${location.longitude}`,
         options,
       });
 
-      throw new Error(`Weather data retrieval failed: ${error.message}`);
+      throw new Error(`Weather data retrieval failed: ${error instanceof Error ? error?.message : String(error)}`);
     }
   }
 
@@ -473,9 +471,9 @@ export class WeatherRoutingService extends BaseExternalService {
                 );
                 break;
               }
-            } catch (error) {
+            } catch (error: unknown) {
               logger.warn(`Forecast provider ${provider.name} failed`, {
-                error: error.message,
+                error: error instanceof Error ? error?.message : String(error),
                 point: `${point.latitude},${point.longitude}`,
               });
               continue;
@@ -499,19 +497,18 @@ export class WeatherRoutingService extends BaseExternalService {
         data: forecasts,
         statusCode: 200,
         metadata: {
-          requestId: `forecast-${Date.now()}`,
           duration: 0,
           attempt: 1,
         },
       };
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error("Failed to get weather forecast", {
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
         routeId: route.id,
         timeframe,
       });
 
-      throw new Error(`Weather forecast failed: ${error.message}`);
+      throw new Error(`Weather forecast failed: ${error instanceof Error ? error?.message : String(error)}`);
     }
   }
 
@@ -551,9 +548,9 @@ export class WeatherRoutingService extends BaseExternalService {
             options
           );
           allAlerts.push(...providerAlerts);
-        } catch (error) {
+        } catch (error: unknown) {
           logger.warn(`Alert provider ${provider.name} failed`, {
-            error: error.message,
+            error: error instanceof Error ? error?.message : String(error),
           });
           continue;
         }
@@ -575,19 +572,18 @@ export class WeatherRoutingService extends BaseExternalService {
         data: filteredAlerts,
         statusCode: 200,
         metadata: {
-          requestId: `alerts-${Date.now()}`,
           duration: 0,
           attempt: 1,
         },
       };
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error("Failed to get weather alerts", {
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
         area,
         options,
       });
 
-      throw new Error(`Weather alerts retrieval failed: ${error.message}`);
+      throw new Error(`Weather alerts retrieval failed: ${error instanceof Error ? error?.message : String(error)}`);
     }
   }
 
@@ -649,20 +645,18 @@ export class WeatherRoutingService extends BaseExternalService {
       return {
         success: true,
         data: weatherImpact,
-        statusCode: 200,
-        metadata: {
-          requestId: `impact-${Date.now()}`,
+        statusCode: 200`,
           duration: 0,
           attempt: 1,
         },
       };
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error("Failed to assess weather impact", {
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
         routeId: route.id,
       });
 
-      throw new Error(`Weather impact assessment failed: ${error.message}`);
+      throw new Error(`Weather impact assessment failed: ${error instanceof Error ? error?.message : String(error)}`);
     }
   }
 
@@ -1185,10 +1179,10 @@ export class WeatherRoutingService extends BaseExternalService {
   private async cacheResult(key: string, data: any, ttl: number): Promise<void> {
     try {
       await redisClient.setex(key, ttl, JSON.stringify(data));
-    } catch (error) {
+    } catch (error: unknown) {
       logger.warn("Failed to cache weather result", {
         key,
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
       });
     }
   }
@@ -1197,10 +1191,10 @@ export class WeatherRoutingService extends BaseExternalService {
     try {
       const cached = await redisClient.get(key);
       return cached ? JSON.parse(cached) : null;
-    } catch (error) {
+    } catch (error: unknown) {
       logger.warn("Failed to get cached weather result", {
         key,
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
       });
       return null;
     }
@@ -1237,7 +1231,7 @@ export class WeatherRoutingService extends BaseExternalService {
           );
           providerHealth[name] = "healthy";
           healthyProviders++;
-        } catch (error) {
+        } catch (error: unknown) {
           providerHealth[name] = "unhealthy";
         }
       } else {

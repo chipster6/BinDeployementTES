@@ -206,14 +206,14 @@ export class AdvancedMemoryCPUProfiler extends BaseService<any> {
         message: `Memory and CPU Profiler deployed with ${estimatedImprovement}% estimated improvement`
       };
 
-    } catch (error) {
-      timer.end({ error: error.message });
+    } catch (error: unknown) {
+      timer.end({ error: error instanceof Error ? error?.message : String(error) });
       logger.error("❌ Failed to deploy Memory and CPU Profiler", error);
       
       return {
         success: false,
         message: "Failed to deploy Memory and CPU Profiler",
-        errors: [error.message]
+        errors: [error instanceof Error ? error?.message : String(error)]
       };
     }
   }
@@ -286,14 +286,14 @@ export class AdvancedMemoryCPUProfiler extends BaseService<any> {
         message: `Memory and CPU optimization completed with ${performanceGain}% performance gain`
       };
 
-    } catch (error) {
-      timer.end({ error: error.message });
+    } catch (error: unknown) {
+      timer.end({ error: error instanceof Error ? error?.message : String(error) });
       logger.error("❌ Memory and CPU optimization failed", error);
       
       return {
         success: false,
         message: "Memory and CPU optimization failed",
-        errors: [error.message]
+        errors: [error instanceof Error ? error?.message : String(error)]
       };
     }
   }
@@ -383,7 +383,7 @@ export class AdvancedMemoryCPUProfiler extends BaseService<any> {
       // Emit profiling data
       this.eventEmitter.emit('profilingData', { memoryMetrics, cpuMetrics });
 
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error("Failed to collect profiling data", error);
     }
   }
@@ -546,7 +546,7 @@ export class AdvancedMemoryCPUProfiler extends BaseService<any> {
       await this.optimizeLargeObjects();
       optimizations.push('Large object optimization');
 
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error("Memory optimization failed", error);
     }
 
@@ -576,7 +576,7 @@ export class AdvancedMemoryCPUProfiler extends BaseService<any> {
       await this.implementParallelProcessing();
       optimizations.push('Parallel processing implementation');
 
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error("CPU optimization failed", error);
     }
 
@@ -609,7 +609,7 @@ export class AdvancedMemoryCPUProfiler extends BaseService<any> {
             leaksFixed++;
             break;
         }
-      } catch (error) {
+      } catch (error: unknown) {
         logger.error(`Failed to fix ${leak.type} leak`, error);
       }
     }

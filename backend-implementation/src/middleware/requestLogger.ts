@@ -11,7 +11,7 @@
  * Version: 1.0.0
  */
 
-import { Request, Response, NextFunction } from "express";
+import { Request, type Response, type NextFunction } from "express";
 import { v4 as uuidv4 } from "uuid";
 import { logger, httpLogger, performanceLogger, Timer } from "@/utils/logger";
 import { config } from "@/config";
@@ -278,8 +278,8 @@ export const requestLogger = (
   res.on("error", (error) => {
     logger.error("Response error", {
       requestId,
-      error: error.message,
-      stack: error.stack,
+      error: error instanceof Error ? error?.message : String(error),
+      stack: error instanceof Error ? error?.stack : undefined,
       method: req.method,
       url: req.originalUrl,
       ip: clientIP,
@@ -305,7 +305,7 @@ export const setupMorganTokens = (morgan: any) => {
   // Request ID token
   morgan.token(
     "request-id",
-    (req: ExtendedRequest) => req.requestId || "unknown",
+    (req: ExtendedRequest) => req?.requestId || "unknown",
   );
 
   // User ID token

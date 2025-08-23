@@ -191,7 +191,7 @@ export class StripeService extends BaseExternalService {
     this.encryptSensitiveData = config.encryptSensitiveData !== false;
     this.auditAllTransactions = config.auditAllTransactions !== false;
     this.keyRotationEnabled = config.enableKeyRotation === true;
-    this.keyRotationInterval = config.keyRotationIntervalDays || 90;
+    this.keyRotationInterval = config?.keyRotationIntervalDays || 90;
 
     // Register webhook security configuration
     this.webhookSecurityService.registerWebhook('stripe', {
@@ -243,10 +243,6 @@ export class StripeService extends BaseExternalService {
           name: customerData.name,
           phone: customerData.phone,
           address: customerData.address,
-          metadata: {
-            ...customerData.metadata,
-            internal_customer_id: customerData.customerId,
-          },
         });
       } else {
         // Create new customer
@@ -255,10 +251,6 @@ export class StripeService extends BaseExternalService {
           name: customerData.name,
           phone: customerData.phone,
           address: customerData.address,
-          metadata: {
-            ...customerData.metadata,
-            internal_customer_id: customerData.customerId,
-          },
         });
       }
 
@@ -281,19 +273,14 @@ export class StripeService extends BaseExternalService {
         success: true,
         data: customer,
         statusCode: 200,
-        metadata: {
-          requestId: customer.id,
-          duration: 0,
-          attempt: 1,
-        },
       };
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error("Failed to create/get Stripe customer", {
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
         customerId: customerData.customerId,
       });
 
-      throw new Error(`Stripe customer creation failed: ${error.message}`);
+      throw new Error(`Stripe customer creation failed: ${error instanceof Error ? error?.message : String(error)}`);
     }
   }
 
@@ -348,20 +335,15 @@ export class StripeService extends BaseExternalService {
         success: true,
         data: paymentMethodData,
         statusCode: 200,
-        metadata: {
-          requestId: paymentMethod.id,
-          duration: 0,
-          attempt: 1,
-        },
       };
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error("Failed to create payment method", {
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
         customerId,
         paymentMethodId,
       });
 
-      throw new Error(`Payment method creation failed: ${error.message}`);
+      throw new Error(`Payment method creation failed: ${error instanceof Error ? error?.message : String(error)}`);
     }
   }
 
@@ -382,7 +364,7 @@ export class StripeService extends BaseExternalService {
         customer: customerId,
         items: [{ price: priceId }],
         expand: ["latest_invoice.payment_intent"],
-        metadata: options.metadata || {},
+        metadata: options?.metadata || {},
       };
 
       if (options.trialPeriodDays) {
@@ -413,20 +395,15 @@ export class StripeService extends BaseExternalService {
         success: true,
         data: subscriptionData,
         statusCode: 200,
-        metadata: {
-          requestId: subscription.id,
-          duration: 0,
-          attempt: 1,
-        },
       };
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error("Failed to create subscription", {
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
         customerId,
         priceId,
       });
 
-      throw new Error(`Subscription creation failed: ${error.message}`);
+      throw new Error(`Subscription creation failed: ${error instanceof Error ? error?.message : String(error)}`);
     }
   }
 
@@ -450,7 +427,7 @@ export class StripeService extends BaseExternalService {
         automatic_payment_methods: {
           enabled: true,
         },
-        metadata: options.metadata || {},
+        metadata: options?.metadata || {},
         description: options.description,
       };
 
@@ -481,20 +458,15 @@ export class StripeService extends BaseExternalService {
         success: true,
         data: paymentIntentData,
         statusCode: 200,
-        metadata: {
-          requestId: paymentIntent.id,
-          duration: 0,
-          attempt: 1,
-        },
       };
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error("Failed to create payment intent", {
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
         amount,
         currency,
       });
 
-      throw new Error(`Payment intent creation failed: ${error.message}`);
+      throw new Error(`Payment intent creation failed: ${error instanceof Error ? error?.message : String(error)}`);
     }
   }
 
@@ -525,8 +497,8 @@ export class StripeService extends BaseExternalService {
         paidAt: invoice.status_transitions.paid_at
           ? new Date(invoice.status_transitions.paid_at * 1000)
           : undefined,
-        hostedInvoiceUrl: invoice.hosted_invoice_url || undefined,
-        invoicePdf: invoice.invoice_pdf || undefined,
+        hostedInvoiceUrl: invoice?.hosted_invoice_url || undefined,
+        invoicePdf: invoice?.invoice_pdf || undefined,
       }));
 
       return {
@@ -534,18 +506,17 @@ export class StripeService extends BaseExternalService {
         data: invoiceData,
         statusCode: 200,
         metadata: {
-          requestId: `invoices-${customerId}`,
           duration: 0,
           attempt: 1,
         },
       };
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error("Failed to get customer invoices", {
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
         customerId,
       });
 
-      throw new Error(`Invoice retrieval failed: ${error.message}`);
+      throw new Error(`Invoice retrieval failed: ${error instanceof Error ? error?.message : String(error)}`);
     }
   }
 
@@ -581,19 +552,14 @@ export class StripeService extends BaseExternalService {
         success: true,
         data: subscriptionData,
         statusCode: 200,
-        metadata: {
-          requestId: subscription.id,
-          duration: 0,
-          attempt: 1,
-        },
       };
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error("Failed to cancel subscription", {
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
         subscriptionId,
       });
 
-      throw new Error(`Subscription cancellation failed: ${error.message}`);
+      throw new Error(`Subscription cancellation failed: ${error instanceof Error ? error?.message : String(error)}`);
     }
   }
 
@@ -737,27 +703,22 @@ export class StripeService extends BaseExternalService {
         success: true,
         data: { processed: true, eventType: event.type },
         statusCode: 200,
-        metadata: {
-          requestId: event.id,
-          duration: 0,
-          attempt: 1,
-        },
       };
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error("Failed to process webhook event", {
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
         ipAddress,
         signature: maskSensitiveData(signature || ''),
       });
 
       // Log security failure
       await this.logSecurityEvent('webhook_processing_failed', {
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
         ipAddress,
         signature: maskSensitiveData(signature || ''),
       });
 
-      throw new Error(`Webhook processing failed: ${error.message}`);
+      throw new Error(`Webhook processing failed: ${error instanceof Error ? error?.message : String(error)}`);
     }
   }
 
@@ -791,9 +752,9 @@ export class StripeService extends BaseExternalService {
         subscriptionId: subscription.id,
         customerId,
       });
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error("Failed to handle subscription created webhook", {
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
         subscriptionId: subscription.id,
       });
     }
@@ -828,9 +789,9 @@ export class StripeService extends BaseExternalService {
         subscriptionId: subscription.id,
         customerId,
       });
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error("Failed to handle subscription updated webhook", {
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
         subscriptionId: subscription.id,
       });
     }
@@ -863,9 +824,9 @@ export class StripeService extends BaseExternalService {
         subscriptionId: subscription.id,
         customerId,
       });
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error("Failed to handle subscription deleted webhook", {
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
         subscriptionId: subscription.id,
       });
     }
@@ -883,9 +844,9 @@ export class StripeService extends BaseExternalService {
         customerId: invoice.customer,
         amount: invoice.amount_paid,
       });
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error("Failed to handle invoice payment succeeded webhook", {
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
         invoiceId: invoice.id,
       });
     }
@@ -903,9 +864,9 @@ export class StripeService extends BaseExternalService {
         customerId: invoice.customer,
         amount: invoice.amount_due,
       });
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error("Failed to handle invoice payment failed webhook", {
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
         invoiceId: invoice.id,
       });
     }
@@ -923,9 +884,9 @@ export class StripeService extends BaseExternalService {
         customerId: paymentIntent.customer,
         amount: paymentIntent.amount,
       });
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error("Failed to handle payment intent succeeded webhook", {
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
         paymentIntentId: paymentIntent.id,
       });
     }
@@ -944,9 +905,9 @@ export class StripeService extends BaseExternalService {
         amount: paymentIntent.amount,
         lastPaymentError: paymentIntent.last_payment_error,
       });
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error("Failed to handle payment intent failed webhook", {
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
         paymentIntentId: paymentIntent.id,
       });
     }
@@ -979,9 +940,9 @@ export class StripeService extends BaseExternalService {
           });
         }
       }
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('Failed to initialize key rotation monitoring', {
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
       });
     }
   }
@@ -1034,9 +995,9 @@ export class StripeService extends BaseExternalService {
           });
         }
       }
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('Payment security validation failed', {
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
         eventId: event.id,
         eventType: event.type,
       });
@@ -1053,21 +1014,21 @@ export class StripeService extends BaseExternalService {
     try {
       await AuditLog.create({
         userId: null,
-        customerId: details.customerId || null,
+        customerId: details?.customerId || null,
         action,
         resourceType: 'stripe_security',
-        resourceId: details.eventId || details.paymentIntentId || 'stripe-security',
+        resourceId: details?.eventId || details?.paymentIntentId || 'stripe-security',
         details: {
           service: 'stripe',
           timestamp: new Date().toISOString(),
           ...details,
         },
-        ipAddress: details.ipAddress || 'stripe-webhook',
+        ipAddress: details?.ipAddress || 'stripe-webhook',
         userAgent: 'StripeSecurityService',
       });
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('Failed to log security event', {
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
         action,
       });
     }
@@ -1088,10 +1049,10 @@ export class StripeService extends BaseExternalService {
       if (encrypted[field] && typeof encrypted[field] === 'string') {
         try {
           encrypted[field] = await encryptSensitiveData(encrypted[field]);
-        } catch (error) {
+        } catch (error: unknown) {
           logger.error('Failed to encrypt sensitive field', {
             field,
-            error: error.message,
+            error: error instanceof Error ? error?.message : String(error),
           });
         }
       }
@@ -1115,10 +1076,10 @@ export class StripeService extends BaseExternalService {
       if (decrypted[field] && typeof decrypted[field] === 'string') {
         try {
           decrypted[field] = await decryptSensitiveData(decrypted[field]);
-        } catch (error) {
+        } catch (error: unknown) {
           logger.error('Failed to decrypt sensitive field', {
             field,
-            error: error.message,
+            error: error instanceof Error ? error?.message : String(error),
           });
         }
       }
@@ -1163,13 +1124,13 @@ export class StripeService extends BaseExternalService {
       });
       
       logger.info('Stripe API keys rotated successfully');
-    } catch (error) {
+    } catch (error: unknown) {
       await this.logSecurityEvent('api_key_rotation_failed', {
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
         rotationDate: new Date().toISOString(),
       });
       
-      throw new Error(`API key rotation failed: ${error.message}`);
+      throw new Error(`API key rotation failed: ${error instanceof Error ? error?.message : String(error)}`);
     }
   }
 
@@ -1209,9 +1170,9 @@ export class StripeService extends BaseExternalService {
         auditingEnabled: this.auditAllTransactions,
         lastSecurityCheck: new Date(),
       };
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('Failed to get security status', {
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
       });
       
       return {
@@ -1254,12 +1215,12 @@ export class StripeService extends BaseExternalService {
         lastCheck: new Date(),
         security: securityStatus,
       };
-    } catch (error) {
+    } catch (error: unknown) {
       return {
         service: "stripe",
         status: "unhealthy",
         lastCheck: new Date(),
-        details: { error: error.message },
+        details: { error: error instanceof Error ? error?.message : String(error) },
       };
     }
   }

@@ -18,7 +18,7 @@
  * Version: 2.1.0 - Enhanced with Weaviate vector database support
  */
 
-import Joi from "joi";
+import * as Joi from "joi";
 
 /**
  * Database environment variable validation schema
@@ -87,7 +87,7 @@ export const databaseEnvSchema = Joi.object({
 export const validateDatabaseEnv = () => {
   const { error, value } = databaseEnvSchema.validate(process.env);
   if (error) {
-    throw new Error(`Database configuration validation error: ${error.message}`);
+    throw new Error(`Database configuration validation error: ${error instanceof Error ? error?.message : String(error)}`);
   }
   return value;
 };
@@ -109,9 +109,9 @@ export interface DatabaseConfig {
       max: number;
       idle: number;
       acquire: number;
-      evict: number;
-      validate: boolean;
-      handleDisconnects: boolean;
+      evict?: number | undefined;
+      validate?: boolean | undefined;
+      handleDisconnects?: boolean | undefined;
     };
     mlWorkloads: {
       dedicatedConnections: number;
@@ -125,7 +125,7 @@ export interface DatabaseConfig {
   redis: {
     host: string;
     port: number;
-    password?: string;
+    password?: string | undefined;
     db: number;
     keyPrefix: string;
     defaultTTL: number;
@@ -139,8 +139,8 @@ export interface DatabaseConfig {
     host: string;
     port: number;
     scheme: "http" | "https";
-    apiKey?: string;
-    openaiApiKey?: string;
+    apiKey?: string | undefined;
+    openaiApiKey?: string | undefined;
     timeout: number;
     retries: number;
     retryDelay: number;
@@ -195,7 +195,7 @@ export const createDatabaseConfig = (envVars: any): DatabaseConfig => ({
   redis: {
     host: envVars.REDIS_HOST,
     port: envVars.REDIS_PORT,
-    password: envVars.REDIS_PASSWORD || undefined,
+    password: envVars?.REDIS_PASSWORD || undefined,
     db: envVars.REDIS_DB,
     keyPrefix: envVars.REDIS_KEY_PREFIX,
     defaultTTL: envVars.REDIS_TTL_DEFAULT,
@@ -211,8 +211,8 @@ export const createDatabaseConfig = (envVars: any): DatabaseConfig => ({
     host: envVars.WEAVIATE_HOST,
     port: envVars.WEAVIATE_PORT,
     scheme: envVars.WEAVIATE_SCHEME as "http" | "https",
-    apiKey: envVars.WEAVIATE_API_KEY || undefined,
-    openaiApiKey: envVars.WEAVIATE_OPENAI_API_KEY || undefined,
+    apiKey: envVars?.WEAVIATE_API_KEY || undefined,
+    openaiApiKey: envVars?.WEAVIATE_OPENAI_API_KEY || undefined,
     timeout: envVars.WEAVIATE_TIMEOUT,
     retries: envVars.WEAVIATE_RETRIES,
     retryDelay: envVars.WEAVIATE_RETRY_DELAY,

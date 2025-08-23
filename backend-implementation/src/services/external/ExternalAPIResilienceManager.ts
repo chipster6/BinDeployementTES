@@ -226,12 +226,6 @@ export class ExternalAPIResilienceManager {
       latency: 0,
       cacheUsed: false,
       offlineMode: false,
-      metadata: {
-        totalProvidersTried: 0,
-        fallbackStrategy: "multi-provider",
-        businessImpact: "none",
-        recommendations: [],
-      },
     };
 
     logger.info("Executing request with fallback strategy", {
@@ -257,10 +251,10 @@ export class ExternalAPIResilienceManager {
         });
         
         return fallbackResult;
-      } catch (error) {
+      } catch (error: unknown) {
         logger.warn("Primary provider failed", {
           provider: primaryProvider.id,
-          error: error.message,
+          error: error instanceof Error ? error?.message : String(error),
         });
         
         this.recordProviderFailure(primaryProvider, error);
@@ -312,10 +306,10 @@ export class ExternalAPIResilienceManager {
         });
         
         return fallbackResult;
-      } catch (error) {
+      } catch (error: unknown) {
         logger.warn("Fallback provider failed", {
           provider: provider.id,
-          error: error.message,
+          error: error instanceof Error ? error?.message : String(error),
         });
         
         this.recordProviderFailure(provider, error);
@@ -333,7 +327,7 @@ export class ExternalAPIResilienceManager {
       const cachedData = await this.tryOfflineOperation(serviceType, context.originalRequest);
       if (cachedData) {
         fallbackResult.success = true;
-        fallbackResult.data = cachedData.cachedResponse || cachedData.estimatedResponse;
+        fallbackResult.data = cachedData?.cachedResponse || cachedData.estimatedResponse;
         fallbackResult.degradationLevel = "moderate";
         fallbackResult.cacheUsed = true;
         fallbackResult.offlineMode = true;
@@ -391,12 +385,6 @@ export class ExternalAPIResilienceManager {
       latency: 0,
       cacheUsed: false,
       offlineMode: false,
-      metadata: {
-        totalProvidersTried: 1,
-        fallbackStrategy: "circuit-breaker",
-        businessImpact: "none",
-        recommendations: [],
-      },
     };
 
     // Check circuit breaker state
@@ -444,7 +432,7 @@ export class ExternalAPIResilienceManager {
       });
       
       return result;
-    } catch (error) {
+    } catch (error: unknown) {
       // Record failure
       circuitBreaker.failures++;
       circuitBreaker.lastFailure = new Date();
@@ -467,7 +455,7 @@ export class ExternalAPIResilienceManager {
       result.latency = Date.now() - startTime;
       result.metadata.businessImpact = this.assessBusinessImpactFromError(error, options.businessContext);
       result.metadata.recommendations.push(
-        `Service call failed: ${error.message}`
+        `Service call failed: ${error instanceof Error ? error?.message : String(error)}`
       );
       
       return result;
@@ -522,9 +510,9 @@ export class ExternalAPIResilienceManager {
       }
       
       return null;
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error("Failed to get offline routing data", {
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
         requestType: request.type,
       });
       return null;
@@ -624,10 +612,10 @@ export class ExternalAPIResilienceManager {
           provider.lastHealthCheck = new Date();
           provider.latency = responseTime;
           
-        } catch (error) {
+        } catch (error: unknown) {
           logger.warn("Health check failed", {
             provider: provider.id,
-            error: error.message,
+            error: error instanceof Error ? error?.message : String(error),
           });
           
           provider.healthStatus = "offline";
@@ -778,7 +766,7 @@ export class ExternalAPIResilienceManager {
     
     logger.warn("Provider failure recorded", {
       provider: provider.id,
-      error: error.message,
+      error: error instanceof Error ? error?.message : String(error),
       newReliability: provider.reliability,
       totalFailures: circuitBreaker.failures,
     });
@@ -891,7 +879,7 @@ export class ExternalAPIResilienceManager {
       // Implement provider-specific health check
       // For now, return a simple health check
       return { success: provider.healthStatus !== "offline" };
-    } catch (error) {
+    } catch (error: unknown) {
       return { success: false };
     }
   }

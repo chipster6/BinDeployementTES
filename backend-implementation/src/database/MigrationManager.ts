@@ -25,7 +25,7 @@ import { EventEmitter } from 'events';
 import { sequelize, withTransaction } from '@/config/database';
 import { logger } from '@/utils/logger';
 import { config } from '@/config';
-import { QueryTypes, Transaction } from 'sequelize';
+import { QueryTypes, type Transaction } from 'sequelize';
 import { exec, spawn } from 'child_process';
 import { promisify } from 'util';
 import path from 'path';
@@ -227,7 +227,7 @@ export class MigrationManager extends EventEmitter {
       await this.ensureDirectoriesExist();
       
       logger.info('Migration tracking system initialized');
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('Failed to setup migration tracking:', error);
       throw error;
     }
@@ -249,7 +249,7 @@ export class MigrationManager extends EventEmitter {
     for (const dir of directories) {
       try {
         await fs.mkdir(dir, { recursive: true });
-      } catch (error) {
+      } catch (error: unknown) {
         if ((error as any).code !== 'EEXIST') {
           throw error;
         }
@@ -280,7 +280,7 @@ export class MigrationManager extends EventEmitter {
       
       logger.info(`Discovered ${migrationFiles.length} migration files`);
       return migrationFiles;
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('Failed to discover migrations:', error);
       throw error;
     }
@@ -307,7 +307,7 @@ export class MigrationManager extends EventEmitter {
         filePath,
         checksum,
       };
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error(`Failed to parse migration file ${filePath}:`, error);
       return null;
     }
@@ -377,7 +377,7 @@ export class MigrationManager extends EventEmitter {
 
       logger.info(`Migration execution completed. ${results.length} migrations processed`);
       return results;
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('Migration execution failed:', error);
       throw error;
     }
@@ -412,12 +412,12 @@ export class MigrationManager extends EventEmitter {
         result.validationResults = validationResults;
         
         if (validationResults.some(v => v.status === 'failed')) {
-          throw new Error(`Migration validation failed: ${validationResults.filter(v => v.status === 'failed').map(v => v.message).join(', ')}`);
+          throw new Error(`Migration validation failed: ${validationResults.filter(v => v.status === 'failed').map(v => v?.message).join(', ')}`);
         }
       }
 
       // Step 2: Create backup if required
-      if (migration.backupRequired || options.forceBackup) {
+      if (migration?.backupRequired || options.forceBackup) {
         result.status = MigrationStatus.BACKED_UP;
         result.backupPath = await this.createDatabaseBackup(migration.id);
       }
@@ -432,7 +432,7 @@ export class MigrationManager extends EventEmitter {
       // Step 4: Post-migration validation
       if (!options.skipValidation && migration.postMigrationValidation) {
         const postValidationResults = await this.validateMigrationResult(migration);
-        result.validationResults = [...(result.validationResults || []), ...postValidationResults];
+        result.validationResults = [...(result?.validationResults || []), ...postValidationResults];
       }
 
       // Step 5: Update completion status
@@ -446,11 +446,11 @@ export class MigrationManager extends EventEmitter {
       logger.info(`Migration completed successfully: ${migration.id} (${result.duration}s)`);
       return result;
 
-    } catch (error) {
+    } catch (error: unknown) {
       result.status = MigrationStatus.FAILED;
       result.endTime = new Date();
       result.duration = (result.endTime.getTime() - result.startTime.getTime()) / 1000;
-      result.error = error instanceof Error ? error.message : String(error);
+      result.error = error instanceof Error ? error?.message : String(error);
 
       await this.updateMigrationStatus(result);
       this.emit('migration_failed', { migration, result, error });
@@ -508,7 +508,7 @@ export class MigrationManager extends EventEmitter {
       
       logger.info(`Database backup created successfully: ${backupPath}`);
       return backupPath;
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error(`Failed to create database backup:`, error);
       throw error;
     }
@@ -548,7 +548,7 @@ export class MigrationManager extends EventEmitter {
         logger.info(`Migration SQL executed successfully: ${migration.id} (${endTime - startTime}ms)`);
       });
 
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error(`Failed to execute migration ${migration.id}:`, error);
       throw error;
     }
@@ -578,11 +578,11 @@ export class MigrationManager extends EventEmitter {
         results.push(await this.executeCustomValidation(migration));
       }
       
-    } catch (error) {
+    } catch (error: unknown) {
       results.push({
         testName: 'validation_error',
         status: 'failed',
-        message: `Validation error: ${error instanceof Error ? error.message : String(error)}`,
+        message: `Validation error: ${error instanceof Error ? error?.message : String(error)}`,
         executionTime: 0,
       });
     }
@@ -620,7 +620,7 @@ export class MigrationManager extends EventEmitter {
       `, { type: QueryTypes.SELECT });
       
       return results as any[];
-    } catch (error) {
+    } catch (error: unknown) {
       // Table might not exist yet
       return [];
     }
@@ -675,7 +675,7 @@ export class MigrationManager extends EventEmitter {
           executedBy: 'migration-manager',
         },
       });
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('Failed to update migration status:', error);
     }
   }
@@ -720,7 +720,7 @@ export class MigrationManager extends EventEmitter {
 
       this.emit('migration_rolled_back', { migrationId, result });
       return result;
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error(`Failed to rollback migration ${migrationId}:`, error);
       throw error;
     }
@@ -919,7 +919,7 @@ export class MigrationManager extends EventEmitter {
 
       await execAsync(pgRestoreCommand, { env });
       logger.info('Database restored successfully from backup');
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('Failed to restore from backup:', error);
       throw error;
     }

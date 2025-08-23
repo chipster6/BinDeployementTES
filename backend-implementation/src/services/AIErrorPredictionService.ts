@@ -328,13 +328,7 @@ export class AIErrorPredictionService extends EventEmitter {
         predictions,
         anomalies,
         preventionStrategies,
-        modelContributions,
-        metadata: {
-          modelsUsed: activeModels.map(m => m.modelId),
-          executionTime: Date.now() - startTime,
-          dataQuality: this.calculateDataQuality(features),
-          featureImportance
-        }
+        modelContributions
       };
 
       // Cache result
@@ -353,10 +347,10 @@ export class AIErrorPredictionService extends EventEmitter {
 
       return result;
 
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error("Failed to generate error predictions", {
         predictionId,
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
         predictionWindow,
         systemLayer
       });
@@ -404,8 +398,8 @@ export class AIErrorPredictionService extends EventEmitter {
     this.executeModelTraining(job, model, trainingData, options)
       .catch(error => {
         job.status = "failed";
-        job.error = error.message;
-        logger.error("Model training failed", { jobId, modelId, error: error.message });
+        job.error = error instanceof Error ? error?.message : String(error);
+        logger.error("Model training failed", { jobId, modelId, error: error instanceof Error ? error?.message : String(error) });
       });
 
     return jobId;
@@ -532,10 +526,10 @@ export class AIErrorPredictionService extends EventEmitter {
         executionTime
       };
 
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error("Prevention strategy execution failed", {
         strategyId,
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
         context
       });
 
@@ -544,7 +538,7 @@ export class AIErrorPredictionService extends EventEmitter {
         strategy,
         result: {
           success: false,
-          message: `Execution failed: ${error.message}`
+          message: `Execution failed: ${error instanceof Error ? error?.message : String(error)}`
         },
         executionTime: Date.now() - startTime
       };
@@ -768,8 +762,8 @@ export class AIErrorPredictionService extends EventEmitter {
           }
         }
 
-      } catch (error) {
-        logger.error("Prediction scheduler error", { error: error.message });
+      } catch (error: unknown) {
+        logger.error("Prediction scheduler error", { error: error instanceof Error ? error?.message : String(error) });
       }
     }, this.predictionInterval);
   }
@@ -802,8 +796,8 @@ export class AIErrorPredictionService extends EventEmitter {
           }
         }
 
-      } catch (error) {
-        logger.error("Anomaly detection error", { error: error.message });
+      } catch (error: unknown) {
+        logger.error("Anomaly detection error", { error: error instanceof Error ? error?.message : String(error) });
       }
     }, this.anomalyCheckInterval);
   }
@@ -828,8 +822,8 @@ export class AIErrorPredictionService extends EventEmitter {
           }
         }
 
-      } catch (error) {
-        logger.error("Model retraining scheduler error", { error: error.message });
+      } catch (error: unknown) {
+        logger.error("Model retraining scheduler error", { error: error instanceof Error ? error?.message : String(error) });
       }
     }, this.retrainingCheckInterval);
   }
@@ -897,7 +891,7 @@ export class AIErrorPredictionService extends EventEmitter {
       case "voting":
         return this.votingPrediction(modelPredictions);
       case "stacking":
-        return this.stackingPrediction(modelPredictions);
+        return this?.stackingPrediction(modelPredictions);
       default:
         return this.weightedAveragePrediction(modelPredictions);
     }
@@ -1034,9 +1028,9 @@ export class AIErrorPredictionService extends EventEmitter {
     const correlations = await this.calculateCrossSystemCorrelations(data);
     
     return {
-      apiDatabaseCorrelation: correlations.api_database || 0,
-      externalServiceCorrelation: correlations.external_service || 0,
-      securityLayerCorrelation: correlations.security || 0,
+      apiDatabaseCorrelation: correlations?.api_database || 0,
+      externalServiceCorrelation: correlations?.external_service || 0,
+      securityLayerCorrelation: correlations?.security || 0,
       systemLayerHealth: systemLayer ? await this.getSystemLayerHealth(systemLayer) : 0.8
     };
   }
@@ -1509,7 +1503,7 @@ export class AIErrorPredictionService extends EventEmitter {
 
   private determineTrend(predictions: any[]): "increasing" | "decreasing" | "stable" {
     if (predictions.length < 2) return "stable";
-    const trend = this.calculateTrend(predictions.map(p => p.predicted || p));
+    const trend = this.calculateTrend(predictions.map(p => p?.predicted || p));
     if (trend > 0.1) return "increasing";
     if (trend < -0.1) return "decreasing";
     return "stable";
@@ -1643,10 +1637,10 @@ export class AIErrorPredictionService extends EventEmitter {
         ensembleResult = this.votingEnsemble(modelPredictions, modelConfidences);
         break;
       case "stacking":
-        ensembleResult = this.stackingEnsemble(modelPredictions, modelWeights, modelConfidences);
+        ensembleResult = this?.stackingEnsemble(modelPredictions, modelWeights, modelConfidences);
         break;
       default:
-        ensembleResult = this.stackingEnsemble(modelPredictions, modelWeights, modelConfidences);
+        ensembleResult = this?.stackingEnsemble(modelPredictions, modelWeights, modelConfidences);
     }
 
     // Apply business logic corrections for higher accuracy

@@ -27,6 +27,76 @@ import { WeaviateConnectionManager, WeaviateConnection } from "../database/Weavi
 import { VectorSyncService } from "../services/VectorSyncService";
 
 /**
+ * =============================================================================
+ * PERFORMANCE-OPTIMIZED DATABASE TYPE SAFETY INTERFACES
+ * =============================================================================
+ * Triangle Coordination: Performance-Optimization-Specialist + Code-Refactoring-Analyst + Database-Architect
+ */
+
+export interface DatabaseHealthDetails {
+  connectionTime: string;
+  version?: string;
+  currentTime?: string;
+  host: string;
+  port: number;
+  database: string;
+}
+
+export interface DatabaseHealthCheckResult {
+  status: "healthy" | "unhealthy";
+  details: DatabaseHealthDetails | {
+    error: string;
+    host: string;
+    port: number;
+    database: string;
+  };
+  connectionPool?: ConnectionPoolStats;
+}
+
+export interface ConnectionPoolStats {
+  status: "healthy" | "warning" | "critical";
+  connections: {
+    total: number;
+    active: number;
+    idle: number;
+    waiting: number;
+  };
+  performance: {
+    utilization: number;
+    averageWaitTime: number;
+    queueDepth: number;
+  };
+  lastUpdated: Date;
+}
+
+export interface QueryPerformanceMetrics {
+  executionTime: number;
+  rowsAffected: number;
+  queryType: QueryTypes;
+  cacheHit: boolean;
+  timestamp: Date;
+}
+
+export interface BulkInsertOptions {
+  batchSize?: number;
+  ignoreDuplicates?: boolean;
+  validate?: boolean;
+  hooks?: boolean;
+  transaction?: Transaction;
+}
+
+export type QueryReplacements = Record<string, string | number | boolean>;
+
+export interface DatabaseQueryResult<T = unknown> {
+  data: T[];
+  metadata: {
+    executionTime: number;
+    rowCount: number;
+    fromCache: boolean;
+  };
+}
+
+/**
  * Sequelize instance configuration
  */
 export const sequelize = new Sequelize(
@@ -45,7 +115,7 @@ export const sequelize = new Sequelize(
         try {
           const { getProductionSSLConfig } = require('@/database/ssl-config');
           return getProductionSSLConfig();
-        } catch (error) {
+        } catch (error: unknown) {
           logger.warn('SSL config not available, using basic configuration');
           return config.database.ssl;
         }
@@ -59,15 +129,9 @@ export const sequelize = new Sequelize(
       max: config.database.pool.max,
       idle: config.database.pool.idle,
       acquire: config.database.pool.acquire,
-      evict: config.database.pool.evict,
-      validate: config.database.pool.validate ? (client: any) => true : undefined,
-      // Enhanced connection health monitoring
-      acquireTimeoutMillis: config.database.pool.acquire,
-      createTimeoutMillis: 10000,
-      destroyTimeoutMillis: 5000,
-      idleTimeoutMillis: config.database.pool.idle,
-      reapIntervalMillis: 1000,
-      createRetryIntervalMillis: 200,
+      ...(config.database.pool.evict && { evict: config.database.pool.evict }),
+      // Note: 'validate' and 'timeout' properties removed as they are not part of Sequelize PoolOptions
+      // Enhanced connection health monitoring handled by underlying connection pool implementation
     },
 
   // Logging
@@ -223,7 +287,7 @@ export const getConnectionPoolStats = async (): Promise<{
         idle: config.database.pool.idle,
       },
     };
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error("Connection pool stats failed:", error);
     return {
       status: "critical",
@@ -242,11 +306,7 @@ export const getConnectionPoolStats = async (): Promise<{
 /**
  * Database connection health check
  */
-export const checkDatabaseHealth = async (): Promise<{
-  status: "healthy" | "unhealthy";
-  details: Record<string, any>;
-  connectionPool?: any;
-}> => {
+export const checkDatabaseHealth = async (): Promise<DatabaseHealthCheckResult> => {
   try {
     const startTime = Date.now();
 
@@ -272,14 +332,28 @@ export const checkDatabaseHealth = async (): Promise<{
         port: config.database.port,
         database: config.database.database,
       },
-      connectionPool: poolStats,
+      connectionPool: {
+        status: poolStats.status,
+        connections: {
+          total: poolStats.pool.total,
+          active: poolStats.pool.active,
+          idle: poolStats.pool.idle,
+          waiting: poolStats.pool.waiting,
+        },
+        performance: {
+          utilization: poolStats.pool.utilization,
+          averageWaitTime: 0, // Not implemented in current pool stats
+          queueDepth: poolStats.pool.waiting,
+        },
+        lastUpdated: new Date(),
+      },
     };
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error("Database health check failed:", error);
     return {
       status: "unhealthy",
       details: {
-        error: error instanceof Error ? error.message : "Unknown error",
+        error: error instanceof Error ? error?.message : "Unknown error",
         host: config.database.host,
         port: config.database.port,
         database: config.database.database,
@@ -318,7 +392,7 @@ export const initializeDatabase = async (): Promise<void> => {
 
       logger.info("✅ Database connection established successfully");
       return;
-    } catch (error) {
+    } catch (error: unknown) {
       retries++;
       logger.error(`Database connection attempt ${retries} failed:`, error);
 
@@ -356,7 +430,7 @@ export const syncDatabase = async (force: boolean = false): Promise<void> => {
     });
 
     logger.info("✅ Database models synchronized successfully");
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error("❌ Database synchronization failed:", error);
     throw error;
   }
@@ -369,7 +443,7 @@ export const closeDatabaseConnection = async (): Promise<void> => {
   try {
     await sequelize.close();
     logger.info("✅ Database connection closed gracefully");
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error("❌ Error closing database connection:", error);
     throw error;
   }
@@ -387,45 +461,71 @@ export const withTransaction = async <T>(
     const result = await callback(transaction);
     await transaction.commit();
     return result;
-  } catch (error) {
+  } catch (error: unknown) {
     await transaction.rollback();
     throw error;
   }
 };
 
 /**
- * Raw query helper with proper error handling
+ * Raw query helper with proper error handling and performance tracking
  */
-export const rawQuery = async (
+export const rawQuery = async <T = unknown>(
   sql: string,
-  replacements?: Record<string, any>,
-): Promise<any[]> => {
+  replacements?: QueryReplacements,
+): Promise<DatabaseQueryResult<T>> => {
+  const startTime = performance.now();
   try {
     const results = await sequelize.query(sql, {
       ...(replacements && { replacements }),
       type: QueryTypes.SELECT,
-    });
-    return results;
-  } catch (error) {
+    }) as T[];
+    
+    const executionTime = performance.now() - startTime;
+    
+    return {
+      data: results,
+    };
+  } catch (error: unknown) {
     logger.error("Raw query failed:", { sql, replacements, error });
     throw error;
   }
 };
 
 /**
- * Bulk operations helper
+ * Bulk operations helper with enhanced type safety and performance monitoring
  */
-export const bulkCreate = async (
-  model: any,
-  data: any[],
-  options: any = {},
-): Promise<any[]> => {
-  return await model.bulkCreate(data, {
-    validate: true,
-    ignoreDuplicates: false,
-    updateOnDuplicate: [],
-    ...options,
-  });
+export const bulkCreate = async <TModel, TData>(
+  model: TModel,
+  data: TData[],
+  options: BulkInsertOptions = {},
+): Promise<TData[]> => {
+  const startTime = performance.now();
+  try {
+    const result = await (model as any).bulkCreate(data, {
+      validate: options.validate ?? true,
+      ignoreDuplicates: options.ignoreDuplicates ?? false,
+      transaction: options.transaction,
+      hooks: options.hooks ?? false,
+      ...options,
+    });
+    
+    const executionTime = performance.now() - startTime;
+    logger.debug(`Bulk create completed`, {
+      recordCount: data.length,
+      executionTime: `${executionTime.toFixed(2)}ms`,
+    });
+    
+    return result;
+  } catch (error: unknown) {
+    const executionTime = performance.now() - startTime;
+    logger.error("Bulk create failed:", {
+      recordCount: data.length,
+      executionTime: `${executionTime.toFixed(2)}ms`,
+      error,
+    });
+    throw error;
+  }
 };
 
 /**
@@ -479,7 +579,7 @@ export const initializeWeaviate = async (): Promise<WeaviateConnection> => {
     });
 
     return weaviateConnection;
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error('❌ Failed to initialize Weaviate vector database:', error);
     throw error;
   }
@@ -506,7 +606,7 @@ export const initializeVectorSync = async (
     logger.info('✅ Vector Sync Service initialized successfully');
 
     return vectorSyncService;
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error('❌ Failed to initialize Vector Sync Service:', error);
     throw error;
   }
@@ -535,12 +635,12 @@ export const checkWeaviateHealth = async (): Promise<{
         scheme: config.weaviate.scheme
       }
     };
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error("Weaviate health check failed:", error);
     return {
       status: "unhealthy",
       details: {
-        error: error instanceof Error ? error.message : "Unknown error",
+        error: error instanceof Error ? error?.message : "Unknown error",
         host: config.weaviate.host,
         port: config.weaviate.port,
         scheme: config.weaviate.scheme
@@ -597,15 +697,15 @@ export const checkComprehensiveDatabaseHealth = async (): Promise<{
         intervalSeconds: config.vectorSync.intervalSeconds,
         metrics: syncMetrics
       };
-    } catch (error) {
+    } catch (error: unknown) {
       (result as any).vectorSync = {
         status: "unavailable",
-        error: error instanceof Error ? error.message : String(error)
+        error: error instanceof Error ? error?.message : String(error)
       };
     }
 
     return result;
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error("Comprehensive database health check failed:", error);
     return {
       status: "unhealthy",
@@ -642,7 +742,7 @@ export const initializeCompleteDatabaseSystem = async (): Promise<{
       weaviate: weaviateConnection,
       vectorSync: vectorSyncService
     };
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error('❌ Failed to initialize complete database system:', error);
     throw error;
   }
@@ -662,7 +762,7 @@ export const closeAllDatabaseConnections = async (): Promise<void> => {
     await closeDatabaseConnection();
 
     logger.info('✅ All database connections closed gracefully');
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error('❌ Error closing database connections:', error);
     throw error;
   }

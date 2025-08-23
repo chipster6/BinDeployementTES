@@ -144,16 +144,16 @@ export class Customer extends Model<
   public canReceiveService(): boolean {
     const now = new Date();
     const startDateOk =
-      !this.service_start_date || this.service_start_date <= now;
-    const endDateOk = !this.service_end_date || this.service_end_date >= now;
+      !this?.service_start_date || this.service_start_date <= now;
+    const endDateOk = !this?.service_end_date || this.service_end_date >= now;
 
     return this.isActive() && startDateOk && endDateOk;
   }
 
   public getServiceConfig(): ServiceConfig {
     return {
-      service_type: this.service_types || [],
-      container_types: this.container_types || [],
+      service_type: this?.service_types || [],
+      container_types: this?.container_types || [],
       frequency: this.service_frequency,
       preferred_day: this.preferred_day_of_week
         ? [
@@ -166,8 +166,8 @@ export class Customer extends Model<
             "Sunday",
           ][this.preferred_day_of_week - 1]
         : undefined,
-      preferred_time: this.preferred_time || undefined,
-      special_instructions: this.special_instructions || undefined,
+      preferred_time: this?.preferred_time || undefined,
+      special_instructions: this?.special_instructions || undefined,
     };
   }
 
@@ -189,8 +189,8 @@ export class Customer extends Model<
       this.preferred_day_of_week = dayIndex >= 0 ? dayIndex + 1 : null;
     }
 
-    this.preferred_time = config.preferred_time || null;
-    this.special_instructions = config.special_instructions || null;
+    this.preferred_time = config?.preferred_time || null;
+    this.special_instructions = config?.special_instructions || null;
   }
 
   public calculateNextServiceDate(): Date | null {
@@ -597,7 +597,7 @@ Customer.init(
 
       beforeUpdate: async (customer: Customer) => {
         // Increment version
-        customer.version = (customer.version || 1) + 1;
+        customer.version = (customer?.version || 1) + 1;
 
         // Update next service date if frequency or start date changed
         if (
@@ -680,16 +680,21 @@ declare module "./Customer" {
     function findByStatus(status: CustomerStatus): Promise<Customer[]>;
     function findDueForService(date?: Date): Promise<Customer[]>;
     function findByFrequency(frequency: ServiceFrequency): Promise<Customer[]>;
+    function findByAccountManager(managerId: string): Promise<Customer[]>;
     function createWithConfig(customerData: {
       organization_id: string;
-      customer_number?: string;
-      service_types: string[];
-      container_types: string[];
-      service_frequency: ServiceFrequency;
-      payment_terms: PaymentTerms;
-      billing_contact_id?: string;
+      service_config: ServiceConfig;
+      billing_method?: string;
+      payment_terms?: PaymentTerms;
+      service_start_date?: Date;
+      rates?: {
+        base?: number;
+        service?: number;
+        container?: number;
+        fuel_surcharge?: number;
+      };
       account_manager_id?: string;
-      primary_driver_id?: string;
+      created_by?: string;
     }): Promise<Customer>;
   }
 }

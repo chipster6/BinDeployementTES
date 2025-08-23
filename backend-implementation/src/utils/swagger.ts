@@ -13,7 +13,7 @@
 
 import swaggerUi from "swagger-ui-express";
 import swaggerJsdoc from "swagger-jsdoc";
-import { Express } from "express";
+import type { Express } from "express";
 import fs from "fs";
 import path from "path";
 import yaml from "js-yaml";
@@ -56,7 +56,7 @@ const loadApiContracts = (): any => {
       logger.warn("API contracts file not found, generating basic spec");
       return generateBasicSpec();
     }
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error("Failed to load API contracts:", error);
     return generateBasicSpec();
   }
@@ -70,7 +70,7 @@ const generateBasicSpec = (): any => {
     openapi: "3.1.0",
     info: {
       title: "Waste Management System API",
-      version: config.app.version || "1.0.0",
+      version: config.app?.version || "1.0.0",
       description: `
         ## Comprehensive Waste Management System API
         
@@ -273,7 +273,7 @@ export const setupSwagger = (app: Express): void => {
     logger.info(
       `📄 OpenAPI YAML spec at: http://localhost:${config.port}/api/docs/openapi.yaml`,
     );
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error("Failed to setup Swagger documentation:", error);
 
     // Create a minimal error page
@@ -281,7 +281,7 @@ export const setupSwagger = (app: Express): void => {
       res.status(500).json({
         error: "swagger_setup_failed",
         message: "Failed to load API documentation",
-        details: error instanceof Error ? error.message : "Unknown error",
+        details: error instanceof Error ? error?.message : "Unknown error",
       });
     });
   }
@@ -296,7 +296,7 @@ export const generateSwaggerFromJSDoc = (): any => {
       openapi: "3.1.0",
       info: {
         title: "Waste Management System API",
-        version: config.app.version || "1.0.0",
+        version: config.app?.version || "1.0.0",
         description: "API for waste management operations",
       },
       servers: [
@@ -345,7 +345,7 @@ export const validateOpenAPISpec = (spec: any): boolean => {
 
     logger.info("OpenAPI specification validation passed");
     return true;
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error("OpenAPI specification validation failed:", error);
     return false;
   }

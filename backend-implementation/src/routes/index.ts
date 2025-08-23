@@ -28,6 +28,7 @@ import threatIntelligenceRoutes from "./threatIntelligence";
 import securityDashboardRoutes from "./securityDashboard";
 import aiRoutes from "./ai";
 import mlRoutes from "./api/ml";
+import predictiveAnalyticsRoutes from "./predictiveAnalytics";
 import dependencyMonitoringRoutes from "./dependencyMonitoring";
 import errorResilienceRoutes from "./errorResilience";
 import errorOptimizationRoutes from "./api/external/errorOptimization";
@@ -38,13 +39,15 @@ import routeOptimizationRoutes from "./routeOptimization";
 import externalServiceCoordinationRoutes from "./externalServiceCoordination";
 import masterTrafficCoordinationRoutes from "./api/master-traffic-coordination";
 import externalApiRoutes from "./api/external";
+import queueRoutes from "./queue";
+import analyticsRoutes from "./api/analytics";
+import complianceRoutes from "./compliance";
 // import vehicleRoutes from './vehicles';
 // import routeRoutes from './routes';
 // import driverRoutes from './drivers';
 // import serviceRoutes from './services';
 // import billingRoutes from './billing';
 // import trackingRoutes from './tracking';
-// import analyticsRoutes from './analytics';
 
 /**
  * Create main API router
@@ -71,6 +74,7 @@ const router = Router();
  * /api/v1/security      - Security services (threats, monitoring, incidents, audit)
  * /api/v1/ai            - AI/ML management (features, experiments, monitoring, impact)
  * /api/v1/ml            - ML/AI API endpoints (vector intelligence, optimization, predictions)
+ * /api/v1/predictive-analytics - Phase 3 predictive analytics (Prophet, LightGBM, ensemble models)
  * /api/v1/dependency-monitoring - Dependency vulnerability monitoring and scanning
  * /api/v1/error-resilience - Enterprise error resilience and business continuity management
  * /api/v1/error-optimization - Intelligent traffic routing and cost-aware fallback optimization
@@ -80,6 +84,9 @@ const router = Router();
  * /api/v1/external-services - External Service Coordination with Frontend Agent integration (Group D)
  * /api/v1/master-coordination - PHASE 2: System-wide master traffic coordination with Groups A-D integration
  * /api/v1/external - PHASE 2 COMPLETION: Real-time traffic, cost monitoring, health monitoring & fallback coordination
+ * /api/v1/queue - Background job management and queue system
+ * /api/v1/analytics - REVOLUTIONARY: Advanced analytics & reporting with AI-powered intelligence
+ * /api/v1/compliance - SOC 2 Type II compliance and HSM key management for 100% security grade
  */
 
 // Temporary placeholder endpoints until actual route modules are created
@@ -87,7 +94,7 @@ router.get("/", (req, res) => {
   res.json({
     message: "Waste Management System API",
     version: "1.0.0",
-    environment: process.env.NODE_ENV || "development",
+    environment: process.env?.NODE_ENV || "development",
     timestamp: new Date().toISOString(),
     endpoints: {
       auth: "/api/v1/auth",
@@ -101,6 +108,7 @@ router.get("/", (req, res) => {
       billing: "/api/v1/billing",
       tracking: "/api/v1/tracking",
       analytics: "/api/v1/analytics",
+      compliance: "/api/v1/compliance",
       webhooks: "/api/v1/webhooks",
       admin: "/api/v1/admin",
       performance: "/api/v1/performance",
@@ -108,6 +116,7 @@ router.get("/", (req, res) => {
       security: "/api/v1/security",
       ai: "/api/v1/ai",
       ml: "/api/v1/ml",
+      predictiveAnalytics: "/api/v1/predictive-analytics",
       dependencyMonitoring: "/api/v1/dependency-monitoring",
       errorResilience: "/api/v1/error-resilience",
       errorOptimization: "/api/v1/error-optimization",
@@ -117,6 +126,7 @@ router.get("/", (req, res) => {
       externalServices: "/api/v1/external-services",
       masterCoordination: "/api/v1/master-coordination",
       external: "/api/v1/external",
+      queue: "/api/v1/queue",
       docs: "/api/docs",
       health: "/health",
     },
@@ -144,6 +154,7 @@ router.use("/security", securityRoutes);
 router.use("/threat-intelligence", threatIntelligenceRoutes);
 router.use("/security-dashboard", securityDashboardRoutes);
 router.use("/ml", mlRoutes);
+router.use("/predictive-analytics", predictiveAnalyticsRoutes);
 router.use("/route-optimization", routeOptimizationRoutes);
 router.use("/dependency-monitoring", dependencyMonitoringRoutes);
 router.use("/error-resilience", errorResilienceRoutes);
@@ -154,6 +165,9 @@ router.use("/vector", weaviateRoutes);
 router.use("/external-services", externalServiceCoordinationRoutes);
 router.use("/master-coordination", masterTrafficCoordinationRoutes);
 router.use("/external", externalApiRoutes);
+router.use("/queue", queueRoutes);
+router.use("/analytics", analyticsRoutes);
+router.use("/compliance", complianceRoutes);
 
 // Health and monitoring routes (not under /api/v1 prefix)
 router.use("/health", healthRoutes);
@@ -189,6 +203,15 @@ router.use("*", (req, res) => {
       "GET /api/v1/route-optimization/current",
       "GET /api/v1/route-optimization/performance",
       "GET /api/v1/route-optimization/analytics",
+      "POST /api/v1/predictive-analytics/forecast",
+      "POST /api/v1/predictive-analytics/batch-forecast",
+      "POST /api/v1/predictive-analytics/prophet/train",
+      "POST /api/v1/predictive-analytics/lightgbm/train",
+      "GET /api/v1/predictive-analytics/stream/{modelId}",
+      "GET /api/v1/predictive-analytics/performance-metrics",
+      "GET /api/v1/predictive-analytics/status",
+      "GET /api/v1/predictive-analytics/health",
+      "GET /api/v1/predictive-analytics/health-advanced",
       "POST /api/v1/master-coordination/execute-system-coordination",
       "POST /api/v1/master-coordination/configure-load-balancing",
       "GET /api/v1/master-coordination/system-status",
@@ -196,6 +219,31 @@ router.use("*", (req, res) => {
       "GET /api/v1/master-coordination/group-integration-status",
       "GET /api/v1/master-coordination/active-coordinations",
       "GET /api/v1/master-coordination/health",
+      "GET /api/v1/analytics/executive/metrics",
+      "GET /api/v1/analytics/operations/metrics",
+      "GET /api/v1/analytics/fleet/metrics",
+      "GET /api/v1/analytics/financial/metrics",
+      "GET /api/v1/analytics/customers/analytics",
+      "GET /api/v1/analytics/performance/metrics",
+      "GET /api/v1/analytics/realtime/stream",
+      "POST /api/v1/analytics/predictions/generate",
+      "GET /api/v1/analytics/intelligence/strategic",
+      "GET /api/v1/analytics/financial/revenue",
+      "GET /api/v1/analytics/financial/costs",
+      "GET /api/v1/analytics/routes/optimization",
+      "POST /api/v1/analytics/cache/invalidate",
+      "GET /api/v1/analytics/health",
+      "GET /api/v1/compliance/soc2/status",
+      "POST /api/v1/compliance/soc2/initialize",
+      "POST /api/v1/compliance/soc2/test-controls",
+      "GET /api/v1/compliance/soc2/controls",
+      "GET /api/v1/compliance/soc2/evidence",
+      "GET /api/v1/compliance/soc2/report",
+      "GET /api/v1/compliance/hsm/keys",
+      "POST /api/v1/compliance/hsm/keys",
+      "POST /api/v1/compliance/hsm/encrypt",
+      "POST /api/v1/compliance/hsm/rotate-key",
+      "GET /api/v1/compliance/hsm/health",
       "GET /health",
       "GET /api/docs",
     ],

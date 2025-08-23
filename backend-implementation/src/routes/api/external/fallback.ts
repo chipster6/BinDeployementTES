@@ -17,7 +17,7 @@
  * Version: 1.0.0 - Phase 2 External API Completion
  */
 
-import { Router, Request, Response } from "express";
+import { Router, type Request, type Response } from "express";
 import { auth } from "@/middleware/auth";
 import { validation } from "@/middleware/validation";
 import { rateLimit } from "@/middleware/rateLimit";
@@ -81,7 +81,7 @@ router.post("/execute", auth, validation, rateLimit, async (req: Request, res: R
           parameters.start,
           parameters.end,
           {
-            vehicleType: parameters.vehicleType || 'truck',
+            vehicleType: parameters?.vehicleType || 'truck',
             includeTraffic: parameters.includeTraffic !== false,
             businessContext: finalBusinessContext,
             maxCostIncrease: fallbackOptions?.maxCostIncrease || 25,
@@ -98,7 +98,7 @@ router.post("/execute", auth, validation, rateLimit, async (req: Request, res: R
         fallbackResult = await fallbackCoordinator.executeMatrixFallback(
           parameters.locations,
           {
-            vehicleType: parameters.vehicleType || 'truck',
+            vehicleType: parameters?.vehicleType || 'truck',
             includeTraffic: parameters.includeTraffic !== false,
             businessContext: finalBusinessContext,
             maxCostIncrease: fallbackOptions?.maxCostIncrease || 25
@@ -138,12 +138,6 @@ router.post("/execute", auth, validation, rateLimit, async (req: Request, res: R
           latency: fallbackResult.latency,
           cacheUsed: fallbackResult.cacheUsed,
           offlineMode: fallbackResult.offlineMode
-        },
-        metadata: {
-          ...fallbackResult.metadata,
-          executionTime,
-          operationType,
-          businessContext: finalBusinessContext
         }
       });
     } else {
@@ -154,10 +148,10 @@ router.post("/execute", auth, validation, rateLimit, async (req: Request, res: R
       });
     }
 
-  } catch (error) {
-    timer.end({ error: error.message });
+  } catch (error: unknown) {
+    timer.end({ error: error instanceof Error ? error?.message : String(error) });
     logger.error('Error in fallback coordination execution', {
-      error: error.message,
+      error: error instanceof Error ? error?.message : String(error),
       body: req.body
     });
     
@@ -205,17 +199,13 @@ router.get("/status", auth, rateLimit, async (req: Request, res: Response) => {
         predictiveFailover: true,
         offlineOperation: true
       },
-      timestamp: new Date(),
-      metadata: {
-        executionTime,
-        dataFreshness: "real-time"
-      }
+      timestamp: new Date()
     });
 
-  } catch (error) {
-    timer.end({ error: error.message });
+  } catch (error: unknown) {
+    timer.end({ error: error instanceof Error ? error?.message : String(error) });
     logger.error('Error retrieving fallback system status', {
-      error: error.message
+      error: error instanceof Error ? error?.message : String(error)
     });
     
     return ResponseHelper.internalError(res, "Failed to retrieve fallback system status");

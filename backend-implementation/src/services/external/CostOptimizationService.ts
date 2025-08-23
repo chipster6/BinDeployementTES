@@ -133,9 +133,9 @@ export class CostOptimizationService {
       await this.setupPredictiveAnalysis();
 
       logger.info('Cost Optimization Service initialized successfully');
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('Failed to initialize Cost Optimization Service', {
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
       });
       throw error;
     }
@@ -368,9 +368,9 @@ export class CostOptimizationService {
       }
 
       logger.info('Historical cost data loaded');
-    } catch (error) {
+    } catch (error: unknown) {
       logger.warn('Could not load historical cost data', {
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
       });
     }
   }
@@ -462,7 +462,7 @@ export class CostOptimizationService {
     if (state.blocked && state.blockUntil && now < state.blockUntil) {
       return {
         allowed: false,
-        reason: state.blockReason || 'Service temporarily blocked',
+        reason: state?.blockReason || 'Service temporarily blocked',
         retryAfter: state.blockUntil - now,
       };
     }
@@ -609,9 +609,9 @@ export class CostOptimizationService {
       // Broadcast optimization summary
       await this.broadcastOptimizationSummary();
 
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('Optimization analysis failed', {
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
       });
     }
   }
@@ -766,7 +766,7 @@ export class CostOptimizationService {
 
     // Process requests if we have capacity
     const now = Date.now();
-    if (now > state.sustainedResetTime || state.sustainedCounter < 50) { // 50% of sustained limit
+    if (now > state?.sustainedResetTime || state.sustainedCounter < 50) { // 50% of sustained limit
       const processedRequests = queue.splice(0, Math.min(10, queue.length));
       
       for (const request of processedRequests) {
@@ -799,8 +799,8 @@ export class CostOptimizationService {
         const stats = JSON.parse(cacheStats);
         return (stats.hits / (stats.hits + stats.misses)) * 100;
       }
-    } catch (error) {
-      logger.warn('Could not get cache hit rate', { serviceName, error: error.message });
+    } catch (error: unknown) {
+      logger.warn('Could not get cache hit rate', { serviceName, error: error instanceof Error ? error?.message : String(error) });
     }
     return 50; // Default assumption
   }
@@ -815,8 +815,8 @@ export class CostOptimizationService {
       const batchablePercentage = Math.min(Math.random() * 40 + 10, 50); // 10-50%
       return {
         batchable: Math.round(batchablePercentage),
-        totalRequests: requests.length || 100,
-        patterns: requests.patterns || [],
+        totalRequests: requests?.length || 100,
+        patterns: requests?.patterns || [],
       };
     }
 
@@ -877,7 +877,7 @@ export class CostOptimizationService {
     serviceName: string,
     opportunities: any[]
   ): Promise<void> {
-    const totalSavings = opportunities.reduce((sum, opp) => sum + (opp.estimatedSavings || 0), 0);
+    const totalSavings = opportunities.reduce((sum, opp) => sum + (opp?.estimatedSavings || 0), 0);
 
     socketManager.broadcastToRoom('cost_monitoring', 'optimization_opportunities', {
       serviceName,
@@ -917,7 +917,7 @@ export class CostOptimizationService {
       summary.totalMonthlyCost += costData.monthlySpend;
       summary.totalBudgetUtilization += costData.budgetUtilization;
       summary.totalPotentialSavings += costData.savingsOpportunities.reduce(
-        (sum, opp) => sum + (opp.estimatedSavings || 0), 0
+        (sum, opp) => sum + (opp?.estimatedSavings || 0), 0
       );
 
       if (costData.budgetUtilization > 90) {
@@ -957,8 +957,8 @@ export class CostOptimizationService {
         3600, // 1 hour TTL
         JSON.stringify(state)
       );
-    } catch (error) {
-      logger.warn('Could not save rate limit state', { serviceName, error: error.message });
+    } catch (error: unknown) {
+      logger.warn('Could not save rate limit state', { serviceName, error: error instanceof Error ? error?.message : String(error) });
     }
   }
 
@@ -970,8 +970,8 @@ export class CostOptimizationService {
           const state = JSON.parse(stateData);
           this.rateLimitStates.set(serviceName, state);
         }
-      } catch (error) {
-        logger.warn('Could not load rate limit state', { serviceName, error: error.message });
+      } catch (error: unknown) {
+        logger.warn('Could not load rate limit state', { serviceName, error: error instanceof Error ? error?.message : String(error) });
       }
     }
   }
@@ -983,8 +983,8 @@ export class CostOptimizationService {
         86400, // 24 hours TTL
         JSON.stringify(costData)
       );
-    } catch (error) {
-      logger.warn('Could not save cost tracking data', { serviceName, error: error.message });
+    } catch (error: unknown) {
+      logger.warn('Could not save cost tracking data', { serviceName, error: error instanceof Error ? error?.message : String(error) });
     }
   }
 
@@ -1094,7 +1094,7 @@ export class CostOptimizationService {
       recommendations.push(...costData.savingsOpportunities);
     }
 
-    return recommendations.sort((a, b) => (b.estimatedSavings || 0) - (a.estimatedSavings || 0));
+    return recommendations.sort((a, b) => (b?.estimatedSavings || 0) - (a?.estimatedSavings || 0));
   }
 
   /**

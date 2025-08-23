@@ -19,7 +19,7 @@
  * Version: 1.0.0
  */
 
-import { Router, Request, Response } from "express";
+import { Router, type Request, type Response } from "express";
 import { query, validationResult } from "express-validator";
 import { authenticateToken, requirePermission } from "@/middleware/auth";
 import { rateLimitMiddleware } from "@/middleware/rateLimiting";
@@ -147,13 +147,13 @@ router.get(
       });
 
       return ResponseHelper.success(res, overview, "Security dashboard overview retrieved");
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error("Failed to fetch security dashboard overview", {
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
         userId: req.user?.id,
       });
 
-      return ResponseHelper.error(res, "Failed to fetch security dashboard overview", 500);
+      return ResponseHelper.error(res, req, { message: "Failed to fetch security dashboard overview", statusCode: 500 });
     }
   }
 );
@@ -257,13 +257,13 @@ router.get(
       });
 
       return ResponseHelper.success(res, response, "Threat trends retrieved");
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error("Failed to fetch threat trends", {
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
         userId: req.user?.id,
       });
 
-      return ResponseHelper.error(res, "Failed to fetch threat trends", 500);
+      return ResponseHelper.error(res, req, { message: "Failed to fetch threat trends", statusCode: 500 });
     }
   }
 );
@@ -325,11 +325,6 @@ router.get(
         timestamp: new Date(),
         eventCount: siemData.length,
         data: siemData,
-        metadata: {
-          threatFeedsCount: threatFeeds.status === "fulfilled" ? threatFeeds.value.length : 0,
-          incidentsCount: securityIncidents.status === "fulfilled" ? securityIncidents.value.total : 0,
-          severityBreakdown: calculateSeverityBreakdown(siemData),
-        },
       };
 
       await AuditLog.create({
@@ -348,13 +343,13 @@ router.get(
       });
 
       return ResponseHelper.success(res, response, "SIEM data retrieved");
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error("Failed to fetch SIEM data", {
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
         userId: req.user?.id,
       });
 
-      return ResponseHelper.error(res, "Failed to fetch SIEM data", 500);
+      return ResponseHelper.error(res, req, { message: "Failed to fetch SIEM data", statusCode: 500 });
     }
   }
 );
@@ -410,13 +405,13 @@ router.get(
       };
 
       return ResponseHelper.success(res, feedData, "Real-time threat feed retrieved");
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error("Failed to fetch real-time threat feed", {
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
         userId: req.user?.id,
       });
 
-      return ResponseHelper.error(res, "Failed to fetch real-time threat feed", 500);
+      return ResponseHelper.error(res, req, { message: "Failed to fetch real-time threat feed", statusCode: 500 });
     }
   }
 );
@@ -462,8 +457,8 @@ async function getSecurityIncidents(since: Date) {
         severity: getSeverityFromAction(incident.action),
       })),
     };
-  } catch (error) {
-    logger.error("Failed to fetch security incidents", { error: error.message });
+  } catch (error: unknown) {
+    logger.error("Failed to fetch security incidents", { error: error instanceof Error ? error?.message : String(error) });
     return { total: 0, blocked: 0, investigated: 0, recent: [] };
   }
 }
@@ -591,11 +586,11 @@ function formatAsJSON(threatFeeds: any, securityIncidents: any) {
   
   return [...threats, ...incidents].map((item: any) => ({
     timestamp: item.timestamp,
-    type: item.type || "security_incident",
-    severity: getThreatSeverity(item.threatScore || 50),
-    source: item.source || "system",
-    target: item.target || item.resourceId,
-    details: item.metadata || item.details,
+    type: item?.type || "security_incident",
+    severity: getThreatSeverity(item?.threatScore || 50),
+    source: item?.source || "system",
+    target: item?.target || item.resourceId,
+    details: item?.metadata || item.details,
   }));
 }
 

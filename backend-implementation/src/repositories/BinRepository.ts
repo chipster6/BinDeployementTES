@@ -175,7 +175,7 @@ export class BinRepository extends BaseRepository<Bin> {
         ) <= ${radiusKm}
       `),
       order: [[literal("distance"), "ASC"]],
-      limit: options.limit || 50,
+      limit: options?.limit || 50,
       include: [
         {
           model: Customer,
@@ -272,7 +272,7 @@ export class BinRepository extends BaseRepository<Bin> {
     }
 
     let dateFilter: WhereOptions = {};
-    if (filters.startDate || filters.endDate) {
+    if (filters?.startDate || filters.endDate) {
       dateFilter.nextServiceDate = {};
       if (filters.startDate) {
         dateFilter.nextServiceDate[Op.gte] = filters.startDate;
@@ -509,7 +509,7 @@ export class BinRepository extends BaseRepository<Bin> {
           attributes: ["id", "companyName", "contactName"],
         },
       ],
-      order: criteria.order || [["updatedAt", "DESC"]],
+      order: criteria?.order || [["updatedAt", "DESC"]],
       attributes: criteria.attributes,
     };
 
@@ -608,7 +608,7 @@ export class BinRepository extends BaseRepository<Bin> {
       }
     }
 
-    if (criteria.lastServiceBefore || criteria.lastServiceAfter) {
+    if (criteria?.lastServiceBefore || criteria.lastServiceAfter) {
       whereClause.lastServiceDate = {};
       if (criteria.lastServiceBefore) {
         whereClause.lastServiceDate[Op.lte] = criteria.lastServiceBefore;

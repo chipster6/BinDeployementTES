@@ -22,7 +22,8 @@
  * Version: 1.0.0
  */
 
-import { Router, Request, Response, NextFunction } from "express";
+import type { Request, Response, NextFunction } from "express";
+import { Router } from "express";
 import { enterpriseErrorResilience } from "@/services/EnterpriseErrorResilienceService";
 import { errorAnalyticsDashboard } from "@/services/ErrorAnalyticsDashboardService";
 import { aiErrorPrediction } from "@/services/AIErrorPredictionService";
@@ -45,14 +46,11 @@ router.get("/status", auth, async (req: Request, res: Response, next: NextFuncti
   try {
     const resilienceStatus = await enterpriseErrorResilience.getResilienceStatus();
     
-    ResponseHelper.success(res, resilienceStatus, "Resilience status retrieved", {
-      cached: false,
-      timestamp: new Date(),
-      nextUpdate: new Date(Date.now() + 30000) // Next update in 30 seconds
-    });
+    ResponseHelper.success(res, req, { data: resilienceStatus, 
+            message: "Resilience status retrieved" });
 
-  } catch (error) {
-    logger.error("Failed to get resilience status", { error: error.message, userId: req.user?.id });
+  } catch (error: unknown) {
+    logger.error("Failed to get resilience status", { error: error instanceof Error ? error?.message : String(error), userId: req.user?.id });
     next(error);
   }
 });
@@ -77,8 +75,8 @@ router.get("/business-continuity", auth, async (req: Request, res: Response, nex
       nextAssessment: new Date(Date.now() + 3600000) // Next assessment in 1 hour
     });
 
-  } catch (error) {
-    logger.error("Business continuity assessment failed", { error: error.message, userId: req.user?.id });
+  } catch (error: unknown) {
+    logger.error("Business continuity assessment failed", { error: error instanceof Error ? error?.message : String(error), userId: req.user?.id });
     next(error);
   }
 });
@@ -101,15 +99,12 @@ router.get("/analytics/dashboard/:dashboardId", auth, async (req: Request, res: 
       customFilters
     );
     
-    ResponseHelper.success(res, dashboard, "Dashboard data retrieved", {
-      dashboardId,
-      userId: req.user?.id,
-      filters: customFilters
-    });
+    ResponseHelper.success(res, req, { data: dashboard, 
+            message: "Dashboard data retrieved" });
 
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error("Failed to get analytics dashboard", { 
-      error: error.message, 
+      error: error instanceof Error ? error?.message : String(error), 
       dashboardId: req.params.dashboardId,
       userId: req.user?.id 
     });
@@ -131,14 +126,11 @@ router.get("/analytics/executive", auth, async (req: Request, res: Response, nex
 
     const executiveDashboard = await errorAnalyticsDashboard.getExecutiveDashboard();
     
-    ResponseHelper.success(res, executiveDashboard, "Executive dashboard retrieved", {
-      generatedFor: req.user?.role,
-      confidentialityLevel: "executive",
-      reportingPeriod: "last_24_hours"
-    });
+    ResponseHelper.success(res, req, { data: executiveDashboard, 
+            message: "Executive dashboard retrieved" });
 
-  } catch (error) {
-    logger.error("Failed to get executive dashboard", { error: error.message, userId: req.user?.id });
+  } catch (error: unknown) {
+    logger.error("Failed to get executive dashboard", { error: error instanceof Error ? error?.message : String(error), userId: req.user?.id });
     next(error);
   }
 });
@@ -168,15 +160,11 @@ router.post("/prediction/generate", auth, async (req: Request, res: Response, ne
       options
     );
     
-    ResponseHelper.success(res, predictions, "Error predictions generated", {
-      predictionWindow: window,
-      systemLayer,
-      modelAccuracy: predictions.metadata.featureImportance,
-      executionTime: predictions.metadata.executionTime
-    });
+    ResponseHelper.success(res, req, { data: predictions, 
+            message: "Error predictions generated" });
 
-  } catch (error) {
-    logger.error("Error prediction generation failed", { error: error.message, userId: req.user?.id });
+  } catch (error: unknown) {
+    logger.error("Error prediction generation failed", { error: error instanceof Error ? error?.message : String(error), userId: req.user?.id });
     next(error);
   }
 });
@@ -201,13 +189,11 @@ router.get("/prediction/accuracy", auth, async (req: Request, res: Response, nex
 
     const accuracy = await aiErrorPrediction.getPredictionAccuracy(timeRangeObj);
     
-    ResponseHelper.success(res, accuracy, "Prediction accuracy metrics retrieved", {
-      timeRange: timeRangeObj,
-      calculatedAt: new Date()
-    });
+    ResponseHelper.success(res, req, { data: accuracy, 
+            message: "Prediction accuracy metrics retrieved" });
 
-  } catch (error) {
-    logger.error("Failed to get prediction accuracy", { error: error.message, userId: req.user?.id });
+  } catch (error: unknown) {
+    logger.error("Failed to get prediction accuracy", { error: error instanceof Error ? error?.message : String(error), userId: req.user?.id });
     next(error);
   }
 });
@@ -236,15 +222,12 @@ router.post("/prevention/execute", auth, async (req: Request, res: Response, nex
       executedAt: new Date()
     });
     
-    ResponseHelper.success(res, result, "Prevention strategy executed", {
-      strategyId,
-      executedBy: req.user?.id,
-      executionTime: result.executionTime
-    });
+    ResponseHelper.success(res, req, { data: result, 
+            message: "Prevention strategy executed" });
 
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error("Prevention strategy execution failed", { 
-      error: error.message, 
+      error: error instanceof Error ? error?.message : String(error), 
       strategyId: req.body.strategyId,
       userId: req.user?.id 
     });
@@ -265,13 +248,11 @@ router.get("/propagation/analytics", auth, async (req: Request, res: Response, n
       parseInt(timeRange as string)
     );
     
-    ResponseHelper.success(res, analytics, "Cross-system propagation analytics retrieved", {
-      timeRange: parseInt(timeRange as string),
-      generatedAt: new Date()
-    });
+    ResponseHelper.success(res, req, { data: analytics, 
+            message: "Cross-system propagation analytics retrieved" });
 
-  } catch (error) {
-    logger.error("Failed to get propagation analytics", { error: error.message, userId: req.user?.id });
+  } catch (error: unknown) {
+    logger.error("Failed to get propagation analytics", { error: error instanceof Error ? error?.message : String(error), userId: req.user?.id });
     next(error);
   }
 });
@@ -304,12 +285,7 @@ router.post("/propagation/prevent-cascade", auth, async (req: Request, res: Resp
       businessImpact: BusinessImpact.HIGH,
       containmentStrategy: "isolate" as any,
       preventedCascades: [],
-      timestamp: new Date(),
-      metadata: {
-        affectedOperations: [],
-        isolationActions: [],
-        recoveryActions: []
-      }
+      timestamp: new Date()
     };
 
     const preventionResult = await crossSystemErrorPropagation.preventCascadeFailure(
@@ -317,15 +293,12 @@ router.post("/propagation/prevent-cascade", auth, async (req: Request, res: Resp
       maxImpactThreshold || BusinessImpact.HIGH
     );
     
-    ResponseHelper.success(res, preventionResult, "Cascade prevention executed", {
-      triggerEventId,
-      executedBy: req.user?.id,
-      maxImpactThreshold: maxImpactThreshold || BusinessImpact.HIGH
-    });
+    ResponseHelper.success(res, req, { data: preventionResult, 
+            message: "Cascade prevention executed" });
 
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error("Cascade prevention failed", { 
-      error: error.message, 
+      error: error instanceof Error ? error?.message : String(error), 
       triggerEventId: req.body.triggerEventId,
       userId: req.user?.id 
     });
@@ -342,13 +315,11 @@ router.get("/orchestration/health", auth, async (req: Request, res: Response, ne
   try {
     const systemHealth = await errorOrchestration.getSystemHealthStatus();
     
-    ResponseHelper.success(res, systemHealth, "Error orchestration health retrieved", {
-      checkedAt: new Date(),
-      systemsMonitored: Object.keys(systemHealth.layers).length
-    });
+    ResponseHelper.success(res, req, { data: systemHealth, 
+            message: "Error orchestration health retrieved" });
 
-  } catch (error) {
-    logger.error("Failed to get orchestration health", { error: error.message, userId: req.user?.id });
+  } catch (error: unknown) {
+    logger.error("Failed to get orchestration health", { error: error instanceof Error ? error?.message : String(error), userId: req.user?.id });
     next(error);
   }
 });
@@ -377,16 +348,12 @@ router.post("/orchestration/emergency-continuity", auth, async (req: Request, re
       affectedSystems || []
     );
     
-    ResponseHelper.success(res, continuityPlan, "Emergency business continuity plan executed", {
-      authorizedBy: req.user?.id,
-      authorizationLevel: req.user?.role,
-      executedAt: new Date(),
-      confidentialityLevel: "restricted"
-    });
+    ResponseHelper.success(res, req, { data: continuityPlan, 
+            message: "Emergency business continuity plan executed" });
 
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error("Emergency continuity execution failed", { 
-      error: error.message, 
+      error: error instanceof Error ? error?.message : String(error), 
       userId: req.user?.id,
       role: req.user?.role 
     });
@@ -405,8 +372,8 @@ router.get("/monitoring/prometheus", auth, async (req: Request, res: Response, n
     
     ResponseHelper.success(res, prometheusIntegration, "Prometheus integration status retrieved");
 
-  } catch (error) {
-    logger.error("Failed to get Prometheus integration", { error: error.message, userId: req.user?.id });
+  } catch (error: unknown) {
+    logger.error("Failed to get Prometheus integration", { error: error instanceof Error ? error?.message : String(error), userId: req.user?.id });
     next(error);
   }
 });
@@ -434,15 +401,12 @@ router.post("/monitoring/prometheus/query", auth, async (req: Request, res: Resp
 
     const result = await errorAnalyticsDashboard.executePrometheusQuery(query, timeRangeObj);
     
-    ResponseHelper.success(res, result, "Prometheus query executed", {
-      query,
-      timeRange: timeRangeObj,
-      executedBy: req.user?.id
-    });
+    ResponseHelper.success(res, req, { data: result, 
+            message: "Prometheus query executed" });
 
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error("Prometheus query execution failed", { 
-      error: error.message, 
+      error: error instanceof Error ? error?.message : String(error), 
       query: req.body.query,
       userId: req.user?.id 
     });
@@ -461,8 +425,8 @@ router.get("/monitoring/grafana", auth, async (req: Request, res: Response, next
     
     ResponseHelper.success(res, grafanaIntegration, "Grafana integration status retrieved");
 
-  } catch (error) {
-    logger.error("Failed to get Grafana integration", { error: error.message, userId: req.user?.id });
+  } catch (error: unknown) {
+    logger.error("Failed to get Grafana integration", { error: error instanceof Error ? error?.message : String(error), userId: req.user?.id });
     next(error);
   }
 });
@@ -497,16 +461,12 @@ router.post("/dashboard/export", auth, async (req: Request, res: Response, next:
       req.user?.id
     );
     
-    ResponseHelper.success(res, exportResult, "Dashboard data exported", {
-      dashboardId,
-      format,
-      timeRange: timeRangeObj,
-      exportedBy: req.user?.id
-    });
+    ResponseHelper.success(res, req, { data: exportResult, 
+            message: "Dashboard data exported" });
 
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error("Dashboard export failed", { 
-      error: error.message, 
+      error: error instanceof Error ? error?.message : String(error), 
       dashboardId: req.body.dashboardId,
       userId: req.user?.id 
     });

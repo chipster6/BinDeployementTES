@@ -383,14 +383,14 @@ export class RoutingDecisionEngine {
 
       return selectedNode;
 
-    } catch (error) {
+    } catch (error: unknown) {
       const executionTime = Date.now() - startTime;
       this.recordAlgorithmMetrics(algorithm.algorithmId, executionTime, false);
       
       logger.error("Decision algorithm execution failed", {
         algorithmId: algorithm.algorithmId,
         strategy,
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
         executionTime
       });
 
@@ -918,9 +918,9 @@ export class RoutingDecisionEngine {
     for (const [strategy, algorithm] of this.algorithms) {
       try {
         await this.optimizeIndividualAlgorithm(algorithm);
-      } catch (error) {
+      } catch (error: unknown) {
         logger.error(`Failed to optimize algorithm ${algorithm.algorithmId}`, {
-          error: error.message
+          error: error instanceof Error ? error?.message : String(error)
         });
       }
     }

@@ -246,19 +246,19 @@ export class AirtableService extends BaseExternalService {
         },
         statusCode: 200,
         metadata: {
-          requestId: `get-${config.baseId}-${config.tableName}`,
+          tableName: config.tableName,
           duration: 0,
           attempt: 1,
         },
       };
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error("Failed to get Airtable records", {
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
         baseId: config.baseId,
         tableName: config.tableName,
       });
 
-      throw new Error(`Record retrieval failed: ${error.message}`);
+      throw new Error(`Record retrieval failed: ${error instanceof Error ? error?.message : String(error)}`);
     }
   }
 
@@ -341,22 +341,20 @@ export class AirtableService extends BaseExternalService {
           records: allCreatedRecords,
           createdCount,
         },
-        statusCode: 200,
-        metadata: {
-          requestId: `create-${baseId}-${tableName}`,
+        statusCode: 200-${tableName}`,
           duration: 0,
           attempt: 1,
         },
       };
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error("Failed to create Airtable records", {
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
         baseId,
         tableName,
         recordCount: records.length,
       });
 
-      throw new Error(`Record creation failed: ${error.message}`);
+      throw new Error(`Record creation failed: ${error instanceof Error ? error?.message : String(error)}`);
     }
   }
 
@@ -422,22 +420,20 @@ export class AirtableService extends BaseExternalService {
           records: allUpdatedRecords,
           updatedCount,
         },
-        statusCode: 200,
-        metadata: {
-          requestId: `update-${baseId}-${tableName}`,
+        statusCode: 200-${tableName}`,
           duration: 0,
           attempt: 1,
         },
       };
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error("Failed to update Airtable records", {
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
         baseId,
         tableName,
         recordCount: records.length,
       });
 
-      throw new Error(`Record update failed: ${error.message}`);
+      throw new Error(`Record update failed: ${error instanceof Error ? error?.message : String(error)}`);
     }
   }
 
@@ -496,22 +492,20 @@ export class AirtableService extends BaseExternalService {
           records: allDeletedRecords,
           deletedCount,
         },
-        statusCode: 200,
-        metadata: {
-          requestId: `delete-${baseId}-${tableName}`,
+        statusCode: 200-${tableName}`,
           duration: 0,
           attempt: 1,
         },
       };
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error("Failed to delete Airtable records", {
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
         baseId,
         tableName,
         recordCount: recordIds.length,
       });
 
-      throw new Error(`Record deletion failed: ${error.message}`);
+      throw new Error(`Record deletion failed: ${error instanceof Error ? error?.message : String(error)}`);
     }
   }
 
@@ -562,7 +556,7 @@ export class AirtableService extends BaseExternalService {
       const remoteRecords = remoteResponse.data.records;
       const remoteRecordMap = new Map(remoteRecords.map((r) => [r.id!, r]));
       const localRecordMap = new Map(
-        localRecords.map((r) => [r.airtableId || r.id, r]),
+        localRecords.map((r) => [r?.airtableId || r.id, r]),
       );
 
       // Process synchronization based on direction
@@ -573,7 +567,7 @@ export class AirtableService extends BaseExternalService {
         // Push local changes to Airtable
         for (const localRecord of localRecords) {
           try {
-            const airtableId = localRecord.airtableId || localRecord.id;
+            const airtableId = localRecord?.airtableId || localRecord.id;
             const remoteRecord = remoteRecordMap.get(airtableId);
 
             if (!remoteRecord) {
@@ -581,8 +575,8 @@ export class AirtableService extends BaseExternalService {
               if (!options?.dryRun) {
                 const transformedFields = this.transformFields(
                   localRecord,
-                  syncConfig.fieldMapping || {},
-                  syncConfig.transformations || {},
+                  syncConfig?.fieldMapping || {},
+                  syncConfig?.transformations || {},
                 );
 
                 await this.createRecords(baseId, tableName, [
@@ -620,10 +614,10 @@ export class AirtableService extends BaseExternalService {
             }
 
             result.recordsProcessed++;
-          } catch (error) {
+          } catch (error: unknown) {
             result.errors.push({
               recordId: localRecord.id,
-              error: error.message,
+              error: error instanceof Error ? error?.message : String(error),
             });
           }
         }
@@ -658,10 +652,10 @@ export class AirtableService extends BaseExternalService {
             }
 
             result.recordsProcessed++;
-          } catch (error) {
+          } catch (error: unknown) {
             result.errors.push({
               recordId: remoteRecord.id,
-              error: error.message,
+              error: error instanceof Error ? error?.message : String(error),
             });
           }
         }
@@ -686,20 +680,18 @@ export class AirtableService extends BaseExternalService {
       return {
         success: true,
         data: result,
-        statusCode: 200,
-        metadata: {
-          requestId: `sync-${tableId}`,
+        statusCode: 200`,
           duration: 0,
           attempt: 1,
         },
       };
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error("Failed to synchronize table", {
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
         tableId,
       });
 
-      throw new Error(`Table synchronization failed: ${error.message}`);
+      throw new Error(`Table synchronization failed: ${error instanceof Error ? error?.message : String(error)}`);
     }
   }
 
@@ -786,19 +778,14 @@ export class AirtableService extends BaseExternalService {
           changesProcessed,
         },
         statusCode: 200,
-        metadata: {
-          requestId: payload.webhook.id,
-          duration: 0,
-          attempt: 1,
-        },
       };
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error("Failed to process Airtable webhook", {
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
         baseId: payload.base.id,
       });
 
-      throw new Error(`Webhook processing failed: ${error.message}`);
+      throw new Error(`Webhook processing failed: ${error instanceof Error ? error?.message : String(error)}`);
     }
   }
 
@@ -852,7 +839,7 @@ export class AirtableService extends BaseExternalService {
       remoteValue: any;
     }> = [];
 
-    const fieldMapping = syncConfig.fieldMapping || {};
+    const fieldMapping = syncConfig?.fieldMapping || {};
 
     for (const [localField, localValue] of Object.entries(localRecord)) {
       const airtableField = fieldMapping[localField] || localField;
@@ -967,12 +954,12 @@ export class AirtableService extends BaseExternalService {
         status: "healthy",
         lastCheck: new Date(),
       };
-    } catch (error) {
+    } catch (error: unknown) {
       return {
         service: "airtable",
         status: "unhealthy",
         lastCheck: new Date(),
-        details: { error: error.message },
+        details: { error: error instanceof Error ? error?.message : String(error) },
       };
     }
   }

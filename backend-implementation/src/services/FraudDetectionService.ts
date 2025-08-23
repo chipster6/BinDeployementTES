@@ -343,18 +343,18 @@ export class FraudDetectionService extends BaseService<any> {
         message: "Transaction fraud analysis completed successfully"
       };
 
-    } catch (error) {
-      timer.end({ error: error.message });
+    } catch (error: unknown) {
+      timer.end({ error: error instanceof Error ? error?.message : String(error) });
       logger.error("FraudDetectionService.analyzeTransaction failed", {
         transactionId: transaction.id,
         customerId: transaction.customerId,
-        error: error.message
+        error: error instanceof Error ? error?.message : String(error)
       });
 
       return {
         success: false,
         message: "Failed to analyze transaction for fraud",
-        errors: [error.message]
+        errors: [error instanceof Error ? error?.message : String(error)]
       };
     }
   }
@@ -433,16 +433,16 @@ export class FraudDetectionService extends BaseService<any> {
         message: "Fraud metrics calculated successfully"
       };
 
-    } catch (error) {
-      timer.end({ error: error.message });
+    } catch (error: unknown) {
+      timer.end({ error: error instanceof Error ? error?.message : String(error) });
       logger.error("FraudDetectionService.getFraudMetrics failed", {
-        error: error.message
+        error: error instanceof Error ? error?.message : String(error)
       });
 
       return {
         success: false,
         message: "Failed to calculate fraud metrics",
-        errors: [error.message]
+        errors: [error instanceof Error ? error?.message : String(error)]
       };
     }
   }
@@ -520,17 +520,17 @@ export class FraudDetectionService extends BaseService<any> {
         message: `Successfully updated ${modelsUpdated.length} fraud detection models`
       };
 
-    } catch (error) {
-      timer.end({ error: error.message });
+    } catch (error: unknown) {
+      timer.end({ error: error instanceof Error ? error?.message : String(error) });
       logger.error("FraudDetectionService.updateFraudModels failed", {
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
         sampleCount: trainingData.length
       });
 
       return {
         success: false,
         message: "Failed to update fraud detection models",
-        errors: [error.message]
+        errors: [error instanceof Error ? error?.message : String(error)]
       };
     }
   }
@@ -582,17 +582,17 @@ export class FraudDetectionService extends BaseService<any> {
         message: `${entityType} blocked successfully`
       };
 
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error("FraudDetectionService.blockEntity failed", {
         entityType,
         entityId,
-        error: error.message
+        error: error instanceof Error ? error?.message : String(error)
       });
 
       return {
         success: false,
         message: "Failed to block entity",
-        errors: [error.message]
+        errors: [error instanceof Error ? error?.message : String(error)]
       };
     }
   }

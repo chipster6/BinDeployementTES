@@ -78,7 +78,7 @@ const SERVICE_DEFINITIONS = {
     fallbackEnabled: true,
     requiredEnvVars: [],
     optionalEnvVars: ['MAPBOX_ACCESS_TOKEN', 'GOOGLE_MAPS_API_KEY'],
-    customValidation: (config: any) => !!(config.mapboxAccessToken || config.googleMapsApiKey),
+    customValidation: (config: any) => !!(config?.mapboxAccessToken || config.googleMapsApiKey),
   },
   // Security services
   threat_intelligence: {
@@ -206,7 +206,7 @@ export class ServiceConfigurationManager implements ConfigurationLoader {
 
     // Determine if service is enabled
     const enabled = missingRequired.length === 0 && (
-      !definition.customValidation || definition.customValidation(config)
+      !definition?.customValidation || definition.customValidation(config)
     );
 
     return {
@@ -234,12 +234,12 @@ export class ServiceConfigurationManager implements ConfigurationLoader {
   private addServiceDefaults(serviceName: string, config: Record<string, any>): void {
     switch (serviceName) {
       case 'sendgrid':
-        config.defaultFromEmail = process.env.DEFAULT_FROM_EMAIL || 'noreply@wastemanagement.com';
-        config.defaultFromName = process.env.DEFAULT_FROM_NAME || 'Waste Management System';
+        config.defaultFromEmail = process.env?.DEFAULT_FROM_EMAIL || 'noreply@wastemanagement.com';
+        config.defaultFromName = process.env?.DEFAULT_FROM_NAME || 'Waste Management System';
         break;
       
       case 'maps':
-        config.provider = process.env.MAPS_PROVIDER || 'mapbox';
+        config.provider = process.env?.MAPS_PROVIDER || 'mapbox';
         break;
       
       // Add other service-specific defaults as needed
@@ -256,7 +256,7 @@ export class ServiceConfigurationManager implements ConfigurationLoader {
     if (typeof config.fallbackEnabled !== 'boolean') return false;
     if (typeof config.monitoringEnabled !== 'boolean') return false;
     if (typeof config.alertingEnabled !== 'boolean') return false;
-    if (!config.config || typeof config.config !== 'object') return false;
+    if (!config?.config || typeof config.config !== 'object') return false;
 
     return true;
   }

@@ -163,7 +163,7 @@ export class SecuritySessionService {
         createdAt: new Date(),
         lastActivity: new Date(),
         expiresAt,
-        mfaVerified: options.mfaVerified || false,
+        mfaVerified: options?.mfaVerified || false,
         riskScore: 0,
       };
 
@@ -191,7 +191,7 @@ export class SecuritySessionService {
         locationCountry: options.locationCountry,
         locationCity: options.locationCity,
         expiresAt,
-        mfaVerified: options.mfaVerified || false,
+        mfaVerified: options?.mfaVerified || false,
       });
 
       // Log session creation
@@ -215,7 +215,7 @@ export class SecuritySessionService {
       });
 
       return sessionData;
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error("Failed to create session:", error);
       throw new Error("Session creation failed");
     }
@@ -241,7 +241,7 @@ export class SecuritySessionService {
       }
 
       return sessionData;
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error("Failed to get session:", error);
       return null;
     }
@@ -265,7 +265,7 @@ export class SecuritySessionService {
       const updatedSession: SessionData = {
         ...sessionData,
         ...updates,
-        lastActivity: updates.lastActivity || new Date(),
+        lastActivity: updates?.lastActivity || new Date(),
       };
 
       // Calculate remaining TTL
@@ -290,7 +290,7 @@ export class SecuritySessionService {
       });
 
       return true;
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error("Failed to update session:", error);
       return false;
     }
@@ -327,7 +327,7 @@ export class SecuritySessionService {
           expiresAt: newExpiresAt,
         }),
       } as any);
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error("Failed to refresh session:", error);
       return false;
     }
@@ -378,7 +378,7 @@ export class SecuritySessionService {
       });
 
       return true;
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error("Failed to delete session:", error);
       return false;
     }
@@ -418,7 +418,7 @@ export class SecuritySessionService {
 
       logger.info(`Deleted ${deletedCount} sessions for user ${userId}`);
       return deletedCount;
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error("Failed to delete user sessions:", error);
       return 0;
     }
@@ -473,7 +473,7 @@ export class SecuritySessionService {
       }
 
       return await this.getSession(sessionToken);
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error("Failed to get session by refresh token:", error);
       return null;
     }
@@ -509,7 +509,7 @@ export class SecuritySessionService {
       );
 
       return true; // For now, assume integrity is valid
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error("Session integrity validation failed:", error);
       return false;
     }
@@ -535,7 +535,7 @@ export class SecuritySessionService {
 
       logger.info(`Marked ${expiredCount[0]} sessions as expired in database`);
       return expiredCount[0];
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error("Failed to cleanup expired sessions:", error);
       return 0;
     }
@@ -579,7 +579,7 @@ export class SecuritySessionService {
         revoked,
         redisConnected: this.redis?.status === "ready",
       };
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error("Failed to get session statistics:", error);
       return {
         total: 0,

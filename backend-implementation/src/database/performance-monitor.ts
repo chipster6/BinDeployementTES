@@ -201,17 +201,17 @@ export class DatabasePerformanceMonitor extends EventEmitter {
       const pool = sequelize.connectionManager.pool;
       
       return {
-        total: pool.size || 0,
-        active: pool.borrowed || 0,
-        idle: pool.available || 0,
-        waiting: pool.pending || 0,
+        total: pool?.size || 0,
+        active: pool?.borrowed || 0,
+        idle: pool?.available || 0,
+        waiting: pool?.pending || 0,
         utilization: pool.size > 0 ? Math.round((pool.borrowed / pool.size) * 100) : 0,
         maxWaitTime: await this.getMaxWaitTime(),
         avgWaitTime: await this.getAverageWaitTime(),
         connectionErrors: this.countRecentConnectionErrors(),
         totalConnections: await this.getTotalConnectionsEverCreated(),
       };
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('Failed to get connection pool stats', error);
       return {
         total: 0,
@@ -237,13 +237,13 @@ export class DatabasePerformanceMonitor extends EventEmitter {
     });
 
     sequelize.addHook('afterQuery', (options: any, result: any) => {
-      const duration = Date.now() - (options._startTime || Date.now());
+      const duration = Date.now() - (options?._startTime || Date.now());
       
       const metric: QueryMetrics = {
-        sql: options.sql || 'Unknown Query',
+        sql: options?.sql || 'Unknown Query',
         duration,
         timestamp: new Date(),
-        type: this.detectQueryType(options.sql || ''),
+        type: this.detectQueryType(options?.sql || ''),
         affectedRows: this.getAffectedRowsCount(result),
         cached: false, // TODO: Implement cache detection
         connectionId: options.connectionId,
@@ -323,7 +323,7 @@ export class DatabasePerformanceMonitor extends EventEmitter {
       });
 
       this.emit('metrics_collected', summary);
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('Failed to collect performance metrics', error);
     }
   }

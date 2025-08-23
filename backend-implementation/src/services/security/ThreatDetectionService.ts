@@ -187,11 +187,11 @@ export class ThreatDetectionService extends BaseService<AuditLog> {
       });
 
       return { success: true, data: analysis };
-    } catch (error) {
-      timer.end({ error: error.message });
+    } catch (error: unknown) {
+      timer.end({ error: error instanceof Error ? error?.message : String(error) });
       logger.error("Threat analysis failed", {
         request,
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
       });
 
       throw new AppError("Threat analysis failed", 500);
@@ -238,15 +238,15 @@ export class ThreatDetectionService extends BaseService<AuditLog> {
 
       timer.end({ success: true, count: threats.length });
       return { success: true, data: threats };
-    } catch (error) {
-      timer.end({ error: error.message });
+    } catch (error: unknown) {
+      timer.end({ error: error instanceof Error ? error?.message : String(error) });
       logger.error("Failed to get active threats", {
         severity,
         limit,
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
       });
 
-      return { success: false, errors: [error.message] };
+      return { success: false, errors: [error instanceof Error ? error?.message : String(error)] };
     }
   }
 
@@ -284,11 +284,11 @@ export class ThreatDetectionService extends BaseService<AuditLog> {
 
       timer.end({ success: true, action: action.action });
       return { success: true, data: true };
-    } catch (error) {
-      timer.end({ error: error.message });
+    } catch (error: unknown) {
+      timer.end({ error: error instanceof Error ? error?.message : String(error) });
       logger.error("Threat response failed", {
         action,
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
       });
 
       if (error instanceof ValidationError) {
@@ -336,11 +336,11 @@ export class ThreatDetectionService extends BaseService<AuditLog> {
 
       timer.end({ success: true, userId, deviationPercentage: analysis.deviationPercentage });
       return { success: true, data: analysis };
-    } catch (error) {
-      timer.end({ error: error.message });
+    } catch (error: unknown) {
+      timer.end({ error: error instanceof Error ? error?.message : String(error) });
       logger.error("Behavioral analysis failed", {
         userId,
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
       });
 
       throw new AppError("Behavioral analysis failed", 500);
@@ -393,14 +393,14 @@ export class ThreatDetectionService extends BaseService<AuditLog> {
 
       timer.end({ success: true, timeframe, threatsAnalyzed: stats.totalThreats });
       return { success: true, data: stats };
-    } catch (error) {
-      timer.end({ error: error.message });
+    } catch (error: unknown) {
+      timer.end({ error: error instanceof Error ? error?.message : String(error) });
       logger.error("Failed to get threat statistics", {
         timeframe,
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
       });
 
-      return { success: false, errors: [error.message] };
+      return { success: false, errors: [error instanceof Error ? error?.message : String(error)] };
     }
   }
 
@@ -497,7 +497,7 @@ export class ThreatDetectionService extends BaseService<AuditLog> {
         activityCount: 1,
         status: "active",
         indicators,
-        context: request.context || {},
+        context: request?.context || {},
       });
     }
 
@@ -1008,8 +1008,8 @@ export class ThreatDetectionService extends BaseService<AuditLog> {
       const key = `threat:active:${threatId}`;
       const threatData = await redisClient.get(key);
       return threatData ? JSON.parse(threatData) : null;
-    } catch (error) {
-      logger.warn("Failed to get threat by ID", { threatId, error: error.message });
+    } catch (error: unknown) {
+      logger.warn("Failed to get threat by ID", { threatId, error: error instanceof Error ? error?.message : String(error) });
       return null;
     }
   }
@@ -1061,11 +1061,11 @@ export class ThreatDetectionService extends BaseService<AuditLog> {
         action: action.action,
         reason: action.reason,
       });
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error("Auto-response failed", {
         threatId: action.threatId,
         action: action.action,
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
       });
     }
   }
@@ -1134,7 +1134,7 @@ export class ThreatDetectionService extends BaseService<AuditLog> {
   private generateThreatKey(request: ThreatAnalysisRequest): string {
     const keyData = {
       ip: request.ipAddress,
-      user: request.userId || "anonymous",
+      user: request?.userId || "anonymous",
       action: request.action,
       resource: request.resource,
       timestamp: Math.floor((request.timestamp?.getTime() || Date.now()) / (5 * 60 * 1000)), // 5-minute buckets
@@ -1220,7 +1220,7 @@ export class ThreatDetectionService extends BaseService<AuditLog> {
         stats.threatTypeBreakdown[threatType] = (stats.threatTypeBreakdown[threatType] || 0) + 1;
 
         // Risk score
-        totalRiskScore += analysis.riskScore || 0;
+        totalRiskScore += analysis?.riskScore || 0;
 
         // Collect indicators
         if (analysis.indicators) {

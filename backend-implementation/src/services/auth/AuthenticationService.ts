@@ -213,14 +213,14 @@ export class AuthenticationService {
         sessionId: sessionData.id,
         expiresIn: "15m",
       };
-    } catch (error) {
+    } catch (error: unknown) {
       if (error instanceof AuthenticationError) {
         throw error;
       }
 
       logger.error("Authentication service error", {
         email: maskSensitiveData(email),
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
         ipAddress,
       });
 
@@ -312,10 +312,10 @@ export class AuthenticationService {
           lastLoginAt: user.last_login_at,
         },
       };
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error("User registration failed", {
         email: maskSensitiveData(email),
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
         ipAddress: context.ipAddress,
       });
 
@@ -373,9 +373,9 @@ export class AuthenticationService {
         accessToken,
         expiresIn: "15m",
       };
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error("Token refresh failed", {
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
         ipAddress: context.ipAddress,
       });
 
@@ -401,11 +401,11 @@ export class AuthenticationService {
       });
 
       return true;
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error("Logout failed", {
         userId,
         sessionId,
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
         ipAddress: context.ipAddress,
       });
 
@@ -434,10 +434,10 @@ export class AuthenticationService {
       });
 
       return deletedCount;
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error("Logout from all devices failed", {
         userId,
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
         ipAddress: context.ipAddress,
       });
 
@@ -498,10 +498,10 @@ export class AuthenticationService {
       });
 
       return true;
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error("Password change failed", {
         userId,
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
         ipAddress: context.ipAddress,
       });
 
@@ -520,10 +520,10 @@ export class AuthenticationService {
     try {
       const sessionData = await SessionService.getSession(sessionId);
       return !!sessionData;
-    } catch (error) {
+    } catch (error: unknown) {
       logger.debug("Session validation failed", {
         sessionId,
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
       });
       return false;
     }
@@ -549,11 +549,11 @@ export class AuthenticationService {
         undefined,
         { loginSuccess: true, sessionId },
       );
-    } catch (error) {
+    } catch (error: unknown) {
       logger.warn("Failed to log successful authentication", {
         userId,
         sessionId,
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
       });
     }
   }
@@ -578,11 +578,11 @@ export class AuthenticationService {
         undefined,
         { loginFailed: true, reason },
       );
-    } catch (error) {
+    } catch (error: unknown) {
       logger.warn("Failed to log authentication failure", {
         userId,
         reason,
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
       });
     }
   }

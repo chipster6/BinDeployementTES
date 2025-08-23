@@ -112,14 +112,14 @@ export class ErrorAnalyticsService extends BaseService implements IErrorAnalytic
 
       return trends;
 
-    } catch (error) {
-      timer.end({ error: error.message });
+    } catch (error: unknown) {
+      timer.end({ error: error instanceof Error ? error?.message : String(error) });
       logger.error("Failed to get error trends", {
         timeRange,
         filters,
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
       });
-      throw new AppError(`Failed to get error trends: ${error.message}`, 500);
+      throw new AppError(`Failed to get error trends: ${error instanceof Error ? error?.message : String(error)}`, 500);
     }
   }
 
@@ -153,13 +153,13 @@ export class ErrorAnalyticsService extends BaseService implements IErrorAnalytic
 
       return metrics;
 
-    } catch (error) {
-      timer.end({ error: error.message });
+    } catch (error: unknown) {
+      timer.end({ error: error instanceof Error ? error?.message : String(error) });
       logger.error("Failed to get business impact metrics", {
         timeRange,
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
       });
-      throw new AppError(`Failed to get business impact metrics: ${error.message}`, 500);
+      throw new AppError(`Failed to get business impact metrics: ${error instanceof Error ? error?.message : String(error)}`, 500);
     }
   }
 
@@ -192,13 +192,13 @@ export class ErrorAnalyticsService extends BaseService implements IErrorAnalytic
 
       return metrics;
 
-    } catch (error) {
-      timer.end({ error: error.message });
+    } catch (error: unknown) {
+      timer.end({ error: error instanceof Error ? error?.message : String(error) });
       logger.error("Failed to get system health metrics", {
         timeRange,
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
       });
-      throw new AppError(`Failed to get system health metrics: ${error.message}`, 500);
+      throw new AppError(`Failed to get system health metrics: ${error instanceof Error ? error?.message : String(error)}`, 500);
     }
   }
 
@@ -231,13 +231,13 @@ export class ErrorAnalyticsService extends BaseService implements IErrorAnalytic
 
       return analytics;
 
-    } catch (error) {
-      timer.end({ error: error.message });
+    } catch (error: unknown) {
+      timer.end({ error: error instanceof Error ? error?.message : String(error) });
       logger.error("Failed to get anomaly analytics", {
         timeRange,
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
       });
-      throw new AppError(`Failed to get anomaly analytics: ${error.message}`, 500);
+      throw new AppError(`Failed to get anomaly analytics: ${error instanceof Error ? error?.message : String(error)}`, 500);
     }
   }
 
@@ -271,13 +271,13 @@ export class ErrorAnalyticsService extends BaseService implements IErrorAnalytic
 
       return analytics;
 
-    } catch (error) {
-      timer.end({ error: error.message });
+    } catch (error: unknown) {
+      timer.end({ error: error instanceof Error ? error?.message : String(error) });
       logger.error("Failed to get prevention analytics", {
         timeRange,
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
       });
-      throw new AppError(`Failed to get prevention analytics: ${error.message}`, 500);
+      throw new AppError(`Failed to get prevention analytics: ${error instanceof Error ? error?.message : String(error)}`, 500);
     }
   }
 
@@ -333,13 +333,13 @@ export class ErrorAnalyticsService extends BaseService implements IErrorAnalytic
 
       return dashboardData;
 
-    } catch (error) {
-      timer.end({ error: error.message });
+    } catch (error: unknown) {
+      timer.end({ error: error instanceof Error ? error?.message : String(error) });
       logger.error("Failed to get dashboard data", {
         timeRange,
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
       });
-      throw new AppError(`Failed to get dashboard data: ${error.message}`, 500);
+      throw new AppError(`Failed to get dashboard data: ${error instanceof Error ? error?.message : String(error)}`, 500);
     }
   }
 
@@ -389,13 +389,13 @@ export class ErrorAnalyticsService extends BaseService implements IErrorAnalytic
         downloadUrl: config.format !== "json" ? `/reports/${reportId}` : undefined,
       };
 
-    } catch (error) {
-      timer.end({ error: error.message });
+    } catch (error: unknown) {
+      timer.end({ error: error instanceof Error ? error?.message : String(error) });
       logger.error("Failed to generate custom report", {
         config,
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
       });
-      throw new AppError(`Failed to generate custom report: ${error.message}`, 500);
+      throw new AppError(`Failed to generate custom report: ${error instanceof Error ? error?.message : String(error)}`, 500);
     }
   }
 
@@ -414,9 +414,9 @@ export class ErrorAnalyticsService extends BaseService implements IErrorAnalytic
       // Return current real-time metrics
       return { ...this.realtimeMetrics };
 
-    } catch (error) {
-      logger.error("Failed to get real-time analytics", { error: error.message });
-      throw new AppError(`Failed to get real-time analytics: ${error.message}`, 500);
+    } catch (error: unknown) {
+      logger.error("Failed to get real-time analytics", { error: error instanceof Error ? error?.message : String(error) });
+      throw new AppError(`Failed to get real-time analytics: ${error instanceof Error ? error?.message : String(error)}`, 500);
     }
   }
 
@@ -448,7 +448,7 @@ export class ErrorAnalyticsService extends BaseService implements IErrorAnalytic
       timer.end({
         exportId,
         format: config.format,
-        destination: config.destination || "local",
+        destination: config?.destination || "local",
         recordCount: exportData.length,
       });
 
@@ -465,13 +465,13 @@ export class ErrorAnalyticsService extends BaseService implements IErrorAnalytic
         recordCount: exportData.length,
       };
 
-    } catch (error) {
-      timer.end({ error: error.message });
+    } catch (error: unknown) {
+      timer.end({ error: error instanceof Error ? error?.message : String(error) });
       logger.error("Failed to export analytics data", {
         config,
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
       });
-      throw new AppError(`Failed to export analytics data: ${error.message}`, 500);
+      throw new AppError(`Failed to export analytics data: ${error instanceof Error ? error?.message : String(error)}`, 500);
     }
   }
 
@@ -753,7 +753,7 @@ export class ErrorAnalyticsService extends BaseService implements IErrorAnalytic
 
   private async performDataExport(data: any[], config: any): Promise<string> {
     // Simulate data export
-    const destination = config.destination || "local";
+    const destination = config?.destination || "local";
     return `${destination}://exports/${this.generateExportId()}.${config.format}`;
   }
 

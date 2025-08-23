@@ -195,7 +195,7 @@ export class CrossSystemErrorPropagationService extends EventEmitter {
     
     logger.info("CROSS-SYSTEM ERROR PROPAGATION INITIATED", {
       propagationId,
-      sourceError: sourceError.message,
+      sourceError: sourceError?.message,
       sourceSystem,
       operationType: context.operationType
     });
@@ -229,13 +229,7 @@ export class CrossSystemErrorPropagationService extends EventEmitter {
         businessImpact: await this.calculatePropagationBusinessImpact(sourceError, propagationPaths),
         containmentStrategy,
         preventedCascades: preventionResult.preventedCascades,
-        timestamp: new Date(),
-        metadata: {
-          initiatingOperation: context.operationType,
-          affectedOperations: context.affectedResources || [],
-          isolationActions: preventionResult.isolationActions,
-          recoveryActions: preventionResult.recoveryActions
-        }
+        timestamp: new Date()
       };
 
       // 5. Store and track propagation
@@ -252,8 +246,8 @@ export class CrossSystemErrorPropagationService extends EventEmitter {
     } catch (propagationError) {
       logger.error("CROSS-SYSTEM ERROR PROPAGATION FAILED", {
         propagationId,
-        error: propagationError.message,
-        sourceError: sourceError.message
+        error: propagationError?.message,
+        sourceError: sourceError?.message
       });
 
       // Emergency isolation
@@ -278,7 +272,7 @@ export class CrossSystemErrorPropagationService extends EventEmitter {
     logger.error("DATABASE MIGRATION ERROR PROPAGATION", {
       migrationId,
       migrationStep,
-      error: error.message,
+      error: error instanceof Error ? error?.message : String(error),
       affectedTables: migrationContext.affectedTables
     });
 
@@ -343,7 +337,7 @@ export class CrossSystemErrorPropagationService extends EventEmitter {
     } catch (handlingError) {
       logger.error("DATABASE MIGRATION PROPAGATION HANDLING FAILED", {
         migrationId,
-        error: handlingError.message
+        error: handlingError?.message
       });
 
       // Emergency database isolation
@@ -371,7 +365,7 @@ export class CrossSystemErrorPropagationService extends EventEmitter {
       pipelineId,
       modelId,
       stage,
-      error: error.message,
+      error: error instanceof Error ? error?.message : String(error),
       dependentPipelines: pipelineContext.dependentPipelines
     });
 
@@ -414,7 +408,7 @@ export class CrossSystemErrorPropagationService extends EventEmitter {
     } catch (handlingError) {
       logger.error("AI/ML PIPELINE PROPAGATION HANDLING FAILED", {
         pipelineId,
-        error: handlingError.message
+        error: handlingError?.message
       });
 
       // Emergency ML pipeline isolation
@@ -518,7 +512,7 @@ export class CrossSystemErrorPropagationService extends EventEmitter {
     } catch (preventionError) {
       logger.error("CASCADE FAILURE PREVENTION FAILED", {
         preventionId,
-        error: preventionError.message
+        error: preventionError?.message
       });
 
       // Emergency system-wide isolation
@@ -644,13 +638,7 @@ export class CrossSystemErrorPropagationService extends EventEmitter {
       isolationStrategy: PropagationStrategy.CIRCUIT_BREAK,
       timeoutMs: 5000,
       retryCount: 3,
-      fallbackAvailable: true,
-      metadata: {
-        description: "API layer dependency on database access",
-        businessJustification: "Core data operations",
-        maintainer: "database_team",
-        lastValidated: new Date()
-      }
+      fallbackAvailable: true
     });
 
     // External service dependencies
@@ -664,13 +652,7 @@ export class CrossSystemErrorPropagationService extends EventEmitter {
       isolationStrategy: PropagationStrategy.GRACEFUL_DEGRADATION,
       timeoutMs: 10000,
       retryCount: 2,
-      fallbackAvailable: true,
-      metadata: {
-        description: "API layer dependency on external services",
-        businessJustification: "Enhanced functionality",
-        maintainer: "api_team",
-        lastValidated: new Date()
-      }
+      fallbackAvailable: true
     });
 
     // AI/ML dependencies
@@ -684,13 +666,7 @@ export class CrossSystemErrorPropagationService extends EventEmitter {
       isolationStrategy: PropagationStrategy.GRACEFUL_DEGRADATION,
       timeoutMs: 30000,
       retryCount: 1,
-      fallbackAvailable: true,
-      metadata: {
-        description: "Business logic dependency on AI/ML services",
-        businessJustification: "Intelligent decision making",
-        maintainer: "ml_team",
-        lastValidated: new Date()
-      }
+      fallbackAvailable: true
     });
   }
 
@@ -762,7 +738,7 @@ export class CrossSystemErrorPropagationService extends EventEmitter {
     const criticalPaths = paths.filter(p => p.dependency.criticalPath);
     
     // Revenue-blocking errors require immediate isolation
-    if (error.message.includes("payment") || error.message.includes("billing")) {
+    if (error instanceof Error ? error?.message : String(error).includes("payment") || error instanceof Error ? error?.message : String(error).includes("billing")) {
       return PropagationStrategy.ISOLATE;
     }
     
@@ -935,7 +911,7 @@ export class CrossSystemErrorPropagationService extends EventEmitter {
    */
   private estimateDownstreamImpact(error: AppError, dependency: SystemDependency): BusinessImpact {
     // Revenue-related errors have high business impact
-    if (error.message.includes("payment") || error.message.includes("billing") || error.message.includes("subscription")) {
+    if (error instanceof Error ? error?.message : String(error).includes("payment") || error instanceof Error ? error?.message : String(error).includes("billing") || error instanceof Error ? error?.message : String(error).includes("subscription")) {
       return BusinessImpact.REVENUE_BLOCKING;
     }
     
@@ -1325,15 +1301,15 @@ export class CrossSystemErrorPropagationService extends EventEmitter {
     try {
       const data = await redisClient.get(`historical_errors_${pathId}`);
       return data ? JSON.parse(data) : null;
-    } catch (error) {
-      logger.warn("Failed to get historical error data", { pathId, error: error.message });
+    } catch (error: unknown) {
+      logger.warn("Failed to get historical error data", { pathId, error: error instanceof Error ? error?.message : String(error) });
       return null;
     }
   }
 
   private calculateAdaptiveThreshold(historicalData: any, currentErrorRate: number): number {
-    const baseline = historicalData.averageErrorRate || 0.05;
-    const variance = historicalData.errorRateVariance || 0.01;
+    const baseline = historicalData?.averageErrorRate || 0.05;
+    const variance = historicalData?.errorRateVariance || 0.01;
     
     // Adaptive threshold based on current conditions
     if (currentErrorRate > baseline + (2 * variance)) {

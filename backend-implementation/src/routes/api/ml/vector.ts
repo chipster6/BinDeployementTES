@@ -25,7 +25,7 @@
  * Version: 1.0.0
  */
 
-import { Router, Request, Response, NextFunction } from 'express';
+import { Router, type Request, type Response, type NextFunction } from 'express';
 import { authenticateJWT, authorize } from '@/middleware/auth';
 import { validateRequest, vectorValidation } from '@/middleware/validation';
 import { rateLimiter } from '@/middleware/rateLimiter';
@@ -79,10 +79,10 @@ router.post('/search',
       });
 
       if (!result.success) {
-        return ResponseHelper.error(res, result.message, 400, result.errors);
+        return ResponseHelper.error(res, result?.message, 400, result.errors);
       }
 
-      return ResponseHelper.success(res, result.data, result.message, {
+      return ResponseHelper.success(res, result.data, result?.message, {
         resultCount: result.data?.length || 0,
         query: searchQuery.query,
         cached: result.meta?.cached || false,
@@ -92,11 +92,11 @@ router.post('/search',
         }
       });
 
-    } catch (error) {
-      timer.end({ error: error.message });
+    } catch (error: unknown) {
+      timer.end({ error: error instanceof Error ? error?.message : String(error) });
       logger.error('Vector search API error', {
         userId: req.user?.id,
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
         query: req.body.query
       });
       next(error);
@@ -146,10 +146,10 @@ router.post('/ingest',
       });
 
       if (!result.success) {
-        return ResponseHelper.error(res, result.message, 400, result.errors);
+        return ResponseHelper.error(res, result?.message, 400, result.errors);
       }
 
-      return ResponseHelper.success(res, result.data, result.message, {
+      return ResponseHelper.success(res, result.data, result?.message, {
         ingestionId: `ing_${Date.now()}`,
         performance: {
           responseTime: timer.duration,
@@ -157,12 +157,12 @@ router.post('/ingest',
         }
       });
 
-    } catch (error) {
-      timer.end({ error: error.message });
+    } catch (error: unknown) {
+      timer.end({ error: error instanceof Error ? error?.message : String(error) });
       logger.error('Vector ingestion API error', {
         userId: req.user?.id,
-        error: error.message,
-        dataCount: req.body.data?.length
+        error: error instanceof Error ? error?.message : String(error),
+        dataCount: req.body?.data?.length
       });
       next(error);
     }
@@ -204,10 +204,10 @@ router.get('/insights',
       });
 
       if (!result.success) {
-        return ResponseHelper.error(res, result.message, 400, result.errors);
+        return ResponseHelper.error(res, result?.message, 400, result.errors);
       }
 
-      return ResponseHelper.success(res, result.data, result.message, {
+      return ResponseHelper.success(res, result.data, result?.message, {
         timeframe,
         cached: result.meta?.cached || false,
         generatedAt: new Date(),
@@ -216,11 +216,11 @@ router.get('/insights',
         }
       });
 
-    } catch (error) {
-      timer.end({ error: error.message });
+    } catch (error: unknown) {
+      timer.end({ error: error instanceof Error ? error?.message : String(error) });
       logger.error('Vector insights API error', {
         userId: req.user?.id,
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
         timeframe: req.query.timeframe
       });
       next(error);
@@ -249,21 +249,21 @@ router.get('/health',
       timer.end({ success: result.success });
 
       if (!result.success) {
-        return ResponseHelper.error(res, result.message, 503, result.errors);
+        return ResponseHelper.error(res, result?.message, 503, result.errors);
       }
 
-      return ResponseHelper.success(res, result.data, result.message, {
+      return ResponseHelper.success(res, result.data, result?.message, {
         checkedAt: new Date(),
         performance: {
           responseTime: timer.duration
         }
       });
 
-    } catch (error) {
-      timer.end({ error: error.message });
+    } catch (error: unknown) {
+      timer.end({ error: error instanceof Error ? error?.message : String(error) });
       logger.error('Vector health check API error', {
         userId: req.user?.id,
-        error: error.message
+        error: error instanceof Error ? error?.message : String(error)
       });
       next(error);
     }
@@ -299,10 +299,10 @@ router.post('/deploy',
       timer.end({ success: result.success });
 
       if (!result.success) {
-        return ResponseHelper.error(res, result.message, 500, result.errors);
+        return ResponseHelper.error(res, result?.message, 500, result.errors);
       }
 
-      return ResponseHelper.success(res, result.data, result.message, {
+      return ResponseHelper.success(res, result.data, result?.message, {
         deployedAt: new Date(),
         deployedBy: req.user?.id,
         performance: {
@@ -310,11 +310,11 @@ router.post('/deploy',
         }
       });
 
-    } catch (error) {
-      timer.end({ error: error.message });
+    } catch (error: unknown) {
+      timer.end({ error: error instanceof Error ? error?.message : String(error) });
       logger.error('Vector deployment API error', {
         userId: req.user?.id,
-        error: error.message
+        error: error instanceof Error ? error?.message : String(error)
       });
       next(error);
     }
@@ -329,7 +329,7 @@ router.use((error: Error, req: Request, res: Response, next: NextFunction) => {
     path: req.path,
     method: req.method,
     userId: req.user?.id,
-    error: error.message
+    error: error instanceof Error ? error?.message : String(error)
   });
 
   if (error instanceof ValidationError) {
@@ -337,10 +337,10 @@ router.use((error: Error, req: Request, res: Response, next: NextFunction) => {
   }
 
   if (error instanceof AppError) {
-    return ResponseHelper.error(res, error.message, error.statusCode);
+    return ResponseHelper.error(res, error instanceof Error ? error?.message : String(error), error.statusCode);
   }
 
-  return ResponseHelper.error(res, 'Internal server error in vector intelligence API', 500);
+  return ResponseHelper.error(res, req, { message: 'Internal server error in vector intelligence API', statusCode: 500 });
 });
 
 export default router;

@@ -475,7 +475,7 @@ export class UserSecurity extends Model<UserSecurity> {
 
     return {
       secret: secret.base32,
-      qrCode: secret.otpauth_url || "",
+      qrCode: secret?.otpauth_url || "",
     };
   }
 
@@ -496,7 +496,7 @@ export class UserSecurity extends Model<UserSecurity> {
         token,
         window: 1,
       });
-    } catch (error) {
+    } catch (error: unknown) {
       console.error("MFA secret decryption failed:", error);
       return false;
     }

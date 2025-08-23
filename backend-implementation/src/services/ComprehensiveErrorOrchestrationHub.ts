@@ -235,7 +235,7 @@ export class ComprehensiveErrorOrchestrationHub extends EventEmitter {
 
     logger.warn("COMPREHENSIVE ERROR ORCHESTRATION INITIATED", {
       orchestrationId,
-      error: error.message,
+      error: error instanceof Error ? error?.message : String(error),
       businessImpact: context.businessImpact,
       orchestrationLevel: context.orchestrationLevel,
       coordinationStrategy: context.coordinationStrategy
@@ -308,8 +308,8 @@ export class ComprehensiveErrorOrchestrationHub extends EventEmitter {
     } catch (orchestrationError) {
       logger.error("COMPREHENSIVE ERROR ORCHESTRATION FAILED", {
         orchestrationId,
-        error: orchestrationError.message,
-        originalError: error.message
+        error: orchestrationError?.message,
+        originalError: error instanceof Error ? error?.message : String(error)
       });
 
       // Execute emergency fallback
@@ -472,7 +472,7 @@ export class ComprehensiveErrorOrchestrationHub extends EventEmitter {
         }
       } catch (subagentError) {
         logger.warn(`Subagent ${subagent} failed in sequential coordination`, {
-          error: subagentError.message,
+          error: subagentError?.message,
           orchestrationId: context.errorId
         });
         
@@ -480,7 +480,7 @@ export class ComprehensiveErrorOrchestrationHub extends EventEmitter {
         subagentResults[subagent] = {
           executed: true,
           success: false,
-          error: subagentError.message
+          error: subagentError?.message
         };
       }
     }
@@ -559,16 +559,16 @@ export class ComprehensiveErrorOrchestrationHub extends EventEmitter {
               orchestrationId: context.errorId
             });
           }
-        } catch (error) {
+        } catch (error: unknown) {
           logger.error(`Emergency subagent ${subagent} failed`, {
-            error: error.message,
+            error: error instanceof Error ? error?.message : String(error),
             orchestrationId: context.errorId
           });
           
           subagentResults[subagent] = {
             executed: true,
             success: false,
-            error: error.message
+            error: error instanceof Error ? error?.message : String(error)
           };
         }
       }
@@ -620,11 +620,11 @@ export class ComprehensiveErrorOrchestrationHub extends EventEmitter {
         dashboardsUpdated: ["operations", "executive"],
         realtimeNotifications: 2
       };
-    } catch (error) {
+    } catch (error: unknown) {
       return {
         executed: true,
         success: false,
-        error: error.message
+        error: error instanceof Error ? error?.message : String(error)
       };
     }
   }
@@ -652,11 +652,11 @@ export class ComprehensiveErrorOrchestrationHub extends EventEmitter {
         preventionActionsTriggered: predictions.preventionStrategies.map(s => s.strategyId),
         predictionAccuracy: this.calculatePredictionAccuracy(predictions)
       };
-    } catch (error) {
+    } catch (error: unknown) {
       return {
         executed: true,
         success: false,
-        error: error.message
+        error: error instanceof Error ? error?.message : String(error)
       };
     }
   }
@@ -695,11 +695,11 @@ export class ComprehensiveErrorOrchestrationHub extends EventEmitter {
         trafficRerouted,
         coordinatedResponse
       };
-    } catch (error) {
+    } catch (error: unknown) {
       return {
         executed: true,
         success: false,
-        error: error.message
+        error: error instanceof Error ? error?.message : String(error)
       };
     }
   }
@@ -708,7 +708,7 @@ export class ComprehensiveErrorOrchestrationHub extends EventEmitter {
     try {
       // Create rollback point first
       const rollbackPoint = await enhancedProductionErrorRecovery.createRollbackPoint(
-        context.technicalContext.deploymentId || "current_deployment",
+        context.technicalContext?.deploymentId || "current_deployment",
         {
           name: `Emergency rollback for ${context.errorId}`,
           type: "application_deployment" as any
@@ -720,7 +720,7 @@ export class ComprehensiveErrorOrchestrationHub extends EventEmitter {
       if (context.businessContext.urgency === "critical" || context.businessContext.revenueAtRisk > 10000) {
         rollbackResult = await enhancedProductionErrorRecovery.executeAutomatedRollback(
           "business_impact_threshold" as any,
-          context.technicalContext.deploymentId || "current_deployment",
+          context.technicalContext?.deploymentId || "current_deployment",
           {
             businessImpact: context.businessImpact,
             affectedSystems: context.systemLayers,
@@ -734,14 +734,14 @@ export class ComprehensiveErrorOrchestrationHub extends EventEmitter {
         success: rollbackResult ? rollbackResult.success : true,
         rollbackExecuted: !!rollbackResult,
         rollbackStrategy: rollbackResult?.strategy,
-        systemsRestored: rollbackResult?.recovery.systemsRestored || [],
+        systemsRestored: rollbackResult?.recovery?.systemsRestored || [],
         businessContinuityMaintained: rollbackResult?.businessContinuityMaintained ?? true
       };
-    } catch (error) {
+    } catch (error: unknown) {
       return {
         executed: true,
         success: false,
-        error: error.message
+        error: error instanceof Error ? error?.message : String(error)
       };
     }
   }
@@ -767,11 +767,11 @@ export class ComprehensiveErrorOrchestrationHub extends EventEmitter {
         crossRegionFailover: coordinationResult.failoversExecuted.some(f => f.type === "cross_region"),
         healthImpact: coordinationResult.healthImpact
       };
-    } catch (error) {
+    } catch (error: unknown) {
       return {
         executed: true,
         success: false,
-        error: error.message
+        error: error instanceof Error ? error?.message : String(error)
       };
     }
   }
@@ -783,11 +783,7 @@ export class ComprehensiveErrorOrchestrationHub extends EventEmitter {
         context.systemLayers[0],
         {
           operationType: `${context.orchestrationLevel}_orchestration`,
-          affectedResources: context.systemLayers,
-          metadata: {
-            businessImpact: context.businessImpact,
-            orchestrationId: context.errorId
-          }
+          affectedResources: context.systemLayers
         }
       );
 
@@ -798,11 +794,11 @@ export class ComprehensiveErrorOrchestrationHub extends EventEmitter {
         cascadeFailuresStopped: propagationEvent.preventedCascades.length,
         systemsIsolated: propagationEvent.preventedCascades
       };
-    } catch (error) {
+    } catch (error: unknown) {
       return {
         executed: true,
         success: false,
-        error: error.message
+        error: error instanceof Error ? error?.message : String(error)
       };
     }
   }
@@ -816,11 +812,11 @@ export class ComprehensiveErrorOrchestrationHub extends EventEmitter {
     return {
       errorId: orchestrationId,
       originalError: error,
-      businessImpact: context.businessImpact || BusinessImpact.MEDIUM,
-      systemLayers: context.systemLayers || [SystemLayer.API],
-      orchestrationLevel: context.orchestrationLevel || OrchestrationLevel.ENHANCED,
-      coordinationStrategy: context.coordinationStrategy || CoordinationStrategy.ADAPTIVE,
-      subagentCoordination: context.subagentCoordination || {
+      businessImpact: context?.businessImpact || BusinessImpact.MEDIUM,
+      systemLayers: context?.systemLayers || [SystemLayer.API],
+      orchestrationLevel: context?.orchestrationLevel || OrchestrationLevel.ENHANCED,
+      coordinationStrategy: context?.coordinationStrategy || CoordinationStrategy.ADAPTIVE,
+      subagentCoordination: context?.subagentCoordination || {
         dashboardAnalytics: true,
         aiPrediction: true,
         circuitBreaking: true,
@@ -828,7 +824,7 @@ export class ComprehensiveErrorOrchestrationHub extends EventEmitter {
         serviceMeshCoordination: true,
         propagationPrevention: true
       },
-      businessContext: context.businessContext || {
+      businessContext: context?.businessContext || {
         revenueAtRisk: 0,
         customersAffected: 0,
         slaImpact: 0,
@@ -836,26 +832,26 @@ export class ComprehensiveErrorOrchestrationHub extends EventEmitter {
         urgency: "medium",
         escalationRequired: false
       },
-      technicalContext: context.technicalContext || {
+      technicalContext: context?.technicalContext || {
         environment: "production",
         region: "us-east-1",
         zone: "us-east-1a"
       },
-      coordination: context.coordination || {
+      coordination: context?.coordination || {
         maxExecutionTime: this.orchestrationTimeout,
         parallelExecution: true,
         fallbackEnabled: true,
         emergencyProtocol: false,
         businessContinuityRequired: true
       },
-      metadata: context.metadata || {}
+      metadata: context?.metadata || {}
     };
   }
 
   private async determineOptimalCoordinationStrategy(
     context: ComprehensiveErrorContext
   ): Promise<CoordinationStrategy> {
-    if (context.coordination.emergencyProtocol || context.businessContext.urgency === "critical") {
+    if (context.coordination?.emergencyProtocol || context.businessContext.urgency === "critical") {
       return CoordinationStrategy.EMERGENCY_PROTOCOL;
     }
     
@@ -996,7 +992,7 @@ export class ComprehensiveErrorOrchestrationHub extends EventEmitter {
         systemAvailabilityMaintained: 0
       },
       insights: {
-        lessonsLearned: [`Emergency fallback triggered: ${orchestrationError.message}`],
+        lessonsLearned: [`Emergency fallback triggered: ${orchestrationError?.message}`],
         recommendations: ["Manual intervention required"],
         preventionStrategies: [],
         improvementOpportunities: []

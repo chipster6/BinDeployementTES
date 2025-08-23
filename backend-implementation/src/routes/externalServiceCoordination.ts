@@ -493,14 +493,14 @@ router.use((error: any, req: any, res: any, next: any) => {
   logger.error('External Service Coordination route error', {
     path: req.path,
     method: req.method,
-    error: error.message,
-    stack: error.stack,
+    error: error instanceof Error ? error?.message : String(error),
+    stack: error instanceof Error ? error?.stack : undefined,
   });
 
   res.status(500).json({
     success: false,
     message: 'External service coordination error',
-    error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error',
+    error: process.env.NODE_ENV === 'development' ? error instanceof Error ? error?.message : String(error) : 'Internal server error',
   });
 });
 

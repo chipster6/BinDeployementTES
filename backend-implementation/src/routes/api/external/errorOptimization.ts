@@ -94,7 +94,7 @@ router.post('/handle-scenario', auth, async (req, res) => {
 
     // Validate required fields
     if (!scenarioType || !serviceName || !operation || !severity) {
-      return ResponseHelper.error(res, 'Missing required fields', 400);
+      return ResponseHelper.error(res, req, { message: 'Missing required fields', statusCode: 400 });
     }
 
     // Create error scenario context
@@ -129,7 +129,6 @@ router.post('/handle-scenario', auth, async (req, res) => {
         minSuccessRate: performanceRequirements?.minSuccessRate || 95
       },
       metadata: {
-        requestId: metadata?.requestId || `req_${Date.now()}`,
         userId: metadata?.userId || req.user?.id,
         organizationId: metadata?.organizationId || req.user?.organizationId,
         clientRegion: metadata?.clientRegion,
@@ -151,13 +150,13 @@ router.post('/handle-scenario', auth, async (req, res) => {
 
     ResponseHelper.success(res, optimizationDecision, 'Error scenario optimization completed');
 
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error('Error scenario handling failed', {
-      error: error.message,
+      error: error instanceof Error ? error?.message : String(error),
       userId: req.user?.id,
       body: req.body
     });
-    ResponseHelper.error(res, 'Failed to handle error scenario', 500);
+    ResponseHelper.error(res, req, { message: 'Failed to handle error scenario', statusCode: 500 });
   }
 });
 
@@ -180,7 +179,7 @@ router.post('/routing-decision', auth, async (req, res) => {
 
     // Validate required fields
     if (!serviceName || !operation) {
-      return ResponseHelper.error(res, 'Service name and operation are required', 400);
+      return ResponseHelper.error(res, req, { message: 'Service name and operation are required', statusCode: 400 });
     }
 
     // Create routing decision context
@@ -226,13 +225,13 @@ router.post('/routing-decision', auth, async (req, res) => {
 
     ResponseHelper.success(res, routingDecision, 'Routing decision completed');
 
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error('Routing decision failed', {
-      error: error.message,
+      error: error instanceof Error ? error?.message : String(error),
       serviceName: req.body.serviceName,
       userId: req.user?.id
     });
-    ResponseHelper.error(res, 'Failed to make routing decision', 500);
+    ResponseHelper.error(res, req, { message: 'Failed to make routing decision', statusCode: 500 });
   }
 });
 
@@ -255,7 +254,7 @@ router.post('/cost-aware-fallback', auth, async (req, res) => {
 
     // Validate required fields
     if (!serviceName || !operation) {
-      return ResponseHelper.error(res, 'Service name and operation are required', 400);
+      return ResponseHelper.error(res, req, { message: 'Service name and operation are required', statusCode: 400 });
     }
 
     // Create fallback context
@@ -265,7 +264,6 @@ router.post('/cost-aware-fallback', auth, async (req, res) => {
       originalRequest: originalRequest || {},
       error: new Error(error?.message || "Unknown error"),
       metadata: {
-        requestId: metadata?.requestId || `req_${Date.now()}`,
         userId: metadata?.userId || req.user?.id,
         organizationId: metadata?.organizationId || req.user?.organizationId,
         timestamp: new Date(),
@@ -291,13 +289,13 @@ router.post('/cost-aware-fallback', auth, async (req, res) => {
 
     ResponseHelper.success(res, costDecision, 'Cost-aware fallback decision completed');
 
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error('Cost-aware fallback decision failed', {
-      error: error.message,
+      error: error instanceof Error ? error?.message : String(error),
       serviceName: req.body.serviceName,
       userId: req.user?.id
     });
-    ResponseHelper.error(res, 'Failed to make cost-aware fallback decision', 500);
+    ResponseHelper.error(res, req, { message: 'Failed to make cost-aware fallback decision', statusCode: 500 });
   }
 });
 
@@ -312,20 +310,20 @@ router.get('/routing-analytics/:serviceName', auth, async (req, res) => {
     const { serviceName } = req.params;
 
     if (!serviceName) {
-      return ResponseHelper.error(res, 'Service name is required', 400);
+      return ResponseHelper.error(res, req, { message: 'Service name is required', statusCode: 400 });
     }
 
     const analytics = await routingService.getRoutingAnalytics(serviceName);
 
     ResponseHelper.success(res, analytics, 'Routing analytics retrieved');
 
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error('Failed to get routing analytics', {
-      error: error.message,
+      error: error instanceof Error ? error?.message : String(error),
       serviceName: req.params.serviceName,
       userId: req.user?.id
     });
-    ResponseHelper.error(res, 'Failed to retrieve routing analytics', 500);
+    ResponseHelper.error(res, req, { message: 'Failed to retrieve routing analytics', statusCode: 500 });
   }
 });
 
@@ -340,20 +338,20 @@ router.get('/cost-monitoring/:serviceName', auth, async (req, res) => {
     const { serviceName } = req.params;
 
     if (!serviceName) {
-      return ResponseHelper.error(res, 'Service name is required', 400);
+      return ResponseHelper.error(res, req, { message: 'Service name is required', statusCode: 400 });
     }
 
     const costData = await costService.getCostMonitoringData(serviceName);
 
     ResponseHelper.success(res, costData, 'Cost monitoring data retrieved');
 
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error('Failed to get cost monitoring data', {
-      error: error.message,
+      error: error instanceof Error ? error?.message : String(error),
       serviceName: req.params.serviceName,
       userId: req.user?.id
     });
-    ResponseHelper.error(res, 'Failed to retrieve cost monitoring data', 500);
+    ResponseHelper.error(res, req, { message: 'Failed to retrieve cost monitoring data', statusCode: 500 });
   }
 });
 
@@ -369,12 +367,12 @@ router.get('/optimization-analytics', auth, async (req, res) => {
 
     ResponseHelper.success(res, analytics, 'Optimization analytics retrieved');
 
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error('Failed to get optimization analytics', {
-      error: error.message,
+      error: error instanceof Error ? error?.message : String(error),
       userId: req.user?.id
     });
-    ResponseHelper.error(res, 'Failed to retrieve optimization analytics', 500);
+    ResponseHelper.error(res, req, { message: 'Failed to retrieve optimization analytics', statusCode: 500 });
   }
 });
 
@@ -397,12 +395,12 @@ router.get('/active-scenarios', auth, async (req, res) => {
       scenarios: scenariosArray
     }, 'Active scenarios retrieved');
 
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error('Failed to get active scenarios', {
-      error: error.message,
+      error: error instanceof Error ? error?.message : String(error),
       userId: req.user?.id
     });
-    ResponseHelper.error(res, 'Failed to retrieve active scenarios', 500);
+    ResponseHelper.error(res, req, { message: 'Failed to retrieve active scenarios', statusCode: 500 });
   }
 });
 
@@ -418,12 +416,12 @@ router.get('/cost-report', auth, async (req, res) => {
 
     ResponseHelper.success(res, costReport, 'Cost report generated');
 
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error('Failed to generate cost report', {
-      error: error.message,
+      error: error instanceof Error ? error?.message : String(error),
       userId: req.user?.id
     });
-    ResponseHelper.error(res, 'Failed to generate cost report', 500);
+    ResponseHelper.error(res, req, { message: 'Failed to generate cost report', statusCode: 500 });
   }
 });
 
@@ -450,12 +448,12 @@ router.get('/system-status', auth, async (req, res) => {
 
     ResponseHelper.success(res, systemStatus, 'System status retrieved');
 
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error('Failed to get system status', {
-      error: error.message,
+      error: error instanceof Error ? error?.message : String(error),
       userId: req.user?.id
     });
-    ResponseHelper.error(res, 'Failed to retrieve system status', 500);
+    ResponseHelper.error(res, req, { message: 'Failed to retrieve system status', statusCode: 500 });
   }
 });
 
@@ -470,12 +468,12 @@ router.post('/register-traffic-distribution', auth, async (req, res) => {
     const { serviceName, distribution } = req.body;
 
     if (!serviceName || !distribution) {
-      return ResponseHelper.error(res, 'Service name and distribution configuration are required', 400);
+      return ResponseHelper.error(res, req, { message: 'Service name and distribution configuration are required', statusCode: 400 });
     }
 
     // Validate distribution configuration
     if (!distribution.strategy || !distribution.nodes || !Array.isArray(distribution.nodes)) {
-      return ResponseHelper.error(res, 'Invalid distribution configuration', 400);
+      return ResponseHelper.error(res, req, { message: 'Invalid distribution configuration', statusCode: 400 });
     }
 
     // Register the traffic distribution
@@ -490,13 +488,13 @@ router.post('/register-traffic-distribution', auth, async (req, res) => {
 
     ResponseHelper.success(res, { serviceName, registered: true }, 'Traffic distribution registered');
 
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error('Failed to register traffic distribution', {
-      error: error.message,
+      error: error instanceof Error ? error?.message : String(error),
       serviceName: req.body.serviceName,
       userId: req.user?.id
     });
-    ResponseHelper.error(res, 'Failed to register traffic distribution', 500);
+    ResponseHelper.error(res, req, { message: 'Failed to register traffic distribution', statusCode: 500 });
   }
 });
 
@@ -511,12 +509,12 @@ router.post('/register-budget-allocation', auth, async (req, res) => {
     const { serviceName, allocation } = req.body;
 
     if (!serviceName || !allocation) {
-      return ResponseHelper.error(res, 'Service name and budget allocation are required', 400);
+      return ResponseHelper.error(res, req, { message: 'Service name and budget allocation are required', statusCode: 400 });
     }
 
     // Validate allocation configuration
     if (!allocation.totalBudget || !allocation.budgetPeriod || !allocation.costTiers) {
-      return ResponseHelper.error(res, 'Invalid budget allocation configuration', 400);
+      return ResponseHelper.error(res, req, { message: 'Invalid budget allocation configuration', statusCode: 400 });
     }
 
     // Register the budget allocation
@@ -531,13 +529,13 @@ router.post('/register-budget-allocation', auth, async (req, res) => {
 
     ResponseHelper.success(res, { serviceName, registered: true }, 'Budget allocation registered');
 
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error('Failed to register budget allocation', {
-      error: error.message,
+      error: error instanceof Error ? error?.message : String(error),
       serviceName: req.body.serviceName,
       userId: req.user?.id
     });
-    ResponseHelper.error(res, 'Failed to register budget allocation', 500);
+    ResponseHelper.error(res, req, { message: 'Failed to register budget allocation', statusCode: 500 });
   }
 });
 
@@ -560,11 +558,11 @@ router.get('/health', (req, res) => {
 
     ResponseHelper.success(res, healthStatus, 'Error optimization services are healthy');
 
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error('Health check failed', {
-      error: error.message
+      error: error instanceof Error ? error?.message : String(error)
     });
-    ResponseHelper.error(res, 'Health check failed', 500);
+    ResponseHelper.error(res, req, { message: 'Health check failed', statusCode: 500 });
   }
 });
 

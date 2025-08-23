@@ -274,15 +274,6 @@ export class ServiceMeshManager extends EventEmitter {
       businessCriticality: BusinessCriticality.REVENUE_BLOCKING,
       capabilities: ["payments", "subscriptions", "webhooks", "marketplace"],
       dependencies: [],
-      metadata: {
-        version: "2023-10-16",
-        environment: "production",
-        deploymentId: "stripe-prod-001",
-        lastHealthCheck: new Date(),
-        uptime: 99.9,
-        requestCount: 0,
-        errorCount: 0
-      },
       config: {
         maxConcurrentConnections: 100,
         timeout: 30000,
@@ -311,15 +302,6 @@ export class ServiceMeshManager extends EventEmitter {
       businessCriticality: BusinessCriticality.REVENUE_BLOCKING,
       capabilities: ["payments", "subscriptions", "webhooks"],
       dependencies: [],
-      metadata: {
-        version: "2023-10-16",
-        environment: "production",
-        deploymentId: "stripe-prod-002",
-        lastHealthCheck: new Date(),
-        uptime: 99.8,
-        requestCount: 0,
-        errorCount: 0
-      },
       config: {
         maxConcurrentConnections: 50,
         timeout: 30000,
@@ -348,15 +330,6 @@ export class ServiceMeshManager extends EventEmitter {
       businessCriticality: BusinessCriticality.OPERATIONAL_CRITICAL,
       capabilities: ["gps_tracking", "vehicle_diagnostics", "driver_behavior"],
       dependencies: [],
-      metadata: {
-        version: "2023-12-15",
-        environment: "production",
-        deploymentId: "samsara-prod-001",
-        lastHealthCheck: new Date(),
-        uptime: 99.5,
-        requestCount: 0,
-        errorCount: 0
-      },
       config: {
         maxConcurrentConnections: 50,
         timeout: 15000,
@@ -385,15 +358,6 @@ export class ServiceMeshManager extends EventEmitter {
       businessCriticality: BusinessCriticality.CUSTOMER_FACING,
       capabilities: ["sms", "voice", "whatsapp"],
       dependencies: [],
-      metadata: {
-        version: "2010-04-01",
-        environment: "production",
-        deploymentId: "twilio-prod-001",
-        lastHealthCheck: new Date(),
-        uptime: 99.95,
-        requestCount: 0,
-        errorCount: 0
-      },
       config: {
         maxConcurrentConnections: 30,
         timeout: 10000,
@@ -422,15 +386,6 @@ export class ServiceMeshManager extends EventEmitter {
       businessCriticality: BusinessCriticality.PERFORMANCE_OPTIMIZATION,
       capabilities: ["directions", "geocoding", "traffic", "optimization"],
       dependencies: [],
-      metadata: {
-        version: "v5",
-        environment: "production",
-        deploymentId: "mapbox-prod-001",
-        lastHealthCheck: new Date(),
-        uptime: 99.7,
-        requestCount: 0,
-        errorCount: 0
-      },
       config: {
         maxConcurrentConnections: 20,
         timeout: 8000,
@@ -458,15 +413,6 @@ export class ServiceMeshManager extends EventEmitter {
       businessCriticality: BusinessCriticality.PERFORMANCE_OPTIMIZATION,
       capabilities: ["directions", "geocoding", "traffic"],
       dependencies: [],
-      metadata: {
-        version: "v1",
-        environment: "production",
-        deploymentId: "gmaps-backup-001",
-        lastHealthCheck: new Date(),
-        uptime: 99.9,
-        requestCount: 0,
-        errorCount: 0
-      },
       config: {
         maxConcurrentConnections: 15,
         timeout: 10000,
@@ -856,7 +802,7 @@ export class ServiceMeshManager extends EventEmitter {
 
         return result;
 
-      } catch (error) {
+      } catch (error: unknown) {
         const responseTime = Date.now() - startTime;
         
         logger.warn("Service request failed", {
@@ -864,7 +810,7 @@ export class ServiceMeshManager extends EventEmitter {
           operation,
           attempt: attempts,
           maxAttempts,
-          error: error.message,
+          error: error instanceof Error ? error?.message : String(error),
           responseTime
         });
 
@@ -904,7 +850,7 @@ export class ServiceMeshManager extends EventEmitter {
     logger.info("Triggering service mesh fallback", {
       serviceName,
       operation,
-      error: error.message
+      error: error instanceof Error ? error?.message : String(error)
     });
 
     // Create fallback context
@@ -912,9 +858,7 @@ export class ServiceMeshManager extends EventEmitter {
       serviceName,
       operation,
       originalRequest: request,
-      error,
-      metadata: {
-        requestId: context?.requestId || `mesh-${Date.now()}`,
+      error`,
         userId: context?.userId,
         organizationId: context?.organizationId,
         timestamp: new Date(),
@@ -1221,11 +1165,11 @@ export class ServiceMeshManager extends EventEmitter {
           }
         }
         
-      } catch (error) {
+      } catch (error: unknown) {
         logger.error("Health check failed", {
           nodeId: node.nodeId,
           serviceName: node.serviceName,
-          error: error.message
+          error: error instanceof Error ? error?.message : String(error)
         });
         
         const currentHealth = this.healthStatus.get(node.nodeId);
@@ -1297,11 +1241,11 @@ export class ServiceMeshManager extends EventEmitter {
         // Cache metrics
         await this.cacheNodeMetrics(nodeId, metrics);
         
-      } catch (error) {
+      } catch (error: unknown) {
         logger.error("Metrics collection failed", {
           nodeId,
           serviceName: node.serviceName,
-          error: error.message
+          error: error instanceof Error ? error?.message : String(error)
         });
       }
     }

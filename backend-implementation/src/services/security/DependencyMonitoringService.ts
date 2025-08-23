@@ -69,12 +69,12 @@ export class DependencyMonitoringService extends BaseService {
     
     this.projectRoot = process.cwd();
     this.config = {
-      scanInterval: parseInt(process.env.DEPENDENCY_SCAN_INTERVAL || '3600000'), // 1 hour default
+      scanInterval: parseInt(process.env?.DEPENDENCY_SCAN_INTERVAL || '3600000'), // 1 hour default
       alertThresholds: {
-        critical: parseInt(process.env.CRITICAL_THRESHOLD || '0'),
-        high: parseInt(process.env.HIGH_THRESHOLD || '0'),
-        moderate: parseInt(process.env.MODERATE_THRESHOLD || '5'),
-        low: parseInt(process.env.LOW_THRESHOLD || '20')
+        critical: parseInt(process.env?.CRITICAL_THRESHOLD || '0'),
+        high: parseInt(process.env?.HIGH_THRESHOLD || '0'),
+        moderate: parseInt(process.env?.MODERATE_THRESHOLD || '5'),
+        low: parseInt(process.env?.LOW_THRESHOLD || '20')
       },
       webhookUrl: process.env.SECURITY_WEBHOOK_URL,
       slackWebhookUrl: process.env.SLACK_SECURITY_WEBHOOK,
@@ -112,9 +112,9 @@ export class DependencyMonitoringService extends BaseService {
       }
 
       logger.info('Dependency monitoring service initialized successfully');
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('Failed to initialize dependency monitoring service', {
-        error: error instanceof Error ? error.message : 'Unknown error',
+        error: error instanceof Error ? error?.message : 'Unknown error',
         service: 'DependencyMonitoringService'
       });
       throw error;
@@ -160,9 +160,9 @@ export class DependencyMonitoringService extends BaseService {
       });
 
       return scanResults;
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('Comprehensive dependency scan failed', {
-        error: error instanceof Error ? error.message : 'Unknown error',
+        error: error instanceof Error ? error?.message : 'Unknown error',
         duration: Date.now() - scanStartTime
       });
       throw error;
@@ -194,7 +194,7 @@ export class DependencyMonitoringService extends BaseService {
             auditResult = JSON.parse((auditError as any).stdout);
           } catch (parseError) {
             logger.warn(`Failed to parse npm audit output for ${component}`, {
-              error: parseError instanceof Error ? parseError.message : 'Parse error'
+              error: parseError instanceof Error ? parseError?.message : 'Parse error'
             });
             auditResult = { metadata: { vulnerabilities: {} }, advisories: {} };
           }
@@ -222,9 +222,9 @@ export class DependencyMonitoringService extends BaseService {
         outdatedPackages: outdatedCount,
         status
       };
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error(`Failed to scan NPM dependencies for ${component}`, {
-        error: error instanceof Error ? error.message : 'Unknown error',
+        error: error instanceof Error ? error?.message : 'Unknown error',
         component,
         path: scanPath
       });
@@ -290,7 +290,7 @@ export class DependencyMonitoringService extends BaseService {
       } catch (safetyError) {
         logger.warn('Safety check not available or failed, using alternative analysis', {
           component,
-          error: safetyError instanceof Error ? safetyError.message : 'Safety check failed'
+          error: safetyError instanceof Error ? safetyError?.message : 'Safety check failed'
         });
       }
 
@@ -306,9 +306,9 @@ export class DependencyMonitoringService extends BaseService {
         outdatedPackages: 0, // Python outdated check not implemented yet
         status
       };
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error(`Failed to scan Python dependencies for ${component}`, {
-        error: error instanceof Error ? error.message : 'Unknown error',
+        error: error instanceof Error ? error?.message : 'Unknown error',
         component,
         path: scanPath
       });
@@ -330,27 +330,27 @@ export class DependencyMonitoringService extends BaseService {
    */
   private parseNpmAuditResult(auditResult: any): VulnerabilityReport {
     const vulnerabilities = auditResult.metadata?.vulnerabilities || {};
-    const advisories = auditResult.advisories || {};
+    const advisories = auditResult?.advisories || {};
 
     const packages: VulnerabilityReport['packages'] = [];
 
     // Extract detailed package information
     Object.values(advisories).forEach((advisory: any) => {
       packages.push({
-        name: advisory.module_name || 'unknown',
-        severity: advisory.severity || 'low',
-        vulnerability: advisory.title || 'Unknown vulnerability',
-        version: advisory.vulnerable_versions || 'unknown',
+        name: advisory?.module_name || 'unknown',
+        severity: advisory?.severity || 'low',
+        vulnerability: advisory?.title || 'Unknown vulnerability',
+        version: advisory?.vulnerable_versions || 'unknown',
         patched: advisory.patched_versions
       });
     });
 
     return {
-      critical: vulnerabilities.critical || 0,
-      high: vulnerabilities.high || 0,
-      moderate: vulnerabilities.moderate || 0,
-      low: vulnerabilities.low || 0,
-      total: vulnerabilities.total || packages.length,
+      critical: vulnerabilities?.critical || 0,
+      high: vulnerabilities?.high || 0,
+      moderate: vulnerabilities?.moderate || 0,
+      low: vulnerabilities?.low || 0,
+      total: vulnerabilities?.total || packages.length,
       packages
     };
   }
@@ -360,10 +360,10 @@ export class DependencyMonitoringService extends BaseService {
    */
   private parseSafetyResult(safetyResult: any[]): VulnerabilityReport {
     const packages: VulnerabilityReport['packages'] = safetyResult.map(item => ({
-      name: item.package_name || 'unknown',
+      name: item?.package_name || 'unknown',
       severity: this.mapSafetySeverity(item.vulnerability_id),
-      vulnerability: item.advisory || 'Security vulnerability',
-      version: item.analyzed_version || 'unknown'
+      vulnerability: item?.advisory || 'Security vulnerability',
+      version: item?.analyzed_version || 'unknown'
     }));
 
     // Count by severity (simplified mapping)
@@ -404,7 +404,7 @@ export class DependencyMonitoringService extends BaseService {
       
       const outdatedResult = JSON.parse(outdatedOutput);
       return Object.keys(outdatedResult).length;
-    } catch (error) {
+    } catch (error: unknown) {
       // npm outdated returns non-zero exit code when outdated packages found
       if (error instanceof Error && 'stdout' in error) {
         try {
@@ -448,11 +448,11 @@ export class DependencyMonitoringService extends BaseService {
   private determineSecurityStatus(vulnerabilities: VulnerabilityReport): 'secure' | 'warning' | 'critical' {
     const { critical, high, moderate, low } = vulnerabilities;
     
-    if (critical > this.config.alertThresholds.critical || high > this.config.alertThresholds.high) {
+    if (critical > this.config.alertThresholds?.critical || high > this.config.alertThresholds.high) {
       return 'critical';
     }
     
-    if (moderate > this.config.alertThresholds.moderate || low > this.config.alertThresholds.low) {
+    if (moderate > this.config.alertThresholds?.moderate || low > this.config.alertThresholds.low) {
       return 'warning';
     }
     
@@ -528,9 +528,9 @@ export class DependencyMonitoringService extends BaseService {
       logger.info('Critical security alerts sent successfully', {
         criticalComponents: criticalComponents.length
       });
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('Failed to send critical security alerts', {
-        error: error instanceof Error ? error.message : 'Unknown error',
+        error: error instanceof Error ? error?.message : 'Unknown error',
         criticalComponents: criticalComponents.length
       });
     }
@@ -550,9 +550,9 @@ export class DependencyMonitoringService extends BaseService {
           'User-Agent': 'WasteManagement-DependencyMonitor/1.0'
         }
       });
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('Failed to send webhook alert', {
-        error: error instanceof Error ? error.message : 'Unknown error',
+        error: error instanceof Error ? error?.message : 'Unknown error',
         webhookUrl: this.config.webhookUrl
       });
       throw error;
@@ -587,9 +587,9 @@ export class DependencyMonitoringService extends BaseService {
           'Content-Type': 'application/json'
         }
       });
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('Failed to send Slack alert', {
-        error: error instanceof Error ? error.message : 'Unknown error'
+        error: error instanceof Error ? error?.message : 'Unknown error'
       });
       throw error;
     }
@@ -647,9 +647,9 @@ export class DependencyMonitoringService extends BaseService {
         metricsFile,
         components: this.lastScanResults.size
       });
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('Failed to export metrics to Prometheus', {
-        error: error instanceof Error ? error.message : 'Unknown error'
+        error: error instanceof Error ? error?.message : 'Unknown error'
       });
     }
   }

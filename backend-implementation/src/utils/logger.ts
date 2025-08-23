@@ -411,9 +411,9 @@ export const logError = (
   };
 
   if (error instanceof Error) {
-    logger.error(error.message, {
+    logger.error(error instanceof Error ? error?.message : String(error), {
       ...errorData,
-      stack: error.stack,
+      stack: error instanceof Error ? error?.stack : undefined,
       name: error.name,
     });
   } else {

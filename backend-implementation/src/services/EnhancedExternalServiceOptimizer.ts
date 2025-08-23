@@ -125,8 +125,8 @@ export class EnhancedExternalServiceOptimizer extends BaseService<any> {
       await this.loadServiceMetrics();
 
       logger.info("Enhanced External Service Optimizer initialized");
-    } catch (error) {
-      logger.error("Failed to initialize Enhanced External Service Optimizer", { error: error.message });
+    } catch (error: unknown) {
+      logger.error("Failed to initialize Enhanced External Service Optimizer", { error: error instanceof Error ? error?.message : String(error) });
     }
   }
 
@@ -211,14 +211,14 @@ export class EnhancedExternalServiceOptimizer extends BaseService<any> {
         message: `External service optimization analysis completed in ${duration}ms with ${overallImprovementProjection}% projected improvement`
       };
 
-    } catch (error) {
-      timer.end({ error: error.message });
-      logger.error("External service optimization analysis failed", { error: error.message });
+    } catch (error: unknown) {
+      timer.end({ error: error instanceof Error ? error?.message : String(error) });
+      logger.error("External service optimization analysis failed", { error: error instanceof Error ? error?.message : String(error) });
       
       return {
         success: false,
         message: "Failed to run external service optimization analysis",
-        errors: [error.message]
+        errors: [error instanceof Error ? error?.message : String(error)]
       };
     }
   }
@@ -242,7 +242,7 @@ export class EnhancedExternalServiceOptimizer extends BaseService<any> {
           
           optimizations.push({
             serviceName: service,
-            currentBatchSize: metrics.currentBatchSize || 1,
+            currentBatchSize: metrics?.currentBatchSize || 1,
             optimalBatchSize,
             batchingType,
             estimatedImprovement,
@@ -259,8 +259,8 @@ export class EnhancedExternalServiceOptimizer extends BaseService<any> {
       // Sort by estimated improvement (highest first)
       optimizations.sort((a, b) => b.estimatedImprovement - a.estimatedImprovement);
 
-    } catch (error) {
-      logger.warn("Request batching optimization failed", { error: error.message });
+    } catch (error: unknown) {
+      logger.warn("Request batching optimization failed", { error: error instanceof Error ? error?.message : String(error) });
     }
 
     return optimizations;
@@ -284,7 +284,7 @@ export class EnhancedExternalServiceOptimizer extends BaseService<any> {
           
           optimizations.push({
             serviceName: service,
-            currentQueueStrategy: queueMetrics.currentStrategy || 'fifo',
+            currentQueueStrategy: queueMetrics?.currentStrategy || 'fifo',
             optimalQueueStrategy: optimalStrategy,
             queueMetrics,
             estimatedImprovement,
@@ -300,8 +300,8 @@ export class EnhancedExternalServiceOptimizer extends BaseService<any> {
       // Sort by estimated improvement (highest first)
       optimizations.sort((a, b) => b.estimatedImprovement - a.estimatedImprovement);
 
-    } catch (error) {
-      logger.warn("Queue optimization failed", { error: error.message });
+    } catch (error: unknown) {
+      logger.warn("Queue optimization failed", { error: error instanceof Error ? error?.message : String(error) });
     }
 
     return optimizations;
@@ -340,8 +340,8 @@ export class EnhancedExternalServiceOptimizer extends BaseService<any> {
       // Sort by reliability improvement (highest first)
       optimizations.sort((a, b) => b.estimatedReliabilityImprovement - a.estimatedReliabilityImprovement);
 
-    } catch (error) {
-      logger.warn("Circuit breaker optimization failed", { error: error.message });
+    } catch (error: unknown) {
+      logger.warn("Circuit breaker optimization failed", { error: error instanceof Error ? error?.message : String(error) });
     }
 
     return optimizations;
@@ -391,8 +391,8 @@ export class EnhancedExternalServiceOptimizer extends BaseService<any> {
         }
       }
 
-    } catch (error) {
-      logger.warn("Cost optimization failed", { error: error.message });
+    } catch (error: unknown) {
+      logger.warn("Cost optimization failed", { error: error instanceof Error ? error?.message : String(error) });
     }
 
     return optimizations;
@@ -429,8 +429,8 @@ export class EnhancedExternalServiceOptimizer extends BaseService<any> {
         }
       }
 
-    } catch (error) {
-      logger.warn("Retry strategy optimization failed", { error: error.message });
+    } catch (error: unknown) {
+      logger.warn("Retry strategy optimization failed", { error: error instanceof Error ? error?.message : String(error) });
     }
 
     return optimizations;
@@ -450,8 +450,8 @@ export class EnhancedExternalServiceOptimizer extends BaseService<any> {
         metrics[service] = serviceMetrics;
       }
 
-    } catch (error) {
-      logger.warn("Failed to collect external service metrics", { error: error.message });
+    } catch (error: unknown) {
+      logger.warn("Failed to collect external service metrics", { error: error instanceof Error ? error?.message : String(error) });
     }
 
     return metrics;
@@ -749,8 +749,8 @@ export class EnhancedExternalServiceOptimizer extends BaseService<any> {
           this.serviceMetrics.set(key, metrics as ExternalServiceMetrics);
         });
       }
-    } catch (error) {
-      logger.warn("Failed to load service metrics", { error: error.message });
+    } catch (error: unknown) {
+      logger.warn("Failed to load service metrics", { error: error instanceof Error ? error?.message : String(error) });
     }
   }
 
@@ -805,11 +805,11 @@ export class EnhancedExternalServiceOptimizer extends BaseService<any> {
         data: immediate,
         message: `Found ${immediate.length} immediate external service optimization opportunities`
       };
-    } catch (error) {
+    } catch (error: unknown) {
       return {
         success: false,
         message: "Failed to get immediate external service recommendations",
-        errors: [error.message]
+        errors: [error instanceof Error ? error?.message : String(error)]
       };
     }
   }

@@ -107,9 +107,9 @@ export class ApiStatusMonitoringService {
       await this.startIncidentTracking();
 
       logger.info('API Status Monitoring Service initialized successfully');
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('Failed to initialize API Status Monitoring Service', {
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
       });
       throw error;
     }
@@ -179,9 +179,9 @@ export class ApiStatusMonitoringService {
   private initializeErrorTransformations(): void {
     // Stripe error transformations
     this.errorTransformations.set('stripe', (error: any) => {
-      if (error.message?.includes('card_declined')) {
+      if (error instanceof Error ? error?.message : String(error)?.includes('card_declined')) {
         return {
-          originalError: error.message,
+          originalError: error instanceof Error ? error?.message : String(error),
           userMessage: 'Payment method was declined. Please try a different card or contact your bank.',
           severity: 'warning',
           suggestedAction: 'Update payment method',
@@ -191,9 +191,9 @@ export class ApiStatusMonitoringService {
         };
       }
 
-      if (error.message?.includes('rate_limit')) {
+      if (error instanceof Error ? error?.message : String(error)?.includes('rate_limit')) {
         return {
-          originalError: error.message,
+          originalError: error instanceof Error ? error?.message : String(error),
           userMessage: 'Payment system is experiencing high traffic. Please wait a moment and try again.',
           severity: 'warning',
           suggestedAction: 'Retry in a few seconds',
@@ -204,7 +204,7 @@ export class ApiStatusMonitoringService {
       }
 
       return {
-        originalError: error.message || 'Unknown payment error',
+        originalError: error instanceof Error ? error?.message : String(error) || 'Unknown payment error',
         userMessage: 'Payment system is temporarily unavailable. Our team has been notified.',
         severity: 'error',
         suggestedAction: 'Try again in a few minutes',
@@ -215,9 +215,9 @@ export class ApiStatusMonitoringService {
 
     // Twilio error transformations
     this.errorTransformations.set('twilio', (error: any) => {
-      if (error.message?.includes('invalid_phone')) {
+      if (error instanceof Error ? error?.message : String(error)?.includes('invalid_phone')) {
         return {
-          originalError: error.message,
+          originalError: error instanceof Error ? error?.message : String(error),
           userMessage: 'Phone number format is invalid. Please check and try again.',
           severity: 'warning',
           suggestedAction: 'Verify phone number format',
@@ -227,7 +227,7 @@ export class ApiStatusMonitoringService {
       }
 
       return {
-        originalError: error.message || 'Unknown SMS error',
+        originalError: error instanceof Error ? error?.message : String(error) || 'Unknown SMS error',
         userMessage: 'SMS service is temporarily unavailable. Notifications may be delayed.',
         severity: 'warning',
         workaround: 'Check email for important updates',
@@ -239,7 +239,7 @@ export class ApiStatusMonitoringService {
     // Samsara error transformations
     this.errorTransformations.set('samsara', (error: any) => {
       return {
-        originalError: error.message || 'Unknown fleet tracking error',
+        originalError: error instanceof Error ? error?.message : String(error) || 'Unknown fleet tracking error',
         userMessage: 'Fleet tracking data may be delayed. Vehicle locations will update shortly.',
         severity: 'warning',
         workaround: 'Use last known vehicle positions',
@@ -251,7 +251,7 @@ export class ApiStatusMonitoringService {
     // Maps error transformations
     this.errorTransformations.set('maps', (error: any) => {
       return {
-        originalError: error.message || 'Unknown mapping error',
+        originalError: error instanceof Error ? error?.message : String(error) || 'Unknown mapping error',
         userMessage: 'Route optimization temporarily unavailable. Using cached routes.',
         severity: 'warning',
         workaround: 'Manual route planning available',
@@ -263,7 +263,7 @@ export class ApiStatusMonitoringService {
     // Default transformation for unknown services
     this.errorTransformations.set('default', (error: any) => {
       return {
-        originalError: error.message || 'Unknown service error',
+        originalError: error instanceof Error ? error?.message : String(error) || 'Unknown service error',
         userMessage: 'A service is temporarily unavailable. Our team is working to restore it.',
         severity: 'error',
         escalationRequired: true,
@@ -371,8 +371,8 @@ export class ApiStatusMonitoringService {
       if (historicalData) {
         this.incidentHistory = JSON.parse(historicalData);
       }
-    } catch (error) {
-      logger.warn('Could not load incident history', { error: error.message });
+    } catch (error: unknown) {
+      logger.warn('Could not load incident history', { error: error instanceof Error ? error?.message : String(error) });
     }
 
     logger.info('Incident tracking started');
@@ -396,9 +396,9 @@ export class ApiStatusMonitoringService {
       // Broadcast status updates to Frontend
       await this.broadcastStatusUpdate('periodic_check');
 
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('Status check failed', {
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
       });
     }
   }
@@ -442,7 +442,7 @@ export class ApiStatusMonitoringService {
       ...currentIndicator,
       status: userFriendlyStatus,
       responseTime: serviceStatus.responseTime,
-      uptime: serviceStatus.uptime || 0,
+      uptime: serviceStatus?.uptime || 0,
       errorRate: serviceStatus.errorCount > 0 ? 
         (serviceStatus.errorCount / (serviceStatus.errorCount + serviceStatus.successCount)) * 100 : 0,
       userFriendlyMessage,
@@ -504,8 +504,8 @@ export class ApiStatusMonitoringService {
         86400, // 24 hours
         JSON.stringify(this.incidentHistory)
       );
-    } catch (error) {
-      logger.warn('Could not store incident history', { error: error.message });
+    } catch (error: unknown) {
+      logger.warn('Could not store incident history', { error: error instanceof Error ? error?.message : String(error) });
     }
 
     // Broadcast status change

@@ -473,13 +473,6 @@ export class BusinessContinuityManager extends EventEmitter {
         internalNotifications: [],
         customerNotifications: [],
         statusPageUpdates: []
-      },
-      metadata: {
-        createdBy: "system",
-        tags: [level, ...affectedServices],
-        severity: this.mapIncidentLevelToSeverity(level),
-        priority: this.calculateIncidentPriority(level, businessImpact.revenueImpact),
-        ...metadata
       }
     };
 
@@ -705,10 +698,10 @@ export class BusinessContinuityManager extends EventEmitter {
         escalationLevel: incident.escalation.currentLevel
       });
 
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error("Failed to initiate incident response", {
         incidentId: incident.incidentId,
-        error: error.message
+        error: error instanceof Error ? error?.message : String(error)
       });
     }
   }
@@ -761,11 +754,11 @@ export class BusinessContinuityManager extends EventEmitter {
         }
       }, 60 * 60 * 1000); // 1 hour delay
 
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error("Failed to activate business continuity plan", {
         planId: plan.planId,
         incidentId: incident.incidentId,
-        error: error.message
+        error: error instanceof Error ? error?.message : String(error)
       });
     }
   }
@@ -831,11 +824,11 @@ export class BusinessContinuityManager extends EventEmitter {
           }
         }
 
-      } catch (error) {
+      } catch (error: unknown) {
         logger.error("Failed to attempt automatic fallback", {
           serviceName,
           incidentId: incident.incidentId,
-          error: error.message
+          error: error instanceof Error ? error?.message : String(error)
         });
       }
     }
@@ -878,11 +871,11 @@ export class BusinessContinuityManager extends EventEmitter {
         timestamp: new Date()
       });
 
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error("Failed to send incident notifications", {
         incidentId: incident.incidentId,
         eventType,
-        error: error.message
+        error: error instanceof Error ? error?.message : String(error)
       });
     }
   }
@@ -949,10 +942,10 @@ export class BusinessContinuityManager extends EventEmitter {
         await this.cacheIncident(incident);
       }
 
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error("Failed to handle fallback event", {
         event,
-        error: error.message
+        error: error instanceof Error ? error?.message : String(error)
       });
     }
   }
@@ -983,10 +976,10 @@ export class BusinessContinuityManager extends EventEmitter {
         await this.cacheIncident(incident);
       }
 
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error("Failed to handle fallback failure", {
         event,
-        error: error.message
+        error: error instanceof Error ? error?.message : String(error)
       });
     }
   }
@@ -1014,10 +1007,10 @@ export class BusinessContinuityManager extends EventEmitter {
         nodeId: event.nodeId
       });
 
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error("Failed to handle circuit breaker event", {
         event,
-        error: error.message
+        error: error instanceof Error ? error?.message : String(error)
       });
     }
   }
@@ -1035,7 +1028,7 @@ export class BusinessContinuityManager extends EventEmitter {
     // Update related incidents
     await this.handleFallbackEvent({
       serviceName: event.serviceName,
-      strategyId: event.fallbackStrategy || "service_mesh",
+      strategyId: event?.fallbackStrategy || "service_mesh",
       success: event.success
     });
   }
@@ -1206,9 +1199,9 @@ export class BusinessContinuityManager extends EventEmitter {
       // Emit health update
       this.emit("businessHealthUpdated", businessHealth);
 
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error("Failed to update business health status", {
-        error: error.message
+        error: error instanceof Error ? error?.message : String(error)
       });
     }
   }
@@ -1234,10 +1227,10 @@ export class BusinessContinuityManager extends EventEmitter {
           );
         }
 
-      } catch (error) {
+      } catch (error: unknown) {
         logger.error("Failed to check incident escalation", {
           incidentId: incident.incidentId,
-          error: error.message
+          error: error instanceof Error ? error?.message : String(error)
         });
       }
     }
@@ -1334,9 +1327,9 @@ export class BusinessContinuityManager extends EventEmitter {
     try {
       const cached = await redisClient.get(this.HEALTH_CACHE_KEY);
       return cached ? JSON.parse(cached) : null;
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error("Failed to get business health status", {
-        error: error.message
+        error: error instanceof Error ? error?.message : String(error)
       });
       return null;
     }
@@ -1397,11 +1390,11 @@ export class BusinessContinuityManager extends EventEmitter {
         userAgent: "BusinessContinuityManager"
       });
 
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error("Failed to log incident event", {
         incidentId: incident.incidentId,
         eventType,
-        error: error.message
+        error: error instanceof Error ? error?.message : String(error)
       });
     }
   }

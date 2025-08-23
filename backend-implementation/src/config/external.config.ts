@@ -11,7 +11,84 @@
  * Version: 2.0.0 - Refactored from monolithic config
  */
 
-import Joi from "joi";
+import * as Joi from "joi";
+
+/**
+ * =============================================================================
+ * PERFORMANCE-OPTIMIZED EXTERNAL SERVICES TYPE SAFETY
+ * =============================================================================
+ * Triangle Coordination: Performance-Optimization-Specialist + Code-Refactoring-Analyst + Database-Architect
+ */
+
+export type ExternalServiceStatus = "enabled" | "disabled" | "testing";
+
+export interface RequiredExternalServiceConfig {
+  enabled: true;
+  credentials: {
+    apiKey: string;
+    webhookSecret?: string;
+  };
+  performanceMetrics: {
+    requestsPerMinute: number;
+    averageResponseTime: number;
+    errorRate: number;
+    lastChecked: Date;
+  };
+}
+
+export interface OptionalExternalServiceConfig {
+  enabled: false;
+  credentials?: never;
+  performanceMetrics?: never;
+}
+
+export type ConditionalExternalServiceConfig = 
+  | RequiredExternalServiceConfig 
+  | OptionalExternalServiceConfig;
+
+export interface ExternalServiceHealthCheck {
+  service: string;
+  status: "healthy" | "unhealthy" | "degraded";
+  lastChecked: Date;
+  responseTime: number;
+  errorRate: number;
+  rateLimitRemaining?: number;
+}
+
+// Feature-Flag Based Configuration Types
+export interface NotificationConfig {
+  email: { enabled: boolean };
+  sms: { enabled: boolean };
+  push: { enabled: boolean };
+}
+
+export type ConditionalStripeConfig<T extends NotificationConfig> = 
+  T['email']['enabled'] extends true 
+    ? RequiredExternalServiceConfig & { publicKey: string }
+    : OptionalExternalServiceConfig;
+
+export type ConditionalTwilioConfig<T extends NotificationConfig> = 
+  T['sms']['enabled'] extends true 
+    ? RequiredExternalServiceConfig & {
+        credentials: {
+          apiKey: string;
+          authToken: string;
+          phoneNumber: string;
+          messagingServiceSid?: string;
+        };
+      }
+    : OptionalExternalServiceConfig;
+
+export type ConditionalSendGridConfig<T extends NotificationConfig> = 
+  T['email']['enabled'] extends true 
+    ? RequiredExternalServiceConfig & {
+        credentials: {
+          apiKey: string;
+          fromEmail: string;
+          fromName: string;
+        };
+      }
+    : OptionalExternalServiceConfig;
 
 /**
  * External services environment variable validation schema
@@ -68,57 +145,92 @@ export const externalEnvSchema = Joi.object({
 export const validateExternalEnv = () => {
   const { error, value } = externalEnvSchema.validate(process.env);
   if (error) {
-    throw new Error(`External services configuration validation error: ${error.message}`);
+    throw new Error(`External services configuration validation error: ${error instanceof Error ? error?.message : String(error)}`);
   }
   return value;
 };
 
 /**
- * External services configuration interface
+ * =============================================================================
+ * PERFORMANCE-OPTIMIZED EXTERNAL SERVICES CONFIGURATION INTERFACE
+ * =============================================================================
+ * Enhanced with strict conditional typing and performance monitoring
+ */
+
+export interface EnhancedAWSConfig {
+  accessKeyId?: string;
+  secretAccessKey?: string;
+  region: string;
+  s3: {
+    bucket?: string;
+    photosBucket?: string;
+    documentsBucket?: string;
+  };
+  cloudFrontUrl?: string;
+  performanceMetrics?: {
+    requestsPerSecond: number;
+    averageLatency: number;
+    errorRate: number;
+  };
+}
+
+export interface EnhancedStripeConfig {
+  secretKey?: string;
+  webhookSecret?: string;
+  publicKey?: string;
+  performanceMetrics?: {
+    transactionsPerMinute: number;
+    averageProcessingTime: number;
+    webhookDeliveryRate: number;
+  };
+}
+
+export interface EnhancedTwilioConfig {
+  accountSid?: string;
+  authToken?: string;
+  phoneNumber?: string;
+  messagingServiceSid?: string;
+  performanceMetrics?: {
+    messagesPerMinute: number;
+    deliveryRate: number;
+    averageDeliveryTime: number;
+  };
+}
+
+export interface EnhancedSendGridConfig {
+  apiKey?: string;
+  fromEmail?: string;
+  fromName: string;
+  performanceMetrics?: {
+    emailsPerMinute: number;
+    deliveryRate: number;
+    bounceRate: number;
+  };
+}
+
+/**
+ * Main external services configuration interface with performance optimization
  */
 export interface ExternalConfig {
-  aws: {
-    accessKeyId?: string;
-    secretAccessKey?: string;
-    region: string;
-    s3: {
-      bucket?: string;
-      photosBucket?: string;
-      documentsBucket?: string;
-    };
-    cloudFrontUrl?: string;
-  };
-  stripe: {
-    secretKey?: string;
-    webhookSecret?: string;
-    publicKey?: string;
-  };
-  twilio: {
-    accountSid?: string;
-    authToken?: string;
-    phoneNumber?: string;
-    messagingServiceSid?: string;
-  };
-  sendGrid: {
-    apiKey?: string;
-    fromEmail?: string;
-    fromName: string;
-  };
+  aws: EnhancedAWSConfig;
+  stripe: EnhancedStripeConfig;
+  twilio: EnhancedTwilioConfig;
+  sendGrid: EnhancedSendGridConfig;
   samsara: {
-    apiToken?: string;
+    apiToken?: string | undefined;
     baseUrl: string;
-    webhookSecret?: string;
+    webhookSecret?: string | undefined;
   };
   airtable: {
-    apiKey?: string;
-    baseId?: string;
+    apiKey?: string | undefined;
+    baseId?: string | undefined;
     tables: {
       customers: string;
       contracts: string;
     };
   };
   mapbox: {
-    accessToken?: string;
+    accessToken?: string | undefined;
     styleUrl: string;
   };
   threatIntelligence: {
@@ -244,28 +356,60 @@ export const createExternalConfig = (envVars: any): ExternalConfig => ({
 });
 
 /**
- * Cross-service validation functions
+ * =============================================================================
+ * PERFORMANCE-OPTIMIZED CROSS-SERVICE VALIDATION
+ * =============================================================================
  */
-export const validateExternalServiceDependencies = (config: ExternalConfig, notifications: any) => {
+
+export interface ValidationResult {
+  isValid: boolean;
+  errors: string[];
+  warnings: string[];
+  performanceImpact: 'low' | 'medium' | 'high';
+}
+
+export const validateExternalServiceDependencies = (
+  config: ExternalConfig, 
+  notifications: NotificationConfig
+): ValidationResult => {
+  const errors: string[] = [];
+  const warnings: string[] = [];
+  let performanceImpact: 'low' | 'medium' | 'high' = 'low';
   // Validate required external service configurations based on features enabled
   if (config.stripe.secretKey && !config.stripe.webhookSecret) {
-    throw new Error(
-      "STRIPE_WEBHOOK_SECRET is required when Stripe is configured",
-    );
+    errors.push("STRIPE_WEBHOOK_SECRET is required when Stripe is configured");
+    performanceImpact = 'high';
   }
 
-  if (
-    notifications.sms.enabled &&
-    (!config.twilio.accountSid || !config.twilio.authToken)
-  ) {
-    throw new Error(
-      "Twilio configuration is required when SMS notifications are enabled",
-    );
+  if (notifications.sms.enabled && (!config.twilio.accountSid || !config.twilio.authToken)) {
+    errors.push("Twilio configuration is required when SMS notifications are enabled");
+    performanceImpact = 'medium';
   }
 
   if (notifications.email.enabled && !config.sendGrid.apiKey) {
-    throw new Error(
-      "SendGrid configuration is required when email notifications are enabled",
-    );
+    errors.push("SendGrid configuration is required when email notifications are enabled");
+    performanceImpact = 'medium';
   }
+
+  // Performance-specific warnings
+  if (notifications.email.enabled && notifications.sms.enabled && notifications.push.enabled) {
+    warnings.push("Multiple notification services enabled - consider performance impact");
+    performanceImpact = performanceImpact === 'low' ? 'medium' : performanceImpact;
+  }
+
+  // Check for missing performance monitoring configurations
+  if (config.stripe.secretKey && !config.stripe.performanceMetrics) {
+    warnings.push("Stripe performance monitoring not configured - recommend enabling for production");
+  }
+
+  if (config.twilio.accountSid && !config.twilio.performanceMetrics) {
+    warnings.push("Twilio performance monitoring not configured - recommend enabling for production");
+  }
+
+  return {
+    isValid: errors.length === 0,
+    errors,
+    warnings,
+    performanceImpact,
+  };
 };

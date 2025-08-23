@@ -22,7 +22,7 @@
  * Version: 1.0.0
  */
 
-import { Router, Request, Response } from "express";
+import { Router, type Request, type Response } from "express";
 import rateLimit from "express-rate-limit";
 import { logger } from "@/utils/logger";
 import { ResponseHelper } from "@/utils/ResponseHelper";
@@ -75,7 +75,7 @@ router.post("/stripe", rawBodyParser, async (req: Request, res: Response) => {
     const rawBody = (req as any).rawBody;
 
     if (!signature) {
-      return ResponseHelper.error(res, "Missing Stripe signature", 400);
+      return ResponseHelper.error(res, req, { message: "Missing Stripe signature", statusCode: 400 });
     }
 
     // Verify webhook signature and payload
@@ -92,7 +92,7 @@ router.post("/stripe", rawBodyParser, async (req: Request, res: Response) => {
         error: verification.error,
         ip: req.ip,
       });
-      return ResponseHelper.error(res, "Invalid webhook signature", 401);
+      return ResponseHelper.error(res, req, { message: "Invalid webhook signature", statusCode: 401 });
     }
 
     // Check for replay attacks
@@ -101,7 +101,7 @@ router.post("/stripe", rawBodyParser, async (req: Request, res: Response) => {
         eventId: verification.metadata.eventId,
         ip: req.ip,
       });
-      return ResponseHelper.error(res, "Duplicate webhook event", 409);
+      return ResponseHelper.error(res, req, { message: "Duplicate webhook event", statusCode: 409 });
     }
 
     // Initialize Stripe service (would normally come from DI container)
@@ -110,9 +110,9 @@ router.post("/stripe", rawBodyParser, async (req: Request, res: Response) => {
       {
         serviceName: "stripe",
         baseURL: "https://api.stripe.com",
-        secretKey: process.env.STRIPE_SECRET_KEY || "",
-        publishableKey: process.env.STRIPE_PUBLISHABLE_KEY || "",
-        webhookSecret: process.env.STRIPE_WEBHOOK_SECRET || "",
+        secretKey: process.env?.STRIPE_SECRET_KEY || "",
+        publishableKey: process.env?.STRIPE_PUBLISHABLE_KEY || "",
+        webhookSecret: process.env?.STRIPE_WEBHOOK_SECRET || "",
       },
       customerService,
     );
@@ -129,9 +129,9 @@ router.post("/stripe", rawBodyParser, async (req: Request, res: Response) => {
     } else {
       throw new Error("Failed to process Stripe webhook event");
     }
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error("Stripe webhook processing failed", {
-      error: error.message,
+      error: error instanceof Error ? error?.message : String(error),
       ip: req.ip,
     });
 
@@ -152,7 +152,7 @@ router.post("/twilio", async (req: Request, res: Response) => {
     const signature = req.headers["x-twilio-signature"] as string;
 
     if (!signature) {
-      return ResponseHelper.error(res, "Missing Twilio signature", 400);
+      return ResponseHelper.error(res, req, { message: "Missing Twilio signature", statusCode: 400 });
     }
 
     // Verify webhook signature and payload
@@ -169,16 +169,16 @@ router.post("/twilio", async (req: Request, res: Response) => {
         error: verification.error,
         ip: req.ip,
       });
-      return ResponseHelper.error(res, "Invalid webhook signature", 401);
+      return ResponseHelper.error(res, req, { message: "Invalid webhook signature", statusCode: 401 });
     }
 
     // Initialize Twilio service
     const twilioService = new TwilioService({
       serviceName: "twilio",
       baseURL: "https://api.twilio.com",
-      accountSid: process.env.TWILIO_ACCOUNT_SID || "",
-      authToken: process.env.TWILIO_AUTH_TOKEN || "",
-      webhookAuthToken: process.env.TWILIO_WEBHOOK_AUTH_TOKEN || "",
+      accountSid: process.env?.TWILIO_ACCOUNT_SID || "",
+      authToken: process.env?.TWILIO_AUTH_TOKEN || "",
+      webhookAuthToken: process.env?.TWILIO_WEBHOOK_AUTH_TOKEN || "",
     });
 
     // Process webhook event
@@ -197,9 +197,9 @@ router.post("/twilio", async (req: Request, res: Response) => {
     } else {
       throw new Error("Failed to process Twilio webhook event");
     }
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error("Twilio webhook processing failed", {
-      error: error.message,
+      error: error instanceof Error ? error?.message : String(error),
       ip: req.ip,
     });
 
@@ -225,7 +225,7 @@ router.post("/sendgrid", async (req: Request, res: Response) => {
     ] as string;
 
     if (!signature) {
-      return ResponseHelper.error(res, "Missing SendGrid signature", 400);
+      return ResponseHelper.error(res, req, { message: "Missing SendGrid signature", statusCode: 400 });
     }
 
     // Verify webhook signature and payload
@@ -242,19 +242,19 @@ router.post("/sendgrid", async (req: Request, res: Response) => {
         error: verification.error,
         ip: req.ip,
       });
-      return ResponseHelper.error(res, "Invalid webhook signature", 401);
+      return ResponseHelper.error(res, req, { message: "Invalid webhook signature", statusCode: 401 });
     }
 
     // Initialize SendGrid service
     const sendGridService = new SendGridService({
       serviceName: "sendgrid",
       baseURL: "https://api.sendgrid.com/v3",
-      apiKey: process.env.SENDGRID_API_KEY || "",
-      webhookVerificationKey: process.env.SENDGRID_WEBHOOK_KEY || "",
+      apiKey: process.env?.SENDGRID_API_KEY || "",
+      webhookVerificationKey: process.env?.SENDGRID_WEBHOOK_KEY || "",
       defaultFromEmail:
-        process.env.DEFAULT_FROM_EMAIL || "noreply@wastemanagement.com",
+        process.env?.DEFAULT_FROM_EMAIL || "noreply@wastemanagement.com",
       defaultFromName:
-        process.env.DEFAULT_FROM_NAME || "Waste Management System",
+        process.env?.DEFAULT_FROM_NAME || "Waste Management System",
     });
 
     // Process webhook events (SendGrid sends array of events)
@@ -270,9 +270,9 @@ router.post("/sendgrid", async (req: Request, res: Response) => {
     } else {
       throw new Error("Failed to process SendGrid webhook events");
     }
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error("SendGrid webhook processing failed", {
-      error: error.message,
+      error: error instanceof Error ? error?.message : String(error),
       ip: req.ip,
     });
 
@@ -293,7 +293,7 @@ router.post("/samsara", async (req: Request, res: Response) => {
     const signature = req.headers["x-samsara-signature"] as string;
 
     if (!signature) {
-      return ResponseHelper.error(res, "Missing Samsara signature", 400);
+      return ResponseHelper.error(res, req, { message: "Missing Samsara signature", statusCode: 400 });
     }
 
     // Verify webhook signature and payload
@@ -310,16 +310,16 @@ router.post("/samsara", async (req: Request, res: Response) => {
         error: verification.error,
         ip: req.ip,
       });
-      return ResponseHelper.error(res, "Invalid webhook signature", 401);
+      return ResponseHelper.error(res, req, { message: "Invalid webhook signature", statusCode: 401 });
     }
 
     // Initialize Samsara service
     const samsaraService = new SamsaraService({
       serviceName: "samsara",
       baseURL: "https://api.samsara.com",
-      apiToken: process.env.SAMSARA_API_TOKEN || "",
-      organizationId: process.env.SAMSARA_ORGANIZATION_ID || "",
-      webhookSecret: process.env.SAMSARA_WEBHOOK_SECRET || "",
+      apiToken: process.env?.SAMSARA_API_TOKEN || "",
+      organizationId: process.env?.SAMSARA_ORGANIZATION_ID || "",
+      webhookSecret: process.env?.SAMSARA_WEBHOOK_SECRET || "",
     });
 
     // Process webhook event
@@ -337,9 +337,9 @@ router.post("/samsara", async (req: Request, res: Response) => {
     } else {
       throw new Error("Failed to process Samsara webhook event");
     }
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error("Samsara webhook processing failed", {
-      error: error.message,
+      error: error instanceof Error ? error?.message : String(error),
       ip: req.ip,
     });
 
@@ -360,7 +360,7 @@ router.post("/airtable", async (req: Request, res: Response) => {
     const signature = req.headers["x-airtable-content-mac"] as string;
 
     if (!signature) {
-      return ResponseHelper.error(res, "Missing Airtable signature", 400);
+      return ResponseHelper.error(res, req, { message: "Missing Airtable signature", statusCode: 400 });
     }
 
     // Verify webhook signature and payload
@@ -377,15 +377,15 @@ router.post("/airtable", async (req: Request, res: Response) => {
         error: verification.error,
         ip: req.ip,
       });
-      return ResponseHelper.error(res, "Invalid webhook signature", 401);
+      return ResponseHelper.error(res, req, { message: "Invalid webhook signature", statusCode: 401 });
     }
 
     // Initialize Airtable service
     const airtableService = new AirtableService({
       serviceName: "airtable",
       baseURL: "https://api.airtable.com/v0",
-      personalAccessToken: process.env.AIRTABLE_PERSONAL_ACCESS_TOKEN || "",
-      webhookSecret: process.env.AIRTABLE_WEBHOOK_SECRET || "",
+      personalAccessToken: process.env?.AIRTABLE_PERSONAL_ACCESS_TOKEN || "",
+      webhookSecret: process.env?.AIRTABLE_WEBHOOK_SECRET || "",
     });
 
     // Process webhook event
@@ -400,9 +400,9 @@ router.post("/airtable", async (req: Request, res: Response) => {
     } else {
       throw new Error("Failed to process Airtable webhook event");
     }
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error("Airtable webhook processing failed", {
-      error: error.message,
+      error: error instanceof Error ? error?.message : String(error),
       ip: req.ip,
     });
 
@@ -435,12 +435,12 @@ router.get("/health", async (req: Request, res: Response) => {
       services,
       timestamp: new Date().toISOString(),
     });
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error("Webhook health check failed", {
-      error: error.message,
+      error: error instanceof Error ? error?.message : String(error),
     });
 
-    return ResponseHelper.error(res, "Health check failed", 500);
+    return ResponseHelper.error(res, req, { message: "Health check failed", statusCode: 500 });
   }
 });
 
@@ -463,19 +463,19 @@ router.get("/metrics", async (req: Request, res: Response) => {
       timeframe,
       timestamp: new Date().toISOString(),
     });
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error("Failed to get webhook metrics", {
-      error: error.message,
+      error: error instanceof Error ? error?.message : String(error),
     });
 
-    return ResponseHelper.error(res, "Failed to get metrics", 500);
+    return ResponseHelper.error(res, req, { message: "Failed to get metrics", statusCode: 500 });
   }
 });
 
 // Configure webhook security for different providers
 webhookSecurity.registerWebhook("stripe", {
   provider: "stripe",
-  secret: process.env.STRIPE_WEBHOOK_SECRET || "",
+  secret: process.env?.STRIPE_WEBHOOK_SECRET || "",
   tolerance: 300, // 5 minutes
   enableReplayProtection: true,
   maxPayloadSize: 1024 * 1024, // 1MB
@@ -483,7 +483,7 @@ webhookSecurity.registerWebhook("stripe", {
 
 webhookSecurity.registerWebhook("twilio", {
   provider: "twilio",
-  secret: process.env.TWILIO_WEBHOOK_AUTH_TOKEN || "",
+  secret: process.env?.TWILIO_WEBHOOK_AUTH_TOKEN || "",
   tolerance: 600, // 10 minutes
   enableReplayProtection: true,
   maxPayloadSize: 512 * 1024, // 512KB
@@ -491,7 +491,7 @@ webhookSecurity.registerWebhook("twilio", {
 
 webhookSecurity.registerWebhook("sendgrid", {
   provider: "sendgrid",
-  secret: process.env.SENDGRID_WEBHOOK_KEY || "",
+  secret: process.env?.SENDGRID_WEBHOOK_KEY || "",
   tolerance: 600, // 10 minutes
   enableReplayProtection: true,
   maxPayloadSize: 2 * 1024 * 1024, // 2MB
@@ -499,7 +499,7 @@ webhookSecurity.registerWebhook("sendgrid", {
 
 webhookSecurity.registerWebhook("samsara", {
   provider: "samsara",
-  secret: process.env.SAMSARA_WEBHOOK_SECRET || "",
+  secret: process.env?.SAMSARA_WEBHOOK_SECRET || "",
   tolerance: 300, // 5 minutes
   enableReplayProtection: true,
   maxPayloadSize: 1024 * 1024, // 1MB
@@ -507,7 +507,7 @@ webhookSecurity.registerWebhook("samsara", {
 
 webhookSecurity.registerWebhook("airtable", {
   provider: "airtable",
-  secret: process.env.AIRTABLE_WEBHOOK_SECRET || "",
+  secret: process.env?.AIRTABLE_WEBHOOK_SECRET || "",
   tolerance: 300, // 5 minutes
   enableReplayProtection: true,
   maxPayloadSize: 2 * 1024 * 1024, // 2MB

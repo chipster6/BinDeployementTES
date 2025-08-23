@@ -117,7 +117,7 @@ export class WebhookCoordinationService {
           processingTime: Date.now() - startTime,
           eventId,
           serviceName,
-          webhookType: webhookData.type || 'unknown',
+          webhookType: webhookData?.type || 'unknown',
           retryCount: 0,
           frontendNotified: false,
         };
@@ -174,18 +174,18 @@ export class WebhookCoordinationService {
         processingTime: totalProcessingTime,
         eventId,
         serviceName,
-        webhookType: webhookData.type || 'unknown',
+        webhookType: webhookData?.type || 'unknown',
         retryCount: 0,
         frontendNotified: true,
       };
 
-    } catch (error) {
+    } catch (error: unknown) {
       const totalProcessingTime = Date.now() - startTime;
       
       logger.error('Webhook coordination failed', {
         serviceName,
         eventId,
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
         processingTime: totalProcessingTime,
         coordinationEvents: metadata.coordinationEvents,
       });
@@ -206,8 +206,8 @@ export class WebhookCoordinationService {
         processingTime: totalProcessingTime,
         eventId,
         serviceName,
-        webhookType: webhookData.type || 'unknown',
-        error: error.message,
+        webhookType: webhookData?.type || 'unknown',
+        error: error instanceof Error ? error?.message : String(error),
         retryCount: 0,
         nextRetryAt: shouldRetry ? new Date(Date.now() + 30000) : undefined,
         frontendNotified: true,
@@ -234,7 +234,7 @@ export class WebhookCoordinationService {
       if (!verificationResult.valid) {
         return {
           valid: false,
-          reason: verificationResult.error || 'Signature verification failed',
+          reason: verificationResult?.error || 'Signature verification failed',
         };
       }
 
@@ -253,15 +253,15 @@ export class WebhookCoordinationService {
       );
 
       return serviceValidation;
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('Webhook security validation error', {
         serviceName,
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
       });
       
       return {
         valid: false,
-        reason: `Security validation error: ${error.message}`,
+        reason: `Security validation error: ${error instanceof Error ? error?.message : String(error)}`,
       };
     }
   }
@@ -384,10 +384,10 @@ export class WebhookCoordinationService {
       }));
 
       return false;
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('Error checking webhook duplicates', {
         eventId,
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
       });
       // If Redis is unavailable, allow processing to continue
       return false;
@@ -410,7 +410,7 @@ export class WebhookCoordinationService {
       const broadcastData = {
         eventId,
         serviceName,
-        webhookType: webhookData.type || 'unknown',
+        webhookType: webhookData?.type || 'unknown',
         timestamp: new Date().toISOString(),
         dataSize: JSON.stringify(webhookData).length,
         status: 'received',
@@ -437,11 +437,11 @@ export class WebhookCoordinationService {
         eventId,
         webhookType: webhookData.type,
       });
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('Failed to broadcast webhook received event', {
         serviceName,
         eventId,
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
       });
     }
   }
@@ -479,11 +479,11 @@ export class WebhookCoordinationService {
         queueName,
         priority,
       });
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('Failed to queue webhook processing job', {
         serviceName,
         eventId,
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
       });
     }
   }
@@ -519,11 +519,11 @@ export class WebhookCoordinationService {
         default:
           return { processed: false, reason: 'No immediate processing defined for service' };
       }
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('Immediate webhook processing failed', {
         serviceName,
         eventId,
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
       });
       throw error;
     }
@@ -549,10 +549,10 @@ export class WebhookCoordinationService {
       multi.expire(hourlyKey, 3600 * 24); // 24 hour retention
 
       await multi.exec();
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('Failed to update coordination metrics', {
         serviceName,
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
       });
     }
   }
@@ -580,10 +580,10 @@ export class WebhookCoordinationService {
         ipAddress: 'webhook',
         userAgent: 'WebhookCoordinationService',
       });
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('Failed to store webhook result audit', {
         eventId,
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
       });
     }
   }
@@ -637,8 +637,8 @@ export class WebhookCoordinationService {
       const errorData = {
         eventId,
         serviceName,
-        webhookType: webhookData.type || 'unknown',
-        error: error.message,
+        webhookType: webhookData?.type || 'unknown',
+        error: error instanceof Error ? error?.message : String(error),
         timestamp: new Date().toISOString(),
         severity: 'error',
       };
@@ -649,7 +649,7 @@ export class WebhookCoordinationService {
       logger.error('Failed to broadcast webhook error', {
         serviceName,
         eventId,
-        error: broadcastError.message,
+        error: broadcastError?.message,
       });
     }
   }
@@ -703,14 +703,14 @@ export class WebhookCoordinationService {
 
   private async shouldRetryWebhook(serviceName: string, error: Error): Promise<boolean> {
     // Don't retry security failures or validation errors
-    if (error.message.includes('security') || error.message.includes('validation')) {
+    if (error instanceof Error ? error?.message : String(error).includes('security') || error instanceof Error ? error?.message : String(error).includes('validation')) {
       return false;
     }
 
     // Retry temporary failures
-    return error.message.includes('timeout') || 
-           error.message.includes('connection') ||
-           error.message.includes('server error');
+    return error instanceof Error ? error?.message : String(error).includes('timeout') || 
+           error instanceof Error ? error?.message : String(error).includes('connection') ||
+           error instanceof Error ? error?.message : String(error).includes('server error');
   }
 
   private async scheduleWebhookRetry(
@@ -729,7 +729,7 @@ export class WebhookCoordinationService {
 
       try {
         await this.processWebhookWithCoordination(serviceName, webhookData, {});
-      } catch (error) {
+      } catch (error: unknown) {
         if (retryCount < 3) {
           await this.scheduleWebhookRetry(serviceName, webhookData, eventId, retryCount + 1);
         }

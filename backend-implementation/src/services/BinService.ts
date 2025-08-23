@@ -19,7 +19,8 @@
  * Version: 1.0.0
  */
 
-import { Op, Transaction } from "sequelize";
+import type { Transaction } from "sequelize";
+import { Op } from "sequelize";
 import { Bin, BinType, BinStatus } from "@/models/Bin";
 import { Customer } from "@/models/Customer";
 import { ServiceEvent } from "@/models/ServiceEvent";
@@ -153,7 +154,7 @@ export class BinService extends BaseService<Bin> {
             latitude: binData.latitude,
             longitude: binData.longitude,
             address: binData.address,
-            installationDate: binData.installationDate || new Date(),
+            installationDate: binData?.installationDate || new Date(),
             lastServiceDate: null,
             nextServiceDate: this.calculateNextServiceDate(
               binData.type,
@@ -162,7 +163,7 @@ export class BinService extends BaseService<Bin> {
             currentCapacity: 0,
             maintenanceStatus: "good",
             notes: binData.notes,
-            metadata: binData.metadata || {},
+            metadata: binData?.metadata || {},
           },
           { transaction: tx },
         );
@@ -178,10 +179,6 @@ export class BinService extends BaseService<Bin> {
               serialNumber: binData.serialNumber,
               type: binData.type,
               customerId: binData.customerId,
-            },
-            metadata: {
-              createdBy,
-              ip: null,
             },
           },
           { transaction: tx },
@@ -203,11 +200,11 @@ export class BinService extends BaseService<Bin> {
         data: result,
         message: "Bin created successfully",
       };
-    } catch (error) {
-      timer.end({ error: error.message });
+    } catch (error: unknown) {
+      timer.end({ error: error instanceof Error ? error?.message : String(error) });
       logger.error("Bin creation failed", {
         serialNumber: binData.serialNumber,
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
       });
 
       if (error instanceof AppError) {
@@ -248,9 +245,9 @@ export class BinService extends BaseService<Bin> {
             latitude: locationData.latitude,
             longitude: locationData.longitude,
             address: locationData.address,
-            locationUpdatedAt: locationData.timestamp || new Date(),
+            locationUpdatedAt: locationData?.timestamp || new Date(),
             locationAccuracy: locationData.accuracy,
-            locationSource: locationData.source || "manual",
+            locationSource: locationData?.source || "manual",
           },
           { transaction },
         );
@@ -294,11 +291,11 @@ export class BinService extends BaseService<Bin> {
         data: result,
         message: "Bin location updated successfully",
       };
-    } catch (error) {
-      timer.end({ error: error.message });
+    } catch (error: unknown) {
+      timer.end({ error: error instanceof Error ? error?.message : String(error) });
       logger.error("Bin location update failed", {
         binId,
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
       });
 
       if (error instanceof AppError) {
@@ -370,11 +367,11 @@ export class BinService extends BaseService<Bin> {
         data: result,
         message: "Capacity reading recorded successfully",
       };
-    } catch (error) {
-      timer.end({ error: error.message });
+    } catch (error: unknown) {
+      timer.end({ error: error instanceof Error ? error?.message : String(error) });
       logger.error("Capacity reading failed", {
         binId,
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
       });
 
       if (error instanceof AppError) {
@@ -410,7 +407,7 @@ export class BinService extends BaseService<Bin> {
             serviceType: scheduleData.serviceType,
             scheduledDate: scheduleData.scheduledDate,
             status: "scheduled",
-            priority: scheduleData.priority || "normal",
+            priority: scheduleData?.priority || "normal",
             assignedDriverId: scheduleData.assignedDriverId,
             estimatedDuration: scheduleData.estimatedDuration,
             notes: scheduleData.notes,
@@ -467,11 +464,11 @@ export class BinService extends BaseService<Bin> {
         data: result,
         message: "Service scheduled successfully",
       };
-    } catch (error) {
-      timer.end({ error: error.message });
+    } catch (error: unknown) {
+      timer.end({ error: error instanceof Error ? error?.message : String(error) });
       logger.error("Service scheduling failed", {
         binId,
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
       });
 
       if (error instanceof AppError) {
@@ -525,9 +522,9 @@ export class BinService extends BaseService<Bin> {
         data: result,
         message: "Bins retrieved successfully",
       };
-    } catch (error) {
-      timer.end({ error: error.message });
-      logger.error("Bin search failed", { error: error.message });
+    } catch (error: unknown) {
+      timer.end({ error: error instanceof Error ? error?.message : String(error) });
+      logger.error("Bin search failed", { error: error instanceof Error ? error?.message : String(error) });
 
       if (error instanceof AppError) {
         throw error;
@@ -573,10 +570,10 @@ export class BinService extends BaseService<Bin> {
         data: bins,
         message: `Found ${bins.length} bins needing service`,
       };
-    } catch (error) {
-      timer.end({ error: error.message });
+    } catch (error: unknown) {
+      timer.end({ error: error instanceof Error ? error?.message : String(error) });
       logger.error("Failed to get bins needing service", {
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
       });
       throw new AppError("Failed to get bins needing service", 500);
     }
@@ -666,9 +663,9 @@ export class BinService extends BaseService<Bin> {
         data: statistics,
         message: "Statistics retrieved successfully",
       };
-    } catch (error) {
-      timer.end({ error: error.message });
-      logger.error("Failed to get bin statistics", { error: error.message });
+    } catch (error: unknown) {
+      timer.end({ error: error instanceof Error ? error?.message : String(error) });
+      logger.error("Failed to get bin statistics", { error: error instanceof Error ? error?.message : String(error) });
       throw new AppError("Failed to get bin statistics", 500);
     }
   }
@@ -680,7 +677,7 @@ export class BinService extends BaseService<Bin> {
   private async validateBinData(binData: CreateBinData): Promise<void> {
     const errors: any[] = [];
 
-    if (!binData.serialNumber || binData.serialNumber.trim().length === 0) {
+    if (!binData?.serialNumber || binData.serialNumber.trim().length === 0) {
       errors.push({
         field: "serialNumber",
         message: "Serial number is required",
@@ -691,7 +688,7 @@ export class BinService extends BaseService<Bin> {
       errors.push({ field: "type", message: "Valid bin type is required" });
     }
 
-    if (!binData.capacity || binData.capacity <= 0) {
+    if (!binData?.capacity || binData.capacity <= 0) {
       errors.push({
         field: "capacity",
         message: "Capacity must be greater than 0",
@@ -805,7 +802,7 @@ export class BinService extends BaseService<Bin> {
       }
     }
 
-    if (criteria.lastServiceBefore || criteria.lastServiceAfter) {
+    if (criteria?.lastServiceBefore || criteria.lastServiceAfter) {
       whereClause.lastServiceDate = {};
       if (criteria.lastServiceBefore) {
         whereClause.lastServiceDate[Op.lte] = criteria.lastServiceBefore;

@@ -206,14 +206,14 @@ export class DashboardPerformanceOptimizer extends BaseService<any> {
         message: `Dashboard Optimizer deployed targeting ${this.targets.loadTime}ms load times`
       };
 
-    } catch (error) {
-      timer.end({ error: error.message });
+    } catch (error: unknown) {
+      timer.end({ error: error instanceof Error ? error?.message : String(error) });
       logger.error("❌ Failed to deploy Dashboard Performance Optimizer", error);
       
       return {
         success: false,
         message: "Failed to deploy Dashboard Performance Optimizer",
-        errors: [error.message]
+        errors: [error instanceof Error ? error?.message : String(error)]
       };
     }
   }
@@ -300,14 +300,14 @@ export class DashboardPerformanceOptimizer extends BaseService<any> {
         message: `Dashboard optimization completed with ${benchmark.improvements.overallScore}% improvement`
       };
 
-    } catch (error) {
-      timer.end({ error: error.message });
+    } catch (error: unknown) {
+      timer.end({ error: error instanceof Error ? error?.message : String(error) });
       logger.error("❌ Dashboard performance optimization failed", error);
       
       return {
         success: false,
         message: "Dashboard performance optimization failed",
-        errors: [error.message]
+        errors: [error instanceof Error ? error?.message : String(error)]
       };
     }
   }
@@ -427,7 +427,7 @@ export class DashboardPerformanceOptimizer extends BaseService<any> {
 
       return metrics;
 
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error("Failed to collect dashboard metrics", error);
       throw error;
     }
@@ -503,7 +503,7 @@ export class DashboardPerformanceOptimizer extends BaseService<any> {
 
       return { strategies, improvement: strategy.estimatedImprovement };
 
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error("Lazy loading optimization failed", error);
       return { strategies, improvement: 0 };
     }
@@ -538,7 +538,7 @@ export class DashboardPerformanceOptimizer extends BaseService<any> {
 
       return { strategies, improvement: strategy.estimatedImprovement };
 
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error("Code splitting optimization failed", error);
       return { strategies, improvement: 0 };
     }
@@ -573,7 +573,7 @@ export class DashboardPerformanceOptimizer extends BaseService<any> {
 
       return { strategies, improvement: strategy.estimatedImprovement };
 
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error("Asset optimization failed", error);
       return { strategies, improvement: 0 };
     }
@@ -608,7 +608,7 @@ export class DashboardPerformanceOptimizer extends BaseService<any> {
 
       return { strategies, improvement: strategy.estimatedImprovement };
 
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error("Component rendering optimization failed", error);
       return { strategies, improvement: 0 };
     }
@@ -643,7 +643,7 @@ export class DashboardPerformanceOptimizer extends BaseService<any> {
 
       return { strategies, improvement: strategy.estimatedImprovement };
 
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error("Memory optimization failed", error);
       return { strategies, improvement: 0 };
     }
@@ -678,7 +678,7 @@ export class DashboardPerformanceOptimizer extends BaseService<any> {
 
       return { strategies, improvement: strategy.estimatedImprovement };
 
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error("Frontend caching optimization failed", error);
       return { strategies, improvement: 0 };
     }

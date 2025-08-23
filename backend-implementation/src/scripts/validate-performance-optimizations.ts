@@ -112,7 +112,7 @@ class PerformanceOptimizationValidator {
 
       return this.results;
 
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error("❌ Performance optimization validation failed:", error);
       throw error;
     }
@@ -155,7 +155,7 @@ class PerformanceOptimizationValidator {
         improvement: `${this.results.connectionPool.performanceImprovement}%`,
       });
 
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error("❌ Connection pool validation failed:", error);
       throw error;
     }
@@ -239,7 +239,7 @@ class PerformanceOptimizationValidator {
         performanceGain: `${this.results.cacheInvalidation.performanceGain}%`,
       });
 
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error("❌ Cache invalidation validation failed:", error);
       throw error;
     }
@@ -347,7 +347,7 @@ class PerformanceOptimizationValidator {
         productionReady: this.results.loadTesting.productionReady,
       });
 
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error("❌ Load testing validation failed:", error);
       throw error;
     }
@@ -372,7 +372,7 @@ class PerformanceOptimizationValidator {
       responseTimes.push(endTime - startTime);
       
       return result;
-    } catch (error) {
+    } catch (error: unknown) {
       const endTime = performance.now();
       responseTimes.push(endTime - startTime);
       throw error;
@@ -507,7 +507,7 @@ async function main() {
       process.exit(1);
     }
 
-  } catch (error) {
+  } catch (error: unknown) {
     console.error("\n❌ Performance optimization validation failed:", error);
     process.exit(1);
   }

@@ -261,7 +261,7 @@ describe('External Service Coordination Integration', () => {
 
   describe('Real-Time WebSocket Coordination', () => {
     test('should establish WebSocket connection successfully', (done) => {
-      clientSocket = Client(`http://localhost:${process.env.TEST_PORT || 3001}`, {
+      clientSocket = Client(`http://localhost:${process.env?.TEST_PORT || 3001}`, {
         transports: ['websocket'],
       });
 

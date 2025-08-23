@@ -734,7 +734,7 @@ Driver.init(
       },
       beforeUpdate: (driver: Driver) => {
         // Increment version for optimistic locking
-        driver.version = (driver.version || 1) + 1;
+        driver.version = (driver?.version || 1) + 1;
       },
     },
     scopes: {

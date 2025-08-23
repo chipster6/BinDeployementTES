@@ -315,9 +315,9 @@ export class PredictiveAnalyticsOptimizer extends BaseService {
    */
   private initializeQueues(): void {
     const redisConfig = {
-      host: process.env.REDIS_HOST || 'localhost',
-      port: parseInt(process.env.REDIS_PORT || '6379'),
-      db: parseInt(process.env.REDIS_DB || '0'),
+      host: process.env?.REDIS_HOST || 'localhost',
+      port: parseInt(process.env?.REDIS_PORT || '6379'),
+      db: parseInt(process.env?.REDIS_DB || '0'),
     };
 
     this.routeOptimizationQueue = new Bull('predictive-route-optimization', {
@@ -464,13 +464,13 @@ export class PredictiveAnalyticsOptimizer extends BaseService {
         message: 'Predictive analytics optimization deployed successfully',
       };
 
-    } catch (error) {
-      timer.end({ error: error.message });
+    } catch (error: unknown) {
+      timer.end({ error: error instanceof Error ? error?.message : String(error) });
       logger.error('❌ Predictive analytics optimization deployment failed', error);
 
       return {
         success: false,
-        message: `Failed to deploy predictive analytics optimization: ${error.message}`,
+        message: `Failed to deploy predictive analytics optimization: ${error instanceof Error ? error?.message : String(error)}`,
         errors: [error],
       };
     }
@@ -521,11 +521,11 @@ export class PredictiveAnalyticsOptimizer extends BaseService {
     const performance: RouteOptimizationMetrics = {
       computationTime: 3500,
       solutionQuality: 92,
-      cacheHitRate: improvements.cacheHitRate || 0,
+      cacheHitRate: improvements?.cacheHitRate || 0,
       memoryUsage: 45,
       optimizationGap: 2.1,
       constraintsSatisfied: 98,
-      parallelEfficiency: improvements.parallelEfficiency || 0,
+      parallelEfficiency: improvements?.parallelEfficiency || 0,
       convergenceRate: 85,
     };
 
@@ -749,8 +749,8 @@ export class PredictiveAnalyticsOptimizer extends BaseService {
       timer.end({ computationTime, cacheHit: false });
       return result;
 
-    } catch (error) {
-      timer.end({ error: error.message });
+    } catch (error: unknown) {
+      timer.end({ error: error instanceof Error ? error?.message : String(error) });
       throw error;
     }
   }
@@ -778,8 +778,8 @@ export class PredictiveAnalyticsOptimizer extends BaseService {
       timer.end({ predictionTime });
       return result;
 
-    } catch (error) {
-      timer.end({ error: error.message });
+    } catch (error: unknown) {
+      timer.end({ error: error instanceof Error ? error?.message : String(error) });
       throw error;
     }
   }
@@ -807,8 +807,8 @@ export class PredictiveAnalyticsOptimizer extends BaseService {
       timer.end({ forecastTime });
       return result;
 
-    } catch (error) {
-      timer.end({ error: error.message });
+    } catch (error: unknown) {
+      timer.end({ error: error instanceof Error ? error?.message : String(error) });
       throw error;
     }
   }

@@ -11,7 +11,7 @@
  * Version: 2.0.0 - Refactored from monolithic config
  */
 
-import Joi from "joi";
+import * as Joi from "joi";
 
 /**
  * Security environment variable validation schema
@@ -53,7 +53,7 @@ export const securityEnvSchema = Joi.object({
 export const validateSecurityEnv = () => {
   const { error, value } = securityEnvSchema.validate(process.env);
   if (error) {
-    throw new Error(`Security configuration validation error: ${error.message}`);
+    throw new Error(`Security configuration validation error: ${error instanceof Error ? error?.message : String(error)}`);
   }
   return value;
 };

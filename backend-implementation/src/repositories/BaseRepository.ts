@@ -135,7 +135,7 @@ export abstract class BaseRepository<T extends Model = Model> {
       const result = await operation(newTransaction);
       await newTransaction.commit();
       return result;
-    } catch (error) {
+    } catch (error: unknown) {
       await newTransaction.rollback();
       throw error;
     }
@@ -169,11 +169,11 @@ export abstract class BaseRepository<T extends Model = Model> {
         return JSON.parse(cached);
       }
       return null;
-    } catch (error) {
+    } catch (error: unknown) {
       logger.warn("Cache get failed", {
         repository: this.modelName,
         key,
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
       });
       return null;
     }
@@ -197,11 +197,11 @@ export abstract class BaseRepository<T extends Model = Model> {
         key,
         ttl: cacheTTL,
       });
-    } catch (error) {
+    } catch (error: unknown) {
       logger.warn("Cache set failed", {
         repository: this.modelName,
         key,
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
       });
     }
   }
@@ -218,11 +218,11 @@ export abstract class BaseRepository<T extends Model = Model> {
         repository: this.modelName,
         key,
       });
-    } catch (error) {
+    } catch (error: unknown) {
       logger.warn("Cache delete failed", {
         repository: this.modelName,
         key,
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
       });
     }
   }
@@ -244,10 +244,10 @@ export abstract class BaseRepository<T extends Model = Model> {
           keysCleared: keys.length,
         });
       }
-    } catch (error) {
+    } catch (error: unknown) {
       logger.warn("Cache clear failed", {
         repository: this.modelName,
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
       });
     }
   }
@@ -256,7 +256,7 @@ export abstract class BaseRepository<T extends Model = Model> {
    * Clear specific cache keys (granular invalidation)
    */
   protected async clearCacheKeys(keys: string[]): Promise<void> {
-    if (!this.cacheEnabled || keys.length === 0) return;
+    if (!this?.cacheEnabled || keys.length === 0) return;
 
     try {
       const fullKeys = keys.map(key => key.startsWith(this.cachePrefix) ? key : `${this.cachePrefix}:${key}`);
@@ -266,11 +266,11 @@ export abstract class BaseRepository<T extends Model = Model> {
         keysCleared: fullKeys.length,
         keys: fullKeys,
       });
-    } catch (error) {
+    } catch (error: unknown) {
       logger.warn("Cache key clear failed", {
         repository: this.modelName,
         keys,
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
       });
     }
   }
@@ -304,11 +304,11 @@ export abstract class BaseRepository<T extends Model = Model> {
           keysCleared: keysToDelete.length,
         });
       }
-    } catch (error) {
+    } catch (error: unknown) {
       logger.warn("Cache clear for ID failed", {
         repository: this.modelName,
         id,
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
       });
     }
   }
@@ -365,11 +365,11 @@ export abstract class BaseRepository<T extends Model = Model> {
       });
 
       return result;
-    } catch (error) {
-      timer.end({ error: error.message });
+    } catch (error: unknown) {
+      timer.end({ error: error instanceof Error ? error?.message : String(error) });
       logger.error(`${this.modelName} repository findById failed`, {
         id,
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
       });
       throw new AppError(`Failed to find ${this.modelName}`, 500);
     }
@@ -416,11 +416,11 @@ export abstract class BaseRepository<T extends Model = Model> {
       });
 
       return result;
-    } catch (error) {
-      timer.end({ error: error.message });
+    } catch (error: unknown) {
+      timer.end({ error: error instanceof Error ? error?.message : String(error) });
       logger.error(`${this.modelName} repository findOne failed`, {
         filter,
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
       });
       throw new AppError(`Failed to find ${this.modelName}`, 500);
     }
@@ -468,11 +468,11 @@ export abstract class BaseRepository<T extends Model = Model> {
       });
 
       return results;
-    } catch (error) {
-      timer.end({ error: error.message });
+    } catch (error: unknown) {
+      timer.end({ error: error instanceof Error ? error?.message : String(error) });
       logger.error(`${this.modelName} repository findAll failed`, {
         filter,
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
       });
       throw new AppError(`Failed to find ${this.modelName} records`, 500);
     }
@@ -547,12 +547,12 @@ export abstract class BaseRepository<T extends Model = Model> {
       });
 
       return result;
-    } catch (error) {
-      timer.end({ error: error.message });
+    } catch (error: unknown) {
+      timer.end({ error: error instanceof Error ? error?.message : String(error) });
       logger.error(`${this.modelName} repository findAndCountAll failed`, {
         filter,
         pagination,
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
       });
       throw new AppError(`Failed to find ${this.modelName} records`, 500);
     }
@@ -599,11 +599,11 @@ export abstract class BaseRepository<T extends Model = Model> {
       });
 
       return result;
-    } catch (error) {
-      timer.end({ error: error.message });
+    } catch (error: unknown) {
+      timer.end({ error: error instanceof Error ? error?.message : String(error) });
       logger.error(`${this.modelName} repository create failed`, {
         data,
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
       });
 
       if (error.name === "SequelizeValidationError") {
@@ -656,12 +656,12 @@ export abstract class BaseRepository<T extends Model = Model> {
       logger.info(`${this.modelName} repository update successful`, { id });
 
       return result;
-    } catch (error) {
-      timer.end({ error: error.message });
+    } catch (error: unknown) {
+      timer.end({ error: error instanceof Error ? error?.message : String(error) });
       logger.error(`${this.modelName} repository updateById failed`, {
         id,
         data,
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
       });
 
       if (error instanceof AppError) {
@@ -714,12 +714,12 @@ export abstract class BaseRepository<T extends Model = Model> {
       });
 
       return result;
-    } catch (error) {
-      timer.end({ error: error.message });
+    } catch (error: unknown) {
+      timer.end({ error: error instanceof Error ? error?.message : String(error) });
       logger.error(`${this.modelName} repository updateWhere failed`, {
         where,
         data,
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
       });
 
       if (error.name === "SequelizeValidationError") {
@@ -769,11 +769,11 @@ export abstract class BaseRepository<T extends Model = Model> {
       logger.info(`${this.modelName} repository delete successful`, { id });
 
       return result;
-    } catch (error) {
-      timer.end({ error: error.message });
+    } catch (error: unknown) {
+      timer.end({ error: error instanceof Error ? error?.message : String(error) });
       logger.error(`${this.modelName} repository deleteById failed`, {
         id,
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
       });
 
       if (error instanceof AppError) {
@@ -821,11 +821,11 @@ export abstract class BaseRepository<T extends Model = Model> {
       });
 
       return result;
-    } catch (error) {
-      timer.end({ error: error.message });
+    } catch (error: unknown) {
+      timer.end({ error: error instanceof Error ? error?.message : String(error) });
       logger.error(`${this.modelName} repository deleteWhere failed`, {
         where,
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
       });
 
       throw new AppError(`Failed to delete ${this.modelName} records`, 500);
@@ -874,11 +874,11 @@ export abstract class BaseRepository<T extends Model = Model> {
       });
 
       return count;
-    } catch (error) {
-      timer.end({ error: error.message });
+    } catch (error: unknown) {
+      timer.end({ error: error instanceof Error ? error?.message : String(error) });
       logger.error(`${this.modelName} repository count failed`, {
         where,
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
       });
       throw new AppError(`Failed to count ${this.modelName} records`, 500);
     }
@@ -931,11 +931,11 @@ export abstract class BaseRepository<T extends Model = Model> {
       });
 
       return result;
-    } catch (error) {
-      timer.end({ error: error.message });
+    } catch (error: unknown) {
+      timer.end({ error: error instanceof Error ? error?.message : String(error) });
       logger.error(`${this.modelName} repository bulkCreate failed`, {
         count: data.length,
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
       });
 
       if (error.name === "SequelizeValidationError") {
@@ -997,11 +997,11 @@ export abstract class BaseRepository<T extends Model = Model> {
       });
 
       return results;
-    } catch (error) {
-      timer.end({ error: error.message });
+    } catch (error: unknown) {
+      timer.end({ error: error instanceof Error ? error?.message : String(error) });
       logger.error(`${this.modelName} repository rawQuery failed`, {
         sql,
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
       });
       throw new AppError(
         `Failed to execute raw query for ${this.modelName}`,
@@ -1030,13 +1030,13 @@ export abstract class BaseRepository<T extends Model = Model> {
         cacheEnabled: this.cacheEnabled,
         defaultCacheTTL: this.defaultCacheTTL,
       };
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error(`${this.modelName} repository stats failed`, {
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
       });
       return {
         repository: this.modelName,
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
       };
     }
   }

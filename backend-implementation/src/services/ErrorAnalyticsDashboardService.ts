@@ -241,7 +241,7 @@ export class ErrorAnalyticsDashboardService extends EventEmitter {
     }
 
     // Get current metrics
-    const currentMetrics = this.realtimeMetrics || await this.generateCurrentMetrics();
+    const currentMetrics = this?.realtimeMetrics || await this.generateCurrentMetrics();
 
     // Generate widget data
     const widgets = await this.generateWidgetData(dashboard, currentMetrics, customFilters);
@@ -331,12 +331,7 @@ export class ErrorAnalyticsDashboardService extends EventEmitter {
       if (cachedResult) {
         return {
           query,
-          result: JSON.parse(cachedResult),
-          metadata: {
-            executionTime: 0,
-            dataPoints: JSON.parse(cachedResult).data?.result?.length || 0,
-            cacheHit: true
-          }
+          result: JSON.parse(cachedResult)
         };
       }
 
@@ -350,18 +345,13 @@ export class ErrorAnalyticsDashboardService extends EventEmitter {
 
       return {
         query,
-        result,
-        metadata: {
-          executionTime,
-          dataPoints: result.data?.result?.length || 0,
-          cacheHit: false
-        }
+        result
       };
 
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error("Prometheus query execution failed", {
         query,
-        error: error.message
+        error: error instanceof Error ? error?.message : String(error)
       });
       throw error;
     }
@@ -636,9 +626,9 @@ export class ErrorAnalyticsDashboardService extends EventEmitter {
         // Send updates to connected clients
         this.broadcastRealtimeUpdates();
 
-      } catch (error) {
+      } catch (error: unknown) {
         logger.error("Failed to collect real-time metrics", {
-          error: error.message
+          error: error instanceof Error ? error?.message : String(error)
         });
       }
     }, this.metricsUpdateInterval);
@@ -651,9 +641,9 @@ export class ErrorAnalyticsDashboardService extends EventEmitter {
     try {
       await this.initializePrometheusIntegration();
       await this.initializeGrafanaIntegration();
-    } catch (error) {
+    } catch (error: unknown) {
       logger.warn("Failed to setup monitoring integrations", {
-        error: error.message
+        error: error instanceof Error ? error?.message : String(error)
       });
     }
   }
@@ -675,9 +665,9 @@ export class ErrorAnalyticsDashboardService extends EventEmitter {
 
         this.emit("executiveSummaryUpdated", executiveData);
 
-      } catch (error) {
+      } catch (error: unknown) {
         logger.error("Failed to generate executive summary", {
-          error: error.message
+          error: error instanceof Error ? error?.message : String(error)
         });
       }
     }, this.executiveSummaryInterval);
@@ -817,9 +807,9 @@ export class ErrorAnalyticsDashboardService extends EventEmitter {
         metricsCount: this.prometheusIntegration.availableMetrics.length
       });
 
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error("Failed to initialize Prometheus integration", {
-        error: error.message
+        error: error instanceof Error ? error?.message : String(error)
       });
       
       this.prometheusIntegration = {
@@ -860,9 +850,9 @@ export class ErrorAnalyticsDashboardService extends EventEmitter {
         dashboardsCount: dashboards.length
       });
 
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error("Failed to initialize Grafana integration", {
-        error: error.message
+        error: error instanceof Error ? error?.message : String(error)
       });
       
       this.grafanaIntegration = {
@@ -876,7 +866,7 @@ export class ErrorAnalyticsDashboardService extends EventEmitter {
   }
 
   private async queryPrometheus(query: string, timeRange?: { start: Date; end: Date }): Promise<any> {
-    if (!this.prometheusIntegration || this.prometheusIntegration.connectionStatus !== "connected") {
+    if (!this?.prometheusIntegration || this.prometheusIntegration.connectionStatus !== "connected") {
       throw new Error("Prometheus not connected");
     }
 
@@ -898,15 +888,15 @@ export class ErrorAnalyticsDashboardService extends EventEmitter {
       const data = await response.json();
 
       if (data.status !== "success") {
-        throw new Error(`Prometheus query failed: ${data.error || "Unknown error"}`);
+        throw new Error(`Prometheus query failed: ${data?.error || "Unknown error"}`);
       }
 
       return data;
 
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error("Prometheus query execution failed", {
         query,
-        error: error.message
+        error: error instanceof Error ? error?.message : String(error)
       });
       throw error;
     }
@@ -919,8 +909,8 @@ export class ErrorAnalyticsDashboardService extends EventEmitter {
     try {
       const response = await fetch(`${endpoint}/api/v1/status/config`);
       return response.ok;
-    } catch (error) {
-      logger.warn("Prometheus connection test failed", { endpoint, error: error.message });
+    } catch (error: unknown) {
+      logger.warn("Prometheus connection test failed", { endpoint, error: error instanceof Error ? error?.message : String(error) });
       return false;
     }
   }
@@ -933,8 +923,8 @@ export class ErrorAnalyticsDashboardService extends EventEmitter {
       const response = await fetch(`${endpoint}/api/v1/label/__name__/values`);
       const data = await response.json();
       return data.status === "success" ? data.data : [];
-    } catch (error) {
-      logger.warn("Failed to fetch Prometheus metrics", { error: error.message });
+    } catch (error: unknown) {
+      logger.warn("Failed to fetch Prometheus metrics", { error: error instanceof Error ? error?.message : String(error) });
       return [];
     }
   }
@@ -989,8 +979,8 @@ export class ErrorAnalyticsDashboardService extends EventEmitter {
     try {
       const response = await fetch(`${apiEndpoint}/health`);
       return response.ok;
-    } catch (error) {
-      logger.warn("Grafana connection test failed", { apiEndpoint, error: error.message });
+    } catch (error: unknown) {
+      logger.warn("Grafana connection test failed", { apiEndpoint, error: error instanceof Error ? error?.message : String(error) });
       return false;
     }
   }
@@ -1009,8 +999,8 @@ export class ErrorAnalyticsDashboardService extends EventEmitter {
         url: dashboard.url,
         panels: [] // Would be populated by fetching dashboard details
       }));
-    } catch (error) {
-      logger.warn("Failed to fetch Grafana dashboards", { error: error.message });
+    } catch (error: unknown) {
+      logger.warn("Failed to fetch Grafana dashboards", { error: error instanceof Error ? error?.message : String(error) });
       return [];
     }
   }
@@ -1034,7 +1024,7 @@ export class ErrorAnalyticsDashboardService extends EventEmitter {
 
   private async validateDashboardConfig(config: DashboardConfig): Promise<void> {
     // Validate dashboard configuration
-    if (!config.name || !config.widgets || config.widgets.length === 0) {
+    if (!config.name || !config?.widgets || config.widgets.length === 0) {
       throw new Error("Invalid dashboard configuration");
     }
   }

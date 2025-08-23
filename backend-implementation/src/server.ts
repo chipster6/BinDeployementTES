@@ -24,6 +24,8 @@ import { intelligentBatchingService } from "@/services/external/IntelligentBatch
 import { webhookCoordinationService } from "@/services/external/WebhookCoordinationService";
 import { realTimeCoordinationServer } from "@/services/external/RealTimeCoordinationServer";
 import { externalServicePerformanceDashboard } from "@/services/external/ExternalServicePerformanceDashboard";
+import { soc2ComplianceService } from "@/services/compliance/SOC2ComplianceService";
+import { hsmKeyManagementService } from "@/services/security/HSMKeyManagementService";
 
 class Application {
   public async start(): Promise<void> {
@@ -75,6 +77,9 @@ class Application {
     // CRITICAL: Initialize Group D External Service Coordination with Frontend Agent integration
     await this.initializeGroupDCoordination(server);
 
+    // CRITICAL: Initialize SOC 2 Type II compliance and HSM key management for 100% security grade
+    await this.initializeComplianceInfrastructure();
+
     // Initialize final error handlers (order matters)
     app.use(errorRecoveryMiddleware.middleware);
     app.use(errorHandler);
@@ -117,7 +122,7 @@ class Application {
     // Set up database recovery event handlers
     databaseRecovery.on("connectionUnhealthy", (error) => {
       logger.error("Database connection became unhealthy", {
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
       });
     });
 
@@ -135,12 +140,12 @@ class Application {
     // Set up process-level error handlers
     process.on("uncaughtException", (error) => {
       logger.error("Uncaught exception detected", {
-        error: error.message,
-        stack: error.stack,
+        error: error instanceof Error ? error?.message : String(error),
+        stack: error instanceof Error ? error?.stack : undefined,
       });
 
       errorMonitoring.trackError(
-        new Error("Uncaught Exception: " + error.message),
+        new Error("Uncaught Exception: " + error instanceof Error ? error?.message : String(error)),
         {
           ip: "system",
           url: "process",
@@ -148,7 +153,7 @@ class Application {
         },
         {
           type: "uncaughtException",
-          originalStack: error.stack,
+          originalStack: error instanceof Error ? error?.stack : undefined,
         },
       );
 
@@ -203,14 +208,14 @@ class Application {
       logger[logLevel]("Database performance alert", {
         type: alert.type,
         severity: alert.severity,
-        message: alert.message,
+        message: alert?.message,
         timestamp: alert.timestamp,
       });
 
       // Track performance alerts in error monitoring system
       if (alert.severity === "critical") {
         errorMonitoring.trackError(
-          new Error(`Database Performance Alert: ${alert.message}`),
+          new Error(`Database Performance Alert: ${alert?.message}`),
           {
             ip: "system",
             url: "database",
@@ -289,15 +294,15 @@ class Application {
         ]
       });
 
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error("❌ Failed to initialize Stream B coordination", {
-        error: error.message,
-        stack: error.stack,
+        error: error instanceof Error ? error?.message : String(error),
+        stack: error instanceof Error ? error?.stack : undefined,
       });
 
       // Track initialization failure
       errorMonitoring.trackError(
-        new Error(`Stream B Coordination Initialization Failed: ${error.message}`),
+        new Error(`Stream B Coordination Initialization Failed: ${error instanceof Error ? error?.message : String(error)}`),
         {
           ip: "system",
           url: "initialization",
@@ -306,7 +311,7 @@ class Application {
         {
           type: "stream_b_coordination_failure",
           phase: "initialization",
-          error: error.message,
+          error: error instanceof Error ? error?.message : String(error),
         },
       );
 
@@ -381,15 +386,15 @@ class Application {
         ]
       });
 
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error("❌ Failed to initialize Group D coordination", {
-        error: error.message,
-        stack: error.stack,
+        error: error instanceof Error ? error?.message : String(error),
+        stack: error instanceof Error ? error?.stack : undefined,
       });
 
       // Track initialization failure
       errorMonitoring.trackError(
-        new Error(`Group D Coordination Initialization Failed: ${error.message}`),
+        new Error(`Group D Coordination Initialization Failed: ${error instanceof Error ? error?.message : String(error)}`),
         {
           ip: "system",
           url: "initialization",
@@ -398,7 +403,7 @@ class Application {
         {
           type: "group_d_coordination_failure",
           phase: "initialization",
-          error: error.message,
+          error: error instanceof Error ? error?.message : String(error),
         },
       );
 
@@ -425,7 +430,7 @@ class Application {
             batchingEfficiency: batchingStats.reduce((sum, stat) => sum + stat.compressionRatio, 0) / batchingStats.length,
           });
         }
-      } catch (error) {
+      } catch (error: unknown) {
         // Silent fail for monitoring
       }
     }, 300000); // Every 5 minutes
@@ -442,7 +447,7 @@ class Application {
             averageProcessingTime: webhookStats.averageProcessingTime,
           });
         }
-      } catch (error) {
+      } catch (error: unknown) {
         // Silent fail for monitoring
       }
     }, 60000); // Every minute
@@ -471,9 +476,9 @@ class Application {
 
       logger.info("✅ All Stream B coordination services stopped successfully");
 
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error("❌ Error during Stream B coordination shutdown", {
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
       });
     }
   }
@@ -503,9 +508,9 @@ class Application {
 
       logger.info("✅ All Group D coordination services stopped successfully");
 
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error("❌ Error during Group D coordination shutdown", {
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
       });
     }
   }
@@ -542,7 +547,7 @@ class Application {
       logger.info("✅ Graceful shutdown completed successfully");
       process.exit(exitCode);
 
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error("❌ Error during graceful shutdown:", error);
       
       // Force exit after timeout

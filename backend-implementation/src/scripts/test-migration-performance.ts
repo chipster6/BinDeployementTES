@@ -122,7 +122,7 @@ class MigrationPerformanceTest {
       });
 
       return finalResults;
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error("❌ Migration performance test failed:", error);
       throw error;
     }
@@ -265,7 +265,7 @@ class MigrationPerformanceTest {
             spatialIndexUsed: result.query.spatialIndexUsed,
           });
         }
-      } catch (error) {
+      } catch (error: unknown) {
         failedQueries++;
         logger.warn(`Spatial query failed for ${location.name}:`, error);
       }
@@ -457,7 +457,7 @@ class MigrationPerformanceTest {
       const realTimeTestResult = await this.testRealTimePerformanceReadiness();
       coordinationMetrics.real_time_performance_ready = realTimeTestResult;
 
-    } catch (error) {
+    } catch (error: unknown) {
       logger.warn("Coordination readiness validation encountered issues:", error);
     }
 
@@ -492,11 +492,11 @@ class MigrationPerformanceTest {
               responseTime: `${responseTime.toFixed(2)}ms`,
             });
           }
-        } catch (error) {
+        } catch (error: unknown) {
           failedQueries++;
           logger.warn(`Query failed [${queryType}]:`, {
             query: query.substring(0, 50) + "...",
-            error: error instanceof Error ? error.message : error,
+            error: error instanceof Error ? error?.message : error,
           });
         }
       }
@@ -646,7 +646,7 @@ async function main() {
 
     process.exit(success ? 0 : 1);
 
-  } catch (error) {
+  } catch (error: unknown) {
     console.error("\n❌ Migration performance validation FAILED:", error);
     process.exit(1);
   }

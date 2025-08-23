@@ -198,7 +198,7 @@ authRouter.get("/health", authenticate, adminOnly, async (req, res, next) => {
         },
       },
     });
-  } catch (error) {
+  } catch (error: unknown) {
     next(error);
   }
 });
@@ -246,7 +246,7 @@ authRouter.get("/users", authenticate, adminOnly, async (req, res, next) => {
         },
       },
     });
-  } catch (error) {
+  } catch (error: unknown) {
     next(error);
   }
 });
@@ -315,7 +315,7 @@ authRouter.patch(
           status: user.status,
         },
       });
-    } catch (error) {
+    } catch (error: unknown) {
       next(error);
     }
   },
@@ -327,7 +327,7 @@ authRouter.patch(
 authRouter.use((error: any, req: any, res: any, next: any) => {
   // Log authentication errors
   logger.error("Authentication route error", {
-    error: error.message,
+    error: error instanceof Error ? error?.message : String(error),
     route: req.originalUrl,
     method: req.method,
     ip: req.ip,

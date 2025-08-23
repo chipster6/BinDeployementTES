@@ -305,7 +305,6 @@ export class TrafficDataService extends BaseExternalService {
           data: cached,
           statusCode: 200,
           metadata: {
-            requestId: `traffic-cached-${Date.now()}`,
             duration: 0,
             attempt: 1,
             fromCache: true,
@@ -316,7 +315,7 @@ export class TrafficDataService extends BaseExternalService {
       logger.info("Fetching current traffic data", {
         area: this.formatAreaForLog(area),
         includeIncidents: options.includeIncidents,
-        detailLevel: options.detailLevel || "summary",
+        detailLevel: options?.detailLevel || "summary",
       });
 
       // Try providers in priority order
@@ -349,9 +348,7 @@ export class TrafficDataService extends BaseExternalService {
             return {
               success: true,
               data: trafficData,
-              statusCode: 200,
-              metadata: {
-                requestId: `traffic-${Date.now()}`,
+              statusCode: 200`,
                 duration: 0,
                 attempt: 1,
                 fallbackUsed: provider.name !== sortedProviders[0].name,
@@ -359,10 +356,10 @@ export class TrafficDataService extends BaseExternalService {
               },
             };
           }
-        } catch (error) {
+        } catch (error: unknown) {
           lastError = error;
           logger.warn(`Traffic provider ${provider.name} failed`, {
-            error: error.message,
+            error: error instanceof Error ? error?.message : String(error),
             area: this.formatAreaForLog(area),
           });
           continue;
@@ -370,14 +367,14 @@ export class TrafficDataService extends BaseExternalService {
       }
 
       throw lastError || new Error("All traffic providers failed");
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error("Failed to get current traffic data", {
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
         area: this.formatAreaForLog(area),
         options,
       });
 
-      throw new Error(`Traffic data retrieval failed: ${error.message}`);
+      throw new Error(`Traffic data retrieval failed: ${error instanceof Error ? error?.message : String(error)}`);
     }
   }
 
@@ -403,7 +400,6 @@ export class TrafficDataService extends BaseExternalService {
           data: cached,
           statusCode: 200,
           metadata: {
-            requestId: `prediction-cached-${Date.now()}`,
             duration: 0,
             attempt: 1,
             fromCache: true,
@@ -448,21 +444,19 @@ export class TrafficDataService extends BaseExternalService {
       return {
         success: true,
         data: predictions,
-        statusCode: 200,
-        metadata: {
-          requestId: `prediction-${Date.now()}`,
+        statusCode: 200`,
           duration: 0,
           attempt: 1,
         },
       };
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error("Failed to generate traffic prediction", {
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
         area: this.formatAreaForLog(area),
         timeframe,
       });
 
-      throw new Error(`Traffic prediction failed: ${error.message}`);
+      throw new Error(`Traffic prediction failed: ${error instanceof Error ? error?.message : String(error)}`);
     }
   }
 
@@ -498,9 +492,9 @@ export class TrafficDataService extends BaseExternalService {
             options
           );
           incidents.push(...providerIncidents);
-        } catch (error) {
+        } catch (error: unknown) {
           logger.warn(`Incident provider ${provider.name} failed`, {
-            error: error.message,
+            error: error instanceof Error ? error?.message : String(error),
           });
           continue;
         }
@@ -520,21 +514,19 @@ export class TrafficDataService extends BaseExternalService {
       return {
         success: true,
         data: filteredIncidents,
-        statusCode: 200,
-        metadata: {
-          requestId: `incidents-${Date.now()}`,
+        statusCode: 200`,
           duration: 0,
           attempt: 1,
         },
       };
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error("Failed to get traffic incidents", {
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
         area: this.formatAreaForLog(area),
         options,
       });
 
-      throw new Error(`Traffic incident retrieval failed: ${error.message}`);
+      throw new Error(`Traffic incident retrieval failed: ${error instanceof Error ? error?.message : String(error)}`);
     }
   }
 
@@ -566,7 +558,6 @@ export class TrafficDataService extends BaseExternalService {
           data: cached,
           statusCode: 200,
           metadata: {
-            requestId: `historical-cached-${Date.now()}`,
             duration: 0,
             attempt: 1,
             fromCache: true,
@@ -576,7 +567,7 @@ export class TrafficDataService extends BaseExternalService {
 
       logger.info("Analyzing historical traffic patterns", {
         area: this.formatAreaForLog(area),
-        granularity: options.granularity || "hourly",
+        granularity: options?.granularity || "hourly",
         includeSeasonalFactors: options.includeSeasonalFactors,
       });
 
@@ -599,21 +590,19 @@ export class TrafficDataService extends BaseExternalService {
       return {
         success: true,
         data: patterns,
-        statusCode: 200,
-        metadata: {
-          requestId: `historical-${Date.now()}`,
+        statusCode: 200`,
           duration: 0,
           attempt: 1,
         },
       };
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error("Failed to analyze historical patterns", {
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
         area: this.formatAreaForLog(area),
         options,
       });
 
-      throw new Error(`Historical analysis failed: ${error.message}`);
+      throw new Error(`Historical analysis failed: ${error instanceof Error ? error?.message : String(error)}`);
     }
   }
 
@@ -778,7 +767,7 @@ export class TrafficDataService extends BaseExternalService {
     // Generate hourly predictions for the timeframe
     const start = new Date(timeframe.start);
     const end = new Date(timeframe.end);
-    const intervalMs = (timeframe.intervalMinutes || 60) * 60 * 1000;
+    const intervalMs = (timeframe?.intervalMinutes || 60) * 60 * 1000;
 
     for (let time = start; time < end; time = new Date(time.getTime() + intervalMs)) {
       predictions.predictions.push({
@@ -881,7 +870,7 @@ export class TrafficDataService extends BaseExternalService {
 
     if (!options.includeResolved) {
       filtered = filtered.filter(i => 
-        !i.estimatedEndTime || i.estimatedEndTime > new Date()
+        !i?.estimatedEndTime || i.estimatedEndTime > new Date()
       );
     }
 
@@ -966,10 +955,10 @@ export class TrafficDataService extends BaseExternalService {
   private async cacheResult(key: string, data: any, ttl: number): Promise<void> {
     try {
       await redisClient.setex(key, ttl, JSON.stringify(data));
-    } catch (error) {
+    } catch (error: unknown) {
       logger.warn("Failed to cache traffic result", {
         key,
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
       });
     }
   }
@@ -978,10 +967,10 @@ export class TrafficDataService extends BaseExternalService {
     try {
       const cached = await redisClient.get(key);
       return cached ? JSON.parse(cached) : null;
-    } catch (error) {
+    } catch (error: unknown) {
       logger.warn("Failed to get cached traffic result", {
         key,
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
       });
       return null;
     }
@@ -1029,7 +1018,7 @@ export class TrafficDataService extends BaseExternalService {
           // This would be provider-specific health checks
           providerHealth[name] = "healthy";
           healthyProviders++;
-        } catch (error) {
+        } catch (error: unknown) {
           providerHealth[name] = "unhealthy";
         }
       } else {

@@ -300,10 +300,10 @@ export class VectorDatabaseOptimizer extends BaseService<any> {
         service: this.serviceName,
         config: this.indexingConfig
       });
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error("Failed to initialize vector database optimizer", {
         service: this.serviceName,
-        error: error.message
+        error: error instanceof Error ? error?.message : String(error)
       });
       throw error;
     }
@@ -436,18 +436,18 @@ export class VectorDatabaseOptimizer extends BaseService<any> {
         message: "Vector indexing optimization completed successfully"
       };
 
-    } catch (error) {
-      timer.end({ error: error.message });
+    } catch (error: unknown) {
+      timer.end({ error: error instanceof Error ? error?.message : String(error) });
       logger.error("Vector indexing optimization failed", {
         service: this.serviceName,
         className,
-        error: error.message
+        error: error instanceof Error ? error?.message : String(error)
       });
 
       return {
         success: false,
         message: "Vector indexing optimization failed",
-        errors: [error.message]
+        errors: [error instanceof Error ? error?.message : String(error)]
       };
     }
   }
@@ -531,17 +531,17 @@ export class VectorDatabaseOptimizer extends BaseService<any> {
         message: "Similarity search optimization completed successfully"
       };
 
-    } catch (error) {
-      timer.end({ error: error.message });
+    } catch (error: unknown) {
+      timer.end({ error: error instanceof Error ? error?.message : String(error) });
       logger.error("Similarity search optimization failed", {
         service: this.serviceName,
-        error: error.message
+        error: error instanceof Error ? error?.message : String(error)
       });
 
       return {
         success: false,
         message: "Similarity search optimization failed",
-        errors: [error.message]
+        errors: [error instanceof Error ? error?.message : String(error)]
       };
     }
   }
@@ -603,18 +603,18 @@ export class VectorDatabaseOptimizer extends BaseService<any> {
         message: "Vector database metrics retrieved successfully"
       };
 
-    } catch (error) {
-      timer.end({ error: error.message });
+    } catch (error: unknown) {
+      timer.end({ error: error instanceof Error ? error?.message : String(error) });
       logger.error("Failed to get vector database metrics", {
         service: this.serviceName,
         className,
-        error: error.message
+        error: error instanceof Error ? error?.message : String(error)
       });
 
       return {
         success: false,
         message: "Failed to get vector database metrics",
-        errors: [error.message]
+        errors: [error instanceof Error ? error?.message : String(error)]
       };
     }
   }
@@ -699,17 +699,17 @@ export class VectorDatabaseOptimizer extends BaseService<any> {
         message: "Intelligent vector caching deployed successfully"
       };
 
-    } catch (error) {
-      timer.end({ error: error.message });
+    } catch (error: unknown) {
+      timer.end({ error: error instanceof Error ? error?.message : String(error) });
       logger.error("Failed to deploy intelligent vector caching", {
         service: this.serviceName,
-        error: error.message
+        error: error instanceof Error ? error?.message : String(error)
       });
 
       return {
         success: false,
         message: "Failed to deploy intelligent vector caching",
-        errors: [error.message]
+        errors: [error instanceof Error ? error?.message : String(error)]
       };
     }
   }

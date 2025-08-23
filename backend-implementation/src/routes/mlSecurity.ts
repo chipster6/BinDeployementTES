@@ -368,10 +368,10 @@ router.get(
       };
 
       res.status(200).json(healthStatus);
-    } catch (error) {
+    } catch (error: unknown) {
       res.status(503).json({
         status: "unhealthy",
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
         timestamp: new Date().toISOString()
       });
     }
@@ -434,10 +434,10 @@ router.get(
       };
 
       res.status(200).json(detailedStatus);
-    } catch (error) {
+    } catch (error: unknown) {
       res.status(503).json({
         status: "error",
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
         timestamp: new Date().toISOString()
       });
     }

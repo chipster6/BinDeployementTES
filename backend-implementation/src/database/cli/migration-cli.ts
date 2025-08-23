@@ -80,7 +80,7 @@ program
         migrationTable.push([
           migration.id,
           migration.type,
-          migration.description || 'No description',
+          migration?.description || 'No description',
           `${migration.estimatedDuration}s`,
           migration.requiresDowntime ? chalk.red('Yes') : chalk.green('No'),
         ]);
@@ -137,14 +137,14 @@ program
         }
         console.log(resultTable.toString());
         
-      } catch (error) {
+      } catch (error: unknown) {
         executionSpinner.fail('Migration execution failed');
         console.error(chalk.red('\n❌ Migration Error:'));
-        console.error(chalk.red(error instanceof Error ? error.message : String(error)));
+        console.error(chalk.red(error instanceof Error ? error?.message : String(error)));
         process.exit(1);
       }
       
-    } catch (error) {
+    } catch (error: unknown) {
       console.error(chalk.red('❌ CLI Error:'), error);
       process.exit(1);
     }
@@ -173,9 +173,9 @@ program
           // Display results
           displayValidationResults(analysis);
           
-        } catch (error) {
+        } catch (error: unknown) {
           spinner.fail('Validation failed');
-          console.error(chalk.red(error instanceof Error ? error.message : String(error)));
+          console.error(chalk.red(error instanceof Error ? error?.message : String(error)));
           process.exit(1);
         }
         
@@ -201,7 +201,7 @@ program
             console.log(`\n${chalk.cyan('Migration:')} ${migration.id}`);
             displayValidationResults(analysis);
             
-          } catch (error) {
+          } catch (error: unknown) {
             allValid = false;
             console.error(chalk.red(`\nValidation failed for ${migration.id}:`), error);
           }
@@ -215,7 +215,7 @@ program
         }
       }
       
-    } catch (error) {
+    } catch (error: unknown) {
       console.error(chalk.red('❌ Validation Error:'), error);
       process.exit(1);
     }
@@ -248,7 +248,7 @@ program
       console.log(`Duration: ${backup.duration}s`);
       console.log(`Path: ${backup.filePath}`);
       
-    } catch (error) {
+    } catch (error: unknown) {
       console.error(chalk.red('❌ Backup Error:'), error);
       process.exit(1);
     }
@@ -299,7 +299,7 @@ program
         result.warnings.forEach(warning => console.log(`  • ${warning}`));
       }
       
-    } catch (error) {
+    } catch (error: unknown) {
       console.error(chalk.red('❌ Restore Error:'), error);
       process.exit(1);
     }
@@ -321,7 +321,7 @@ program
       console.log(chalk.cyan('System Status:'));
       console.log(`Pending Migrations: ${status.pendingMigrations}`);
       console.log(`Running Migrations: ${status.runningMigrations}`);
-      console.log(`Last Migration: ${status.lastMigration || 'None'}`);
+      console.log(`Last Migration: ${status?.lastMigration || 'None'}`);
       console.log(`System Health: ${getHealthStatusColor(status.systemHealth)}`);
       
       // Recent migration history
@@ -339,7 +339,7 @@ program
           historyTable.push([
             migration.migrationId,
             statusColor(migration.status),
-            `${migration.duration || 0}s`,
+            `${migration?.duration || 0}s`,
             migration.startTime.toLocaleString(),
           ]);
         }
@@ -353,7 +353,7 @@ program
       console.log(`Success Rate: ${backupStats.successRate.toFixed(1)}%`);
       console.log(`Last Backup: ${backupStats.lastBackupTime?.toLocaleString() || 'None'}`);
       
-    } catch (error) {
+    } catch (error: unknown) {
       console.error(chalk.red('❌ Status Error:'), error);
       process.exit(1);
     }
@@ -395,7 +395,7 @@ program
       console.log(`Status: ${result.status}`);
       console.log(`Rollback Executed: ${result.rollbackExecuted ? 'Yes' : 'No'}`);
       
-    } catch (error) {
+    } catch (error: unknown) {
       console.error(chalk.red('❌ Rollback Error:'), error);
       process.exit(1);
     }
@@ -427,7 +427,7 @@ function displayValidationResults(analysis: any): void {
         result.category,
         result.testName,
         statusColor(result.status),
-        result.message,
+        result?.message,
       ]);
     }
     

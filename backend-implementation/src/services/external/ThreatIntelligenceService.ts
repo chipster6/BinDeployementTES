@@ -174,11 +174,11 @@ class ThreatIntelligenceService {
       });
 
       return unifiedResult;
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error("Comprehensive threat analysis failed", {
         target,
         type,
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
       });
       
       this.metrics.sourceCoverage.virustotal.errors++;
@@ -203,10 +203,10 @@ class ThreatIntelligenceService {
       const batchPromises = batch.map(async (indicator) => {
         try {
           return await this.analyzeThreat(indicator.target, indicator.type);
-        } catch (error) {
+        } catch (error: unknown) {
           logger.error("Batch threat analysis failed for indicator", {
             indicator,
-            error: error.message,
+            error: error instanceof Error ? error?.message : String(error),
           });
           return null;
         }
@@ -264,7 +264,7 @@ class ThreatIntelligenceService {
         );
 
         const mispUpdates = mispFeeds.map(feed => ({
-          id: `misp-${feed.metadata.uuid || feed.target}`,
+          id: `misp-${feed.metadata?.uuid || feed.target}`,
           type: "new_threat" as const,
           target: feed.target,
           targetType: feed.type,
@@ -275,8 +275,8 @@ class ThreatIntelligenceService {
         }));
 
         feeds.push(...mispUpdates);
-      } catch (error) {
-        logger.warn("Failed to fetch MISP threat feeds", { error: error.message });
+      } catch (error: unknown) {
+        logger.warn("Failed to fetch MISP threat feeds", { error: error instanceof Error ? error?.message : String(error) });
       }
 
       // Apply filters
@@ -299,10 +299,10 @@ class ThreatIntelligenceService {
       });
 
       return filteredFeeds;
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error("Failed to fetch real-time threat feeds", {
         filters,
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
       });
       throw error;
     }
@@ -340,11 +340,11 @@ class ThreatIntelligenceService {
       });
 
       return enrichment;
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error("Threat intelligence enrichment failed", {
         target,
         type,
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
       });
       return {};
     }
@@ -382,8 +382,8 @@ class ThreatIntelligenceService {
         this.metrics.sourceCoverage.virustotal.queries++;
         this.metrics.sourceCoverage.virustotal.lastUpdate = new Date();
       }
-    } catch (error) {
-      logger.warn("VirusTotal lookup failed", { target, error: error.message });
+    } catch (error: unknown) {
+      logger.warn("VirusTotal lookup failed", { target, error: error instanceof Error ? error?.message : String(error) });
       this.metrics.sourceCoverage.virustotal.errors++;
     }
 
@@ -394,8 +394,8 @@ class ThreatIntelligenceService {
         results.abuseipdb = abuseResult;
         this.metrics.sourceCoverage.abuseipdb.queries++;
         this.metrics.sourceCoverage.abuseipdb.lastUpdate = new Date();
-      } catch (error) {
-        logger.warn("AbuseIPDB lookup failed", { target, error: error.message });
+      } catch (error: unknown) {
+        logger.warn("AbuseIPDB lookup failed", { target, error: error instanceof Error ? error?.message : String(error) });
         this.metrics.sourceCoverage.abuseipdb.errors++;
       }
     }
@@ -408,8 +408,8 @@ class ThreatIntelligenceService {
         this.metrics.sourceCoverage.misp.queries++;
         this.metrics.sourceCoverage.misp.lastUpdate = new Date();
       }
-    } catch (error) {
-      logger.warn("MISP lookup failed", { target, error: error.message });
+    } catch (error: unknown) {
+      logger.warn("MISP lookup failed", { target, error: error instanceof Error ? error?.message : String(error) });
       this.metrics.sourceCoverage.misp.errors++;
     }
 
@@ -605,7 +605,7 @@ class ThreatIntelligenceService {
   private getTotalReports(sourceResults: Record<string, any>): number {
     return Object.values(sourceResults)
       .filter(Boolean)
-      .reduce((total: number, result: any) => total + (result.detections || 0), 0);
+      .reduce((total: number, result: any) => total + (result?.detections || 0), 0);
   }
 
   /**
@@ -720,22 +720,22 @@ class ThreatIntelligenceService {
     // Check VirusTotal
     try {
       sources.virustotal = await virusTotalService.getThreatSummary();
-    } catch (error) {
-      sources.virustotal = { status: "unhealthy", error: error.message };
+    } catch (error: unknown) {
+      sources.virustotal = { status: "unhealthy", error: error instanceof Error ? error?.message : String(error) };
     }
 
     // Check AbuseIPDB
     try {
       sources.abuseipdb = await abuseIPDBService.getThreatSummary();
-    } catch (error) {
-      sources.abuseipdb = { status: "unhealthy", error: error.message };
+    } catch (error: unknown) {
+      sources.abuseipdb = { status: "unhealthy", error: error instanceof Error ? error?.message : String(error) };
     }
 
     // Check MISP
     try {
       sources.misp = await mispIntegrationService.getThreatSummary();
-    } catch (error) {
-      sources.misp = { status: "unhealthy", error: error.message };
+    } catch (error: unknown) {
+      sources.misp = { status: "unhealthy", error: error instanceof Error ? error?.message : String(error) };
     }
 
     // Determine overall status

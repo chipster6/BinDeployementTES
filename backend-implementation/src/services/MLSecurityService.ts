@@ -244,17 +244,17 @@ export class MLSecurityService extends BaseService<any> {
         message: "Behavioral anomaly analysis completed successfully"
       };
 
-    } catch (error) {
-      timer.end({ error: error.message });
+    } catch (error: unknown) {
+      timer.end({ error: error instanceof Error ? error?.message : String(error) });
       logger.error("MLSecurityService.analyzeBehavioralAnomaly failed", {
         userId: context.user.id,
-        error: error.message
+        error: error instanceof Error ? error?.message : String(error)
       });
 
       return {
         success: false,
         message: "Failed to analyze behavioral anomaly",
-        errors: [error.message]
+        errors: [error instanceof Error ? error?.message : String(error)]
       };
     }
   }
@@ -327,18 +327,18 @@ export class MLSecurityService extends BaseService<any> {
         message: "Real-time threat score calculated successfully"
       };
 
-    } catch (error) {
-      timer.end({ error: error.message });
+    } catch (error: unknown) {
+      timer.end({ error: error instanceof Error ? error?.message : String(error) });
       logger.error("MLSecurityService.getRealTimeThreatScore failed", {
         userId,
         sessionId,
-        error: error.message
+        error: error instanceof Error ? error?.message : String(error)
       });
 
       return {
         success: false,
         message: "Failed to calculate real-time threat score",
-        errors: [error.message]
+        errors: [error instanceof Error ? error?.message : String(error)]
       };
     }
   }
@@ -422,17 +422,17 @@ export class MLSecurityService extends BaseService<any> {
         message: `Successfully trained ${modelsUpdated.length} ML security models`
       };
 
-    } catch (error) {
-      timer.end({ error: error.message });
+    } catch (error: unknown) {
+      timer.end({ error: error instanceof Error ? error?.message : String(error) });
       logger.error("MLSecurityService.trainSecurityModels failed", {
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
         sampleCount: trainingData.length
       });
 
       return {
         success: false,
         message: "Failed to train ML security models",
-        errors: [error.message]
+        errors: [error instanceof Error ? error?.message : String(error)]
       };
     }
   }
@@ -510,16 +510,16 @@ export class MLSecurityService extends BaseService<any> {
         message: "Security dashboard data generated successfully"
       };
 
-    } catch (error) {
-      timer.end({ error: error.message });
+    } catch (error: unknown) {
+      timer.end({ error: error instanceof Error ? error?.message : String(error) });
       logger.error("MLSecurityService.getSecurityDashboardData failed", {
-        error: error.message
+        error: error instanceof Error ? error?.message : String(error)
       });
 
       return {
         success: false,
         message: "Failed to generate security dashboard data",
-        errors: [error.message]
+        errors: [error instanceof Error ? error?.message : String(error)]
       };
     }
   }
@@ -615,9 +615,9 @@ export class MLSecurityService extends BaseService<any> {
         activeModels: Array.from(this.models.values()).filter(m => m.isActive).length
       });
 
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error("Failed to initialize ML security models", {
-        error: error.message
+        error: error instanceof Error ? error?.message : String(error)
       });
       throw error;
     }

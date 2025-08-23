@@ -141,7 +141,7 @@ export class WeaviatePerformanceMonitor {
     this.monitoringInterval = setInterval(async () => {
       try {
         await this.collectAndAnalyzeMetrics();
-      } catch (error) {
+      } catch (error: unknown) {
         logger.error('Weaviate performance monitoring error', error);
       }
     }, 10000);
@@ -218,7 +218,7 @@ export class WeaviatePerformanceMonitor {
         alerts: {
           criticalAlerts: this.countAlertsBySeverity('critical'),
           warningAlerts: this.countAlertsBySeverity('warning'),
-          activeAlerts: Array.from(this.activeAlerts.values()).map(alert => alert.message)
+          activeAlerts: Array.from(this.activeAlerts.values()).map(alert => alert?.message)
         }
       };
 
@@ -236,8 +236,8 @@ export class WeaviatePerformanceMonitor {
 
       timer.end({ success: true });
 
-    } catch (error) {
-      timer.end({ error: error.message });
+    } catch (error: unknown) {
+      timer.end({ error: error instanceof Error ? error?.message : String(error) });
       logger.error('Failed to collect Weaviate performance metrics', error);
     }
   }
@@ -457,7 +457,7 @@ export class WeaviatePerformanceMonitor {
       metric: violation.metric,
       currentValue: violation.currentValue,
       targetValue: violation.targetValue,
-      message: violation.message
+      message: violation?.message
     });
 
     // Trigger auto-remediation for critical alerts
@@ -500,10 +500,10 @@ export class WeaviatePerformanceMonitor {
 
       logger.info('Auto-remediation completed', { alertId: violation.id });
 
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('Auto-remediation failed', {
         alertId: violation.id,
-        error: error.message
+        error: error instanceof Error ? error?.message : String(error)
       });
     }
   }
@@ -597,7 +597,7 @@ export class WeaviatePerformanceMonitor {
 
       await performanceCoordinationDashboard.updateCoordinationStatus(coordinationUpdate);
 
-    } catch (error) {
+    } catch (error: unknown) {
       logger.warn('Failed to report to coordination dashboard', error);
     }
   }
@@ -625,7 +625,7 @@ export class WeaviatePerformanceMonitor {
         60 // 1 minute TTL for summary
       );
 
-    } catch (error) {
+    } catch (error: unknown) {
       logger.warn('Failed to cache monitoring metrics', error);
     }
   }
@@ -636,7 +636,7 @@ export class WeaviatePerformanceMonitor {
   public async getCurrentMetrics(): Promise<WeaviateMonitoringMetrics | null> {
     try {
       return await CacheService.get<WeaviateMonitoringMetrics>('weaviate_performance_metrics');
-    } catch (error) {
+    } catch (error: unknown) {
       logger.warn('Failed to get current monitoring metrics', error);
       return null;
     }

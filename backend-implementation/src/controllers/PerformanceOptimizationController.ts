@@ -20,7 +20,7 @@
  * Version: 1.0.0
  */
 
-import { Request, Response } from "express";
+import type { Request, Response } from "express";
 import { logger, Timer } from "@/utils/logger";
 import { AppError } from "@/middleware/errorHandler";
 import { ResponseHelper } from "@/utils/ResponseHelper";
@@ -107,14 +107,14 @@ export class PerformanceOptimizationController {
         }
       }, "Performance optimization framework deployed successfully");
 
-    } catch (error) {
-      timer.end({ error: error.message });
+    } catch (error: unknown) {
+      timer.end({ error: error instanceof Error ? error?.message : String(error) });
       logger.error("❌ Performance optimization framework deployment failed", error);
       
       if (error instanceof AppError) {
-        ResponseHelper.error(res, error.message, error.statusCode);
+        ResponseHelper.error(res, error instanceof Error ? error?.message : String(error), error.statusCode);
       } else {
-        ResponseHelper.error(res, "Failed to deploy performance optimization framework", 500);
+        ResponseHelper.error(res, req, { message: "Failed to deploy performance optimization framework", statusCode: 500 });
       }
     }
   }
@@ -219,14 +219,14 @@ export class PerformanceOptimizationController {
       ResponseHelper.success(res, optimizationData, 
         `Comprehensive optimization completed with ${combinedImprovement}% improvement`);
 
-    } catch (error) {
-      timer.end({ error: error.message });
+    } catch (error: unknown) {
+      timer.end({ error: error instanceof Error ? error?.message : String(error) });
       logger.error("❌ Comprehensive performance optimization failed", error);
       
       if (error instanceof AppError) {
-        ResponseHelper.error(res, error.message, error.statusCode);
+        ResponseHelper.error(res, error instanceof Error ? error?.message : String(error), error.statusCode);
       } else {
-        ResponseHelper.error(res, "Failed to execute comprehensive optimization", 500);
+        ResponseHelper.error(res, req, { message: "Failed to execute comprehensive optimization", statusCode: 500 });
       }
     }
   }
@@ -281,11 +281,11 @@ export class PerformanceOptimizationController {
 
       ResponseHelper.success(res, statusData, "Performance optimization status retrieved successfully");
 
-    } catch (error) {
-      timer.end({ error: error.message });
+    } catch (error: unknown) {
+      timer.end({ error: error instanceof Error ? error?.message : String(error) });
       logger.error("❌ Failed to retrieve optimization status", error);
       
-      ResponseHelper.error(res, "Failed to retrieve optimization status", 500);
+      ResponseHelper.error(res, req, { message: "Failed to retrieve optimization status", statusCode: 500 });
     }
   }
 
@@ -391,11 +391,11 @@ export class PerformanceOptimizationController {
 
       ResponseHelper.success(res, metrics, "Performance metrics retrieved successfully");
 
-    } catch (error) {
-      timer.end({ error: error.message });
+    } catch (error: unknown) {
+      timer.end({ error: error instanceof Error ? error?.message : String(error) });
       logger.error("❌ Failed to retrieve performance metrics", error);
       
-      ResponseHelper.error(res, "Failed to retrieve performance metrics", 500);
+      ResponseHelper.error(res, req, { message: "Failed to retrieve performance metrics", statusCode: 500 });
     }
   }
 
@@ -446,14 +446,14 @@ export class PerformanceOptimizationController {
 
       ResponseHelper.success(res, benchmarkData, "Performance benchmarks retrieved successfully");
 
-    } catch (error) {
-      timer.end({ error: error.message });
+    } catch (error: unknown) {
+      timer.end({ error: error instanceof Error ? error?.message : String(error) });
       logger.error("❌ Failed to retrieve performance benchmarks", error);
       
       if (error instanceof AppError) {
-        ResponseHelper.error(res, error.message, error.statusCode);
+        ResponseHelper.error(res, error instanceof Error ? error?.message : String(error), error.statusCode);
       } else {
-        ResponseHelper.error(res, "Failed to retrieve performance benchmarks", 500);
+        ResponseHelper.error(res, req, { message: "Failed to retrieve performance benchmarks", statusCode: 500 });
       }
     }
   }
@@ -506,14 +506,14 @@ export class PerformanceOptimizationController {
       ResponseHelper.success(res, coordinationResult, 
         `Performance optimization coordination completed with ${coordinationResult.successful} successful coordinations`);
 
-    } catch (error) {
-      timer.end({ error: error.message });
+    } catch (error: unknown) {
+      timer.end({ error: error instanceof Error ? error?.message : String(error) });
       logger.error("❌ Performance optimization coordination failed", error);
       
       if (error instanceof AppError) {
-        ResponseHelper.error(res, error.message, error.statusCode);
+        ResponseHelper.error(res, error instanceof Error ? error?.message : String(error), error.statusCode);
       } else {
-        ResponseHelper.error(res, "Failed to coordinate performance optimization", 500);
+        ResponseHelper.error(res, req, { message: "Failed to coordinate performance optimization", statusCode: 500 });
       }
     }
   }
@@ -584,8 +584,8 @@ export class PerformanceOptimizationController {
         // This would coordinate with actual services in a real implementation
         await new Promise(resolve => setTimeout(resolve, 100)); // Simulate coordination
         return { service, status: 'success', message: `Coordinated with ${service}` };
-      } catch (error) {
-        return { service, status: 'failed', message: `Failed to coordinate with ${service}: ${error.message}` };
+      } catch (error: unknown) {
+        return { service, status: 'failed', message: `Failed to coordinate with ${service}: ${error instanceof Error ? error?.message : String(error)}` };
       }
     });
 
@@ -615,8 +615,8 @@ export class PerformanceOptimizationController {
         await new Promise(resolve => setTimeout(resolve, 100)); // Simulate coordination
         results.push({ service, status: 'success', message: `Coordinated with ${service}` });
         successful++;
-      } catch (error) {
-        results.push({ service, status: 'failed', message: `Failed to coordinate with ${service}: ${error.message}` });
+      } catch (error: unknown) {
+        results.push({ service, status: 'failed', message: `Failed to coordinate with ${service}: ${error instanceof Error ? error?.message : String(error)}` });
       }
     }
 

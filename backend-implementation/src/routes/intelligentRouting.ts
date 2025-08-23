@@ -470,7 +470,7 @@ router.get(
         message: "Routing strategies retrieved successfully"
       });
 
-    } catch (error) {
+    } catch (error: unknown) {
       res.status(500).json({
         success: false,
         message: "Failed to retrieve routing strategies"

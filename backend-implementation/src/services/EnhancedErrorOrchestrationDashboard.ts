@@ -204,8 +204,8 @@ export class EnhancedErrorOrchestrationDashboard extends EventEmitter {
         try {
           const data = JSON.parse(message);
           this.handleClientMessage(clientId, data);
-        } catch (error) {
-          logger.error("Invalid WebSocket message", { clientId, error: error.message });
+        } catch (error: unknown) {
+          logger.error("Invalid WebSocket message", { clientId, error: error instanceof Error ? error?.message : String(error) });
         }
       });
 
@@ -729,8 +729,8 @@ export class EnhancedErrorOrchestrationDashboard extends EventEmitter {
           [DashboardType.EXECUTIVE, DashboardType.OPERATIONS, DashboardType.AI_ML_MONITORING]
         );
         
-      } catch (error) {
-        logger.error("Error updating analytics", { error: error.message });
+      } catch (error: unknown) {
+        logger.error("Error updating analytics", { error: error instanceof Error ? error?.message : String(error) });
       }
     }, this.analyticsUpdateInterval);
   }
@@ -768,10 +768,10 @@ export class EnhancedErrorOrchestrationDashboard extends EventEmitter {
         JSON.stringify(dashboard)
       );
       
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error("Failed to deploy Grafana dashboard", {
         dashboardId: dashboard.id,
-        error: error.message
+        error: error instanceof Error ? error?.message : String(error)
       });
     }
   }
@@ -868,8 +868,8 @@ export class EnhancedErrorOrchestrationDashboard extends EventEmitter {
           timestamp: new Date().toISOString()
         }));
       }
-    } catch (error) {
-      logger.error("Failed to send initial analytics", { clientId, error: error.message });
+    } catch (error: unknown) {
+      logger.error("Failed to send initial analytics", { clientId, error: error instanceof Error ? error?.message : String(error) });
     }
   }
 }

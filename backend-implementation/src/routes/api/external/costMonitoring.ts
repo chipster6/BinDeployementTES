@@ -21,7 +21,7 @@
  * Version: 1.0.0 - Phase 2 External API Completion
  */
 
-import { Router, Request, Response } from "express";
+import { Router, type Request, type Response } from "express";
 import { auth } from "@/middleware/auth";
 import { validation } from "@/middleware/validation";
 import { rateLimit } from "@/middleware/rateLimit";
@@ -89,7 +89,7 @@ router.get("/analytics", auth, rateLimit, async (req: Request, res: Response) =>
     );
 
     if (!analyticsResult.success) {
-      return ResponseHelper.internalError(res, analyticsResult.message!);
+      return ResponseHelper.internalError(res, analyticsResult?.message!);
     }
 
     const executionTime = timer.end({
@@ -108,18 +108,13 @@ router.get("/analytics", auth, rateLimit, async (req: Request, res: Response) =>
 
     return ResponseHelper.success(res, {
       analytics: analyticsResult.data,
-      timeRange,
-      metadata: {
-        executionTime,
-        dataFreshness: "5-minute-cache",
-        servicesIncluded: services ? (services as string).split(',') : ["all"]
-      }
+      timeRange
     });
 
-  } catch (error) {
-    timer.end({ error: error.message });
+  } catch (error: unknown) {
+    timer.end({ error: error instanceof Error ? error?.message : String(error) });
     logger.error('Error retrieving cost analytics', {
-      error: error.message,
+      error: error instanceof Error ? error?.message : String(error),
       query: req.query
     });
     
@@ -151,7 +146,7 @@ router.get("/real-time", auth, rateLimit, async (req: Request, res: Response) =>
     );
 
     if (!realTimeResult.success) {
-      return ResponseHelper.internalError(res, realTimeResult.message!);
+      return ResponseHelper.internalError(res, realTimeResult?.message!);
     }
 
     const executionTime = timer.end({
@@ -167,18 +162,13 @@ router.get("/real-time", auth, rateLimit, async (req: Request, res: Response) =>
 
     return ResponseHelper.success(res, {
       realTimeData: realTimeResult.data,
-      timestamp: new Date(),
-      metadata: {
-        executionTime,
-        dataFreshness: "real-time",
-        servicesQueried: requestedServices || ["graphhopper", "google_maps", "mapbox", "twilio", "sendgrid", "stripe"]
-      }
+      timestamp: new Date()
     });
 
-  } catch (error) {
-    timer.end({ error: error.message });
+  } catch (error: unknown) {
+    timer.end({ error: error instanceof Error ? error?.message : String(error) });
     logger.error('Error retrieving real-time cost data', {
-      error: error.message,
+      error: error instanceof Error ? error?.message : String(error),
       query: req.query
     });
     
@@ -222,7 +212,7 @@ router.get("/providers/comparison", auth, rateLimit, async (req: Request, res: R
     );
 
     if (!comparisonResult.success) {
-      return ResponseHelper.internalError(res, comparisonResult.message!);
+      return ResponseHelper.internalError(res, comparisonResult?.message!);
     }
 
     const executionTime = timer.end({
@@ -240,17 +230,13 @@ router.get("/providers/comparison", auth, rateLimit, async (req: Request, res: R
 
     return ResponseHelper.success(res, {
       comparison: comparisonResult.data,
-      timeRange,
-      metadata: {
-        executionTime,
-        analysisDepth: "comprehensive"
-      }
+      timeRange
     });
 
-  } catch (error) {
-    timer.end({ error: error.message });
+  } catch (error: unknown) {
+    timer.end({ error: error instanceof Error ? error?.message : String(error) });
     logger.error('Error retrieving provider cost comparison', {
-      error: error.message,
+      error: error instanceof Error ? error?.message : String(error),
       query: req.query
     });
     
@@ -297,7 +283,7 @@ router.post("/budgets", auth, validation, rateLimit, async (req: Request, res: R
     const budgetResult = await costMonitoringService.createCostBudget(budgetData);
 
     if (!budgetResult.success) {
-      return ResponseHelper.badRequest(res, budgetResult.message!);
+      return ResponseHelper.badRequest(res, budgetResult?.message!);
     }
 
     const executionTime = timer.end({
@@ -319,17 +305,13 @@ router.post("/budgets", auth, validation, rateLimit, async (req: Request, res: R
 
     return ResponseHelper.success(res, {
       budget: budgetResult.data,
-      message: "Budget created successfully",
-      metadata: {
-        executionTime,
-        createdBy: budgetData.createdBy
-      }
+      message: "Budget created successfully"
     }, 201);
 
-  } catch (error) {
-    timer.end({ error: error.message });
+  } catch (error: unknown) {
+    timer.end({ error: error instanceof Error ? error?.message : String(error) });
     logger.error('Error creating cost budget', {
-      error: error.message,
+      error: error instanceof Error ? error?.message : String(error),
       body: req.body
     });
     
@@ -355,7 +337,7 @@ router.get("/budgets/:organizationId", auth, rateLimit, async (req: Request, res
     const budgetsResult = await costMonitoringService.getOrganizationBudgets(organizationId);
 
     if (!budgetsResult.success) {
-      return ResponseHelper.internalError(res, budgetsResult.message!);
+      return ResponseHelper.internalError(res, budgetsResult?.message!);
     }
 
     const executionTime = timer.end({
@@ -371,17 +353,13 @@ router.get("/budgets/:organizationId", auth, rateLimit, async (req: Request, res
 
     return ResponseHelper.success(res, {
       budgets: budgetsResult.data,
-      organizationId,
-      metadata: {
-        executionTime,
-        budgetCount: budgetsResult.data!.length
-      }
+      organizationId
     });
 
-  } catch (error) {
-    timer.end({ error: error.message });
+  } catch (error: unknown) {
+    timer.end({ error: error instanceof Error ? error?.message : String(error) });
     logger.error('Error retrieving organization budgets', {
-      error: error.message,
+      error: error instanceof Error ? error?.message : String(error),
       organizationId: req.params.organizationId
     });
     
@@ -420,7 +398,7 @@ router.post("/alerts", auth, validation, rateLimit, async (req: Request, res: Re
     const alertResult = await costMonitoringService.createCostAlert(alertData);
 
     if (!alertResult.success) {
-      return ResponseHelper.badRequest(res, alertResult.message!);
+      return ResponseHelper.badRequest(res, alertResult?.message!);
     }
 
     const executionTime = timer.end({
@@ -437,16 +415,13 @@ router.post("/alerts", auth, validation, rateLimit, async (req: Request, res: Re
 
     return ResponseHelper.success(res, {
       alert: alertResult.data,
-      message: "Alert created successfully",
-      metadata: {
-        executionTime
-      }
+      message: "Alert created successfully"
     }, 201);
 
-  } catch (error) {
-    timer.end({ error: error.message });
+  } catch (error: unknown) {
+    timer.end({ error: error instanceof Error ? error?.message : String(error) });
     logger.error('Error creating cost alert', {
-      error: error.message,
+      error: error instanceof Error ? error?.message : String(error),
       body: req.body
     });
     
@@ -484,7 +459,7 @@ router.post("/record", auth, validation, rateLimit, async (req: Request, res: Re
     const recordResult = await costMonitoringService.recordAPICallCost(costData);
 
     if (!recordResult.success) {
-      return ResponseHelper.internalError(res, recordResult.message!);
+      return ResponseHelper.internalError(res, recordResult?.message!);
     }
 
     const executionTime = timer.end({
@@ -504,16 +479,13 @@ router.post("/record", auth, validation, rateLimit, async (req: Request, res: Re
     return ResponseHelper.success(res, {
       costId: costData.id,
       recorded: true,
-      message: "Cost data recorded successfully",
-      metadata: {
-        executionTime
-      }
+      message: "Cost data recorded successfully"
     });
 
-  } catch (error) {
-    timer.end({ error: error.message });
+  } catch (error: unknown) {
+    timer.end({ error: error instanceof Error ? error?.message : String(error) });
     logger.error('Error recording API call cost', {
-      error: error.message,
+      error: error instanceof Error ? error?.message : String(error),
       body: req.body
     });
     
@@ -584,18 +556,13 @@ router.get("/reports", auth, rateLimit, async (req: Request, res: Response) => {
     return ResponseHelper.success(res, {
       report,
       reportType,
-      timeRange,
-      metadata: {
-        executionTime,
-        format: format || "json",
-        generatedAt: new Date()
-      }
+      timeRange
     });
 
-  } catch (error) {
-    timer.end({ error: error.message });
+  } catch (error: unknown) {
+    timer.end({ error: error instanceof Error ? error?.message : String(error) });
     logger.error('Error generating cost report', {
-      error: error.message,
+      error: error instanceof Error ? error?.message : String(error),
       query: req.query
     });
     

@@ -179,11 +179,11 @@ class DatabaseOptimizationService {
         logger.debug("✅ Index created successfully", { 
           command: indexCommand.split('\n')[0].substring(0, 100) + "..." 
         });
-      } catch (error) {
+      } catch (error: unknown) {
         errorCount++;
         logger.error("❌ Failed to create index", { 
           command: indexCommand.split('\n')[0].substring(0, 100) + "...",
-          error: error instanceof Error ? error.message : error
+          error: error instanceof Error ? error?.message : error
         });
       }
     }
@@ -251,7 +251,7 @@ class DatabaseOptimizationService {
         summary,
       };
 
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error("❌ Database performance analysis failed:", error);
       throw error;
     }
@@ -278,9 +278,9 @@ class DatabaseOptimizationService {
       const [sizeResults] = await sequelize.query(`
         SELECT 
           t.table_name,
-          pg_total_relation_size('"' || t.table_name || '"') as total_size,
-          pg_relation_size('"' || t.table_name || '"') as table_size,
-          pg_total_relation_size('"' || t.table_name || '"') - pg_relation_size('"' || t.table_name || '"') as index_size,
+          pg_total_relation_size('"' || t?.table_name || '"') as total_size,
+          pg_relation_size('"' || t?.table_name || '"') as table_size,
+          pg_total_relation_size('"' || t?.table_name || '"') - pg_relation_size('"' || t?.table_name || '"') as index_size,
           (SELECT reltuples::bigint FROM pg_class WHERE relname = t.table_name) as row_count
         FROM information_schema.tables t
         WHERE t.table_schema = 'public'
@@ -303,7 +303,7 @@ class DatabaseOptimizationService {
 
       return tableStats;
 
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error("Failed to get table statistics:", error);
       return [];
     }
@@ -347,7 +347,7 @@ class DatabaseOptimizationService {
 
       return indexUsage;
 
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error("Failed to get index usage information:", error);
       return [];
     }
@@ -486,7 +486,7 @@ class DatabaseOptimizationService {
         explanation: improvements.join('; ') || "Query is already optimized",
       };
 
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error("Query optimization failed:", error);
       return {
         optimizedQuery: sql,
@@ -516,7 +516,7 @@ class DatabaseOptimizationService {
         logger.info("✅ VACUUM ANALYZE completed for all tables");
       }
 
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error("❌ VACUUM ANALYZE failed:", error);
       throw error;
     }
@@ -540,7 +540,7 @@ class DatabaseOptimizationService {
         logger.info("✅ Statistics updated for all tables");
       }
 
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error("❌ Statistics update failed:", error);
       throw error;
     }
@@ -578,7 +578,7 @@ class DatabaseOptimizationService {
         performance: this.assessPerformance(cached),
       };
 
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error("Failed to get optimization status:", error);
       return {
         criticalIndexes: 0,
@@ -595,7 +595,7 @@ class DatabaseOptimizationService {
   private assessPerformance(cachedData: any): "optimal" | "good" | "needs_attention" | "critical" {
     if (!cachedData) return "critical";
 
-    const recommendations = cachedData.recommendations || [];
+    const recommendations = cachedData?.recommendations || [];
     const highPriorityRecs = recommendations.filter((r: any) => r.priority === "high").length;
     
     if (highPriorityRecs === 0) return "optimal";

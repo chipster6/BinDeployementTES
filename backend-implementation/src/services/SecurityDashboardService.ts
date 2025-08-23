@@ -184,7 +184,7 @@ export class SecurityDashboardService extends BaseService<any> {
     try {
       this.io = new SocketIOServer(server, {
         cors: {
-          origin: process.env.FRONTEND_URL || "http://localhost:3000",
+          origin: process.env?.FRONTEND_URL || "http://localhost:3000",
           methods: ["GET", "POST"],
           credentials: true
         },
@@ -198,9 +198,9 @@ export class SecurityDashboardService extends BaseService<any> {
         cors: this.io.engine.opts.cors
       });
 
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error("Failed to initialize WebSocket server", {
-        error: error.message
+        error: error instanceof Error ? error?.message : String(error)
       });
       throw error;
     }
@@ -251,10 +251,10 @@ export class SecurityDashboardService extends BaseService<any> {
         message: "Dashboard state retrieved successfully"
       };
 
-    } catch (error) {
-      timer.end({ error: error.message });
+    } catch (error: unknown) {
+      timer.end({ error: error instanceof Error ? error?.message : String(error) });
       logger.error("SecurityDashboardService.getDashboardState failed", {
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
         userId,
         role
       });
@@ -262,7 +262,7 @@ export class SecurityDashboardService extends BaseService<any> {
       return {
         success: false,
         message: "Failed to get dashboard state",
-        errors: [error.message]
+        errors: [error instanceof Error ? error?.message : String(error)]
       };
     }
   }
@@ -298,9 +298,9 @@ export class SecurityDashboardService extends BaseService<any> {
         }, alert.expiresAt.getTime() - Date.now());
       }
 
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error("Failed to publish alert", {
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
         alertId: alert.id
       });
     }
@@ -343,9 +343,9 @@ export class SecurityDashboardService extends BaseService<any> {
         lastUpdated: widget.metadata.lastUpdated
       });
 
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error("Failed to update widget", {
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
         widgetId
       });
     }
@@ -378,9 +378,9 @@ export class SecurityDashboardService extends BaseService<any> {
         ).length
       });
 
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error("Failed to stream metrics", {
-        error: error.message
+        error: error instanceof Error ? error?.message : String(error)
       });
     }
   }
@@ -462,16 +462,16 @@ export class SecurityDashboardService extends BaseService<any> {
         message: "Dashboard analytics retrieved successfully"
       };
 
-    } catch (error) {
-      timer.end({ error: error.message });
+    } catch (error: unknown) {
+      timer.end({ error: error instanceof Error ? error?.message : String(error) });
       logger.error("SecurityDashboardService.getDashboardAnalytics failed", {
-        error: error.message
+        error: error instanceof Error ? error?.message : String(error)
       });
 
       return {
         success: false,
         message: "Failed to get dashboard analytics",
-        errors: [error.message]
+        errors: [error instanceof Error ? error?.message : String(error)]
       };
     }
   }
@@ -491,12 +491,6 @@ export class SecurityDashboardService extends BaseService<any> {
         highRiskSessions: 0,
         blockedThreats: 0
       },
-      metadata: {
-        lastUpdated: new Date(),
-        refreshInterval: 30000, // 30 seconds
-        source: "mlSecurityService",
-        dataSource: ["behavioral_analysis", "threat_detection"]
-      },
       config: {
         thresholds: { low: 0.3, medium: 0.6, high: 0.8 },
         alertOnHigh: true
@@ -514,12 +508,6 @@ export class SecurityDashboardService extends BaseService<any> {
         fraudRate: 0,
         savedAmount: 0
       },
-      metadata: {
-        lastUpdated: new Date(),
-        refreshInterval: 60000, // 1 minute
-        source: "fraudDetectionService",
-        dataSource: ["transaction_analysis", "fraud_scoring"]
-      },
       config: {
         chartType: "line",
         timeRange: "24h"
@@ -535,12 +523,6 @@ export class SecurityDashboardService extends BaseService<any> {
         activeCampaigns: [],
         threatLevel: "medium",
         lastActivity: null
-      },
-      metadata: {
-        lastUpdated: new Date(),
-        refreshInterval: 120000, // 2 minutes
-        source: "aptDetectionService",
-        dataSource: ["campaign_tracking", "threat_intelligence"]
       },
       config: {
         maxRows: 10,
@@ -558,12 +540,6 @@ export class SecurityDashboardService extends BaseService<any> {
         latency: 0,
         throughput: 0,
         modelsDeployed: 0
-      },
-      metadata: {
-        lastUpdated: new Date(),
-        refreshInterval: 300000, // 5 minutes
-        source: "mlModelTrainingService",
-        dataSource: ["model_monitoring", "performance_metrics"]
       },
       config: {
         gaugeType: "multi",
@@ -584,12 +560,6 @@ export class SecurityDashboardService extends BaseService<any> {
         riskTrends: [],
         predictions: []
       },
-      metadata: {
-        lastUpdated: new Date(),
-        refreshInterval: 600000, // 10 minutes
-        source: "securityAnalyticsService",
-        dataSource: ["threat_predictions", "risk_analysis"]
-      },
       config: {
         chartType: "forecast",
         horizon: "7d"
@@ -606,12 +576,6 @@ export class SecurityDashboardService extends BaseService<any> {
         responseTime: 0,
         errorRate: 0,
         uptime: 0
-      },
-      metadata: {
-        lastUpdated: new Date(),
-        refreshInterval: 15000, // 15 seconds
-        source: "systemMonitoring",
-        dataSource: ["system_metrics", "health_checks"]
       },
       config: {
         healthThresholds: {
@@ -640,10 +604,10 @@ export class SecurityDashboardService extends BaseService<any> {
         try {
           // Validate token and setup subscription
           await this.authenticateClient(socket, data);
-        } catch (error) {
+        } catch (error: unknown) {
           logger.error("Client authentication failed", {
             socketId: socket.id,
-            error: error.message
+            error: error instanceof Error ? error?.message : String(error)
           });
           socket.emit("auth_error", { message: "Authentication failed" });
           socket.disconnect();
@@ -969,8 +933,8 @@ export class SecurityDashboardService extends BaseService<any> {
           await this.updateWidget(widget.id, freshData);
         }
       }
-    } catch (error) {
-      logger.error("Failed to update widgets", { error: error.message });
+    } catch (error: unknown) {
+      logger.error("Failed to update widgets", { error: error instanceof Error ? error?.message : String(error) });
     }
   }
 

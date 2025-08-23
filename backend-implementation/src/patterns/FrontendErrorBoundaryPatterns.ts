@@ -173,7 +173,7 @@ class WasteManagementErrorBoundary extends Component<Props, State> {
           errorInfo={this.state.errorInfo}
           errorId={this.state.errorId}
           level={level}
-          retryEnabled={retryEnabled && this.state.retryCount < (this.props.maxRetries || 3)}
+          retryEnabled={retryEnabled && this.state.retryCount < (this.props?.maxRetries || 3)}
           onRetry={this.retry}
           retryCount={this.state.retryCount}
         />
@@ -238,8 +238,8 @@ const ErrorFallbackComponent: React.FC<ErrorFallbackProps> = ({
       const response = await fetch(\`/api/errors/\${errorId}/user-friendly\`);
       const data = await response.json();
       
-      setUserMessage(data.message);
-      setActions(data.actions || []);
+      setUserMessage(data?.message);
+      setActions(data?.actions || []);
     } catch (err) {
       setUserMessage(getDefaultMessage());
       setActions(getDefaultActions());
@@ -296,7 +296,7 @@ const ErrorFallbackComponent: React.FC<ErrorFallbackProps> = ({
         window.location.reload();
         break;
       case 'navigate':
-        window.location.href = action.target || '/';
+        window.location.href = action?.target || '/';
         break;
       case 'contact':
         if (action.target) {
@@ -504,7 +504,7 @@ export const useErrorHandler = (options: UseErrorHandlerOptions) => {
       
       setErrorState(prev => ({
         ...prev,
-        userMessage: data.message,
+        userMessage: data?.message,
         actions: data.actions,
       }));
     } catch (err) {
@@ -522,7 +522,7 @@ export const useErrorHandler = (options: UseErrorHandlerOptions) => {
   }, []);
 
   const retry = useCallback(async (retryFunction?: () => Promise<void> | void) => {
-    const maxRetries = options.maxRetries || 3;
+    const maxRetries = options?.maxRetries || 3;
     
     if (errorState.retryCount >= maxRetries) {
       return;
@@ -557,7 +557,7 @@ export const useErrorHandler = (options: UseErrorHandlerOptions) => {
     return async (...args: T): Promise<R | null> => {
       try {
         return await asyncFunction(...args);
-      } catch (error) {
+      } catch (error: unknown) {
         await reportError(error instanceof Error ? error : new Error(String(error)));
         return null;
       }
@@ -571,7 +571,7 @@ export const useErrorHandler = (options: UseErrorHandlerOptions) => {
     return (...args: T): R | null => {
       try {
         return syncFunction(...args);
-      } catch (error) {
+      } catch (error: unknown) {
         reportError(error instanceof Error ? error : new Error(String(error)));
         return null;
       }
@@ -585,7 +585,7 @@ export const useErrorHandler = (options: UseErrorHandlerOptions) => {
     retry,
     wrapAsync,
     wrapSync,
-    canRetry: errorState.retryCount < (options.maxRetries || 3) && options.retryEnabled !== false,
+    canRetry: errorState.retryCount < (options?.maxRetries || 3) && options.retryEnabled !== false,
   };
 };
 `;
@@ -789,7 +789,7 @@ export const UsageExamples = {
   fallback={<CustomErrorPage />}
   onError={(error, errorInfo) => {
     console.log('Custom error handler:', error);
-    analytics.track('error_boundary_triggered', { error: error.message });
+    analytics.track('error_boundary_triggered', { error: error instanceof Error ? error?.message : String(error) });
   }}
 >
   <DashboardPage />

@@ -10,7 +10,7 @@ export class DatabaseService {
       logger.info("PostgreSQL connected successfully");
       await redisClient.ping();
       logger.info("Redis connected successfully");
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error("Database connection failed:", error);
       throw error;
     }

@@ -368,7 +368,7 @@ export class UserProfile extends Model<UserProfile> {
     const requiredFields = [
       this.firstName,
       this.lastName,
-      this.phone || this.mobile,
+      this?.phone || this.mobile,
       this.gdprConsentGiven,
     ];
 

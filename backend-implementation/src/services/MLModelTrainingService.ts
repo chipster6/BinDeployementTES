@@ -281,10 +281,10 @@ export class MLModelTrainingService extends BaseService<any> {
         message: "Training job submitted successfully"
       };
 
-    } catch (error) {
-      timer.end({ error: error.message });
+    } catch (error: unknown) {
+      timer.end({ error: error instanceof Error ? error?.message : String(error) });
       logger.error("MLModelTrainingService.submitTrainingJob failed", {
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
         modelType: config.modelType,
         algorithm: config.algorithm
       });
@@ -292,7 +292,7 @@ export class MLModelTrainingService extends BaseService<any> {
       return {
         success: false,
         message: "Failed to submit training job",
-        errors: [error.message]
+        errors: [error instanceof Error ? error?.message : String(error)]
       };
     }
   }
@@ -345,17 +345,17 @@ export class MLModelTrainingService extends BaseService<any> {
         message: "Training job status retrieved successfully"
       };
 
-    } catch (error) {
-      timer.end({ error: error.message });
+    } catch (error: unknown) {
+      timer.end({ error: error instanceof Error ? error?.message : String(error) });
       logger.error("MLModelTrainingService.getTrainingJobStatus failed", {
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
         jobId
       });
 
       return {
         success: false,
         message: "Failed to get training job status",
-        errors: [error.message]
+        errors: [error instanceof Error ? error?.message : String(error)]
       };
     }
   }
@@ -409,7 +409,7 @@ export class MLModelTrainingService extends BaseService<any> {
           latency: 0,
           throughput: 0,
           errorRate: 0,
-          accuracy: model.metrics.accuracy || 0
+          accuracy: model.metrics?.accuracy || 0
         },
         trafficPercentage
       };
@@ -443,10 +443,10 @@ export class MLModelTrainingService extends BaseService<any> {
         message: "Model deployment initiated successfully"
       };
 
-    } catch (error) {
-      timer.end({ error: error.message });
+    } catch (error: unknown) {
+      timer.end({ error: error instanceof Error ? error?.message : String(error) });
       logger.error("MLModelTrainingService.deployModel failed", {
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
         modelId,
         environment
       });
@@ -454,7 +454,7 @@ export class MLModelTrainingService extends BaseService<any> {
       return {
         success: false,
         message: "Failed to deploy model",
-        errors: [error.message]
+        errors: [error instanceof Error ? error?.message : String(error)]
       };
     }
   }
@@ -540,17 +540,17 @@ export class MLModelTrainingService extends BaseService<any> {
         message: "Model performance monitoring data retrieved successfully"
       };
 
-    } catch (error) {
-      timer.end({ error: error.message });
+    } catch (error: unknown) {
+      timer.end({ error: error instanceof Error ? error?.message : String(error) });
       logger.error("MLModelTrainingService.monitorModelPerformance failed", {
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
         modelId
       });
 
       return {
         success: false,
         message: "Failed to monitor model performance",
-        errors: [error.message]
+        errors: [error instanceof Error ? error?.message : String(error)]
       };
     }
   }
@@ -631,10 +631,10 @@ export class MLModelTrainingService extends BaseService<any> {
         message: "Model retraining triggered successfully"
       };
 
-    } catch (error) {
-      timer.end({ error: error.message });
+    } catch (error: unknown) {
+      timer.end({ error: error instanceof Error ? error?.message : String(error) });
       logger.error("MLModelTrainingService.triggerRetraining failed", {
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
         modelId,
         reason
       });
@@ -642,7 +642,7 @@ export class MLModelTrainingService extends BaseService<any> {
       return {
         success: false,
         message: "Failed to trigger model retraining",
-        errors: [error.message]
+        errors: [error instanceof Error ? error?.message : String(error)]
       };
     }
   }
@@ -740,16 +740,16 @@ export class MLModelTrainingService extends BaseService<any> {
         message: "Training dashboard generated successfully"
       };
 
-    } catch (error) {
-      timer.end({ error: error.message });
+    } catch (error: unknown) {
+      timer.end({ error: error instanceof Error ? error?.message : String(error) });
       logger.error("MLModelTrainingService.getTrainingDashboard failed", {
-        error: error.message
+        error: error instanceof Error ? error?.message : String(error)
       });
 
       return {
         success: false,
         message: "Failed to generate training dashboard",
-        errors: [error.message]
+        errors: [error instanceof Error ? error?.message : String(error)]
       };
     }
   }
@@ -971,13 +971,13 @@ export class MLModelTrainingService extends BaseService<any> {
     // Validate required fields
     if (!config.modelType) errors.push("Model type is required");
     if (!config.algorithm) errors.push("Training algorithm is required");
-    if (!config.features || config.features.length === 0) {
+    if (!config?.features || config.features.length === 0) {
       errors.push("Features list cannot be empty");
     }
 
     // Validate hyperparameters based on algorithm
     if (config.algorithm === TrainingAlgorithm.RANDOM_FOREST) {
-      if (!config.hyperparameters.n_estimators || config.hyperparameters.n_estimators < 1) {
+      if (!config.hyperparameters?.n_estimators || config.hyperparameters.n_estimators < 1) {
         errors.push("n_estimators must be positive for Random Forest");
       }
     }
@@ -1009,7 +1009,7 @@ export class MLModelTrainingService extends BaseService<any> {
       [TrainingAlgorithm.TRANSFORMER]: 7200
     };
 
-    const sampleSizeMultiplier = Math.log10((config.trainingData.sampleSize || 10000) / 1000);
+    const sampleSizeMultiplier = Math.log10((config.trainingData?.sampleSize || 10000) / 1000);
     const optimizationMultiplier = config.optimization.trials / 50;
 
     return (baseTime[config.algorithm] || 600) * sampleSizeMultiplier * optimizationMultiplier;
@@ -1045,14 +1045,14 @@ export class MLModelTrainingService extends BaseService<any> {
 
       this.eventEmitter.emit("trainingCompleted", job);
 
-    } catch (error) {
+    } catch (error: unknown) {
       job.status = "failed";
-      job.error = error.message;
+      job.error = error instanceof Error ? error?.message : String(error);
       job.endTime = new Date();
 
       logger.error("Model training failed", {
         jobId: job.id,
-        error: error.message
+        error: error instanceof Error ? error?.message : String(error)
       });
 
       this.eventEmitter.emit("trainingFailed", job);
@@ -1287,13 +1287,13 @@ export class MLModelTrainingService extends BaseService<any> {
     const completedJobs = Array.from(this.activeJobs.values()).filter(j => j.status === "completed");
     
     const avgTrainingTime = completedJobs.length > 0 ?
-      completedJobs.reduce((sum, job) => sum + (job.duration || 0), 0) / completedJobs.length : 0;
+      completedJobs.reduce((sum, job) => sum + (job?.duration || 0), 0) / completedJobs.length : 0;
     
     const successRate = this.activeJobs.size > 0 ?
       completedJobs.length / this.activeJobs.size : 0;
     
     const avgAccuracy = completedJobs.length > 0 ?
-      completedJobs.reduce((sum, job) => sum + (job.metrics.validation.accuracy || 0), 0) / completedJobs.length : 0;
+      completedJobs.reduce((sum, job) => sum + (job.metrics.validation?.accuracy || 0), 0) / completedJobs.length : 0;
 
     // Count algorithm usage
     const algorithmCounts = new Map();

@@ -137,11 +137,11 @@ export abstract class BaseMlService<T extends Model = Model> extends BaseService
         featureStore: !!this.featureStore,
         mlCacheNamespace: this.mlCacheNamespace
       });
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error(`Failed to initialize ML components for ${this.serviceName}`, {
-        error: error.message
+        error: error instanceof Error ? error?.message : String(error)
       });
-      throw new AppError(`ML service initialization failed: ${error.message}`, 500);
+      throw new AppError(`ML service initialization failed: ${error instanceof Error ? error?.message : String(error)}`, 500);
     }
   }
 
@@ -232,8 +232,8 @@ export abstract class BaseMlService<T extends Model = Model> extends BaseService
         message: 'Inference completed successfully'
       };
 
-    } catch (error) {
-      timer.end({ error: error.message, modelId: request.modelId });
+    } catch (error: unknown) {
+      timer.end({ error: error instanceof Error ? error?.message : String(error), modelId: request.modelId });
       
       // Try fallback if available
       if (request.options?.fallback !== false) {
@@ -245,14 +245,14 @@ export abstract class BaseMlService<T extends Model = Model> extends BaseService
 
       logger.error(`ML inference failed for ${this.serviceName}`, {
         modelId: request.modelId,
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
         features: Object.keys(request.features)
       });
 
       return {
         success: false,
         message: 'ML inference failed',
-        errors: [error.message]
+        errors: [error instanceof Error ? error?.message : String(error)]
       };
     }
   }
@@ -274,12 +274,12 @@ export abstract class BaseMlService<T extends Model = Model> extends BaseService
       const engineeredFeatures = await this.engineerFeatures(transformedFeatures);
       
       return engineeredFeatures;
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error(`Feature preparation failed for ${this.serviceName}`, {
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
         featuresCount: Object.keys(rawFeatures).length
       });
-      throw new ValidationError('Feature preparation failed', [error.message]);
+      throw new ValidationError('Feature preparation failed', [error instanceof Error ? error?.message : String(error)]);
     }
   }
 
@@ -301,7 +301,7 @@ export abstract class BaseMlService<T extends Model = Model> extends BaseService
     context?: any
   ): Promise<ServiceResult<any>> {
     logger.warn(`ML error in ${this.serviceName}.${operation}`, {
-      error: error.message,
+      error: error instanceof Error ? error?.message : String(error),
       type: error.type,
       context
     });
@@ -323,15 +323,15 @@ export abstract class BaseMlService<T extends Model = Model> extends BaseService
         return {
           success: false,
           message: 'Invalid input features provided',
-          errors: [error.message]
+          errors: [error instanceof Error ? error?.message : String(error)]
         };
         
       default:
         // Chain to base error handling
         return {
           success: false,
-          message: `ML operation failed: ${error.message}`,
-          errors: [error.message]
+          message: `ML operation failed: ${error instanceof Error ? error?.message : String(error)}`,
+          errors: [error instanceof Error ? error?.message : String(error)]
         };
     }
   }
@@ -360,11 +360,11 @@ export abstract class BaseMlService<T extends Model = Model> extends BaseService
         ttl,
         confidence: prediction.confidence
       });
-    } catch (error) {
+    } catch (error: unknown) {
       logger.warn(`Failed to cache ML prediction`, {
         service: this.serviceName,
         cacheKey,
-        error: error.message
+        error: error instanceof Error ? error?.message : String(error)
       });
     }
   }
@@ -386,7 +386,7 @@ export abstract class BaseMlService<T extends Model = Model> extends BaseService
    */
   protected generateInferenceCacheKey(request: MLInferenceRequest): string {
     const featuresHash = this.hashObject(request.features);
-    return `inference:${request.modelId}:${request.version || 'latest'}:${featuresHash}`;
+    return `inference:${request.modelId}:${request?.version || 'latest'}:${featuresHash}`;
   }
 
   /**
@@ -427,16 +427,16 @@ export abstract class BaseMlService<T extends Model = Model> extends BaseService
         ...baseStats,
         ml: mlStats
       };
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error(`Failed to get ML stats for ${this.serviceName}`, {
-        error: error.message
+        error: error instanceof Error ? error?.message : String(error)
       });
       
       return {
         service: this.serviceName,
         model: this.model.name,
         ml: {
-          error: error.message
+          error: error instanceof Error ? error?.message : String(error)
         }
       };
     }
@@ -527,7 +527,7 @@ export abstract class BaseMlService<T extends Model = Model> extends BaseService
     return {
       success: false,
       message: `Prediction validation failed: ${validation.reason}`,
-      errors: [validation.reason || 'Invalid prediction']
+      errors: [validation?.reason || 'Invalid prediction']
     };
   }
 
@@ -538,7 +538,7 @@ export abstract class BaseMlService<T extends Model = Model> extends BaseService
     try {
       // Implement fallback logic
       logger.info(`Attempting fallback inference for ${request.modelId}`, {
-        originalError: originalError.message
+        originalError: originalError?.message
       });
       
       // Return simple heuristic-based result
@@ -558,7 +558,7 @@ export abstract class BaseMlService<T extends Model = Model> extends BaseService
       return {
         success: false,
         message: 'Both primary and fallback inference failed',
-        errors: [originalError.message, fallbackError.message]
+        errors: [originalError?.message, fallbackError?.message]
       };
     }
   }

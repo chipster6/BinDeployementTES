@@ -68,11 +68,11 @@ export class OptimizedCacheManager {
   private static readonly hashInstance = createHash('sha256');
 
   constructor(config: CacheConfig = {}) {
-    this.prefix = config.prefix || 'cache';
-    this.defaultTTL = config.ttl || 300; // 5 minutes
+    this.prefix = config?.prefix || 'cache';
+    this.defaultTTL = config?.ttl || 300; // 5 minutes
     this.enabled = config.enabled !== false;
-    this.useCompression = config.useCompression || false;
-    this.maxKeyLength = config.maxKeyLength || 250; // Redis key limit
+    this.useCompression = config?.useCompression || false;
+    this.maxKeyLength = config?.maxKeyLength || 250; // Redis key limit
     this.stats = {
       hits: 0,
       misses: 0,
@@ -107,10 +107,10 @@ export class OptimizedCacheManager {
       }
 
       return key;
-    } catch (error) {
+    } catch (error: unknown) {
       logger.warn('Cache key generation failed, using fallback', {
         method,
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
       });
       
       // Fallback to simple hash
@@ -145,8 +145,8 @@ export class OptimizedCacheManager {
       }
 
       return String(params);
-    } catch (error) {
-      logger.debug('Parameter serialization failed', { error: error.message });
+    } catch (error: unknown) {
+      logger.debug('Parameter serialization failed', { error: error instanceof Error ? error?.message : String(error) });
       return String(params);
     }
   }
@@ -199,7 +199,7 @@ export class OptimizedCacheManager {
         } catch (deserializeError) {
           logger.warn('Cache deserialization failed', {
             key,
-            error: deserializeError.message,
+            error: deserializeError?.message,
           });
           this.stats.errors++;
           return { hit: false, key };
@@ -218,11 +218,11 @@ export class OptimizedCacheManager {
         this.updateHitRate();
         return { hit: false, key };
       }
-    } catch (error) {
+    } catch (error: unknown) {
       this.stats.errors++;
       logger.warn('Cache get operation failed', {
         key,
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
       });
       return { hit: false, key };
     }
@@ -254,11 +254,11 @@ export class OptimizedCacheManager {
       });
 
       return true;
-    } catch (error) {
+    } catch (error: unknown) {
       this.stats.errors++;
       logger.warn('Cache set operation failed', {
         key,
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
       });
       return false;
     }
@@ -286,11 +286,11 @@ export class OptimizedCacheManager {
       });
 
       return deleted;
-    } catch (error) {
+    } catch (error: unknown) {
       this.stats.errors++;
       logger.warn('Cache delete operation failed', {
         keys: keyArray.length,
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
       });
       return 0;
     }
@@ -322,11 +322,11 @@ export class OptimizedCacheManager {
       }
 
       return 0;
-    } catch (error) {
+    } catch (error: unknown) {
       this.stats.errors++;
       logger.warn('Cache clear pattern failed', {
         pattern,
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
       });
       return 0;
     }
@@ -336,7 +336,7 @@ export class OptimizedCacheManager {
    * Efficiently handle batch operations
    */
   public async getBatch<T>(keys: string[]): Promise<Map<string, T>> {
-    if (!this.enabled || keys.length === 0) {
+    if (!this?.enabled || keys.length === 0) {
       return new Map();
     }
 
@@ -352,10 +352,10 @@ export class OptimizedCacheManager {
             const data = this.deserializeData<T>(values[i]!);
             result.set(keys[i], data);
             this.stats.hits++;
-          } catch (error) {
+          } catch (error: unknown) {
             logger.debug('Batch cache deserialization failed', {
               key: keys[i],
-              error: error.message,
+              error: error instanceof Error ? error?.message : String(error),
             });
             this.stats.errors++;
           }
@@ -366,11 +366,11 @@ export class OptimizedCacheManager {
 
       this.updateHitRate();
       return result;
-    } catch (error) {
+    } catch (error: unknown) {
       this.stats.errors += keys.length;
       logger.warn('Batch cache get failed', {
         keyCount: keys.length,
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
       });
       return new Map();
     }
@@ -380,7 +380,7 @@ export class OptimizedCacheManager {
    * Batch set operations
    */
   public async setBatch<T>(entries: Map<string, T>, ttl?: number): Promise<boolean> {
-    if (!this.enabled || entries.size === 0) {
+    if (!this?.enabled || entries.size === 0) {
       return false;
     }
 
@@ -394,10 +394,10 @@ export class OptimizedCacheManager {
         try {
           const serialized = this.serializeData(data);
           pipeline.setex(key, cacheTTL, serialized);
-        } catch (error) {
+        } catch (error: unknown) {
           logger.debug('Batch cache serialization failed', {
             key,
-            error: error.message,
+            error: error instanceof Error ? error?.message : String(error),
           });
           this.stats.errors++;
         }
@@ -405,11 +405,11 @@ export class OptimizedCacheManager {
 
       await pipeline.exec();
       return true;
-    } catch (error) {
+    } catch (error: unknown) {
       this.stats.errors += entries.size;
       logger.warn('Batch cache set failed', {
         entryCount: entries.size,
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
       });
       return false;
     }
@@ -421,9 +421,9 @@ export class OptimizedCacheManager {
   private serializeData<T>(data: T): string {
     try {
       return JSON.stringify(data);
-    } catch (error) {
+    } catch (error: unknown) {
       logger.warn('Data serialization failed, using string conversion', {
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
       });
       return String(data);
     }
@@ -435,7 +435,7 @@ export class OptimizedCacheManager {
   private deserializeData<T>(data: string): T {
     try {
       return JSON.parse(data) as T;
-    } catch (error) {
+    } catch (error: unknown) {
       // If JSON parsing fails, return as string (for backwards compatibility)
       return data as unknown as T;
     }

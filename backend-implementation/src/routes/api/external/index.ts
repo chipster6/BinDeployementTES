@@ -157,9 +157,9 @@ router.get("/", async (req, res) => {
       data: overview
     });
 
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error('Error generating external services overview', {
-      error: error.message
+      error: error instanceof Error ? error?.message : String(error)
     });
 
     res.status(500).json({
@@ -193,7 +193,7 @@ router.get("/ping", async (req, res) => {
       },
       uptime: process.uptime(),
       version: "1.0.0",
-      environment: process.env.NODE_ENV || "development"
+      environment: process.env?.NODE_ENV || "development"
     };
 
     res.status(200).json({
@@ -201,9 +201,9 @@ router.get("/ping", async (req, res) => {
       data: healthStatus
     });
 
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error('Error in external services health check', {
-      error: error.message
+      error: error instanceof Error ? error?.message : String(error)
     });
 
     res.status(500).json({

@@ -20,7 +20,7 @@
  * Version: 1.0.0 - Phase 2 External API Completion
  */
 
-import { Router, Request, Response } from "express";
+import { Router, type Request, type Response } from "express";
 import { auth } from "@/middleware/auth";
 import { validation } from "@/middleware/validation";
 import { rateLimit } from "@/middleware/rateLimit";
@@ -112,10 +112,10 @@ router.post("/subscribe", auth, validation, rateLimit, async (req: Request, res:
       }
     });
 
-  } catch (error) {
-    timer.end({ error: error.message });
+  } catch (error: unknown) {
+    timer.end({ error: error instanceof Error ? error?.message : String(error) });
     logger.error('Error creating traffic subscription', {
-      error: error.message,
+      error: error instanceof Error ? error?.message : String(error),
       body: req.body
     });
     
@@ -164,19 +164,13 @@ router.get("/status", auth, rateLimit, async (req: Request, res: Response) => {
 
     return ResponseHelper.success(res, {
       locations: trafficStatus,
-      timestamp: new Date(),
-      metadata: {
-        locationCount: parsedLocations.length,
-        dataFreshness: "real-time",
-        providers: ["graphhopper", "fallback"],
-        executionTime
-      }
+      timestamp: new Date()
     });
 
-  } catch (error) {
-    timer.end({ error: error.message });
+  } catch (error: unknown) {
+    timer.end({ error: error instanceof Error ? error?.message : String(error) });
     logger.error('Error retrieving traffic status', {
-      error: error.message,
+      error: error instanceof Error ? error?.message : String(error),
       query: req.query
     });
     
@@ -256,13 +250,7 @@ router.post("/route/optimize", auth, validation, rateLimit, async (req: Request,
         costImpact: 0,
         latency: primaryResult.metadata?.duration || 0,
         cacheUsed: primaryResult.metadata?.fromCache || false,
-        offlineMode: false,
-        metadata: {
-          totalProvidersTried: 1,
-          fallbackStrategy: "single_provider",
-          businessImpact: "none" as const,
-          recommendations: []
-        }
+        offlineMode: false
       };
     }
 
@@ -292,11 +280,6 @@ router.post("/route/optimize", auth, validation, rateLimit, async (req: Request,
           costImpact: optimizationResult.costImpact,
           cacheUsed: optimizationResult.cacheUsed,
           offlineMode: optimizationResult.offlineMode
-        },
-        metadata: {
-          ...optimizationResult.metadata,
-          executionTime,
-          businessContext: finalBusinessContext
         }
       });
     } else {
@@ -307,10 +290,10 @@ router.post("/route/optimize", auth, validation, rateLimit, async (req: Request,
       });
     }
 
-  } catch (error) {
-    timer.end({ error: error.message });
+  } catch (error: unknown) {
+    timer.end({ error: error instanceof Error ? error?.message : String(error) });
     logger.error('Error in route optimization', {
-      error: error.message,
+      error: error instanceof Error ? error?.message : String(error),
       body: req.body
     });
     
@@ -358,17 +341,13 @@ router.get("/providers/health", auth, rateLimit, async (req: Request, res: Respo
       incidents: healthOverview.data!.incidents,
       sla: healthOverview.data!.sla,
       predictiveAlerts: healthOverview.data!.predictiveAlerts,
-      timestamp: new Date(),
-      metadata: {
-        executionTime,
-        dataFreshness: "real-time"
-      }
+      timestamp: new Date()
     });
 
-  } catch (error) {
-    timer.end({ error: error.message });
+  } catch (error: unknown) {
+    timer.end({ error: error instanceof Error ? error?.message : String(error) });
     logger.error('Error retrieving provider health status', {
-      error: error.message
+      error: error instanceof Error ? error?.message : String(error)
     });
     
     return ResponseHelper.internalError(res, "Failed to retrieve provider health status");
@@ -435,18 +414,13 @@ router.post("/providers/fallback", auth, validation, rateLimit, async (req: Requ
       service,
       reason,
       incident: incidentResult.data,
-      estimatedDuration: duration || "unknown",
-      metadata: {
-        triggeredBy: (req as any).user.userId,
-        triggeredAt: new Date(),
-        executionTime
-      }
+      estimatedDuration: duration || "unknown"
     });
 
-  } catch (error) {
-    timer.end({ error: error.message });
+  } catch (error: unknown) {
+    timer.end({ error: error instanceof Error ? error?.message : String(error) });
     logger.error('Error triggering provider fallback', {
-      error: error.message,
+      error: error instanceof Error ? error?.message : String(error),
       body: req.body
     });
     
@@ -490,17 +464,13 @@ router.get("/websocket/stats", auth, rateLimit, async (req: Request, res: Respon
       websocket: webSocketStats,
       monitoring: monitoringStats,
       coordinator: coordinatorStats,
-      timestamp: new Date(),
-      metadata: {
-        executionTime,
-        dataFreshness: "real-time"
-      }
+      timestamp: new Date()
     });
 
-  } catch (error) {
-    timer.end({ error: error.message });
+  } catch (error: unknown) {
+    timer.end({ error: error instanceof Error ? error?.message : String(error) });
     logger.error('Error retrieving WebSocket statistics', {
-      error: error.message
+      error: error instanceof Error ? error?.message : String(error)
     });
     
     return ResponseHelper.internalError(res, "Failed to retrieve WebSocket statistics");
@@ -533,9 +503,9 @@ async function storeSubscription(subscriptionData: any): Promise<string> {
     });
     
     return subscriptionId;
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error('Error storing subscription', {
-      error: error.message,
+      error: error instanceof Error ? error?.message : String(error),
       subscriptionData
     });
     throw error;
@@ -574,16 +544,16 @@ async function getTrafficStatusForLocations(
       };
       
       trafficStatus.push(trafficData);
-    } catch (error) {
+    } catch (error: unknown) {
       logger.warn('Error getting traffic status for location', {
         location,
-        error: error.message
+        error: error instanceof Error ? error?.message : String(error)
       });
       
       // Add error status for this location
       trafficStatus.push({
         location,
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
         timestamp: new Date(),
         dataSource: "error",
         confidence: 0

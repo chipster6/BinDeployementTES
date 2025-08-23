@@ -11,7 +11,7 @@
  * Version: 1.0.0
  */
 
-import { Request, Response } from "express";
+import type { Request, Response } from "express";
 import { config } from "@/config";
 import { checkDatabaseHealth } from "@/config/database";
 import { checkRedisHealth } from "@/config/redis";
@@ -125,7 +125,7 @@ const checkDiskUsage = async (): Promise<
       status: "healthy",
       details: { message: "Disk space monitoring not implemented" },
     };
-  } catch (error) {
+  } catch (error: unknown) {
     return {
       status: "healthy",
       details: {
@@ -168,7 +168,7 @@ const checkExternalServices = async (): Promise<
         status: "healthy",
         responseTime: `${timer.getDuration()}ms`,
       };
-    } catch (error) {
+    } catch (error: unknown) {
       services.stripe = {
         status: "unhealthy",
         responseTime: `${timer.getDuration()}ms`,
@@ -196,7 +196,7 @@ const checkExternalServices = async (): Promise<
         status: "healthy",
         responseTime: `${timer.getDuration()}ms`,
       };
-    } catch (error) {
+    } catch (error: unknown) {
       services.samsara = {
         status: "unhealthy",
         responseTime: `${timer.getDuration()}ms`,
@@ -223,7 +223,7 @@ const checkExternalServices = async (): Promise<
         status: "healthy",
         responseTime: `${timer.getDuration()}ms`,
       };
-    } catch (error) {
+    } catch (error: unknown) {
       services.sendgrid = {
         status: "unhealthy",
         responseTime: `${timer.getDuration()}ms`,
@@ -247,7 +247,7 @@ const checkExternalServices = async (): Promise<
         status: "healthy",
         responseTime: `${timer.getDuration()}ms`,
       };
-    } catch (error) {
+    } catch (error: unknown) {
       services.mapbox = {
         status: "unhealthy",
         responseTime: `${timer.getDuration()}ms`,
@@ -304,13 +304,22 @@ const performHealthCheck = async (): Promise<HealthCheckResult> => {
   }
 
   // Check memory usage
-  checks.memory = checkMemoryUsage() || undefined;
+  const memoryCheck = checkMemoryUsage();
+  if (memoryCheck) {
+    checks.memory = memoryCheck;
+  }
 
   // Check disk usage
-  checks.disk = (await checkDiskUsage()) || undefined;
+  const diskCheck = await checkDiskUsage();
+  if (diskCheck) {
+    checks.disk = diskCheck;
+  }
 
   // Check external services
-  checks.externalServices = (await checkExternalServices()) || undefined;
+  const externalCheck = await checkExternalServices();
+  if (externalCheck) {
+    checks.externalServices = externalCheck;
+  }
 
   // Determine overall health status
   const checkStatuses = Object.values(checks)
@@ -332,7 +341,7 @@ const performHealthCheck = async (): Promise<HealthCheckResult> => {
     status: overallStatus,
     timestamp: new Date().toISOString(),
     uptime: Math.floor(process.uptime()),
-    version: config.app.version || "1.0.0",
+    version: config.app?.version || "1.0.0",
     environment: config.app.nodeEnv,
     checks,
     dependencies: [
@@ -345,8 +354,8 @@ const performHealthCheck = async (): Promise<HealthCheckResult> => {
     ],
     buildInfo: {
       nodeVersion: process.version,
-      buildTime: process.env.BUILD_TIME || undefined,
-      gitCommit: process.env.GIT_COMMIT || undefined,
+      ...(process.env.BUILD_TIME && { buildTime: process.env.BUILD_TIME }),
+      ...(process.env.GIT_COMMIT && { gitCommit: process.env.GIT_COMMIT }),
     },
   };
 };
@@ -388,13 +397,13 @@ export const healthCheck = async (req: Request, res: Response) => {
     }
 
     res.status(statusCode).json(healthResult);
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error("Health check failed:", error);
 
     res.status(500).json({
       status: "unhealthy",
       error: "Health check failed",
-      message: error instanceof Error ? error.message : "Unknown error",
+      message: error instanceof Error ? error?.message : "Unknown error",
       timestamp: new Date().toISOString(),
     });
   }
@@ -411,10 +420,10 @@ export const readinessCheck = async (req: Request, res: Response) => {
       timestamp: new Date().toISOString(),
       uptime: Math.floor(process.uptime()),
     });
-  } catch (error) {
+  } catch (error: unknown) {
     res.status(503).json({
       status: "not_ready",
-      error: error instanceof Error ? error.message : "Unknown error",
+      error: error instanceof Error ? error?.message : "Unknown error",
       timestamp: new Date().toISOString(),
     });
   }
@@ -432,10 +441,10 @@ export const livenessCheck = async (req: Request, res: Response) => {
       pid: process.pid,
       uptime: Math.floor(process.uptime()),
     });
-  } catch (error) {
+  } catch (error: unknown) {
     res.status(500).json({
       status: "dead",
-      error: error instanceof Error ? error.message : "Unknown error",
+      error: error instanceof Error ? error?.message : "Unknown error",
       timestamp: new Date().toISOString(),
     });
   }
@@ -479,11 +488,11 @@ export const getMetrics = async (req: Request, res: Response) => {
     };
 
     res.status(200).json(metrics);
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error("Failed to get metrics:", error);
     res.status(500).json({
       error: "Failed to get metrics",
-      message: error instanceof Error ? error.message : "Unknown error",
+      message: error instanceof Error ? error?.message : "Unknown error",
     });
   }
 };

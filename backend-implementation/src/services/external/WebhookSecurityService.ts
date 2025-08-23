@@ -120,14 +120,14 @@ export class WebhookSecurityService {
   public registerWebhook(provider: string, config: WebhookConfig): void {
     this.configs.set(provider, {
       ...config,
-      tolerance: config.tolerance || this.DEFAULT_TOLERANCE,
+      tolerance: config?.tolerance || this.DEFAULT_TOLERANCE,
       enableReplayProtection: config.enableReplayProtection !== false,
-      maxPayloadSize: config.maxPayloadSize || this.DEFAULT_MAX_PAYLOAD_SIZE,
+      maxPayloadSize: config?.maxPayloadSize || this.DEFAULT_MAX_PAYLOAD_SIZE,
     });
 
     logger.info("Webhook configuration registered", {
       provider,
-      toleranceSeconds: config.tolerance || this.DEFAULT_TOLERANCE,
+      toleranceSeconds: config?.tolerance || this.DEFAULT_TOLERANCE,
       replayProtection: config.enableReplayProtection !== false,
     });
   }
@@ -165,7 +165,7 @@ export class WebhookSecurityService {
           typeof payload === "string"
             ? JSON.parse(payload)
             : JSON.parse(payload.toString());
-      } catch (error) {
+      } catch (error: unknown) {
         throw new Error("Invalid JSON payload");
       }
 
@@ -206,12 +206,6 @@ export class WebhookSecurityService {
 
       const result: WebhookVerificationResult = {
         isValid: true,
-        metadata: {
-          provider,
-          timestamp: timestamp ? parseInt(timestamp) : undefined,
-          eventId: this.extractEventId(provider, parsedPayload),
-          isReplay,
-        },
       };
 
       // Log successful verification
@@ -222,15 +216,15 @@ export class WebhookSecurityService {
       });
 
       return result;
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error("Webhook verification failed", {
         provider,
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
       });
 
       // Log failed verification
       await this.logWebhookEvent("verification_failed", provider, {
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
         payloadSize: Buffer.isBuffer(payload)
           ? payload.length
           : Buffer.byteLength(payload),
@@ -238,7 +232,7 @@ export class WebhookSecurityService {
 
       return {
         isValid: false,
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
       };
     }
   }
@@ -539,9 +533,9 @@ export class WebhookSecurityService {
       // Store event ID with expiration
       await redisClient.setex(key, tolerance * 2, timestamp);
       return false;
-    } catch (error) {
+    } catch (error: unknown) {
       logger.warn("Failed to check replay attack", {
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
         provider,
         eventId,
       });
@@ -563,7 +557,7 @@ export class WebhookSecurityService {
         customerId: null,
         action: eventType,
         resourceType: "webhook_security",
-        resourceId: `${provider}-${details.eventId || "unknown"}`,
+        resourceId: `${provider}-${details?.eventId || "unknown"}`,
         details: {
           provider,
           ...details,
@@ -571,9 +565,9 @@ export class WebhookSecurityService {
         ipAddress: "webhook",
         userAgent: `${provider}Webhook`,
       });
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error("Failed to log webhook event", {
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
         eventType,
         provider,
       });
@@ -596,8 +590,8 @@ export class WebhookSecurityService {
     resetTime?: Date;
   }> {
     try {
-      const windowMinutes = options.windowMinutes || 5;
-      const maxRequests = options.maxRequests || 100;
+      const windowMinutes = options?.windowMinutes || 5;
+      const maxRequests = options?.maxRequests || 100;
       const key = `webhook_rate_limit:${provider}:${identifier}`;
       const window = Math.floor(Date.now() / (windowMinutes * 60 * 1000));
       const windowKey = `${key}:${window}`;
@@ -624,9 +618,9 @@ export class WebhookSecurityService {
         remainingRequests: Math.max(0, maxRequests - current),
         resetTime,
       };
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error("Rate limit check failed", {
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
         provider,
         identifier,
       });

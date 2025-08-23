@@ -127,8 +127,8 @@ export class WeaviateConnection {
       // Initialize schema if needed
       await this.initializeSchema();
 
-    } catch (error) {
-      this.logger.error('Failed to connect to Weaviate', { error: error.message });
+    } catch (error: unknown) {
+      this.logger.error('Failed to connect to Weaviate', { error: error instanceof Error ? error?.message : String(error) });
       
       if (this.connectionRetries < this.maxRetries) {
         this.connectionRetries++;
@@ -138,7 +138,7 @@ export class WeaviateConnection {
         return this.connect();
       }
       
-      throw new Error(`Failed to connect to Weaviate after ${this.maxRetries} attempts: ${error.message}`);
+      throw new Error(`Failed to connect to Weaviate after ${this.maxRetries} attempts: ${error instanceof Error ? error?.message : String(error)}`);
     }
   }
 
@@ -156,8 +156,8 @@ export class WeaviateConnection {
         version: meta.version,
         hostname: meta.hostname
       });
-    } catch (error) {
-      throw new Error(`Weaviate connection test failed: ${error.message}`);
+    } catch (error: unknown) {
+      throw new Error(`Weaviate connection test failed: ${error instanceof Error ? error?.message : String(error)}`);
     }
   }
 
@@ -182,15 +182,15 @@ export class WeaviateConnection {
           this.logger.debug(`Weaviate class '${schema.class}' already exists, skipping creation`);
           continue;
         }
-      } catch (error) {
+      } catch (error: unknown) {
         // Class doesn't exist, continue with creation
       }
 
       try {
         await this.client.schema.classCreator().withClass(schema).do();
         this.logger.info(`Created Weaviate class: ${schema.class}`);
-      } catch (error) {
-        this.logger.error(`Failed to create Weaviate class: ${schema.class}`, { error: error.message });
+      } catch (error: unknown) {
+        this.logger.error(`Failed to create Weaviate class: ${schema.class}`, { error: error instanceof Error ? error?.message : String(error) });
         throw error;
       }
     }
@@ -615,11 +615,11 @@ export class WeaviateConnection {
       });
 
       return result.id;
-    } catch (error) {
+    } catch (error: unknown) {
       this.logger.error(`Failed to upsert vector to Weaviate`, {
         className,
         id,
-        error: error.message
+        error: error instanceof Error ? error?.message : String(error)
       });
       throw error;
     }
@@ -677,11 +677,11 @@ export class WeaviateConnection {
       this.logger.debug(`Successfully batch upserted ${successfulIds.length}/${objects.length} vectors`);
 
       return successfulIds;
-    } catch (error) {
+    } catch (error: unknown) {
       this.logger.error(`Failed to batch upsert vectors to Weaviate`, {
         className,
         count: objects.length,
-        error: error.message
+        error: error instanceof Error ? error?.message : String(error)
       });
       throw error;
     }
@@ -707,7 +707,7 @@ export class WeaviateConnection {
       let searcher = this.client.graphql
         .get()
         .withClassName(query.className)
-        .withLimit(query.limit || 10);
+        .withLimit(query?.limit || 10);
 
       if (query.offset) {
         searcher = searcher.withOffset(query.offset);
@@ -734,15 +734,15 @@ export class WeaviateConnection {
       this.logger.debug(`Text search returned ${objects.length} results`);
 
       return objects.map((obj: any) => ({
-        id: obj.id || obj._additional?.id,
+        id: obj?.id || obj._additional?.id,
         properties: obj,
         certainty: obj._additional?.certainty,
         score: obj._additional?.distance ? 1 - obj._additional.distance : undefined
       }));
-    } catch (error) {
+    } catch (error: unknown) {
       this.logger.error(`Failed to search vectors in Weaviate`, {
         query,
-        error: error.message
+        error: error instanceof Error ? error?.message : String(error)
       });
       throw error;
     }
@@ -758,7 +758,7 @@ export class WeaviateConnection {
       throw new Error('Weaviate client not connected');
     }
 
-    if (!query.vector || query.vector.length === 0) {
+    if (!query?.vector || query.vector.length === 0) {
       throw new Error('Vector is required for vector search');
     }
 
@@ -773,7 +773,7 @@ export class WeaviateConnection {
         .get()
         .withClassName(query.className)
         .withNearVector({ vector: query.vector })
-        .withLimit(query.limit || 10);
+        .withLimit(query?.limit || 10);
 
       if (query.offset) {
         searcher = searcher.withOffset(query.offset);
@@ -796,16 +796,16 @@ export class WeaviateConnection {
       this.logger.debug(`Vector search returned ${objects.length} results`);
 
       return objects.map((obj: any) => ({
-        id: obj.id || obj._additional?.id,
+        id: obj?.id || obj._additional?.id,
         vector: obj._additional?.vector,
         properties: obj,
         certainty: obj._additional?.certainty,
         score: obj._additional?.distance ? 1 - obj._additional.distance : undefined
       }));
-    } catch (error) {
+    } catch (error: unknown) {
       this.logger.error(`Failed to search vectors in Weaviate`, {
         query,
-        error: error.message
+        error: error instanceof Error ? error?.message : String(error)
       });
       throw error;
     }
@@ -829,11 +829,11 @@ export class WeaviateConnection {
         .do();
 
       this.logger.debug(`Successfully deleted vector from Weaviate`, { className, id });
-    } catch (error) {
+    } catch (error: unknown) {
       this.logger.error(`Failed to delete vector from Weaviate`, {
         className,
         id,
-        error: error.message
+        error: error instanceof Error ? error?.message : String(error)
       });
       throw error;
     }
@@ -867,11 +867,11 @@ export class WeaviateConnection {
         hostname: meta.hostname,
         responseTime
       };
-    } catch (error) {
+    } catch (error: unknown) {
       const responseTime = Date.now() - startTime;
       
       this.logger.warn(`Weaviate health check failed`, { 
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
         responseTime 
       });
 

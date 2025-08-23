@@ -228,7 +228,7 @@ export class SendGridService extends BaseExternalService {
       // Prepare message data
       const emailData: any = {
         to: message.to,
-        from: message.from || this.defaultFrom,
+        from: message?.from || this.defaultFrom,
         subject: message.subject,
       };
 
@@ -277,20 +277,15 @@ export class SendGridService extends BaseExternalService {
           status: response.statusCode.toString(),
         },
         statusCode: response.statusCode,
-        metadata: {
-          requestId: response.headers["x-message-id"],
-          duration: 0,
-          attempt: 1,
-        },
       };
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error("Failed to send email", {
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
         to: Array.isArray(message.to) ? message.to.join(", ") : message.to,
         subject: message.subject,
       });
 
-      throw new Error(`Email sending failed: ${error.message}`);
+      throw new Error(`Email sending failed: ${error instanceof Error ? error?.message : String(error)}`);
     }
   }
 
@@ -324,13 +319,13 @@ export class SendGridService extends BaseExternalService {
           try {
             await this.sendEmail(message);
             successful++;
-          } catch (error) {
+          } catch (error: unknown) {
             const recipients = Array.isArray(message.to)
               ? message.to.join(", ")
               : message.to;
             failed.push({
               email: recipients,
-              error: error.message,
+              error: error instanceof Error ? error?.message : String(error),
             });
           }
         });
@@ -350,20 +345,18 @@ export class SendGridService extends BaseExternalService {
           successful,
           failed,
         },
-        statusCode: 200,
-        metadata: {
-          requestId: `bulk-${Date.now()}`,
+        statusCode: 200`,
           duration: 0,
           attempt: 1,
         },
       };
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error("Failed to send bulk emails", {
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
         messageCount: messages.length,
       });
 
-      throw new Error(`Bulk email sending failed: ${error.message}`);
+      throw new Error(`Bulk email sending failed: ${error instanceof Error ? error?.message : String(error)}`);
     }
   }
 
@@ -383,8 +376,8 @@ export class SendGridService extends BaseExternalService {
   ): Promise<ApiResponse<{ messageId: string; status: string }>> {
     const message: EmailMessage = {
       to,
-      from: options.from || this.defaultFrom,
-      subject: options.subject || "Important Update",
+      from: options?.from || this.defaultFrom,
+      subject: options?.subject || "Important Update",
       templateId,
       dynamicTemplateData,
       categories: options.categories,
@@ -445,17 +438,16 @@ export class SendGridService extends BaseExternalService {
         data: templates,
         statusCode: 200,
         metadata: {
-          requestId: `templates-${Date.now()}`,
           duration: 0,
           attempt: 1,
         },
       };
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error("Failed to get email templates", {
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
       });
 
-      throw new Error(`Template retrieval failed: ${error.message}`);
+      throw new Error(`Template retrieval failed: ${error instanceof Error ? error?.message : String(error)}`);
     }
   }
 
@@ -479,7 +471,7 @@ export class SendGridService extends BaseExternalService {
         postal_code: contact.address?.postalCode,
         country: contact.address?.country,
         custom_fields: contact.customFields,
-        list_ids: listIds || contact.listIds || [],
+        list_ids: listIds || contact?.listIds || [],
       };
 
       const response = await this.put<{
@@ -499,19 +491,14 @@ export class SendGridService extends BaseExternalService {
           email: contact.email,
         },
         statusCode: 200,
-        metadata: {
-          requestId: response.data.job_id,
-          duration: 0,
-          attempt: 1,
-        },
       };
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error("Failed to add contact", {
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
         email: contact.email,
       });
 
-      throw new Error(`Contact creation failed: ${error.message}`);
+      throw new Error(`Contact creation failed: ${error instanceof Error ? error?.message : String(error)}`);
     }
   }
 
@@ -541,7 +528,7 @@ export class SendGridService extends BaseExternalService {
             name: campaign.fromName,
           },
           reply_to: {
-            email: campaign.replyToEmail || campaign.fromEmail,
+            email: campaign?.replyToEmail || campaign.fromEmail,
           },
         },
         categories: campaign.categories,
@@ -561,19 +548,14 @@ export class SendGridService extends BaseExternalService {
         success: true,
         data: response.data,
         statusCode: 200,
-        metadata: {
-          requestId: response.data.id,
-          duration: 0,
-          attempt: 1,
-        },
       };
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error("Failed to create campaign", {
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
         campaignName: campaign.name,
       });
 
-      throw new Error(`Campaign creation failed: ${error.message}`);
+      throw new Error(`Campaign creation failed: ${error instanceof Error ? error?.message : String(error)}`);
     }
   }
 
@@ -605,20 +587,15 @@ export class SendGridService extends BaseExternalService {
           sendAt: new Date(response.data.send_at),
         },
         statusCode: 200,
-        metadata: {
-          requestId: response.data.id,
-          duration: 0,
-          attempt: 1,
-        },
       };
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error("Failed to schedule campaign", {
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
         campaignId,
         sendAt,
       });
 
-      throw new Error(`Campaign scheduling failed: ${error.message}`);
+      throw new Error(`Campaign scheduling failed: ${error instanceof Error ? error?.message : String(error)}`);
     }
   }
 
@@ -640,9 +617,9 @@ export class SendGridService extends BaseExternalService {
         try {
           await this.handleWebhookEvent(event);
           processed++;
-        } catch (error) {
+        } catch (error: unknown) {
           logger.warn("Failed to process webhook event", {
-            error: error.message,
+            error: error instanceof Error ? error?.message : String(error),
             eventId: event.sg_event_id,
             eventType: event.event,
           });
@@ -669,20 +646,18 @@ export class SendGridService extends BaseExternalService {
       return {
         success: true,
         data: { processed, skipped },
-        statusCode: 200,
-        metadata: {
-          requestId: `webhook-batch-${Date.now()}`,
+        statusCode: 200`,
           duration: 0,
           attempt: 1,
         },
       };
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error("Failed to process webhook events", {
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
         eventCount: events.length,
       });
 
-      throw new Error(`Webhook processing failed: ${error.message}`);
+      throw new Error(`Webhook processing failed: ${error instanceof Error ? error?.message : String(error)}`);
     }
   }
 
@@ -836,12 +811,12 @@ export class SendGridService extends BaseExternalService {
         status: "healthy",
         lastCheck: new Date(),
       };
-    } catch (error) {
+    } catch (error: unknown) {
       return {
         service: "sendgrid",
         status: "unhealthy",
         lastCheck: new Date(),
-        details: { error: error.message },
+        details: { error: error instanceof Error ? error?.message : String(error) },
       };
     }
   }

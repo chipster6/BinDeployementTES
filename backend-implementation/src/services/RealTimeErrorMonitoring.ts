@@ -186,7 +186,7 @@ export class RealTimeErrorMonitoring extends EventEmitter {
       ws.on("error", (error) => {
         logger.error("WebSocket client error", {
           clientId,
-          error: error.message,
+          error: error instanceof Error ? error?.message : String(error),
         });
         this.handleClientDisconnect(clientId);
       });
@@ -354,10 +354,10 @@ export class RealTimeErrorMonitoring extends EventEmitter {
             type: data.type,
           });
       }
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error("Failed to parse client message", {
         clientId,
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
       });
     }
   }
@@ -371,13 +371,13 @@ export class RealTimeErrorMonitoring extends EventEmitter {
   ): void {
     const fullSubscription: ClientSubscription = {
       clientId,
-      streams: subscription.streams || ["all"],
-      errorTypes: subscription.errorTypes || [
+      streams: subscription?.streams || ["all"],
+      errorTypes: subscription?.errorTypes || [
         ErrorSeverity.MEDIUM,
         ErrorSeverity.HIGH,
         ErrorSeverity.CRITICAL,
       ],
-      components: subscription.components || [],
+      components: subscription?.components || [],
       realTimeUpdates: subscription.realTimeUpdates !== false,
       alertsEnabled: subscription.alertsEnabled !== false,
       metricsEnabled: subscription.metricsEnabled !== false,
@@ -437,10 +437,10 @@ export class RealTimeErrorMonitoring extends EventEmitter {
     if (client && client.readyState === WebSocket.OPEN) {
       try {
         client.send(JSON.stringify(message));
-      } catch (error) {
+      } catch (error: unknown) {
         logger.error("Failed to send message to client", {
           clientId,
-          error: error.message,
+          error: error instanceof Error ? error?.message : String(error),
         });
         this.handleClientDisconnect(clientId);
       }
@@ -523,9 +523,9 @@ export class RealTimeErrorMonitoring extends EventEmitter {
 
       // Store in Redis for persistence
       await this.storeMetrics(metrics);
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error("Failed to update real-time metrics", {
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
       });
     }
   }
@@ -543,7 +543,7 @@ export class RealTimeErrorMonitoring extends EventEmitter {
         type: "error_spike",
         severity: ErrorSeverity.CRITICAL,
         title: "Critical Error Detected",
-        message: `Critical error in ${event.context.stream}: ${event.error.message}`,
+        message: `Critical error in ${event.context.stream}: ${event.error instanceof Error ? error?.message : String(error)}`,
         affectedStreams: [event.context.stream],
         actionRequired: true,
         actions: [
@@ -737,7 +737,7 @@ export class RealTimeErrorMonitoring extends EventEmitter {
     >();
 
     for (const error of errors) {
-      const key = error.error.code || error.error.message;
+      const key = error.error?.code || error.error instanceof Error ? error?.message : String(error);
       const existing = errorCounts.get(key);
 
       if (existing) {
@@ -789,9 +789,9 @@ export class RealTimeErrorMonitoring extends EventEmitter {
         60, // 1 minute TTL
         JSON.stringify(metrics),
       );
-    } catch (error) {
+    } catch (error: unknown) {
       logger.warn("Failed to store real-time metrics", {
-        error: error.message,
+        error: error instanceof Error ? error?.message : String(error),
       });
     }
   }

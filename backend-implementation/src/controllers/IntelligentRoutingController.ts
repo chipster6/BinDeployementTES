@@ -27,16 +27,18 @@
  * Version: 1.0.0 - Coordination Controller
  */
 
-import { Request, Response } from 'express';
+import type { Response } from 'express';
+import type { AuthenticatedRequest } from '@/middleware/auth';
 import { logger } from '@/utils/logger';
 import { ResponseHelper } from '@/utils/ResponseHelper';
-import IntelligentTrafficRoutingFoundation, {
+import IntelligentTrafficRoutingFoundation from '@/services/external/IntelligentTrafficRoutingFoundation';
+import type {
   SmartRoutingContext,
   SmartRoutingStrategy,
   IntelligentRoutingNode
 } from '@/services/external/IntelligentTrafficRoutingFoundation';
 import RoutingDecisionEngine from '@/services/external/RoutingDecisionEngine';
-import { AuditLog } from '@/models/AuditLog';
+import { AuditLog, AuditAction, SensitivityLevel } from '@/models/AuditLog';
 
 /**
  * Intelligent Routing Controller
@@ -54,52 +56,52 @@ export class IntelligentRoutingController {
    * POST /api/v1/routing/decision
    * Make intelligent routing decision
    */
-  public makeRoutingDecision = async (req: Request, res: Response): Promise<void> => {
+  public makeRoutingDecision = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
     const startTime = Date.now();
     
     try {
       const context: SmartRoutingContext = {
-        requestId: req.body.requestId || `req_${Date.now()}_${Math.random().toString(36).substring(7)}`,
+        requestId: req.body?.requestId || `req_${Date.now()}_${Math.random().toString(36).substring(7)}`,
         serviceName: req.body.serviceName,
         operation: req.body.operation,
         userId: req.user?.id,
         organizationId: req.body.organizationId,
         sessionId: req.body.sessionId,
-        businessCriticality: req.body.businessCriticality || "medium",
-        timeSensitivity: req.body.timeSensitivity || "standard",
-        costSensitivity: req.body.costSensitivity || "medium",
-        maxLatency: req.body.maxLatency || 1000,
-        minSuccessRate: req.body.minSuccessRate || 95,
-        maxErrorRate: req.body.maxErrorRate || 5,
-        maxCostPerRequest: req.body.maxCostPerRequest || 0.1,
-        budgetPeriod: req.body.budgetPeriod || "request",
-        emergencyBudgetAvailable: req.body.emergencyBudgetAvailable || false,
-        errorHistory: req.body.errorHistory || [],
+        businessCriticality: req.body?.businessCriticality || "medium",
+        timeSensitivity: req.body?.timeSensitivity || "standard",
+        costSensitivity: req.body?.costSensitivity || "medium",
+        maxLatency: req.body?.maxLatency || 1000,
+        minSuccessRate: req.body?.minSuccessRate || 95,
+        maxErrorRate: req.body?.maxErrorRate || 5,
+        maxCostPerRequest: req.body?.maxCostPerRequest || 0.1,
+        budgetPeriod: req.body?.budgetPeriod || "request",
+        emergencyBudgetAvailable: req.body?.emergencyBudgetAvailable || false,
+        errorHistory: req.body?.errorHistory || [],
         currentErrorState: req.body.currentErrorState,
         performanceMetrics: req.body.performanceMetrics,
         externalServiceStatus: req.body.externalServiceStatus,
-        retryCount: req.body.retryCount || 0,
-        maxRetries: req.body.maxRetries || 3,
-        fallbacksAttempted: req.body.fallbacksAttempted || [],
-        requiresSystemCoordination: req.body.requiresSystemCoordination || false,
-        coordinationScope: req.body.coordinationScope || "local",
-        crossStreamCoordination: req.body.crossStreamCoordination || false
+        retryCount: req.body?.retryCount || 0,
+        maxRetries: req.body?.maxRetries || 3,
+        fallbacksAttempted: req.body?.fallbacksAttempted || [],
+        requiresSystemCoordination: req.body?.requiresSystemCoordination || false,
+        coordinationScope: req.body?.coordinationScope || "local",
+        crossStreamCoordination: req.body?.crossStreamCoordination || false
       };
 
       // Validate required fields
       if (!context.serviceName) {
-        ResponseHelper.badRequest(res, "Service name is required");
+        ResponseHelper.badRequest(res, req, "Service name is required");
         return;
       }
 
       if (!context.operation) {
-        ResponseHelper.badRequest(res, "Operation is required");
+        ResponseHelper.badRequest(res, req, "Operation is required");
         return;
       }
 
       // Check user permissions
       if (!req.user?.hasPermission('routing:coordinate', context.organizationId)) {
-        ResponseHelper.forbidden(res, "Insufficient permissions for routing coordination");
+        ResponseHelper.forbidden(res, req, "Insufficient permissions for routing coordination");
         return;
       }
 
@@ -125,32 +127,32 @@ export class IntelligentRoutingController {
         userId: req.user?.id
       });
 
-      ResponseHelper.success(res, {
-        decision,
-        contextAnalysis: {
-          analysisId: contextAnalysis.analysisId,
-          criticalFactors: contextAnalysis.criticalFactors,
-          riskAssessment: contextAnalysis.riskAssessment,
-          recommendations: contextAnalysis.recommendations
+      ResponseHelper.success(res, req, {
+        data: {
+          decision,
+          contextAnalysis: {
+            analysisId: contextAnalysis.analysisId,
+            criticalFactors: contextAnalysis.criticalFactors,
+            riskAssessment: contextAnalysis.riskAssessment,
+            recommendations: contextAnalysis.recommendations
+          }
         },
-        metadata: {
-          responseTime,
-          coordinationRequired: decision.coordinationRequired,
-          systemArchitectureReady: decision.systemArchitectureIntegration.readyForSystemLead
-        }
-      }, "Intelligent routing decision completed successfully");
+        message: "Intelligent routing decision completed successfully"
+      });
 
-    } catch (error) {
+    } catch (error: unknown) {
       const responseTime = Date.now() - startTime;
+      const errorMessage = error instanceof Error ? error?.message : 'Unknown error';
+      const errorStack = error instanceof Error ? error?.stack : undefined;
       
       logger.error("Intelligent routing decision failed", {
-        error: error.message,
-        stack: error.stack,
+        error: errorMessage,
+        stack: errorStack,
         responseTime,
         userId: req.user?.id
       });
 
-      ResponseHelper.internalError(res, "Failed to make routing decision");
+      ResponseHelper.internalError(res, req, "Failed to make routing decision");
     }
   };
 
@@ -158,7 +160,7 @@ export class IntelligentRoutingController {
    * GET /api/v1/routing/health
    * Get routing system health status
    */
-  public getHealthStatus = async (req: Request, res: Response): Promise<void> => {
+  public getHealthStatus = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
     const startTime = Date.now();
     
     try {
@@ -167,7 +169,7 @@ export class IntelligentRoutingController {
 
       // Check user permissions
       if (!req.user?.hasPermission('routing:monitor')) {
-        ResponseHelper.forbidden(res, "Insufficient permissions for routing monitoring");
+        ResponseHelper.forbidden(res, req, "Insufficient permissions for routing monitoring");
         return;
       }
 
@@ -189,7 +191,53 @@ export class IntelligentRoutingController {
         rateLimit: api.rateLimit
       }));
 
-      const healthStatus = {
+      interface HealthStatus {
+        overall: {
+          status: "healthy" | "warning" | "critical";
+          timestamp: Date;
+          responseTime: number;
+        };
+        foundation: {
+          totalServices: any;
+          totalNodes: any;
+          healthyNodes: any;
+          totalDecisions: any;
+          averageConfidence: any;
+        };
+        decisionEngine: {
+          algorithmsCount: any;
+          totalDecisions: any;
+          averageExecutionTime: any;
+          overallSuccessRate: any;
+          learningProgress: any;
+        };
+        systemArchitecture: {
+          phase1Complete: any;
+          coordinationAPIsReady: any;
+          errorIntegrationReady: any;
+          performanceIntegrationReady: any;
+          readyForPhase2: any;
+        };
+        coordinationAPIs: {
+          total: number;
+          endpoints: any;
+        };
+        detailedMetrics?: {
+          algorithmMetrics: Array<{
+            algorithmId: string;
+            executionTime: any;
+            accuracy: any;
+            confidenceScore: any;
+          }>;
+          learningProgress: Array<{
+            algorithmId: string;
+            successRate: any;
+            lastUpdate: any;
+          }>;
+        };
+      }
+
+      const healthStatus: HealthStatus = {
         overall: {
           status: this.calculateOverallHealthStatus(foundationAnalytics, engineStatus, systemReadiness),
           timestamp: new Date(),
@@ -227,7 +275,7 @@ export class IntelligentRoutingController {
         const algorithmMetrics = this.decisionEngine.getAlgorithmMetrics() as Map<string, any>;
         const learningProgress = this.decisionEngine.getLearningProgress();
 
-        healthStatus['detailedMetrics'] = {
+        healthStatus.detailedMetrics = {
           algorithmMetrics: Array.from(algorithmMetrics.entries()).map(([id, metrics]) => ({
             algorithmId: id,
             executionTime: metrics.executionTime,
@@ -249,18 +297,22 @@ export class IntelligentRoutingController {
         userId: req.user?.id
       });
 
-      ResponseHelper.success(res, healthStatus, "Routing health status retrieved successfully");
+      ResponseHelper.success(res, req, {
+        data: healthStatus,
+        message: "Routing health status retrieved successfully"
+      });
 
-    } catch (error) {
+    } catch (error: unknown) {
       const responseTime = Date.now() - startTime;
+      const errorMessage = error instanceof Error ? error?.message : 'Unknown error';
       
       logger.error("Failed to get routing health status", {
-        error: error.message,
+        error: errorMessage,
         responseTime,
         userId: req.user?.id
       });
 
-      ResponseHelper.internalError(res, "Failed to retrieve routing health status");
+      ResponseHelper.internalError(res, req, "Failed to retrieve routing health status");
     }
   };
 
@@ -268,7 +320,7 @@ export class IntelligentRoutingController {
    * POST /api/v1/routing/nodes/register
    * Register intelligent routing nodes
    */
-  public registerNodes = async (req: Request, res: Response): Promise<void> => {
+  public registerNodes = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
     const startTime = Date.now();
     
     try {
@@ -276,18 +328,18 @@ export class IntelligentRoutingController {
 
       // Validate required fields
       if (!serviceName) {
-        ResponseHelper.badRequest(res, "Service name is required");
+        ResponseHelper.badRequest(res, req, "Service name is required");
         return;
       }
 
       if (!nodes || !Array.isArray(nodes) || nodes.length === 0) {
-        ResponseHelper.badRequest(res, "Nodes array is required and must not be empty");
+        ResponseHelper.badRequest(res, req, "Nodes array is required and must not be empty");
         return;
       }
 
       // Check user permissions
       if (!req.user?.hasPermission('routing:manage')) {
-        ResponseHelper.forbidden(res, "Insufficient permissions for routing management");
+        ResponseHelper.forbidden(res, req, "Insufficient permissions for routing management");
         return;
       }
 
@@ -297,28 +349,28 @@ export class IntelligentRoutingController {
         serviceName: serviceName,
         providerName: node.providerName,
         endpoint: node.endpoint,
-        region: node.region || "unknown",
-        averageLatency: node.averageLatency || 500,
-        successRate: node.successRate || 95,
-        currentLoad: node.currentLoad || 0,
-        maxCapacity: node.maxCapacity || 100,
-        costPerRequest: node.costPerRequest || 0.01,
-        costPerMinute: node.costPerMinute || 0.6,
-        budgetRemaining: node.budgetRemaining || 1000,
-        healthScore: node.healthScore || 80,
-        circuitBreakerState: node.circuitBreakerState || "closed",
-        errorRate: node.errorRate || 1,
-        predictiveScore: node.predictiveScore || 70,
-        learningWeight: node.learningWeight || 0.5,
-        adaptationRate: node.adaptationRate || 0.1,
+        region: node?.region || "unknown",
+        averageLatency: node?.averageLatency || 500,
+        successRate: node?.successRate || 95,
+        currentLoad: node?.currentLoad || 0,
+        maxCapacity: node?.maxCapacity || 100,
+        costPerRequest: node?.costPerRequest || 0.01,
+        costPerMinute: node?.costPerMinute || 0.6,
+        budgetRemaining: node?.budgetRemaining || 1000,
+        healthScore: node?.healthScore || 80,
+        circuitBreakerState: node?.circuitBreakerState || "closed",
+        errorRate: node?.errorRate || 1,
+        predictiveScore: node?.predictiveScore || 70,
+        learningWeight: node?.learningWeight || 0.5,
+        adaptationRate: node?.adaptationRate || 0.1,
         lastHealthCheck: new Date(),
-        authenticationMethod: node.authenticationMethod || "jwt",
-        encryptionLevel: node.encryptionLevel || "standard",
-        securityScore: node.securityScore || 80,
-        supportsErrorCoordination: node.supportsErrorCoordination || false,
-        supportsPerformanceMonitoring: node.supportsPerformanceMonitoring || false,
-        supportsRealTimeUpdates: node.supportsRealTimeUpdates || false,
-        integrationVersion: node.integrationVersion || "v1.0.0"
+        authenticationMethod: node?.authenticationMethod || "jwt",
+        encryptionLevel: node?.encryptionLevel || "standard",
+        securityScore: node?.securityScore || 80,
+        supportsErrorCoordination: node?.supportsErrorCoordination || false,
+        supportsPerformanceMonitoring: node?.supportsPerformanceMonitoring || false,
+        supportsRealTimeUpdates: node?.supportsRealTimeUpdates || false,
+        integrationVersion: node?.integrationVersion || "v1.0.0"
       }));
 
       // Register nodes with foundation
@@ -326,16 +378,18 @@ export class IntelligentRoutingController {
 
       // Create audit log
       await AuditLog.create({
-        eventType: "routing_nodes_registered",
+        action: AuditAction.CREATE,
         tableName: "routing_nodes",
         recordId: serviceName,
         userId: req.user?.id,
-        changes: {
+        sensitiveDataAccessed: false,
+        sensitivityLevel: SensitivityLevel.INTERNAL,
+        context: {
           serviceName,
           nodesCount: validatedNodes.length,
           nodeIds: validatedNodes.map(n => n.nodeId)
         },
-        ipAddress: req.ip,
+        ...(req.ip && { ipAddress: req.ip }),
         userAgent: req.get('User-Agent') || 'unknown'
       });
 
@@ -348,36 +402,37 @@ export class IntelligentRoutingController {
         userId: req.user?.id
       });
 
-      ResponseHelper.success(res, {
-        serviceName,
-        nodesRegistered: validatedNodes.length,
-        nodes: validatedNodes.map(n => ({
-          nodeId: n.nodeId,
-          providerName: n.providerName,
-          healthScore: n.healthScore,
-          capabilities: {
-            errorCoordination: n.supportsErrorCoordination,
-            performanceMonitoring: n.supportsPerformanceMonitoring,
-            realTimeUpdates: n.supportsRealTimeUpdates
-          }
-        })),
-        metadata: {
-          responseTime,
-          registrationTime: new Date()
-        }
-      }, "Intelligent routing nodes registered successfully");
+      ResponseHelper.success(res, req, {
+        data: {
+          serviceName,
+          nodesRegistered: validatedNodes.length,
+          nodes: validatedNodes.map(n => ({
+            nodeId: n.nodeId,
+            providerName: n.providerName,
+            healthScore: n.healthScore,
+            capabilities: {
+              errorCoordination: n.supportsErrorCoordination,
+              performanceMonitoring: n.supportsPerformanceMonitoring,
+              realTimeUpdates: n.supportsRealTimeUpdates
+            }
+          }))
+        },
+        message: "Intelligent routing nodes registered successfully"
+      });
 
-    } catch (error) {
+    } catch (error: unknown) {
       const responseTime = Date.now() - startTime;
+      const errorMessage = error instanceof Error ? error?.message : 'Unknown error';
+      const errorStack = error instanceof Error ? error?.stack : undefined;
       
       logger.error("Failed to register routing nodes", {
-        error: error.message,
-        stack: error.stack,
+        error: errorMessage,
+        stack: errorStack,
         responseTime,
         userId: req.user?.id
       });
 
-      ResponseHelper.internalError(res, "Failed to register routing nodes");
+      ResponseHelper.internalError(res, req, "Failed to register routing nodes");
     }
   };
 
@@ -385,7 +440,7 @@ export class IntelligentRoutingController {
    * GET /api/v1/routing/analytics
    * Get routing analytics and performance metrics
    */
-  public getAnalytics = async (req: Request, res: Response): Promise<void> => {
+  public getAnalytics = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
     const startTime = Date.now();
     
     try {
@@ -395,7 +450,7 @@ export class IntelligentRoutingController {
 
       // Check user permissions
       if (!req.user?.hasPermission('routing:analytics')) {
-        ResponseHelper.forbidden(res, "Insufficient permissions for routing analytics");
+        ResponseHelper.forbidden(res, req, "Insufficient permissions for routing analytics");
         return;
       }
 
@@ -409,7 +464,58 @@ export class IntelligentRoutingController {
       // Get learning progress
       const learningProgress = this.decisionEngine.getLearningProgress();
 
-      const analytics = {
+      interface AnalyticsResponse {
+        overview: {
+          timeframe: string;
+          generatedAt: Date;
+          responseTime: number;
+          totalServices: any;
+          totalNodes: any;
+          healthyNodes: any;
+          totalDecisions: any;
+          averageConfidence: any;
+        };
+        performance: {
+          decisionEngine: {
+            averageExecutionTime: any;
+            overallSuccessRate: any;
+            algorithmsCount: any;
+            learningProgress: any;
+          };
+          algorithms: Array<{
+            algorithmId: string;
+            executionTime: any;
+            accuracy: any;
+            confidenceScore: any;
+            computationalEfficiency: any;
+          }>;
+        };
+        learning: {
+          overallProgress: any;
+          algorithmLearning: Array<{
+            algorithmId: string;
+            successHistory: number;
+            failureHistory: number;
+            successRate: any;
+            lastUpdate: any;
+          }>;
+        };
+        systemArchitecture: any;
+        detailedMetrics?: {
+          coordinationAPIs: Array<{
+            coordinationId: any;
+            endpoint: any;
+            method: any;
+            rateLimit: any;
+            systemArchitectureIntegration: any;
+          }>;
+          recentDecisions: any[];
+          errorPatterns: any[];
+          optimizationOpportunities: any[];
+        };
+      }
+
+      const analytics: AnalyticsResponse = {
         overview: {
           timeframe,
           generatedAt: new Date(),
@@ -450,7 +556,7 @@ export class IntelligentRoutingController {
 
       // Add detailed metrics if requested
       if (includeDetails) {
-        analytics['detailedMetrics'] = {
+        analytics.detailedMetrics = {
           coordinationAPIs: Array.from(this.routingFoundation.getCoordinationAPIs().values()).map(api => ({
             coordinationId: api.coordinationId,
             endpoint: api.endpoint,
@@ -475,18 +581,22 @@ export class IntelligentRoutingController {
         userId: req.user?.id
       });
 
-      ResponseHelper.success(res, analytics, "Routing analytics retrieved successfully");
+      ResponseHelper.success(res, req, {
+        data: analytics,
+        message: "Routing analytics retrieved successfully"
+      });
 
-    } catch (error) {
+    } catch (error: unknown) {
       const responseTime = Date.now() - startTime;
+      const errorMessage = error instanceof Error ? error?.message : 'Unknown error';
       
       logger.error("Failed to get routing analytics", {
-        error: error.message,
+        error: errorMessage,
         responseTime,
         userId: req.user?.id
       });
 
-      ResponseHelper.internalError(res, "Failed to retrieve routing analytics");
+      ResponseHelper.internalError(res, req, "Failed to retrieve routing analytics");
     }
   };
 
@@ -494,7 +604,7 @@ export class IntelligentRoutingController {
    * POST /api/v1/routing/algorithms/optimize
    * Optimize algorithm parameters based on learning data
    */
-  public optimizeAlgorithms = async (req: Request, res: Response): Promise<void> => {
+  public optimizeAlgorithms = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
     const startTime = Date.now();
     
     try {
@@ -502,7 +612,7 @@ export class IntelligentRoutingController {
 
       // Check user permissions
       if (!req.user?.hasPermission('routing:manage')) {
-        ResponseHelper.forbidden(res, "Insufficient permissions for algorithm management");
+        ResponseHelper.forbidden(res, req, "Insufficient permissions for algorithm management");
         return;
       }
 
@@ -529,31 +639,35 @@ export class IntelligentRoutingController {
 
       const responseTime = Date.now() - startTime;
 
-      ResponseHelper.success(res, {
-        optimization: {
-          completed: true,
-          timestamp: new Date(),
-          responseTime
+      ResponseHelper.success(res, req, {
+        data: {
+          optimization: {
+            completed: true,
+            timestamp: new Date(),
+            responseTime
+          },
+          engineStatus,
+          algorithmMetrics: Array.from(algorithmMetrics.entries()).map(([id, metrics]) => ({
+            algorithmId: id,
+            executionTime: metrics.executionTime,
+            accuracy: metrics.accuracy,
+            learningProgress: metrics.learningProgress
+          }))
         },
-        engineStatus,
-        algorithmMetrics: Array.from(algorithmMetrics.entries()).map(([id, metrics]) => ({
-          algorithmId: id,
-          executionTime: metrics.executionTime,
-          accuracy: metrics.accuracy,
-          learningProgress: metrics.learningProgress
-        }))
-      }, resetLearning ? "Algorithm learning data reset successfully" : "Algorithm parameters optimized successfully");
+        message: resetLearning ? "Algorithm learning data reset successfully" : "Algorithm parameters optimized successfully"
+      });
 
-    } catch (error) {
+    } catch (error: unknown) {
       const responseTime = Date.now() - startTime;
+      const errorMessage = error instanceof Error ? error?.message : 'Unknown error';
       
       logger.error("Failed to optimize algorithms", {
-        error: error.message,
+        error: errorMessage,
         responseTime,
         userId: req.user?.id
       });
 
-      ResponseHelper.internalError(res, "Failed to optimize algorithm parameters");
+      ResponseHelper.internalError(res, req, "Failed to optimize algorithm parameters");
     }
   };
 
@@ -561,13 +675,13 @@ export class IntelligentRoutingController {
    * GET /api/v1/routing/coordination/readiness
    * Get System-Architecture-Lead coordination readiness status
    */
-  public getCoordinationReadiness = async (req: Request, res: Response): Promise<void> => {
+  public getCoordinationReadiness = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
     const startTime = Date.now();
     
     try {
       // Check user permissions
       if (!req.user?.hasPermission('system:architecture')) {
-        ResponseHelper.forbidden(res, "Insufficient permissions for system architecture coordination");
+        ResponseHelper.forbidden(res, req, "Insufficient permissions for system architecture coordination");
         return;
       }
 
@@ -629,26 +743,24 @@ export class IntelligentRoutingController {
         userId: req.user?.id
       });
 
-      ResponseHelper.success(res, {
-        ...readinessStatus,
-        metadata: {
-          responseTime,
-          generatedAt: new Date(),
-          phase1Complete: systemReadiness.phase1Complete,
-          readyForHandoff: systemReadiness.readyForPhase2
-        }
-      }, "System-Architecture-Lead coordination readiness status retrieved successfully");
+      ResponseHelper.success(res, req, {
+        data: {
+          ...readinessStatus
+        },
+        message: "System-Architecture-Lead coordination readiness status retrieved successfully"
+      });
 
-    } catch (error) {
+    } catch (error: unknown) {
       const responseTime = Date.now() - startTime;
+      const errorMessage = error instanceof Error ? error?.message : 'Unknown error';
       
       logger.error("Failed to get coordination readiness status", {
-        error: error.message,
+        error: errorMessage,
         responseTime,
         userId: req.user?.id
       });
 
-      ResponseHelper.internalError(res, "Failed to retrieve coordination readiness status");
+      ResponseHelper.internalError(res, req, "Failed to retrieve coordination readiness status");
     }
   };
 
@@ -698,17 +810,19 @@ export class IntelligentRoutingController {
    * Create audit log for routing decisions
    */
   private async createRoutingAuditLog(
-    req: Request,
+    req: AuthenticatedRequest,
     decision: any,
     context: SmartRoutingContext
   ): Promise<void> {
     try {
       await AuditLog.create({
-        eventType: "intelligent_routing_decision",
+        action: AuditAction.ACCESS,
         tableName: "routing_decisions",
         recordId: decision.decisionId,
         userId: req.user?.id,
-        changes: {
+        sensitiveDataAccessed: false,
+        sensitivityLevel: SensitivityLevel.INTERNAL,
+        context: {
           decisionId: decision.decisionId,
           serviceName: context.serviceName,
           operation: context.operation,
@@ -718,13 +832,14 @@ export class IntelligentRoutingController {
           businessCriticality: context.businessCriticality,
           coordinationRequired: decision.coordinationRequired
         },
-        ipAddress: req.ip,
+        ...(req.ip && { ipAddress: req.ip }),
         userAgent: req.get('User-Agent') || 'unknown',
-        organizationId: context.organizationId
+        ...(context.organizationId && { organizationId: context.organizationId })
       });
-    } catch (error) {
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error?.message : 'Unknown error';
       logger.error("Failed to create routing audit log", {
-        error: error.message,
+        error: errorMessage,
         decisionId: decision.decisionId
       });
     }

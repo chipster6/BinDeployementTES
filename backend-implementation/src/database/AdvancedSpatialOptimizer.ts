@@ -251,8 +251,8 @@ export class AdvancedSpatialOptimizer extends EventEmitter {
       this.emit('spatial_indexes_optimized', result);
       return result;
 
-    } catch (error) {
-      logger.error('Spatial index optimization failed', { error: error.message });
+    } catch (error: unknown) {
+      logger.error('Spatial index optimization failed', { error: error instanceof Error ? error?.message : String(error) });
       throw error;
     }
   }
@@ -302,8 +302,8 @@ export class AdvancedSpatialOptimizer extends EventEmitter {
         estimatedImprovements,
       };
 
-    } catch (error) {
-      logger.error('Spatial query pattern analysis failed', { error: error.message });
+    } catch (error: unknown) {
+      logger.error('Spatial query pattern analysis failed', { error: error instanceof Error ? error?.message : String(error) });
       throw error;
     }
   }
@@ -343,8 +343,8 @@ export class AdvancedSpatialOptimizer extends EventEmitter {
       this.emit('geographic_clustering_complete', result);
       return result;
 
-    } catch (error) {
-      logger.error('Geographic clustering analysis failed', { error: error.message });
+    } catch (error: unknown) {
+      logger.error('Geographic clustering analysis failed', { error: error instanceof Error ? error?.message : String(error) });
       throw error;
     }
   }
@@ -410,8 +410,8 @@ export class AdvancedSpatialOptimizer extends EventEmitter {
         estimatedImprovement,
       };
 
-    } catch (error) {
-      logger.error('Spatial query optimization failed', { error: error.message });
+    } catch (error: unknown) {
+      logger.error('Spatial query optimization failed', { error: error instanceof Error ? error?.message : String(error) });
       throw error;
     }
   }
@@ -485,8 +485,8 @@ export class AdvancedSpatialOptimizer extends EventEmitter {
         estimatedPerformanceGain,
       };
 
-    } catch (error) {
-      logger.error('Advanced spatial cache creation failed', { error: error.message });
+    } catch (error: unknown) {
+      logger.error('Advanced spatial cache creation failed', { error: error instanceof Error ? error?.message : String(error) });
       throw error;
     }
   }
@@ -635,8 +635,8 @@ export class AdvancedSpatialOptimizer extends EventEmitter {
 
       const results = await sequelize.query(indexUsageQuery, { type: QueryTypes.SELECT });
       return results as any[];
-    } catch (error) {
-      logger.error('Failed to analyze spatial index usage', { error: error.message });
+    } catch (error: unknown) {
+      logger.error('Failed to analyze spatial index usage', { error: error instanceof Error ? error?.message : String(error) });
       return [];
     }
   }
@@ -654,8 +654,8 @@ export class AdvancedSpatialOptimizer extends EventEmitter {
       await sequelize.query(createIndexQuery);
       result.created.push('idx_bins_location_optimized');
       logger.info('Created optimized spatial index for bins');
-    } catch (error) {
-      logger.warn('Failed to create optimized bins spatial index', { error: error.message });
+    } catch (error: unknown) {
+      logger.warn('Failed to create optimized bins spatial index', { error: error instanceof Error ? error?.message : String(error) });
     }
   }
 
@@ -672,8 +672,8 @@ export class AdvancedSpatialOptimizer extends EventEmitter {
       await sequelize.query(createIndexQuery);
       result.created.push('idx_routes_geometry_optimized');
       logger.info('Created optimized spatial index for routes');
-    } catch (error) {
-      logger.warn('Failed to create optimized routes spatial index', { error: error.message });
+    } catch (error: unknown) {
+      logger.warn('Failed to create optimized routes spatial index', { error: error instanceof Error ? error?.message : String(error) });
     }
   }
 
@@ -690,8 +690,8 @@ export class AdvancedSpatialOptimizer extends EventEmitter {
       await sequelize.query(createIndexQuery);
       result.created.push('idx_service_events_location_optimized');
       logger.info('Created optimized spatial index for service events');
-    } catch (error) {
-      logger.warn('Failed to create optimized service events spatial index', { error: error.message });
+    } catch (error: unknown) {
+      logger.warn('Failed to create optimized service events spatial index', { error: error instanceof Error ? error?.message : String(error) });
     }
   }
 
@@ -721,10 +721,10 @@ export class AdvancedSpatialOptimizer extends EventEmitter {
         await sequelize.query(index.query);
         result.created.push(index.name);
         logger.info('Created composite spatial index', { indexName: index.name });
-      } catch (error) {
+      } catch (error: unknown) {
         logger.warn('Failed to create composite spatial index', { 
           indexName: index.name, 
-          error: error.message 
+          error: error instanceof Error ? error?.message : String(error) 
         });
       }
     }

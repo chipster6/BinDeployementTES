@@ -12,7 +12,8 @@
  * ============================================================================
  */
 
-import { Router, Request, Response } from 'express';
+import type { Request, Response } from 'express';
+import { Router } from 'express';
 import { DependencyMonitoringService } from '../services/security/DependencyMonitoringService';
 import { AdvancedDependencyManager } from '../services/security/AdvancedDependencyManager';
 import { AutomatedDependencyScanner } from '../services/security/AutomatedDependencyScanner';
@@ -33,9 +34,9 @@ try {
   dependencyMonitoringService = new DependencyMonitoringService();
   advancedDependencyManager = new AdvancedDependencyManager();
   automatedDependencyScanner = new AutomatedDependencyScanner();
-} catch (error) {
+} catch (error: unknown) {
   logger.error('Failed to initialize dependency services', {
-    error: error instanceof Error ? error.message : 'Unknown error'
+    error: error instanceof Error ? error?.message : 'Unknown error'
   });
 }
 
@@ -119,7 +120,7 @@ try {
 router.get('/status', authenticateToken, async (req: Request, res: Response): Promise<void> => {
   try {
     if (!dependencyMonitoringService) {
-      ResponseHelper.error(res, 'Dependency monitoring service not available', 503);
+      ResponseHelper.error(res, req, { message: 'Dependency monitoring service not available', statusCode: 503 });
       return;
     }
 
@@ -146,9 +147,9 @@ router.get('/status', authenticateToken, async (req: Request, res: Response): Pr
     });
 
     ResponseHelper.success(res, responseData, 'Dependency security status retrieved successfully');
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error('Failed to get dependency status', {
-      error: error instanceof Error ? error.message : 'Unknown error',
+      error: error instanceof Error ? error?.message : 'Unknown error',
       userId: req.user?.id
     });
     ResponseHelper.error(res, 'Failed to retrieve dependency status');
@@ -213,7 +214,7 @@ router.get('/status', authenticateToken, async (req: Request, res: Response): Pr
 router.post('/scan', authenticateToken, async (req: Request, res: Response): Promise<void> => {
   try {
     if (!dependencyMonitoringService) {
-      ResponseHelper.error(res, 'Dependency monitoring service not available', 503);
+      ResponseHelper.error(res, req, { message: 'Dependency monitoring service not available', statusCode: 503 });
       return;
     }
 
@@ -225,7 +226,7 @@ router.post('/scan', authenticateToken, async (req: Request, res: Response): Pro
         role: userRole,
         ip: req.ip
       });
-      ResponseHelper.error(res, 'Insufficient permissions to trigger security scan', 403);
+      ResponseHelper.error(res, req, { message: 'Insufficient permissions to trigger security scan', statusCode: 403 });
       return;
     }
 
@@ -268,14 +269,14 @@ router.post('/scan', authenticateToken, async (req: Request, res: Response): Pro
     }).catch((error) => {
       logger.error('Manual dependency scan failed', {
         scanId,
-        error: error instanceof Error ? error.message : 'Unknown error',
+        error: error instanceof Error ? error?.message : 'Unknown error',
         userId: req.user?.id
       });
     });
 
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error('Failed to trigger dependency scan', {
-      error: error instanceof Error ? error.message : 'Unknown error',
+      error: error instanceof Error ? error?.message : 'Unknown error',
       userId: req.user?.id
     });
     ResponseHelper.error(res, 'Failed to initiate dependency scan');
@@ -365,7 +366,7 @@ router.post('/scan', authenticateToken, async (req: Request, res: Response): Pro
 router.get('/vulnerabilities', authenticateToken, async (req: Request, res: Response): Promise<void> => {
   try {
     if (!dependencyMonitoringService) {
-      ResponseHelper.error(res, 'Dependency monitoring service not available', 503);
+      ResponseHelper.error(res, req, { message: 'Dependency monitoring service not available', statusCode: 503 });
       return;
     }
 
@@ -427,9 +428,9 @@ router.get('/vulnerabilities', authenticateToken, async (req: Request, res: Resp
     });
 
     ResponseHelper.success(res, responseData, 'Vulnerability information retrieved successfully');
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error('Failed to get vulnerability details', {
-      error: error instanceof Error ? error.message : 'Unknown error',
+      error: error instanceof Error ? error?.message : 'Unknown error',
       userId: req.user?.id
     });
     ResponseHelper.error(res, 'Failed to retrieve vulnerability information');
@@ -475,7 +476,7 @@ router.get('/vulnerabilities', authenticateToken, async (req: Request, res: Resp
 router.get('/health', async (req: Request, res: Response): Promise<void> => {
   try {
     if (!dependencyMonitoringService) {
-      ResponseHelper.error(res, 'Dependency monitoring service not available', 503);
+      ResponseHelper.error(res, req, { message: 'Dependency monitoring service not available', statusCode: 503 });
       return;
     }
 
@@ -510,9 +511,9 @@ router.get('/health', async (req: Request, res: Response): Promise<void> => {
     };
 
     ResponseHelper.success(res, responseData, 'Service health status retrieved');
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error('Failed to get service health status', {
-      error: error instanceof Error ? error.message : 'Unknown error'
+      error: error instanceof Error ? error?.message : 'Unknown error'
     });
     ResponseHelper.error(res, 'Failed to retrieve service health status');
   }
@@ -535,7 +536,7 @@ router.post('/optimize',
       const userRole = req.user?.role;
 
       if (!userRole || !['admin', 'security_admin', 'system_admin'].includes(userRole)) {
-        ResponseHelper.error(res, 'Insufficient permissions for optimization operations', 403);
+        ResponseHelper.error(res, req, { message: 'Insufficient permissions for optimization operations', statusCode: 403 });
         return;
       }
 
@@ -547,7 +548,7 @@ router.post('/optimize',
       });
 
       if (!automatedDependencyScanner) {
-        ResponseHelper.error(res, 'Automated dependency scanner not available', 503);
+        ResponseHelper.error(res, req, { message: 'Automated dependency scanner not available', statusCode: 503 });
         return;
       }
 
@@ -581,9 +582,9 @@ router.post('/optimize',
         timestamp: new Date().toISOString()
       }, 'Optimization analysis completed successfully');
 
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('Failed to perform optimization analysis', {
-        error: error instanceof Error ? error.message : 'Unknown error',
+        error: error instanceof Error ? error?.message : 'Unknown error',
         userId: req.user?.id
       });
       ResponseHelper.error(res, 'Failed to perform optimization analysis');
@@ -608,7 +609,7 @@ router.post('/resolve-conflicts',
       const userRole = req.user?.role;
 
       if (!userRole || !['admin', 'security_admin', 'system_admin'].includes(userRole)) {
-        ResponseHelper.error(res, 'Insufficient permissions for conflict resolution', 403);
+        ResponseHelper.error(res, req, { message: 'Insufficient permissions for conflict resolution', statusCode: 403 });
         return;
       }
 
@@ -620,7 +621,7 @@ router.post('/resolve-conflicts',
       });
 
       if (!advancedDependencyManager) {
-        ResponseHelper.error(res, 'Advanced dependency manager not available', 503);
+        ResponseHelper.error(res, req, { message: 'Advanced dependency manager not available', statusCode: 503 });
         return;
       }
 
@@ -662,9 +663,9 @@ router.post('/resolve-conflicts',
         timestamp: new Date().toISOString()
       }, 'Conflict analysis completed successfully');
 
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('Failed to analyze conflicts', {
-        error: error instanceof Error ? error.message : 'Unknown error',
+        error: error instanceof Error ? error?.message : 'Unknown error',
         userId: req.user?.id
       });
       ResponseHelper.error(res, 'Failed to analyze dependency conflicts');
@@ -732,9 +733,9 @@ router.get('/reports',
         filters: { type: type || 'all', limit }
       }, 'Reports retrieved successfully');
 
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('Failed to get reports list', {
-        error: error instanceof Error ? error.message : 'Unknown error',
+        error: error instanceof Error ? error?.message : 'Unknown error',
         userId: req.user?.id
       });
       ResponseHelper.error(res, 'Failed to retrieve reports list');
@@ -755,14 +756,14 @@ router.get('/reports/:filename',
       
       // Validate filename to prevent path traversal
       if (filename.includes('..') || filename.includes('/') || filename.includes('\\')) {
-        ResponseHelper.error(res, 'Invalid filename', 400);
+        ResponseHelper.error(res, req, { message: 'Invalid filename', statusCode: 400 });
         return;
       }
 
       const filePath = path.join(process.cwd(), 'reports', 'dependency-management', filename);
       
       if (!fs.existsSync(filePath)) {
-        ResponseHelper.error(res, 'Report file not found', 404);
+        ResponseHelper.error(res, req, { message: 'Report file not found', statusCode: 404 });
         return;
       }
 
@@ -781,9 +782,9 @@ router.get('/reports/:filename',
         userId: req.user?.id
       });
 
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('Failed to download report', {
-        error: error instanceof Error ? error.message : 'Unknown error',
+        error: error instanceof Error ? error?.message : 'Unknown error',
         filename: req.params.filename,
         userId: req.user?.id
       });
@@ -834,7 +835,7 @@ router.get('/metrics',
           npmPackages: metrics.packages.npm,
           pythonPackages: metrics.packages.python,
           dockerImages: metrics.packages.docker_images,
-          lastScan: securitySummary.lastScanTime || metrics.last_scan
+          lastScan: securitySummary?.lastScanTime || metrics.last_scan
         },
         security: {
           overallGrade: securitySummary.overallSecurityGrade,
@@ -861,9 +862,9 @@ router.get('/metrics',
 
       ResponseHelper.success(res, dashboardMetrics, 'Dependency metrics retrieved successfully');
 
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('Failed to get dependency metrics', {
-        error: error instanceof Error ? error.message : 'Unknown error',
+        error: error instanceof Error ? error?.message : 'Unknown error',
         userId: req.user?.id
       });
       ResponseHelper.error(res, 'Failed to retrieve dependency metrics');
@@ -888,7 +889,7 @@ router.post('/automation/enable',
       const userRole = req.user?.role;
 
       if (!userRole || userRole !== 'admin') {
-        ResponseHelper.error(res, 'Only admins can modify automation settings', 403);
+        ResponseHelper.error(res, req, { message: 'Only admins can modify automation settings', statusCode: 403 });
         return;
       }
 
@@ -922,8 +923,8 @@ router.post('/automation/enable',
               results[feature] = 'enabled';
               break;
           }
-        } catch (error) {
-          results[feature] = `failed: ${error instanceof Error ? error.message : 'Unknown error'}`;
+        } catch (error: unknown) {
+          results[feature] = `failed: ${error instanceof Error ? error?.message : 'Unknown error'}`;
         }
       }
 
@@ -932,9 +933,9 @@ router.post('/automation/enable',
         timestamp: new Date().toISOString()
       }, 'Automation features updated successfully');
 
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('Failed to enable automation features', {
-        error: error instanceof Error ? error.message : 'Unknown error',
+        error: error instanceof Error ? error?.message : 'Unknown error',
         userId: req.user?.id
       });
       ResponseHelper.error(res, 'Failed to enable automation features');

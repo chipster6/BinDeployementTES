@@ -20,15 +20,7 @@
  * Version: 1.0.0
  */
 
-import {
-  Model,
-  ModelStatic,
-  Transaction,
-  FindOptions,
-  CreateOptions,
-  UpdateOptions,
-  DestroyOptions,
-} from "sequelize";
+import { Model, type ModelStatic, type Transaction, type FindOptions, type CreateOptions, type UpdateOptions, type DestroyOptions, type  } from "sequelize";
 import { database } from "@/config/database";
 import { redisClient } from "@/config/redis";
 import { logger, Timer } from "@/utils/logger";
@@ -121,12 +113,13 @@ export abstract class BaseService<T extends Model = Model> {
       await newTransaction.commit();
       timer.end({ operation: "new_transaction", status: "committed" });
       return result;
-    } catch (error) {
+    } catch (error: unknown) {
       await newTransaction.rollback();
+      const errorMessage = error instanceof Error ? error?.message : 'Unknown error';
       timer.end({
         operation: "new_transaction",
         status: "rolled_back",
-        error: error.message,
+        error: errorMessage,
       });
       throw error;
     }
@@ -150,11 +143,12 @@ export abstract class BaseService<T extends Model = Model> {
 
       logger.debug("Cache miss", { service: this.serviceName, key: cacheKey });
       return null;
-    } catch (error) {
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error?.message : 'Unknown error';
       logger.warn("Cache get failed", {
         service: this.serviceName,
         key,
-        error: error.message,
+        error: errorMessage,
       });
       return null;
     }
@@ -169,8 +163,8 @@ export abstract class BaseService<T extends Model = Model> {
     options: Partial<CacheOptions> = {},
   ): Promise<void> {
     try {
-      const cacheKey = `${options.namespace || this.cacheNamespace}:${key}`;
-      const ttl = options.ttl || this.defaultCacheTTL;
+      const cacheKey = `${options?.namespace || this.cacheNamespace}:${key}`;
+      const ttl = options?.ttl || this.defaultCacheTTL;
 
       await redisClient.setex(cacheKey, ttl, JSON.stringify(data));
       logger.debug("Cache set", {
@@ -178,11 +172,12 @@ export abstract class BaseService<T extends Model = Model> {
         key: cacheKey,
         ttl,
       });
-    } catch (error) {
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error?.message : 'Unknown error';
       logger.warn("Cache set failed", {
         service: this.serviceName,
         key,
-        error: error.message,
+        error: errorMessage,
       });
     }
   }
@@ -201,11 +196,12 @@ export abstract class BaseService<T extends Model = Model> {
         service: this.serviceName,
         key: cacheKey,
       });
-    } catch (error) {
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error?.message : 'Unknown error';
       logger.warn("Cache delete failed", {
         service: this.serviceName,
         key,
-        error: error.message,
+        error: errorMessage,
       });
     }
   }
@@ -225,10 +221,11 @@ export abstract class BaseService<T extends Model = Model> {
           keysCleared: keys.length,
         });
       }
-    } catch (error) {
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error?.message : 'Unknown error';
       logger.warn("Cache clear failed", {
         service: this.serviceName,
-        error: error.message,
+        error: errorMessage,
       });
     }
   }
@@ -263,11 +260,12 @@ export abstract class BaseService<T extends Model = Model> {
 
       timer.end({ found: !!result, cached: useCache });
       return result;
-    } catch (error) {
-      timer.end({ error: error.message });
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error?.message : 'Unknown error';
+      timer.end({ error: errorMessage });
       logger.error(`${this.serviceName}.findById failed`, {
         id,
-        error: error.message,
+        error: errorMessage,
       });
       throw new AppError(`Failed to find ${this.model.name}`, 500);
     }
@@ -283,10 +281,11 @@ export abstract class BaseService<T extends Model = Model> {
       const result = await this.model.findOne(options);
       timer.end({ found: !!result });
       return result;
-    } catch (error) {
-      timer.end({ error: error.message });
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error?.message : 'Unknown error';
+      timer.end({ error: errorMessage });
       logger.error(`${this.serviceName}.findOne failed`, {
-        error: error.message,
+        error: errorMessage,
       });
       throw new AppError(`Failed to find ${this.model.name}`, 500);
     }
@@ -338,10 +337,11 @@ export abstract class BaseService<T extends Model = Model> {
       const results = await this.model.findAll(options);
       timer.end({ paginated: false, returned: results.length });
       return results;
-    } catch (error) {
-      timer.end({ error: error.message });
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error?.message : 'Unknown error';
+      timer.end({ error: errorMessage });
       logger.error(`${this.serviceName}.findAll failed`, {
-        error: error.message,
+        error: errorMessage,
       });
       throw new AppError(`Failed to find ${this.model.name} records`, 500);
     }
@@ -378,15 +378,16 @@ export abstract class BaseService<T extends Model = Model> {
       });
 
       return result;
-    } catch (error) {
-      timer.end({ error: error.message });
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error?.message : 'Unknown error';
+      timer.end({ error: errorMessage });
       logger.error(`${this.serviceName}.create failed`, {
         data,
-        error: error.message,
+        error: errorMessage,
       });
 
-      if (error.name === "SequelizeValidationError") {
-        throw new ValidationError("Validation failed", error.errors);
+      if (error instanceof Error && error.name === "SequelizeValidationError") {
+        throw new ValidationError("Validation failed", (error as any).errors);
       }
 
       throw new AppError(`Failed to create ${this.model.name}`, 500);
@@ -431,20 +432,21 @@ export abstract class BaseService<T extends Model = Model> {
       logger.info(`${this.serviceName}.update successful`, { id });
 
       return result;
-    } catch (error) {
-      timer.end({ error: error.message });
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error?.message : 'Unknown error';
+      timer.end({ error: errorMessage });
       logger.error(`${this.serviceName}.update failed`, {
         id,
         data,
-        error: error.message,
+        error: errorMessage,
       });
 
       if (error instanceof AppError) {
         throw error;
       }
 
-      if (error.name === "SequelizeValidationError") {
-        throw new ValidationError("Validation failed", error.errors);
+      if (error instanceof Error && error.name === "SequelizeValidationError") {
+        throw new ValidationError("Validation failed", (error as any).errors);
       }
 
       throw new AppError(`Failed to update ${this.model.name}`, 500);
@@ -486,11 +488,12 @@ export abstract class BaseService<T extends Model = Model> {
       logger.info(`${this.serviceName}.delete successful`, { id });
 
       return result;
-    } catch (error) {
-      timer.end({ error: error.message });
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error?.message : 'Unknown error';
+      timer.end({ error: errorMessage });
       logger.error(`${this.serviceName}.delete failed`, {
         id,
-        error: error.message,
+        error: errorMessage,
       });
 
       if (error instanceof AppError) {
@@ -523,11 +526,12 @@ export abstract class BaseService<T extends Model = Model> {
       const exists = count > 0;
       timer.end({ exists });
       return exists;
-    } catch (error) {
-      timer.end({ error: error.message });
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error?.message : 'Unknown error';
+      timer.end({ error: errorMessage });
       logger.error(`${this.serviceName}.exists failed`, {
         id,
-        error: error.message,
+        error: errorMessage,
       });
       return false;
     }
@@ -545,15 +549,16 @@ export abstract class BaseService<T extends Model = Model> {
         totalRecords: total,
         cacheNamespace: this.cacheNamespace,
       };
-    } catch (error) {
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error?.message : 'Unknown error';
       logger.error(`${this.serviceName}.getStats failed`, {
-        error: error.message,
+        error: errorMessage,
       });
       return {
         service: this.serviceName,
         model: this.model.name,
         totalRecords: 0,
-        error: error.message,
+        error: errorMessage,
       };
     }
   }

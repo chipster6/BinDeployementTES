@@ -18,7 +18,7 @@
  * Version: 1.0.0
  */
 
-import { Response, Request } from "express";
+import type { Response, Request } from "express";
 import { logger } from "@/utils/logger";
 
 /**
@@ -108,8 +108,8 @@ export class ResponseHelper {
       },
     };
 
-    if (options.message) {
-      response.message = options.message;
+    if (options?.message) {
+      response?.message = options?.message;
     }
 
     if (success && "data" in options && options.data !== undefined) {
@@ -135,8 +135,8 @@ export class ResponseHelper {
     req: Request,
     options: SuccessResponseOptions<T> = {},
   ): Response {
-    const statusCode = options.statusCode || 200;
-    const message = options.message || "Request successful";
+    const statusCode = options?.statusCode || 200;
+    const message = options?.message || "Request successful";
 
     const response = this.buildResponse(
       true,
@@ -245,8 +245,8 @@ export class ResponseHelper {
     req: Request,
     options: ErrorResponseOptions = {},
   ): Response {
-    const statusCode = options.statusCode || 500;
-    const message = options.message || "Internal server error";
+    const statusCode = options?.statusCode || 500;
+    const message = options?.message || "Internal server error";
     const status = statusCode >= 500 ? "error" : "fail";
 
     const response = this.buildResponse(

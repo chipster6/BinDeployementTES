@@ -1,0 +1,561 @@
+# ============================================================================
+# INFRASTRUCTURE MONITORING & ALERTING PIPELINE
+# ============================================================================
+#
+# Continuous monitoring deployment and health validation for production
+# infrastructure with automated incident response and escalation
+#
+# DevOps Infrastructure Orchestrator - Monitoring Pipeline
+# Version: 2.0.0 - Production Ready
+# ============================================================================
+
+name: Infrastructure Monitoring Pipeline
+
+on:
+  schedule:
+    # Run every 15 minutes for continuous monitoring
+    - cron: '*/15 * * * *'
+  push:
+    branches: [main]
+    paths:
+      - 'docker/prometheus/**'
+      - 'docker/grafana/**'
+      - 'scripts/monitoring-**'
+      - 'scripts/24-7-monitoring-**'
+  workflow_dispatch:
+    inputs:
+      action:
+        description: 'Monitoring Action'
+        required: true
+        default: 'health-check'
+        type: choice
+        options:
+        - health-check
+        - deploy-monitoring
+        - emergency-restart
+        - validate-alerts
+
+env:
+  MONITORING_TIMEOUT: 300
+  ALERT_THRESHOLD_CRITICAL: 95
+  ALERT_THRESHOLD_WARNING: 85
+  SLACK_WEBHOOK_URL: ${{ secrets.SLACK_MONITORING_WEBHOOK }}
+
+jobs:
+  # ============================================================================
+  # CONTINUOUS HEALTH MONITORING
+  # ============================================================================
+  monitor-infrastructure:
+    name: Infrastructure Health Monitor
+    runs-on: ubuntu-latest
+    if: github.event_name == 'schedule' || github.event.inputs.action == 'health-check'
+    outputs:
+      health-status: ${{ steps.health-check.outputs.status }}
+      alert-level: ${{ steps.health-check.outputs.alert-level }}
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Monitoring Environment
+        run: |
+          echo "MONITORING_ENV=production" >> $GITHUB_ENV
+          echo "CHECK_TIMESTAMP=$(date -u '+%Y-%m-%d %H:%M:%S UTC')" >> $GITHUB_ENV
+
+      - name: Infrastructure Health Check
+        id: health-check
+        run: |
+          echo "🔍 Running comprehensive infrastructure health check..."
+          
+          # Initialize health status
+          OVERALL_STATUS="healthy"
+          ALERT_LEVEL="none"
+          CRITICAL_ISSUES=""
+          WARNING_ISSUES=""
+          
+          # Check core services
+          echo "Checking core services..."
+          if ! ./scripts/monitoring-health-check.sh; then
+            OVERALL_STATUS="degraded"
+            ALERT_LEVEL="warning"
+            WARNING_ISSUES="${WARNING_ISSUES}Core services health check failed; "
+          fi
+          
+          # Check database performance
+          echo "Checking database performance..."
+          if ! ./scripts/test-database-performance.ts; then
+            OVERALL_STATUS="critical"
+            ALERT_LEVEL="critical"
+            CRITICAL_ISSUES="${CRITICAL_ISSUES}Database performance degraded; "
+          fi
+          
+          # Check external service coordination
+          echo "Checking external service coordination..."
+          if ! curl -sf "http://localhost:3001/api/external/health" > /dev/null 2>&1; then
+            OVERALL_STATUS="warning"
+            if [ "$ALERT_LEVEL" != "critical" ]; then
+              ALERT_LEVEL="warning"
+            fi
+            WARNING_ISSUES="${WARNING_ISSUES}External services coordination degraded; "
+          fi
+          
+          # Check AI/ML services
+          echo "Checking AI/ML services..."
+          if ! curl -sf "http://localhost:3001/api/v1/weaviate/health" > /dev/null 2>&1; then
+            WARNING_ISSUES="${WARNING_ISSUES}AI/ML services not responding; "
+            if [ "$ALERT_LEVEL" == "none" ]; then
+              ALERT_LEVEL="warning"
+            fi
+          fi
+          
+          # Security monitoring check
+          echo "Checking security monitoring..."
+          if ! curl -sf "http://localhost:9090/api/v1/query?query=up" > /dev/null 2>&1; then
+            OVERALL_STATUS="critical"
+            ALERT_LEVEL="critical"
+            CRITICAL_ISSUES="${CRITICAL_ISSUES}Security monitoring (Prometheus) down; "
+          fi
+          
+          echo "status=$OVERALL_STATUS" >> $GITHUB_OUTPUT
+          echo "alert-level=$ALERT_LEVEL" >> $GITHUB_OUTPUT
+          echo "critical-issues=$CRITICAL_ISSUES" >> $GITHUB_OUTPUT
+          echo "warning-issues=$WARNING_ISSUES" >> $GITHUB_OUTPUT
+          
+          echo "✅ Health check completed - Status: $OVERALL_STATUS, Alert Level: $ALERT_LEVEL"
+
+      - name: Performance Metrics Collection
+        run: |
+          echo "📊 Collecting performance metrics..."
+          
+          # Create metrics report
+          cat > infrastructure-metrics.json << EOF
+          {
+            "timestamp": "${{ env.CHECK_TIMESTAMP }}",
+            "health_status": "${{ steps.health-check.outputs.status }}",
+            "alert_level": "${{ steps.health-check.outputs.alert-level }}",
+            "metrics": {
+              "cpu_usage": "$(top -bn1 | grep "Cpu(s)" | awk '{print $2}' | sed 's/%us,//')",
+              "memory_usage": "$(free | grep Mem | awk '{printf \"%.2f\", $3/$2 * 100.0}')",
+              "disk_usage": "$(df -h / | awk 'NR==2{printf \"%s\", $5}')",
+              "docker_containers": "$(docker ps --format 'table {{.Names}}\t{{.Status}}' | wc -l)"
+            }
+          }
+          EOF
+          
+          echo "📈 Performance metrics collected"
+
+      - name: Upload Metrics
+        uses: actions/upload-artifact@v4
+        with:
+          name: infrastructure-metrics-${{ github.run_number }}
+          path: infrastructure-metrics.json
+          retention-days: 30
+
+  # ============================================================================
+  # AUTOMATED INCIDENT RESPONSE
+  # ============================================================================
+  incident-response:
+    name: Automated Incident Response
+    runs-on: ubuntu-latest
+    needs: monitor-infrastructure
+    if: needs.monitor-infrastructure.outputs.alert-level == 'critical'
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Critical Alert Processing
+        run: |
+          echo "🚨 CRITICAL ALERT: Infrastructure health critical"
+          echo "Alert Level: ${{ needs.monitor-infrastructure.outputs.alert-level }}"
+          echo "Health Status: ${{ needs.monitor-infrastructure.outputs.health-status }}"
+
+      - name: Emergency Service Restart
+        if: contains(needs.monitor-infrastructure.outputs.critical-issues, 'monitoring')
+        run: |
+          echo "🔄 Attempting emergency service restart..."
+          ./scripts/production-monitoring-deploy.sh clean
+          sleep 30
+          ./scripts/production-monitoring-deploy.sh deploy
+
+      - name: Database Recovery
+        if: contains(needs.monitor-infrastructure.outputs.critical-issues, 'Database')
+        run: |
+          echo "🔄 Attempting database recovery..."
+          ./scripts/production-deploy.sh health
+          
+          # If health check fails, attempt connection pool reset
+          if [ $? -ne 0 ]; then
+            echo "Resetting database connection pool..."
+            docker-compose restart backend
+            sleep 60
+            ./scripts/production-deploy.sh health
+          fi
+
+      - name: Escalate to On-Call
+        run: |
+          echo "📞 Escalating critical alert to on-call team..."
+          
+          # Send critical alert notification
+          curl -X POST "${{ env.SLACK_WEBHOOK_URL }}" \
+            -H 'Content-type: application/json' \
+            --data '{
+              "text": "🚨 CRITICAL INFRASTRUCTURE ALERT",
+              "blocks": [
+                {
+                  "type": "header",
+                  "text": {
+                    "type": "plain_text",
+                    "text": "🚨 Critical Infrastructure Alert"
+                  }
+                },
+                {
+                  "type": "section",
+                  "fields": [
+                    {
+                      "type": "mrkdwn",
+                      "text": "*Status:* Critical"
+                    },
+                    {
+                      "type": "mrkdwn",
+                      "text": "*Time:* ${{ env.CHECK_TIMESTAMP }}"
+                    },
+                    {
+                      "type": "mrkdwn",
+                      "text": "*Issues:* ${{ needs.monitor-infrastructure.outputs.critical-issues }}"
+                    },
+                    {
+                      "type": "mrkdwn",
+                      "text": "*Action:* Automated response initiated"
+                    }
+                  ]
+                }
+              ]
+            }'
+
+  # ============================================================================
+  # MONITORING STACK DEPLOYMENT
+  # ============================================================================
+  deploy-monitoring-stack:
+    name: Deploy Monitoring Stack
+    runs-on: ubuntu-latest
+    if: github.event.inputs.action == 'deploy-monitoring' || (github.event_name == 'push' && contains(github.event.head_commit.message, '[deploy-monitoring]'))
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Validate Monitoring Configuration
+        run: |
+          echo "🔧 Validating monitoring configuration..."
+          
+          # Check Prometheus configuration
+          if [ -f "docker/prometheus/prometheus.prod.yml" ]; then
+            echo "✅ Prometheus configuration found"
+          else
+            echo "❌ Prometheus configuration missing"
+            exit 1
+          fi
+          
+          # Check Grafana configuration
+          if [ -d "docker/grafana" ]; then
+            echo "✅ Grafana configuration found"
+          else
+            echo "❌ Grafana configuration missing"
+            exit 1
+          fi
+          
+          # Check alerting rules
+          if [ -f "docker/prometheus/rules/production-alerts.yml" ]; then
+            echo "✅ Production alerting rules found"
+          else
+            echo "❌ Production alerting rules missing"
+            exit 1
+          fi
+
+      - name: Deploy Production Monitoring
+        run: |
+          echo "🚀 Deploying production monitoring stack..."
+          DEPLOYMENT_ENV=production ./scripts/production-monitoring-deploy.sh deploy
+
+      - name: Validate Monitoring Deployment
+        run: |
+          echo "🔍 Validating monitoring deployment..."
+          sleep 60
+          ./scripts/monitoring-health-check.sh
+          
+          if [ $? -eq 0 ]; then
+            echo "✅ Monitoring deployment successful"
+          else
+            echo "❌ Monitoring deployment failed"
+            exit 1
+          fi
+
+      - name: Deploy SIEM Integration
+        run: |
+          echo "🛡️ Deploying SIEM integration..."
+          ./scripts/deploy-siem.sh
+
+      - name: Activate 24/7 Monitoring
+        run: |
+          echo "⏰ Activating 24/7 monitoring..."
+          ./scripts/24-7-monitoring-integration.sh
+
+  # ============================================================================
+  # ALERT VALIDATION AND TESTING
+  # ============================================================================
+  validate-alerts:
+    name: Validate Alert System
+    runs-on: ubuntu-latest
+    if: github.event.inputs.action == 'validate-alerts' || (github.event_name == 'push' && contains(github.event.head_commit.message, '[test-alerts]'))
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Test Security Alerts
+        run: |
+          echo "🧪 Testing security alert system..."
+          
+          # Test authentication failure alert
+          curl -X POST "http://localhost:9093/api/v1/alerts" \
+            -H "Content-Type: application/json" \
+            -d '[{
+              "labels": {
+                "alertname": "AuthenticationFailureTest",
+                "severity": "warning",
+                "service": "backend"
+              },
+              "annotations": {
+                "summary": "Test authentication failure alert",
+                "description": "Testing alert system functionality"
+              },
+              "startsAt": "'$(date -u +%Y-%m-%dT%H:%M:%S.000Z)'",
+              "endsAt": "'$(date -u -d '+5 minutes' +%Y-%m-%dT%H:%M:%S.000Z)'"
+            }]'
+
+      - name: Test Performance Alerts
+        run: |
+          echo "📈 Testing performance alert system..."
+          
+          # Test high CPU usage alert
+          curl -X POST "http://localhost:9093/api/v1/alerts" \
+            -H "Content-Type: application/json" \
+            -d '[{
+              "labels": {
+                "alertname": "HighCPUUsageTest",
+                "severity": "critical",
+                "instance": "backend"
+              },
+              "annotations": {
+                "summary": "Test high CPU usage alert",
+                "description": "CPU usage above 90% for test validation"
+              },
+              "startsAt": "'$(date -u +%Y-%m-%dT%H:%M:%S.000Z)'",
+              "endsAt": "'$(date -u -d '+5 minutes' +%Y-%m-%dT%H:%M:%S.000Z)'"
+            }]'
+
+      - name: Validate Alert Delivery
+        run: |
+          echo "📮 Validating alert delivery..."
+          sleep 30
+          
+          # Check if alerts are visible in Alertmanager
+          ALERTS_COUNT=$(curl -s "http://localhost:9093/api/v1/alerts" | jq '.data | length')
+          
+          if [ "$ALERTS_COUNT" -gt 0 ]; then
+            echo "✅ Alerts are being processed by Alertmanager"
+          else
+            echo "❌ No alerts found in Alertmanager"
+            exit 1
+          fi
+
+  # ============================================================================
+  # EMERGENCY OPERATIONS
+  # ============================================================================
+  emergency-restart:
+    name: Emergency Infrastructure Restart
+    runs-on: ubuntu-latest
+    if: github.event.inputs.action == 'emergency-restart'
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Emergency Confirmation
+        run: |
+          echo "⚠️ EMERGENCY RESTART INITIATED"
+          echo "This will restart all infrastructure services"
+          echo "Timestamp: $(date -u)"
+
+      - name: Create Emergency Backup
+        run: |
+          echo "💾 Creating emergency backup..."
+          ./scripts/production-deploy.sh backup
+
+      - name: Restart Infrastructure Services
+        run: |
+          echo "🔄 Restarting infrastructure services..."
+          
+          # Restart in specific order to minimize downtime
+          docker-compose restart redis
+          sleep 30
+          docker-compose restart postgres
+          sleep 60
+          docker-compose restart backend
+          sleep 30
+          docker-compose restart frontend
+          sleep 30
+          docker-compose restart nginx
+
+      - name: Restart Monitoring Stack
+        run: |
+          echo "📊 Restarting monitoring stack..."
+          docker-compose --profile monitoring restart
+
+      - name: Validate Emergency Restart
+        run: |
+          echo "🔍 Validating emergency restart..."
+          sleep 120
+          
+          ./scripts/production-deploy.sh health
+          ./scripts/monitoring-health-check.sh
+          
+          echo "✅ Emergency restart completed and validated"
+
+      - name: Notify Emergency Restart
+        run: |
+          curl -X POST "${{ env.SLACK_WEBHOOK_URL }}" \
+            -H 'Content-type: application/json' \
+            --data '{
+              "text": "⚠️ Emergency infrastructure restart completed",
+              "blocks": [
+                {
+                  "type": "header",
+                  "text": {
+                    "type": "plain_text",
+                    "text": "⚠️ Emergency Infrastructure Restart"
+                  }
+                },
+                {
+                  "type": "section",
+                  "fields": [
+                    {
+                      "type": "mrkdwn",
+                      "text": "*Status:* Completed"
+                    },
+                    {
+                      "type": "mrkdwn",
+                      "text": "*Time:* $(date -u)"
+                    },
+                    {
+                      "type": "mrkdwn",
+                      "text": "*Initiated by:* ${{ github.actor }}"
+                    },
+                    {
+                      "type": "mrkdwn",
+                      "text": "*Validation:* All services healthy"
+                    }
+                  ]
+                }
+              ]
+            }'
+
+  # ============================================================================
+  # MONITORING SUMMARY AND REPORTING
+  # ============================================================================
+  monitoring-summary:
+    name: Monitoring Summary Report
+    runs-on: ubuntu-latest
+    needs: [monitor-infrastructure]
+    if: always()
+    steps:
+      - name: Generate Summary Report
+        run: |
+          echo "📋 Generating monitoring summary report..."
+          
+          cat > monitoring-summary.md << EOF
+          # Infrastructure Monitoring Summary
+          
+          **Timestamp**: ${{ env.CHECK_TIMESTAMP }}
+          **Workflow Run**: ${{ github.run_number }}
+          **Triggered by**: ${{ github.event_name }}
+          
+          ## Health Status
+          - **Overall Status**: ${{ needs.monitor-infrastructure.outputs.health-status || 'not-checked' }}
+          - **Alert Level**: ${{ needs.monitor-infrastructure.outputs.alert-level || 'none' }}
+          
+          ## Service Status
+          - ✅ Infrastructure Health Check: $([ "${{ needs.monitor-infrastructure.result }}" = "success" ] && echo "Passed" || echo "Failed")
+          - 🔄 Incident Response: $([ "${{ needs.incident-response.result }}" = "success" ] && echo "Executed" || echo "Not Required")
+          
+          ## Next Steps
+          $(if [ "${{ needs.monitor-infrastructure.outputs.alert-level }}" = "critical" ]; then
+            echo "- 🚨 Critical issues require immediate attention"
+            echo "- 📞 On-call team has been notified"
+            echo "- 🔄 Automated recovery procedures initiated"
+          elif [ "${{ needs.monitor-infrastructure.outputs.alert-level }}" = "warning" ]; then
+            echo "- ⚠️ Warning conditions detected"
+            echo "- 👀 Monitor for escalation"
+            echo "- 📊 Review performance metrics"
+          else
+            echo "- ✅ All systems operating normally"
+            echo "- 📈 Continue regular monitoring"
+          fi)
+          
+          ---
+          
+          *Generated by Infrastructure Monitoring Pipeline*
+          EOF
+          
+          cat monitoring-summary.md
+
+      - name: Upload Summary Report
+        uses: actions/upload-artifact@v4
+        with:
+          name: monitoring-summary-${{ github.run_number }}
+          path: monitoring-summary.md
+          retention-days: 90
+
+# ============================================================================
+# MONITORING PIPELINE SUMMARY
+# ============================================================================
+# This monitoring pipeline provides:
+# 
+# 1. **Continuous Health Monitoring**:
+#    - Automated health checks every 15 minutes
+#    - Multi-service status validation
+#    - Performance metrics collection
+#    - Real-time alert generation
+# 
+# 2. **Automated Incident Response**:
+#    - Critical alert detection and escalation
+#    - Emergency service restart procedures
+#    - Database recovery automation
+#    - On-call team notification
+# 
+# 3. **Infrastructure Management**:
+#    - Monitoring stack deployment automation
+#    - Configuration validation
+#    - SIEM integration deployment
+#    - 24/7 monitoring activation
+# 
+# 4. **Alert System Validation**:
+#    - Security alert testing
+#    - Performance alert validation
+#    - Alert delivery confirmation
+#    - End-to-end alert flow testing
+# 
+# 5. **Emergency Operations**:
+#    - Manual emergency restart capability
+#    - Backup creation before operations
+#    - Service restart orchestration
+#    - Post-restart validation
+# 
+# **Monitoring Coverage**:
+# - Core application services
+# - Database performance
+# - External service coordination
+# - AI/ML service availability
+# - Security monitoring stack
+# 
+# **Alert Levels**:
+# - Critical: Immediate action required
+# - Warning: Attention needed
+# - None: All systems normal
+# ============================================================================

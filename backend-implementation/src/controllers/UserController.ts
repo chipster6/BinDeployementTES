@@ -11,7 +11,7 @@
  * Version: 1.0.0
  */
 
-import { Request, Response } from "express";
+import type { Request, Response } from "express";
 import { Op } from "sequelize";
 import { validationResult } from "express-validator";
 import { User, UserModel, UserRole, UserStatus } from "@/models/User";
@@ -114,8 +114,9 @@ export class UserController {
           },
         },
       });
-    } catch (error) {
-      logger.error("Get users failed:", error);
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error?.message : 'Unknown error';
+      logger.error("Get users failed:", { error: errorMessage });
       res.status(500).json({
         success: false,
         message: "Internal server error",
@@ -158,8 +159,9 @@ export class UserController {
           user: user.toSafeJSON(),
         },
       });
-    } catch (error) {
-      logger.error("Get user by ID failed:", error);
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error?.message : 'Unknown error';
+      logger.error("Get user by ID failed:", { error: errorMessage });
       res.status(500).json({
         success: false,
         message: "Internal server error",
@@ -259,8 +261,9 @@ export class UserController {
           user: user.toSafeJSON(),
         },
       });
-    } catch (error) {
-      logger.error("Create user failed:", error);
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error?.message : 'Unknown error';
+      logger.error("Create user failed:", { error: errorMessage });
       res.status(500).json({
         success: false,
         message: "Internal server error",
@@ -367,8 +370,9 @@ export class UserController {
           user: user.toSafeJSON(),
         },
       });
-    } catch (error) {
-      logger.error("Update user failed:", error);
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error?.message : 'Unknown error';
+      logger.error("Update user failed:", { error: errorMessage });
       res.status(500).json({
         success: false,
         message: "Internal server error",
@@ -437,8 +441,9 @@ export class UserController {
         success: true,
         message: "User deleted successfully",
       });
-    } catch (error) {
-      logger.error("Delete user failed:", error);
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error?.message : 'Unknown error';
+      logger.error("Delete user failed:", { error: errorMessage });
       res.status(500).json({
         success: false,
         message: "Internal server error",
@@ -482,8 +487,9 @@ export class UserController {
           count: users.length,
         },
       });
-    } catch (error) {
-      logger.error("Get users by role failed:", error);
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error?.message : 'Unknown error';
+      logger.error("Get users by role failed:", { error: errorMessage });
       res.status(500).json({
         success: false,
         message: "Internal server error",
@@ -557,8 +563,9 @@ export class UserController {
         success: true,
         message: "Password reset successfully",
       });
-    } catch (error) {
-      logger.error("Reset user password failed:", error);
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error?.message : 'Unknown error';
+      logger.error("Reset user password failed:", { error: errorMessage });
       res.status(500).json({
         success: false,
         message: "Internal server error",
@@ -643,8 +650,9 @@ export class UserController {
           user: user.toSafeJSON(),
         },
       });
-    } catch (error) {
-      logger.error("Toggle user lock failed:", error);
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error?.message : 'Unknown error';
+      logger.error("Toggle user lock failed:", { error: errorMessage });
       res.status(500).json({
         success: false,
         message: "Internal server error",

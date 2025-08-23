@@ -22,7 +22,7 @@
 
 import { sequelize } from '@/config/database';
 import { logger } from '@/utils/logger';
-import { QueryTypes, Transaction } from 'sequelize';
+import type { QueryTypes, Transaction } from 'sequelize';
 import { databasePerformanceMonitor } from './performance-monitor';
 import fs from 'fs/promises';
 import path from 'path';
@@ -149,7 +149,7 @@ export class MigrationValidator {
       
       return analysis;
       
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error(`Migration validation failed for ${migrationId}:`, error);
       throw error;
     }
@@ -179,7 +179,7 @@ export class MigrationValidator {
             testName: 'dangerous_operation_check',
             severity: ValidationSeverity.ERROR,
             status: 'failed',
-            message: op.message,
+            message: op?.message,
             recommendations: ['Add proper WHERE clauses', 'Use IF EXISTS for DROP operations', 'Consider safer alternatives'],
             executionTime: Date.now() - startTime,
             timestamp: new Date(),
@@ -251,13 +251,13 @@ export class MigrationValidator {
         });
       }
       
-    } catch (error) {
+    } catch (error: unknown) {
       results.push({
         category: ValidationCategory.SCHEMA,
         testName: 'schema_validation_error',
         severity: ValidationSeverity.CRITICAL,
         status: 'failed',
-        message: `Schema validation error: ${error instanceof Error ? error.message : String(error)}`,
+        message: `Schema validation error: ${error instanceof Error ? error?.message : String(error)}`,
         executionTime: Date.now() - startTime,
         timestamp: new Date(),
       });
@@ -289,7 +289,7 @@ export class MigrationValidator {
             testName: 'table_locking_check',
             severity: op.impact === 'high' ? ValidationSeverity.ERROR : ValidationSeverity.WARNING,
             status: op.impact === 'high' ? 'failed' : 'warning',
-            message: op.message,
+            message: op?.message,
             recommendations: ['Consider using CONCURRENTLY for index creation', 'Plan maintenance window for locking operations'],
             executionTime: Date.now() - startTime,
             timestamp: new Date(),
@@ -341,13 +341,13 @@ export class MigrationValidator {
         });
       }
       
-    } catch (error) {
+    } catch (error: unknown) {
       results.push({
         category: ValidationCategory.PERFORMANCE,
         testName: 'performance_validation_error',
         severity: ValidationSeverity.CRITICAL,
         status: 'failed',
-        message: `Performance validation error: ${error instanceof Error ? error.message : String(error)}`,
+        message: `Performance validation error: ${error instanceof Error ? error?.message : String(error)}`,
         executionTime: Date.now() - startTime,
         timestamp: new Date(),
       });
@@ -414,13 +414,13 @@ export class MigrationValidator {
         }
       }
       
-    } catch (error) {
+    } catch (error: unknown) {
       results.push({
         category: ValidationCategory.DATA_INTEGRITY,
         testName: 'data_integrity_validation_error',
         severity: ValidationSeverity.CRITICAL,
         status: 'failed',
-        message: `Data integrity validation error: ${error instanceof Error ? error.message : String(error)}`,
+        message: `Data integrity validation error: ${error instanceof Error ? error?.message : String(error)}`,
         executionTime: Date.now() - startTime,
         timestamp: new Date(),
       });
@@ -487,13 +487,13 @@ export class MigrationValidator {
         });
       }
       
-    } catch (error) {
+    } catch (error: unknown) {
       results.push({
         category: ValidationCategory.SECURITY,
         testName: 'security_validation_error',
         severity: ValidationSeverity.CRITICAL,
         status: 'failed',
-        message: `Security validation error: ${error instanceof Error ? error.message : String(error)}`,
+        message: `Security validation error: ${error instanceof Error ? error?.message : String(error)}`,
         executionTime: Date.now() - startTime,
         timestamp: new Date(),
       });
@@ -556,13 +556,13 @@ export class MigrationValidator {
         });
       }
       
-    } catch (error) {
+    } catch (error: unknown) {
       results.push({
         category: ValidationCategory.SPATIAL,
         testName: 'spatial_validation_error',
         severity: ValidationSeverity.CRITICAL,
         status: 'failed',
-        message: `Spatial validation error: ${error instanceof Error ? error.message : String(error)}`,
+        message: `Spatial validation error: ${error instanceof Error ? error?.message : String(error)}`,
         executionTime: Date.now() - startTime,
         timestamp: new Date(),
       });
@@ -607,13 +607,13 @@ export class MigrationValidator {
         });
       }
       
-    } catch (error) {
+    } catch (error: unknown) {
       results.push({
         category: ValidationCategory.AI_ML,
         testName: 'ai_ml_validation_error',
         severity: ValidationSeverity.CRITICAL,
         status: 'failed',
-        message: `AI/ML validation error: ${error instanceof Error ? error.message : String(error)}`,
+        message: `AI/ML validation error: ${error instanceof Error ? error?.message : String(error)}`,
         executionTime: Date.now() - startTime,
         timestamp: new Date(),
       });
@@ -656,13 +656,13 @@ export class MigrationValidator {
         });
       }
       
-    } catch (error) {
+    } catch (error: unknown) {
       results.push({
         category: ValidationCategory.ROLLBACK,
         testName: 'rollback_validation_error',
         severity: ValidationSeverity.CRITICAL,
         status: 'failed',
-        message: `Rollback validation error: ${error instanceof Error ? error.message : String(error)}`,
+        message: `Rollback validation error: ${error instanceof Error ? error?.message : String(error)}`,
         executionTime: Date.now() - startTime,
         timestamp: new Date(),
       });
@@ -707,13 +707,13 @@ export class MigrationValidator {
         timestamp: new Date(),
       });
       
-    } catch (error) {
+    } catch (error: unknown) {
       results.push({
         category: ValidationCategory.COMPATIBILITY,
         testName: 'compatibility_validation_error',
         severity: ValidationSeverity.CRITICAL,
         status: 'failed',
-        message: `Compatibility validation error: ${error instanceof Error ? error.message : String(error)}`,
+        message: `Compatibility validation error: ${error instanceof Error ? error?.message : String(error)}`,
         executionTime: Date.now() - startTime,
         timestamp: new Date(),
       });
