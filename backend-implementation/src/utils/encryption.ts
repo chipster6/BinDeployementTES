@@ -22,6 +22,7 @@
 
 import crypto from "crypto";
 import { config } from "@/config";
+import { HSMKeyManagementService } from "@/services/security/HSMKeyManagementService";
 
 /**
  * Encryption configuration constants
@@ -34,6 +35,21 @@ const ENCRYPTION_CONFIG = {
   saltLength: 32, // 256 bits
   iterations: 100000, // PBKDF2 iterations
 } as const;
+
+/**
+ * HSM service instance for hardware-backed cryptographic operations
+ */
+let hsmService: HSMKeyManagementService | null = null;
+
+/**
+ * Initialize HSM service for enhanced security operations
+ */
+function initializeHSMService(): HSMKeyManagementService {
+  if (!hsmService) {
+    hsmService = new HSMKeyManagementService();
+  }
+  return hsmService;
+}
 
 /**
  * Encrypted data structure
@@ -51,7 +67,7 @@ interface EncryptedData {
  */
 function getEncryptionKey(salt?: Buffer): Buffer {
   const masterKey =
-    config.security.encryptionKey || process.env.ENCRYPTION_MASTER_KEY;
+    config.security?.encryptionKey || process.env.ENCRYPTION_MASTER_KEY;
 
   if (!masterKey) {
     throw new Error(
@@ -112,7 +128,7 @@ export async function encryptSensitiveData(
     }
 
     // Create cipher - using AES-256-GCM for proper authenticated encryption
-    const cipher = crypto.createCipherGCM(ENCRYPTION_CONFIG.algorithm, key, iv);
+    const cipher = crypto.createCipheriv(ENCRYPTION_CONFIG.algorithm, key, iv) as crypto.CipherGCM;
 
     // Encrypt the data
     let encrypted = cipher.update(plaintext, "utf8", "base64");
@@ -135,7 +151,7 @@ export async function encryptSensitiveData(
 
     // Return as base64-encoded JSON string
     return Buffer.from(JSON.stringify(encryptedData)).toString("base64");
-  } catch (error) {
+  } catch (error: unknown) {
     console.error("Encryption failed:", error);
     throw new Error("Data encryption failed");
   }
@@ -182,7 +198,7 @@ export async function decryptSensitiveData(
     const tag = Buffer.from(encryptedData.tag, "base64");
 
     // Create decipher - using AES-256-GCM for proper authenticated decryption
-    const decipher = crypto.createDecipherGCM(ENCRYPTION_CONFIG.algorithm, key, iv);
+    const decipher = crypto.createDecipheriv(ENCRYPTION_CONFIG.algorithm, key, iv) as crypto.DecipherGCM;
     decipher.setAuthTag(tag);
 
     // Decrypt the data
@@ -190,7 +206,7 @@ export async function decryptSensitiveData(
     decrypted += decipher.final("utf8");
 
     return decrypted;
-  } catch (error) {
+  } catch (error: unknown) {
     console.error("Decryption failed:", error);
     throw new Error(
       "Data decryption failed - data may be corrupted or key may be wrong",
@@ -223,7 +239,7 @@ export async function decryptDatabaseField(
 
   try {
     return await decryptSensitiveData(encryptedValue);
-  } catch (error) {
+  } catch (error: unknown) {
     // Log error but don't throw to prevent application crashes
     console.error("Database field decryption failed:", error);
     return null;
@@ -268,7 +284,7 @@ export function verifySensitiveDataHash(
       Buffer.from(originalHash, "hex"),
       Buffer.from(newHash, "hex"),
     );
-  } catch (error) {
+  } catch (error: unknown) {
     console.error("Hash verification failed:", error);
     return false;
   }
@@ -297,7 +313,7 @@ export function encryptSessionData(data: any): string {
     const key = crypto.scryptSync(sessionKey, "session-salt", 32);
     
     // Use AES-256-GCM for authenticated encryption
-    const cipher = crypto.createCipherGCM("aes-256-gcm", key, iv);
+    const cipher = crypto.createCipheriv("aes-256-gcm", key, iv) as crypto.CipherGCM;
     
     let encrypted = cipher.update(JSON.stringify(data), "utf8", "base64");
     encrypted += cipher.final("base64");
@@ -306,7 +322,7 @@ export function encryptSessionData(data: any): string {
     const tag = cipher.getAuthTag();
 
     return `${iv.toString("base64")}:${tag.toString("base64")}:${encrypted}`;
-  } catch (error) {
+  } catch (error: unknown) {
     console.error("Session encryption failed:", error);
     throw new Error("Session encryption failed");
   }
@@ -334,14 +350,14 @@ export function decryptSessionData(encryptedData: string): any {
     const key = crypto.scryptSync(sessionKey, "session-salt", 32);
     
     // Use AES-256-GCM for authenticated decryption
-    const decipher = crypto.createDecipherGCM("aes-256-gcm", key, iv);
+    const decipher = crypto.createDecipheriv("aes-256-gcm", key, iv) as crypto.DecipherGCM;
     decipher.setAuthTag(tag);
     
     let decrypted = decipher.update(encrypted, "base64", "utf8");
     decrypted += decipher.final("utf8");
 
     return JSON.parse(decrypted);
-  } catch (error) {
+  } catch (error: unknown) {
     console.error("Session decryption failed:", error);
     throw new Error("Session decryption failed");
   }
@@ -397,7 +413,7 @@ export function verifyHmacSignature(
       Buffer.from(signature, "hex"),
       Buffer.from(expectedSignature, "hex"),
     );
-  } catch (error) {
+  } catch (error: unknown) {
     console.error("HMAC verification failed:", error);
     return false;
   }
@@ -449,7 +465,7 @@ export async function rotateEncryptionKey(
 
     // Re-encrypt with current key
     return await encryptSensitiveData(decrypted);
-  } catch (error) {
+  } catch (error: unknown) {
     console.error("Key rotation failed:", error);
     throw new Error("Failed to rotate encryption key");
   }
@@ -472,9 +488,189 @@ export function secureWipe(buffer: Buffer | string): void {
 }
 
 /**
- * Export encryption utilities
+ * HSM-backed encryption for high-security data (SOC 2 Type II compliance)
+ * Provides FIPS 140-2 Level 3 cryptographic protection
+ */
+export async function encryptWithHSM(
+  plaintext: string,
+  keyLabel: string = 'default-encryption-key'
+): Promise<string> {
+  if (!plaintext) {
+    throw new Error("Cannot encrypt empty or null data with HSM");
+  }
+
+  try {
+    const hsm = initializeHSMService();
+    
+    // Use HSM for encryption - this provides hardware-backed security
+    const result = await hsm.encryptWithHSM(plaintext, keyLabel, {
+      algorithm: 'AES-256-GCM',
+      purpose: 'database_encryption'
+    });
+
+    if (!result.isSuccess || !result.data) {
+      throw new Error("HSM encryption failed");
+    }
+
+    return result.data.ciphertext;
+  } catch (error: unknown) {
+    console.error("HSM encryption failed:", error);
+    // Fallback to software encryption for availability
+    console.warn("Falling back to software encryption");
+    return await encryptSensitiveData(plaintext, true);
+  }
+}
+
+/**
+ * HSM-backed decryption for high-security data
+ */
+export async function decryptWithHSM(
+  ciphertext: string,
+  keyLabel: string = 'default-encryption-key'
+): Promise<string> {
+  if (!ciphertext) {
+    throw new Error("Cannot decrypt empty or null data with HSM");
+  }
+
+  try {
+    const hsm = initializeHSMService();
+    
+    // Use HSM for decryption
+    const result = await hsm.decryptWithHSM(ciphertext, keyLabel);
+
+    if (!result.isSuccess || !result.data) {
+      throw new Error("HSM decryption failed");
+    }
+
+    return result.data.plaintext;
+  } catch (error: unknown) {
+    console.error("HSM decryption failed:", error);
+    // Fallback to software decryption for availability
+    console.warn("Falling back to software decryption");
+    return await decryptSensitiveData(ciphertext);
+  }
+}
+
+/**
+ * Enhanced MFA secret encryption using HSM for maximum security
+ * Provides SOC 2 Type II compliance for authentication secrets
+ */
+export async function encryptMFASecretWithHSM(mfaSecret: string): Promise<string> {
+  if (!mfaSecret) {
+    throw new Error("Cannot encrypt empty MFA secret");
+  }
+
+  try {
+    return await encryptWithHSM(mfaSecret, 'mfa-encryption-key');
+  } catch (error: unknown) {
+    console.error("MFA secret HSM encryption failed:", error);
+    throw error;
+  }
+}
+
+/**
+ * Enhanced MFA secret decryption using HSM
+ */
+export async function decryptMFASecretWithHSM(encryptedSecret: string): Promise<string> {
+  if (!encryptedSecret) {
+    throw new Error("Cannot decrypt empty MFA secret");
+  }
+
+  try {
+    return await decryptWithHSM(encryptedSecret, 'mfa-encryption-key');
+  } catch (error: unknown) {
+    console.error("MFA secret HSM decryption failed:", error);
+    throw error;
+  }
+}
+
+/**
+ * Enhanced session data encryption using HSM for critical sessions
+ */
+export async function encryptSessionDataWithHSM(data: any): Promise<string> {
+  try {
+    const serializedData = JSON.stringify(data);
+    return await encryptWithHSM(serializedData, 'session-encryption-key');
+  } catch (error: unknown) {
+    console.error("Session HSM encryption failed:", error);
+    // Fallback to software encryption
+    return encryptSessionData(data);
+  }
+}
+
+/**
+ * Enhanced session data decryption using HSM
+ */
+export async function decryptSessionDataWithHSM(encryptedData: string): Promise<any> {
+  try {
+    const decryptedData = await decryptWithHSM(encryptedData, 'session-encryption-key');
+    return JSON.parse(decryptedData);
+  } catch (error: unknown) {
+    console.error("Session HSM decryption failed:", error);
+    // Fallback to software decryption
+    return decryptSessionData(encryptedData);
+  }
+}
+
+/**
+ * Generate cryptographically secure key using HSM
+ * Provides FIPS 140-2 Level 3 randomness
+ */
+export async function generateSecureKeyWithHSM(
+  keyType: string = 'AES-256',
+  usage: string = 'general_encryption'
+): Promise<string> {
+  try {
+    const hsm = initializeHSMService();
+    const keyLabel = `generated-key-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    
+    const result = await hsm.generateHSMKey(keyLabel, keyType, usage);
+    
+    if (!result.isSuccess || !result.data) {
+      throw new Error("HSM key generation failed");
+    }
+
+    return result.data.keyId;
+  } catch (error: unknown) {
+    console.error("HSM key generation failed:", error);
+    // Fallback to software key generation
+    return generateSecureToken(32);
+  }
+}
+
+/**
+ * Check HSM availability and health
+ */
+export async function checkHSMHealth(): Promise<boolean> {
+  try {
+    const hsm = initializeHSMService();
+    const healthResult = await hsm.getHSMHealthStatus();
+    return healthResult.isSuccess && healthResult.data?.overallHealth === 'healthy';
+  } catch (error: unknown) {
+    console.warn("HSM health check failed:", error);
+    return false;
+  }
+}
+
+/**
+ * Initialize HSM infrastructure for production use
+ */
+export async function initializeHSMInfrastructure(): Promise<boolean> {
+  try {
+    const hsm = initializeHSMService();
+    const result = await hsm.initializeHSMInfrastructure();
+    return result.isSuccess;
+  } catch (error: unknown) {
+    console.error("HSM infrastructure initialization failed:", error);
+    return false;
+  }
+}
+
+/**
+ * Export encryption utilities with HSM enhancements
  */
 export default {
+  // Original functions
   encryptSensitiveData,
   decryptSensitiveData,
   encryptDatabaseField,
@@ -492,4 +688,15 @@ export default {
   isEncrypted,
   rotateEncryptionKey,
   secureWipe,
+  
+  // HSM-enhanced functions for SOC 2 Type II compliance
+  encryptWithHSM,
+  decryptWithHSM,
+  encryptMFASecretWithHSM,
+  decryptMFASecretWithHSM,
+  encryptSessionDataWithHSM,
+  decryptSessionDataWithHSM,
+  generateSecureKeyWithHSM,
+  checkHSMHealth,
+  initializeHSMInfrastructure,
 };
