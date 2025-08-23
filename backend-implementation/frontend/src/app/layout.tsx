@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
 import { AuthProvider } from "@/contexts/AuthContext";
+import { WebSocketProvider } from "@/contexts/WebSocketContext";
 import { Toaster } from "@/components/ui/toaster";
 import ErrorBoundary from "@/components/ErrorBoundary";
 
@@ -82,10 +83,12 @@ export default function RootLayout({
       <body className={`${inter.className} antialiased`}>
         <ErrorBoundary>
           <AuthProvider>
-            <div id="root" className="min-h-screen bg-gray-50">
-              {children}
-            </div>
-            <Toaster />
+            <WebSocketProvider>
+              <div id="root" className="min-h-screen bg-gray-50">
+                {children}
+              </div>
+              <Toaster />
+            </WebSocketProvider>
           </AuthProvider>
         </ErrorBoundary>
         

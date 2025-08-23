@@ -1,0 +1,442 @@
+# ============================================================================
+# PRODUCTION DOCKER COMPOSE CONFIGURATION
+# Production-specific overrides for the unified Docker Compose setup
+# ============================================================================
+#
+# This file provides production-specific configurations that override
+# the base unified compose file for production deployments.
+#
+# Usage: docker-compose -f docker-compose.unified.yml -f docker-compose.production.yml up -d
+#
+# Created by: Backend API Integration & Production Deployment Configuration
+# Date: 2025-08-23
+# ============================================================================
+
+version: '3.8'
+
+services:
+  # ============================================================================
+  # PRODUCTION BACKEND CONFIGURATION
+  # ============================================================================
+  backend:
+    restart: always
+    environment:
+      NODE_ENV: production
+      LOG_LEVEL: info
+      DEBUG_SQL: false
+      ENABLE_SWAGGER_UI: false
+      FORCE_HTTPS: true
+      TRUST_PROXY: true
+      SECURE_COOKIES: true
+      
+      # Production performance settings
+      UV_THREADPOOL_SIZE: 16
+      NODE_OPTIONS: "--max-old-space-size=4096 --optimize-for-size"
+      
+      # Health check configuration
+      HEALTH_CHECK_ENABLED: true
+      HEALTH_CHECK_TIMEOUT: 30000
+      
+      # Rate limiting
+      RATE_LIMIT_WINDOW_MS: 900000
+      RATE_LIMIT_MAX_REQUESTS: 1000
+      
+    deploy:
+      resources:
+        limits:
+          memory: 4G
+          cpus: '2.0'
+        reservations:
+          memory: 2G
+          cpus: '1.0'
+      replicas: 2
+      update_config:
+        parallelism: 1
+        delay: 30s
+        order: start-first
+        failure_action: rollback
+      restart_policy:
+        condition: any
+        delay: 10s
+        max_attempts: 3
+        window: 120s
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "5"
+        labels: "service,environment"
+
+  # ============================================================================
+  # PRODUCTION FRONTEND CONFIGURATION
+  # ============================================================================
+  frontend:
+    restart: always
+    environment:
+      NODE_ENV: production
+      NEXT_TELEMETRY_DISABLED: 1
+      
+      # Production API endpoints
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL}
+      NEXT_PUBLIC_WEBSOCKET_URL: ${NEXT_PUBLIC_WEBSOCKET_URL}
+      
+      # Performance optimizations
+      NODE_OPTIONS: "--max-old-space-size=2048"
+      
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+          cpus: '1.0'
+        reservations:
+          memory: 1G
+          cpus: '0.5'
+      replicas: 2
+      update_config:
+        parallelism: 1
+        delay: 30s
+        order: start-first
+        failure_action: rollback
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "5"
+
+  # ============================================================================
+  # PRODUCTION DATABASE CONFIGURATION
+  # ============================================================================
+  postgres:
+    restart: always
+    environment:
+      # Production performance tuning
+      POSTGRES_SHARED_BUFFERS: 1GB
+      POSTGRES_EFFECTIVE_CACHE_SIZE: 4GB
+      POSTGRES_WORK_MEM: 64MB
+      POSTGRES_MAINTENANCE_WORK_MEM: 256MB
+      POSTGRES_CHECKPOINT_COMPLETION_TARGET: 0.9
+      POSTGRES_WAL_BUFFERS: 32MB
+      POSTGRES_DEFAULT_STATISTICS_TARGET: 100
+      POSTGRES_RANDOM_PAGE_COST: 1.1
+      POSTGRES_EFFECTIVE_IO_CONCURRENCY: 200
+      
+      # Connection settings
+      POSTGRES_MAX_CONNECTIONS: 200
+      POSTGRES_MAX_PREPARED_TRANSACTIONS: 100
+      
+      # Logging
+      POSTGRES_LOG_MIN_DURATION_STATEMENT: 1000
+      POSTGRES_LOG_CONNECTIONS: "on"
+      POSTGRES_LOG_DISCONNECTIONS: "on"
+      POSTGRES_LOG_LOCK_WAITS: "on"
+      
+    command: |
+      postgres 
+      -c shared_buffers=1GB 
+      -c effective_cache_size=4GB 
+      -c work_mem=64MB 
+      -c maintenance_work_mem=256MB 
+      -c checkpoint_completion_target=0.9 
+      -c wal_buffers=32MB 
+      -c default_statistics_target=100 
+      -c random_page_cost=1.1 
+      -c effective_io_concurrency=200 
+      -c max_connections=200
+      -c log_min_duration_statement=1000
+      -c log_connections=on
+      -c log_disconnections=on
+      -c log_lock_waits=on
+      -c log_line_prefix='%t [%p]: [%l-1] user=%u,db=%d,app=%a,client=%h '
+      -c log_statement='all'
+      
+    deploy:
+      resources:
+        limits:
+          memory: 8G
+          cpus: '4.0'
+        reservations:
+          memory: 4G
+          cpus: '2.0'
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "10"
+
+  # ============================================================================
+  # PRODUCTION REDIS CONFIGURATION
+  # ============================================================================
+  redis:
+    restart: always
+    command: |
+      sh -c '
+        REDIS_PASSWORD=$$(cat /run/secrets/redis_password)
+        redis-server 
+        --appendonly yes 
+        --requirepass "$$REDIS_PASSWORD" 
+        --maxmemory 4gb 
+        --maxmemory-policy allkeys-lru 
+        --tcp-keepalive 300 
+        --timeout 0 
+        --tcp-backlog 511 
+        --databases 16 
+        --save 900 1 300 10 60 10000 
+        --stop-writes-on-bgsave-error yes 
+        --rdbcompression yes 
+        --rdbchecksum yes 
+        --dbfilename dump.rdb 
+        --dir /data 
+        --appendfilename "appendonly.aof" 
+        --appendfsync everysec 
+        --auto-aof-rewrite-percentage 100 
+        --auto-aof-rewrite-min-size 64mb
+      '
+    deploy:
+      resources:
+        limits:
+          memory: 4G
+          cpus: '2.0'
+        reservations:
+          memory: 2G
+          cpus: '1.0'
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "20m"
+        max-file: "5"
+
+  # ============================================================================
+  # PRODUCTION NGINX LOAD BALANCER
+  # ============================================================================
+  nginx:
+    restart: always
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      # SSL Configuration
+      NGINX_SSL_CERT_PATH: /etc/nginx/ssl/cert.pem
+      NGINX_SSL_KEY_PATH: /etc/nginx/ssl/private.key
+      NGINX_SSL_PROTOCOLS: "TLSv1.2 TLSv1.3"
+      NGINX_SSL_CIPHERS: "ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384"
+      
+      # Performance tuning
+      NGINX_WORKER_PROCESSES: auto
+      NGINX_WORKER_CONNECTIONS: 1024
+      NGINX_KEEPALIVE_TIMEOUT: 65
+      NGINX_CLIENT_MAX_BODY_SIZE: 50m
+      
+    volumes:
+      - ./docker/nginx/nginx.prod.conf:/etc/nginx/nginx.conf:ro
+      - ./docker/nginx/ssl:/etc/nginx/ssl:ro
+      - nginx_logs_prod:/var/log/nginx
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+          cpus: '1.0'
+        reservations:
+          memory: 512M
+          cpus: '0.5'
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "20m"
+        max-file: "10"
+
+  # ============================================================================
+  # PRODUCTION MONITORING CONFIGURATION
+  # ============================================================================
+  prometheus:
+    restart: always
+    command:
+      - '--config.file=/etc/prometheus/prometheus.prod.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--storage.tsdb.retention.time=90d'
+      - '--storage.tsdb.retention.size=50GB'
+      - '--storage.tsdb.wal-compression=true'
+      - '--web.enable-lifecycle'
+      - '--web.enable-admin-api'
+      - '--web.external-url=https://monitoring.yourdomain.com'
+      - '--log.level=info'
+      - '--query.max-concurrency=50'
+      - '--query.timeout=2m'
+      - '--storage.tsdb.no-lockfile'
+    deploy:
+      resources:
+        limits:
+          memory: 4G
+          cpus: '2.0'
+        reservations:
+          memory: 2G
+          cpus: '1.0'
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "20m"
+        max-file: "5"
+
+  grafana:
+    restart: always
+    environment:
+      # Security hardening
+      GF_SECURITY_COOKIE_SECURE: true
+      GF_SECURITY_COOKIE_SAMESITE: strict
+      GF_SECURITY_DISABLE_GRAVATAR: true
+      GF_SECURITY_DISABLE_BRUTE_FORCE_LOGIN_PROTECTION: false
+      GF_SECURITY_LOGIN_MAXIMUM_INACTIVE_LIFETIME_DAYS: 30
+      GF_SECURITY_LOGIN_MAXIMUM_LIFETIME_DAYS: 90
+      
+      # Server configuration
+      GF_SERVER_DOMAIN: monitoring.yourdomain.com
+      GF_SERVER_ROOT_URL: https://monitoring.yourdomain.com
+      GF_SERVER_PROTOCOL: http
+      GF_SERVER_ENFORCE_DOMAIN: true
+      
+      # Performance settings
+      GF_DATABASE_WAL: true
+      GF_DATABASE_CACHE_MODE: private
+      GF_RENDERING_SERVER_URL: http://renderer:8081/render
+      GF_RENDERING_CALLBACK_URL: http://grafana:3000/
+      
+      # Alerting
+      GF_ALERTING_ENABLED: true
+      GF_UNIFIED_ALERTING_ENABLED: true
+      GF_ALERTING_EXECUTE_ALERTS: true
+      
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+          cpus: '1.0'
+        reservations:
+          memory: 1G
+          cpus: '0.5'
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "20m"
+        max-file: "5"
+
+  # ============================================================================
+  # PRODUCTION AI/ML SERVICES CONFIGURATION
+  # ============================================================================
+  weaviate:
+    restart: always
+    environment:
+      AUTHENTICATION_ANONYMOUS_ACCESS_ENABLED: false
+      AUTHENTICATION_API_KEY_ENABLED: true
+      PERSISTENCE_DATA_PATH: /var/lib/weaviate
+      DEFAULT_VECTORIZER_MODULE: text2vec-openai
+      ENABLE_MODULES: text2vec-openai,generative-openai,qna-openai,ref2vec-centroid
+      CLUSTER_HOSTNAME: weaviate-node-1
+      CLUSTER_GOSSIP_BIND_PORT: 7100
+      CLUSTER_DATA_BIND_PORT: 7103
+      LOG_LEVEL: info
+      PROMETHEUS_MONITORING_ENABLED: true
+      QUERY_DEFAULTS_LIMIT: 100
+      QUERY_MAXIMUM_RESULTS: 10000
+      REINDEX_VECTOR_DIMENSIONS_AT_STARTUP: false
+      
+    deploy:
+      resources:
+        limits:
+          memory: 8G
+          cpus: '4.0'
+        reservations:
+          memory: 4G
+          cpus: '2.0'
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "20m"
+        max-file: "5"
+    profiles:
+      - ai-ml
+      - full
+
+  ml-services:
+    restart: always
+    environment:
+      LOG_LEVEL: info
+      ENABLE_PROMETHEUS_METRICS: true
+      MODEL_CACHE_SIZE: 5000000000  # 5GB cache
+      BATCH_SIZE: 32
+      MAX_WORKERS: 8
+      TIMEOUT_SECONDS: 300
+      
+    deploy:
+      resources:
+        limits:
+          memory: 16G
+          cpus: '8.0'
+        reservations:
+          memory: 8G
+          cpus: '4.0'
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "10"
+    profiles:
+      - ai-ml
+      - full
+
+# ============================================================================
+# PRODUCTION VOLUMES CONFIGURATION
+# ============================================================================
+volumes:
+  nginx_logs_prod:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: /var/log/waste-management/nginx
+
+# ============================================================================
+# PRODUCTION LOGGING CONFIGURATION
+# ============================================================================
+x-logging: &production-logging
+  driver: "json-file"
+  options:
+    max-size: "20m"
+    max-file: "10"
+    labels: "service,environment,version"
+
+# ============================================================================
+# PRODUCTION HEALTH CHECK CONFIGURATION
+# ============================================================================
+x-healthcheck: &production-healthcheck
+  interval: 30s
+  timeout: 10s
+  retries: 5
+  start_period: 60s
+
+# ============================================================================
+# PRODUCTION SECURITY LABELS
+# ============================================================================
+x-security-labels: &security-labels
+  labels:
+    - "security.scan=enabled"
+    - "security.cve-scan=enabled"
+    - "security.compliance=soc2"
+    - "backup.enabled=true"
+    - "monitoring.enabled=true"
+    - "environment=production"

@@ -1050,6 +1050,455 @@ export interface BackupStatus {
 }
 
 // ============================================================================
+// ROUTE OPTIMIZATION TYPES
+// ============================================================================
+
+export interface OptimizationRequest {
+  routes?: string[];
+  serviceDay?: string;
+  territory?: string;
+  maxVehicles?: number;
+  maxDrivers?: number;
+  optimizationLevel?: 'fast' | 'balanced' | 'thorough';
+  includeTrafficData?: boolean;
+  minimizeDistance?: boolean;
+  minimizeTime?: boolean;
+  minimizeCost?: boolean;
+  maxRouteDistance?: number;
+  maxRouteDuration?: number;
+  allowSplitServices?: boolean;
+  timeWindows?: TimeWindow[];
+  vehicleConstraints?: VehicleConstraint[];
+  requestReason?: string;
+}
+
+export interface TimeWindow {
+  customerId: string;
+  startTime: string;
+  endTime: string;
+  preferred?: boolean;
+}
+
+export interface VehicleConstraint {
+  vehicleId: string;
+  capacity?: number;
+  restrictions?: string[];
+  availableFrom?: string;
+  availableUntil?: string;
+}
+
+export interface RouteModification {
+  routeId: string;
+  modificationType: 'add_stop' | 'remove_stop' | 'reorder_stops' | 'emergency_insert';
+  newStop?: {
+    customerId: string;
+    binIds: string[];
+    preferredPosition?: number;
+    priority?: 'low' | 'normal' | 'high' | 'emergency';
+  };
+  removeStopCustomerId?: string;
+  newWaypointOrder?: string[];
+  reason?: string;
+}
+
+export interface OptimizedRoute {
+  id: string;
+  routeName: string;
+  optimizationId: string;
+  driverId?: string;
+  vehicleId?: string;
+  status: RouteStatus;
+  waypoints: RouteWaypoint[];
+  estimatedDuration: number;
+  estimatedDistance: number;
+  estimatedCost: number;
+  efficiency: number;
+  createdAt: string;
+  optimizedAt: string;
+}
+
+export interface RouteWaypoint {
+  customerId: string;
+  binIds: string[];
+  sequence: number;
+  estimatedArrival: string;
+  estimatedDuration: number;
+  coordinates: {
+    latitude: number;
+    longitude: number;
+  };
+  priority: 'low' | 'normal' | 'high' | 'emergency';
+}
+
+export interface OptimizationMetrics {
+  period: 'daily' | 'weekly' | 'monthly';
+  totalOptimizations: number;
+  averageEfficiencyGain: number;
+  averageDistanceSaved: number;
+  averageTimeSaved: number;
+  averageCostSaved: number;
+  successRate: number;
+  performanceTrends: PerformanceTrend[];
+}
+
+export interface PerformanceTrend {
+  date: string;
+  efficiency: number;
+  distanceSaved: number;
+  timeSaved: number;
+  costSaved: number;
+}
+
+// ============================================================================
+// PREDICTIVE ANALYTICS TYPES
+// ============================================================================
+
+export interface ForecastRequest {
+  target?: 'demand' | 'revenue' | 'churn' | 'maintenance' | 'cost';
+  timeframe?: '1d' | '7d' | '30d' | '90d' | '365d';
+  granularity?: 'hourly' | 'daily' | 'weekly' | 'monthly';
+  modelPreference?: 'prophet' | 'lightgbm' | 'ensemble' | 'auto';
+  filters?: Record<string, any>;
+  features?: Record<string, any>;
+}
+
+export interface ForecastResult {
+  target: string;
+  forecastData: ForecastDataPoint[];
+  confidence: number;
+  accuracy: number;
+  modelUsed: string;
+  generatedAt: string;
+  validUntil: string;
+  insights: string[];
+  recommendations: string[];
+}
+
+export interface ForecastDataPoint {
+  date: string;
+  value: number;
+  upperBound: number;
+  lowerBound: number;
+  confidence: number;
+}
+
+export interface ProphetTrainingRequest {
+  data: ProphetDataPoint[];
+  config?: ProphetConfig;
+  customSeasonalities?: CustomSeasonality[];
+  holidays?: Holiday[];
+}
+
+export interface ProphetDataPoint {
+  ds: string; // Date in ISO format
+  y: number;  // Target value
+}
+
+export interface ProphetConfig {
+  periods?: number;
+  growth?: 'linear' | 'logistic';
+  seasonality?: {
+    yearly?: boolean;
+    weekly?: boolean;
+    daily?: boolean;
+  };
+}
+
+export interface CustomSeasonality {
+  name: string;
+  period: number;
+  fourier_order: number;
+  prior_scale?: number;
+  mode?: 'additive' | 'multiplicative';
+}
+
+export interface Holiday {
+  holiday: string;
+  ds: string;
+  lower_window?: number;
+  upper_window?: number;
+  prior_scale?: number;
+}
+
+export interface LightGBMTrainingRequest {
+  dataset: {
+    features: number[][];
+    target: number[];
+    feature_names: string[];
+  };
+  config?: LightGBMConfig;
+  validationDataset?: {
+    features: number[][];
+    target: number[];
+  };
+}
+
+export interface LightGBMConfig {
+  objective?: 'regression' | 'binary' | 'multiclass' | 'lambdarank';
+  boosting?: 'gbdt' | 'dart' | 'goss' | 'rf';
+  num_leaves?: number;
+  learning_rate?: number;
+  feature_fraction?: number;
+  bagging_fraction?: number;
+  bagging_freq?: number;
+  min_child_samples?: number;
+  max_depth?: number;
+}
+
+export interface ModelDiagnostics {
+  modelId: string;
+  modelType: 'prophet' | 'lightgbm' | 'ensemble';
+  performance: {
+    accuracy?: number;
+    precision?: number;
+    recall?: number;
+    f1_score?: number;
+    mae?: number;
+    rmse?: number;
+    mape?: number;
+  };
+  featureImportance?: FeatureImportance[];
+  validationResults?: ValidationResult[];
+  diagnosticPlots?: string[];
+  recommendations: string[];
+}
+
+export interface FeatureImportance {
+  feature: string;
+  importance: number;
+  rank: number;
+}
+
+export interface ValidationResult {
+  metric: string;
+  value: number;
+  description: string;
+  threshold?: number;
+  passed: boolean;
+}
+
+// ============================================================================
+// SECURITY & COMPLIANCE TYPES
+// ============================================================================
+
+export interface ThreatAnalysisRequest {
+  userId?: string;
+  sessionId?: string;
+  ipAddress: string;
+  userAgent?: string;
+  action: string;
+  resource: string;
+  timestamp: string;
+  context?: Record<string, any>;
+}
+
+export interface ThreatAnalysisResult {
+  threatId: string;
+  severity: 'low' | 'medium' | 'high' | 'critical';
+  riskScore: number;
+  threats: DetectedThreat[];
+  recommendations: string[];
+  blockedActions?: string[];
+  monitoringRules?: string[];
+}
+
+export interface DetectedThreat {
+  type: string;
+  description: string;
+  confidence: number;
+  indicators: string[];
+  mitigations: string[];
+}
+
+export interface SOC2ComplianceStatus {
+  overallReadiness: number;
+  controlsTotal: number;
+  controlsEffective: number;
+  controlsNeedsImprovement: number;
+  lastAssessment: string;
+  nextAssessment: string;
+  complianceScore: {
+    security: number;
+    availability: number;
+    processing_integrity: number;
+    confidentiality: number;
+    privacy: number;
+  };
+  recommendations: ComplianceRecommendation[];
+  evidence: EvidenceItem[];
+}
+
+export interface ComplianceRecommendation {
+  priority: 'high' | 'medium' | 'low';
+  control: string;
+  description: string;
+  remediation: string;
+  dueDate?: string;
+}
+
+export interface EvidenceItem {
+  control: string;
+  type: 'document' | 'screenshot' | 'log' | 'configuration';
+  description: string;
+  collectedAt: string;
+  status: 'valid' | 'expired' | 'missing';
+}
+
+export interface HSMKeyInfo {
+  keyId: string;
+  keyLabel: string;
+  keyType: string;
+  usage: string;
+  createdAt: string;
+  nextRotation?: string;
+  complianceLevel: 'FIPS-140-2-L3' | 'FIPS-140-2-L2' | 'Standard';
+  status: 'active' | 'rotating' | 'disabled';
+}
+
+export interface HSMEncryptionResult {
+  ciphertext: string;
+  keyId: string;
+  keyVersion: number;
+  algorithm: string;
+  timestamp: string;
+}
+
+export interface HSMDecryptionResult {
+  plaintext: string;
+  keyId: string;
+  keyVersion: number;
+  timestamp: string;
+}
+
+// ============================================================================
+// EXTERNAL SERVICES TYPES
+// ============================================================================
+
+export interface TrafficOptimizationRequest {
+  routes: OptimizedRoute[];
+  includeRealTimeTraffic: boolean;
+  weatherConditions?: WeatherConditions;
+  timeOfDay?: string;
+  priority?: 'time' | 'distance' | 'fuel';
+}
+
+export interface WeatherConditions {
+  temperature: number;
+  conditions: 'clear' | 'rain' | 'snow' | 'fog' | 'storm';
+  windSpeed: number;
+  visibility: number;
+}
+
+export interface TrafficOptimizationResult {
+  optimizedRoutes: OptimizedRoute[];
+  totalDistanceSaved: number;
+  totalTimeSaved: number;
+  fuelSavings: number;
+  trafficImpact: TrafficImpactAnalysis;
+  recommendations: string[];
+}
+
+export interface TrafficImpactAnalysis {
+  currentTrafficLevel: 'light' | 'moderate' | 'heavy' | 'severe';
+  expectedDelays: number;
+  alternativeRoutes: AlternativeRoute[];
+  congestionAreas: CongestionArea[];
+}
+
+export interface AlternativeRoute {
+  routeId: string;
+  description: string;
+  additionalTime: number;
+  additionalDistance: number;
+  trafficAvoidance: number;
+}
+
+export interface CongestionArea {
+  area: string;
+  severity: 'light' | 'moderate' | 'heavy' | 'severe';
+  expectedDuration: number;
+  affectedRoutes: string[];
+}
+
+export interface ServiceCostAnalysis {
+  serviceName: string;
+  currentPeriodCost: number;
+  previousPeriodCost: number;
+  budgetLimit: number;
+  utilizationRate: number;
+  efficiency: number;
+  costPerUnit: number;
+  projectedCost: number;
+  savingsOpportunities: SavingsOpportunity[];
+  alerts: CostAlert[];
+}
+
+export interface SavingsOpportunity {
+  type: 'optimization' | 'right_sizing' | 'scheduling' | 'fallback_usage';
+  description: string;
+  potentialSavings: number;
+  implementationEffort: 'low' | 'medium' | 'high';
+  priority: 'low' | 'medium' | 'high';
+  estimatedROI: number;
+}
+
+// ============================================================================
+// QUEUE & JOB MANAGEMENT TYPES
+// ============================================================================
+
+export interface QueueStats {
+  total: number;
+  active: number;
+  waiting: number;
+  completed: number;
+  failed: number;
+  delayed: number;
+  paused: number;
+}
+
+export interface JobInfo {
+  id: string;
+  name: string;
+  data: Record<string, any>;
+  opts: JobOptions;
+  progress: number;
+  delay: number;
+  timestamp: number;
+  attemptsMade: number;
+  failedReason?: string;
+  stacktrace?: string[];
+  returnvalue?: any;
+  processedOn?: number;
+  finishedOn?: number;
+}
+
+export interface JobOptions {
+  priority?: number;
+  delay?: number;
+  attempts?: number;
+  repeat?: RepeatOptions;
+  backoff?: BackoffOptions;
+  lifo?: boolean;
+  timeout?: number;
+  removeOnComplete?: number | boolean;
+  removeOnFail?: number | boolean;
+}
+
+export interface RepeatOptions {
+  cron?: string;
+  tz?: string;
+  startDate?: Date | string | number;
+  endDate?: Date | string | number;
+  limit?: number;
+  every?: number;
+}
+
+export interface BackoffOptions {
+  type: 'fixed' | 'exponential';
+  delay: number;
+}
+
+// ============================================================================
 // WEBSOCKET EVENT TYPES
 // ============================================================================
 
@@ -1071,4 +1520,14 @@ export interface MLWebSocketEvent extends WebSocketEvent {
 export interface OperationsWebSocketEvent extends WebSocketEvent {
   type: "deployment_started" | "deployment_completed" | "service_status_changed" | "backup_completed";
   payload: DeploymentStatus | ServiceStatus | BackupStatus;
+}
+
+export interface RouteOptimizationWebSocketEvent extends WebSocketEvent {
+  type: "optimization_started" | "optimization_completed" | "route_updated" | "traffic_alert";
+  payload: OptimizedRoute | OptimizationMetrics | TrafficOptimizationResult;
+}
+
+export interface AnalyticsWebSocketEvent extends WebSocketEvent {
+  type: "forecast_updated" | "metrics_computed" | "anomaly_detected" | "insight_generated";
+  payload: ForecastResult | ModelDiagnostics | any;
 }
