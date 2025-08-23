@@ -396,11 +396,11 @@ export const healthCheck = async (req: Request, res: Response) => {
       });
     }
 
-    res.status(statusCode).json(healthResult);
+    return res.status(statusCode).json(healthResult);
   } catch (error: unknown) {
     logger.error("Health check failed:", error);
 
-    res.status(500).json({
+    return res.status(500).json({
       status: "unhealthy",
       error: "Health check failed",
       message: error instanceof Error ? error?.message : "Unknown error",

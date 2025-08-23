@@ -1172,7 +1172,6 @@ export class AIPerformanceMonitoringService extends BaseService<any> {
         threshold: 0.1,
         triggeredAt: new Date(),
         status: "active"
-        }
       };
 
       this.activeAlerts.set(alert.id, alert);

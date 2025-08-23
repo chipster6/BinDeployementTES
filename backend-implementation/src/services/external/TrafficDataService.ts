@@ -348,7 +348,8 @@ export class TrafficDataService extends BaseExternalService {
             return {
               success: true,
               data: trafficData,
-              statusCode: 200`,
+              statusCode: 200,
+              metadata: {
                 duration: 0,
                 attempt: 1,
                 fallbackUsed: provider.name !== sortedProviders[0].name,
@@ -444,7 +445,8 @@ export class TrafficDataService extends BaseExternalService {
       return {
         success: true,
         data: predictions,
-        statusCode: 200`,
+        statusCode: 200,
+        metadata: {
           duration: 0,
           attempt: 1,
         },
@@ -514,7 +516,8 @@ export class TrafficDataService extends BaseExternalService {
       return {
         success: true,
         data: filteredIncidents,
-        statusCode: 200`,
+        statusCode: 200,
+        metadata: {
           duration: 0,
           attempt: 1,
         },
@@ -590,7 +593,8 @@ export class TrafficDataService extends BaseExternalService {
       return {
         success: true,
         data: patterns,
-        statusCode: 200`,
+        statusCode: 200,
+        metadata: {
           duration: 0,
           attempt: 1,
         },

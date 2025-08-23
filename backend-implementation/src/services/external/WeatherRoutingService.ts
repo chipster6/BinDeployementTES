@@ -645,7 +645,8 @@ export class WeatherRoutingService extends BaseExternalService {
       return {
         success: true,
         data: weatherImpact,
-        statusCode: 200`,
+        statusCode: 200,
+        metadata: {
           duration: 0,
           attempt: 1,
         },

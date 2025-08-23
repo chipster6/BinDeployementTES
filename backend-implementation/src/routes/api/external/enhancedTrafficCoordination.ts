@@ -309,7 +309,8 @@ router.post('/backend-agent-error', auth, async (req, res) => {
           maxLatency: severity === "critical" ? 500 : 1000,
           minThroughput: 100,
           minSuccessRate: severity === "critical" ? 99 : 95
-        }`,
+        },
+        metadata: {
           userId: req.user?.id,
           organizationId: req.user?.organizationId,
           timestamp: new Date(),

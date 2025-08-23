@@ -782,7 +782,8 @@ export class MapsService extends BaseExternalService {
     return {
       success: true,
       data: routes,
-      statusCode: 200`,
+      statusCode: 200,
+      metadata: {
         duration: 0,
         attempt: 1,
       },
@@ -894,7 +895,8 @@ export class MapsService extends BaseExternalService {
     return {
       success: true,
       data: routes,
-      statusCode: 200`,
+      statusCode: 200,
+      metadata: {
         duration: 0,
         attempt: 1,
       },
@@ -947,7 +949,8 @@ export class MapsService extends BaseExternalService {
         durations: response.data.durations,
         distances: response.data.distances,
       },
-      statusCode: 200`,
+      statusCode: 200,
+      metadata: {
         duration: 0,
         attempt: 1,
       },
@@ -1019,7 +1022,8 @@ export class MapsService extends BaseExternalService {
         durations,
         distances,
       },
-      statusCode: 200`,
+      statusCode: 200,
+      metadata: {
         duration: 0,
         attempt: 1,
       },
@@ -1069,7 +1073,8 @@ export class MapsService extends BaseExternalService {
     return {
       success: true,
       data: isochrones,
-      statusCode: 200`,
+      statusCode: 200,
+      metadata: {
         duration: 0,
         attempt: 1,
       },
@@ -1143,7 +1148,8 @@ export class MapsService extends BaseExternalService {
         totalDistance: trip.distance,
         totalDuration: trip.duration,
       },
-      statusCode: 200`,
+      statusCode: 200,
+      metadata: {
         duration: 0,
         attempt: 1,
       },
@@ -1212,7 +1218,8 @@ export class MapsService extends BaseExternalService {
         totalDistance: route.distance,
         totalDuration: route.duration,
       },
-      statusCode: 200`,
+      statusCode: 200,
+      metadata: {
         duration: 0,
         attempt: 1,
       },

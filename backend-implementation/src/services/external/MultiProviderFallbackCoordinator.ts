@@ -250,8 +250,7 @@ export class MultiProviderFallbackCoordinator {
         costImpact: 0,
         latency: timer.duration,
         cacheUsed: false,
-        offlineMode: false`]
-        }
+        offlineMode: false
       };
     }
   }
@@ -340,8 +339,7 @@ export class MultiProviderFallbackCoordinator {
         costImpact: 0,
         latency: timer.duration,
         cacheUsed: false,
-        offlineMode: false`]
-        }
+        offlineMode: false
       };
     }
   }
@@ -414,11 +412,11 @@ export class MultiProviderFallbackCoordinator {
           costImpact,
           latency: totalLatency,
           cacheUsed: false,
-          offlineMode: false as fallback provider`,
+          offlineMode: false,
+          details: [
               `Cost impact: ${costImpact.toFixed(1)}%`,
               `Latency: ${callLatency}ms`
             ]
-          }
         };
 
       } catch (error: unknown) {

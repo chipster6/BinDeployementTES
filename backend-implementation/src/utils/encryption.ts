@@ -22,7 +22,7 @@
 
 import crypto from "crypto";
 import { config } from "@/config";
-import { HSMKeyManagementService } from "@/services/security/HSMKeyManagementService";
+import { HSMKeyManagementService, HSMKeyType } from "@/services/security/HSMKeyManagementService";
 
 /**
  * Encryption configuration constants
@@ -508,7 +508,7 @@ export async function encryptWithHSM(
       purpose: 'database_encryption'
     });
 
-    if (!result.isSuccess || !result.data) {
+    if (!result.success || !result.data) {
       throw new Error("HSM encryption failed");
     }
 
@@ -538,7 +538,7 @@ export async function decryptWithHSM(
     // Use HSM for decryption
     const result = await hsm.decryptWithHSM(ciphertext, keyLabel);
 
-    if (!result.isSuccess || !result.data) {
+    if (!result.success || !result.data) {
       throw new Error("HSM decryption failed");
     }
 
@@ -617,7 +617,7 @@ export async function decryptSessionDataWithHSM(encryptedData: string): Promise<
  * Provides FIPS 140-2 Level 3 randomness
  */
 export async function generateSecureKeyWithHSM(
-  keyType: string = 'AES-256',
+  keyType: HSMKeyType = HSMKeyType.AES_256,
   usage: string = 'general_encryption'
 ): Promise<string> {
   try {
@@ -626,7 +626,7 @@ export async function generateSecureKeyWithHSM(
     
     const result = await hsm.generateHSMKey(keyLabel, keyType, usage);
     
-    if (!result.isSuccess || !result.data) {
+    if (!result.success || !result.data) {
       throw new Error("HSM key generation failed");
     }
 
@@ -659,7 +659,7 @@ export async function initializeHSMInfrastructure(): Promise<boolean> {
   try {
     const hsm = initializeHSMService();
     const result = await hsm.initializeHSMInfrastructure();
-    return result.isSuccess;
+    return result.success;
   } catch (error: unknown) {
     console.error("HSM infrastructure initialization failed:", error);
     return false;

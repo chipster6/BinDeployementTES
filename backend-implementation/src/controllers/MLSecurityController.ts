@@ -30,9 +30,9 @@ import { MLModelTrainingService } from "@/services/MLModelTrainingService";
 import { ResponseHelper } from "@/utils/ResponseHelper";
 import { logger } from "@/utils/logger";
 import { AppError, ValidationError } from "@/middleware/errorHandler";
-import { authMiddleware, requireRole } from "@/middleware/auth";
+import authMiddleware, { requireRole, UserRole } from "@/middleware/auth";
 import { validateRequest } from "@/middleware/validation";
-import { body, query, param } from "express-validator";
+import Joi from "joi";
 
 /**
  * ML Security Controller class
@@ -63,13 +63,23 @@ export class MLSecurityController {
    */
   public analyzeBehavioralAnomaly = [
     authMiddleware,
-    requireRole(["admin", "security_analyst", "soc_operator"]),
-    validateRequest([
-      body("context.request.ip").isIP().withMessage("Valid IP address required"),
-      body("context.request.userAgent").notEmpty().withMessage("User agent required"),
-      body("context.user.id").notEmpty().withMessage("User ID required"),
-      body("context.session.id").notEmpty().withMessage("Session ID required")
-    ]),
+    requireRole(UserRole.ADMIN, UserRole.SUPER_ADMIN),
+    validateRequest(
+      Joi.object({
+        context: Joi.object({
+          request: Joi.object({
+            ip: Joi.string().ip().required(),
+            userAgent: Joi.string().required()
+          }).required(),
+          user: Joi.object({
+            id: Joi.string().required()
+          }).required(),
+          session: Joi.object({
+            id: Joi.string().required()
+          }).required()
+        }).required()
+      })
+    ),
     async (req: Request, res: Response, next: NextFunction) => {
       try {
         const { context } = req.body;
@@ -77,13 +87,17 @@ export class MLSecurityController {
         const result = await this.mlSecurityService.analyzeBehavioralAnomaly(context);
 
         if (!result.success) {
-          return ResponseHelper.error(res, result?.message, 400, result.errors);
+          return ResponseHelper.error(res, req, { 
+            message: result?.message, 
+            statusCode: 400,
+            errors: result.errors 
+          });
         }
 
         logger.info("Behavioral anomaly analysis completed", {
           userId: context.user.id,
-          riskLevel: result.data.riskLevel,
-          anomalyScore: result.data.anomalyScore,
+          riskLevel: result.data?.riskLevel,
+          anomalyScore: result.data?.anomalyScore,
           requestId: req.headers["x-request-id"]
         });
 
@@ -104,11 +118,14 @@ export class MLSecurityController {
    */
   public getRealTimeThreatScore = [
     authMiddleware,
-    requireRole(["admin", "security_analyst", "soc_operator"]),
-    validateRequest([
-      param("userId").notEmpty().withMessage("User ID required"),
-      param("sessionId").notEmpty().withMessage("Session ID required")
-    ]),
+    requireRole(UserRole.ADMIN, UserRole.SUPER_ADMIN),
+    validateRequest(
+      Joi.object({
+        userId: Joi.string().required(),
+        sessionId: Joi.string().required()
+      }),
+      'params'
+    ),
     async (req: Request, res: Response, next: NextFunction) => {
       try {
         const { userId, sessionId } = req.params;
@@ -116,7 +133,11 @@ export class MLSecurityController {
         const result = await this.mlSecurityService.getRealTimeThreatScore(userId, sessionId);
 
         if (!result.success) {
-          return ResponseHelper.error(res, result?.message, 400, result.errors);
+          return ResponseHelper.error(res, req, { 
+            message: result?.message, 
+            statusCode: 400,
+            errors: result.errors 
+          });
         }
 
         return ResponseHelper.success(res, result.data, result?.message);
@@ -153,7 +174,11 @@ export class MLSecurityController {
         const result = await this.fraudDetectionService.analyzeTransaction(transaction);
 
         if (!result.success) {
-          return ResponseHelper.error(res, result?.message, 400, result.errors);
+          return ResponseHelper.error(res, req, { 
+            message: result?.message, 
+            statusCode: 400,
+            errors: result.errors 
+          });
         }
 
         logger.info("Fraud risk analysis completed", {
@@ -228,7 +253,11 @@ export class MLSecurityController {
         );
 
         if (!result.success) {
-          return ResponseHelper.error(res, result?.message, 400, result.errors);
+          return ResponseHelper.error(res, req, { 
+            message: result?.message, 
+            statusCode: 400,
+            errors: result.errors 
+          });
         }
 
         logger.info("APT behavior analysis completed", {
@@ -273,7 +302,11 @@ export class MLSecurityController {
         const result = await this.aptDetectionService.detectLateralMovement(networkEvents);
 
         if (!result.success) {
-          return ResponseHelper.error(res, result?.message, 400, result.errors);
+          return ResponseHelper.error(res, req, { 
+            message: result?.message, 
+            statusCode: 400,
+            errors: result.errors 
+          });
         }
 
         logger.info("Lateral movement detection completed", {
@@ -315,7 +348,11 @@ export class MLSecurityController {
         const result = await this.aptDetectionService.detectC2Communications(networkTraffic);
 
         if (!result.success) {
-          return ResponseHelper.error(res, result?.message, 400, result.errors);
+          return ResponseHelper.error(res, req, { 
+            message: result?.message, 
+            statusCode: 400,
+            errors: result.errors 
+          });
         }
 
         logger.info("C2 communication detection completed", {
@@ -362,7 +399,11 @@ export class MLSecurityController {
         const result = await this.aptDetectionService.runThreatHunting(queryIds, timeRangeObj);
 
         if (!result.success) {
-          return ResponseHelper.error(res, result?.message, 400, result.errors);
+          return ResponseHelper.error(res, req, { 
+            message: result?.message, 
+            statusCode: 400,
+            errors: result.errors 
+          });
         }
 
         logger.info("Threat hunting completed", {
@@ -435,7 +476,11 @@ export class MLSecurityController {
         );
 
         if (!result.success) {
-          return ResponseHelper.error(res, result?.message, 400, result.errors);
+          return ResponseHelper.error(res, req, { 
+            message: result?.message, 
+            statusCode: 400,
+            errors: result.errors 
+          });
         }
 
         logger.info("Threat predictions generated", {
@@ -478,7 +523,11 @@ export class MLSecurityController {
         const result = await this.securityAnalyticsService.analyzeRiskTrajectories(targets, horizon);
 
         if (!result.success) {
-          return ResponseHelper.error(res, result?.message, 400, result.errors);
+          return ResponseHelper.error(res, req, { 
+            message: result?.message, 
+            statusCode: 400,
+            errors: result.errors 
+          });
         }
 
         logger.info("Risk trajectory analysis completed", {
@@ -546,7 +595,11 @@ export class MLSecurityController {
         const result = await this.mlModelTrainingService.submitTrainingJob(config);
 
         if (!result.success) {
-          return ResponseHelper.error(res, result?.message, 400, result.errors);
+          return ResponseHelper.error(res, req, { 
+            message: result?.message, 
+            statusCode: 400,
+            errors: result.errors 
+          });
         }
 
         logger.info("ML training job submitted", {
@@ -624,7 +677,11 @@ export class MLSecurityController {
         );
 
         if (!result.success) {
-          return ResponseHelper.error(res, result?.message, 400, result.errors);
+          return ResponseHelper.error(res, req, { 
+            message: result?.message, 
+            statusCode: 400,
+            errors: result.errors 
+          });
         }
 
         logger.info("Model deployment initiated", {
@@ -739,7 +796,11 @@ export class MLSecurityController {
         );
 
         if (!result.success) {
-          return ResponseHelper.error(res, result?.message, 400, result.errors);
+          return ResponseHelper.error(res, req, { 
+            message: result?.message, 
+            statusCode: 400,
+            errors: result.errors 
+          });
         }
 
         logger.warn("Entity blocked for fraud prevention", {
@@ -788,7 +849,11 @@ export class MLSecurityController {
         );
 
         if (!result.success) {
-          return ResponseHelper.error(res, result?.message, 400, result.errors);
+          return ResponseHelper.error(res, req, { 
+            message: result?.message, 
+            statusCode: 400,
+            errors: result.errors 
+          });
         }
 
         logger.info("Model retraining triggered", {

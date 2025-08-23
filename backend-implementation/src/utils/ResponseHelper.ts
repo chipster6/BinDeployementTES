@@ -109,7 +109,7 @@ export class ResponseHelper {
     };
 
     if (options?.message) {
-      response?.message = options?.message;
+      response.message = options.message;
     }
 
     if (success && "data" in options && options.data !== undefined) {

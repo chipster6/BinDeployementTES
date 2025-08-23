@@ -341,7 +341,8 @@ export class AirtableService extends BaseExternalService {
           records: allCreatedRecords,
           createdCount,
         },
-        statusCode: 200-${tableName}`,
+        statusCode: 200,
+        metadata: {
           duration: 0,
           attempt: 1,
         },
@@ -420,7 +421,8 @@ export class AirtableService extends BaseExternalService {
           records: allUpdatedRecords,
           updatedCount,
         },
-        statusCode: 200-${tableName}`,
+        statusCode: 200,
+        metadata: {
           duration: 0,
           attempt: 1,
         },
@@ -492,7 +494,8 @@ export class AirtableService extends BaseExternalService {
           records: allDeletedRecords,
           deletedCount,
         },
-        statusCode: 200-${tableName}`,
+        statusCode: 200,
+        metadata: {
           duration: 0,
           attempt: 1,
         },
@@ -680,7 +683,8 @@ export class AirtableService extends BaseExternalService {
       return {
         success: true,
         data: result,
-        statusCode: 200`,
+        statusCode: 200,
+        metadata: {
           duration: 0,
           attempt: 1,
         },

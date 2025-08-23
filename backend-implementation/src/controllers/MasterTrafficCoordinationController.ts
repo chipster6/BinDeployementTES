@@ -183,6 +183,14 @@ export class MasterTrafficCoordinationController {
           revenueImpact: req.body.businessContext?.revenueImpact || 0,
           customerTier: req.body.businessContext?.customerTier || 'standard',
           slaRequirements: req.body.businessContext?.slaRequirements || []
+        },
+        
+        metadata: {
+          requestId: req.headers['x-request-id'] as string || `req_${Date.now()}_${Math.random().toString(36).substring(7)}`,
+          userId: (req as any).user?.id,
+          organizationId: (req as any).user?.organizationId,
+          timestamp: new Date(),
+          correlationId: req.headers['x-correlation-id'] as string || `corr_${Date.now()}_${Math.random().toString(36).substring(7)}`
         }
       };
 
@@ -738,9 +746,9 @@ export class MasterTrafficCoordinationController {
     timeRange: string,
     services?: string[],
     includePredictions: boolean = false
-  ): Promise<any> {
+  ): Promise<Record<string, any>> {
     // TODO: Implement actual analytics retrieval
-    const analytics = {
+    const analytics: Record<string, any> = {
       timeRange,
       services: services || ['all'],
       coordinationMetrics: {
@@ -975,7 +983,7 @@ export class MasterTrafficCoordinationController {
 
   private estimateLatencyReduction(strategy: string, services: string[]): number {
     // Simplified estimation based on strategy and service count
-    const baseReduction = {
+    const baseReduction: Record<string, number> = {
       'least_latency': 25,
       'adaptive_intelligent': 35,
       'predictive_system': 30,
@@ -990,7 +998,7 @@ export class MasterTrafficCoordinationController {
 
   private estimateThroughputIncrease(strategy: string, services: string[]): number {
     // Simplified estimation
-    const baseThroughput = {
+    const baseThroughput: Record<string, number> = {
       'adaptive_intelligent': 40,
       'predictive_system': 35,
       'weighted_performance': 30,
@@ -1002,7 +1010,7 @@ export class MasterTrafficCoordinationController {
   }
 
   private estimateReliabilityGain(strategy: string, circuitBreakerEnabled: boolean): number {
-    const baseReliability = {
+    const baseReliability: Record<string, number> = {
       'health_distributed': 15,
       'adaptive_intelligent': 20,
       'predictive_system': 18
@@ -1014,7 +1022,7 @@ export class MasterTrafficCoordinationController {
   }
 
   private estimateCostOptimization(strategy: string): number {
-    const costOptimization = {
+    const costOptimization: Record<string, number> = {
       'cost_performance_hybrid': 30,
       'adaptive_intelligent': 25,
       'predictive_system': 20

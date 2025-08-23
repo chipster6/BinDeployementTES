@@ -345,7 +345,8 @@ export class SendGridService extends BaseExternalService {
           successful,
           failed,
         },
-        statusCode: 200`,
+        statusCode: 200,
+        metadata: {
           duration: 0,
           attempt: 1,
         },
@@ -646,7 +647,8 @@ export class SendGridService extends BaseExternalService {
       return {
         success: true,
         data: { processed, skipped },
-        statusCode: 200`,
+        statusCode: 200,
+        metadata: {
           duration: 0,
           attempt: 1,
         },

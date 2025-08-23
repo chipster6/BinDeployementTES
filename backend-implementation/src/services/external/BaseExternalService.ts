@@ -633,7 +633,8 @@ export abstract class BaseExternalService {
         priority: this.config?.servicePriority || ServicePriority.MEDIUM,
         businessCriticality: this.config?.businessCriticality || BusinessCriticality.PERFORMANCE_OPTIMIZATION,
         capabilities: this.getServiceCapabilities(),
-        dependencies: []-deployment-001`,
+        dependencies: [],
+        metrics: {
           lastHealthCheck: new Date(),
           uptime: 100,
           requestCount: 0,

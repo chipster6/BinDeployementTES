@@ -858,7 +858,8 @@ export class ServiceMeshManager extends EventEmitter {
       serviceName,
       operation,
       originalRequest: request,
-      error`,
+      error,
+      context: {
         userId: context?.userId,
         organizationId: context?.organizationId,
         timestamp: new Date(),

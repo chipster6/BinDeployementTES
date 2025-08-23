@@ -485,6 +485,11 @@ export const rawQuery = async <T = unknown>(
     
     return {
       data: results,
+      metadata: {
+        executionTime,
+        rowCount: results.length,
+        fromCache: false,
+      },
     };
   } catch (error: unknown) {
     logger.error("Raw query failed:", { sql, replacements, error });

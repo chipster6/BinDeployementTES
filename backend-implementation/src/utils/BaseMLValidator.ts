@@ -49,13 +49,12 @@ export interface DataQualityMetrics {
 /**
  * ML validation error types
  */
-export class MLValidationError extends Error {
-  public readonly code: string;
+export class MLValidationError extends ValidationError {
   public readonly severity: 'warning' | 'error' | 'critical';
   public readonly metadata?: Record<string, any>;
 
   constructor(message: string, code: string, severity: 'warning' | 'error' | 'critical' = 'error', metadata?: Record<string, any>) {
-    super(message);
+    super(message, metadata);
     this.name = 'MLValidationError';
     this.code = code;
     this.severity = severity;
@@ -165,7 +164,7 @@ export class BaseMLValidator {
     } catch (error: unknown) {
       logger.error('Training data validation failed', { error: error instanceof Error ? error?.message : String(error) });
       errors.push(new MLValidationError(
-        'Validation process failed: ' + error instanceof Error ? error?.message : String(error),
+        'Validation process failed: ' + (error instanceof Error ? error?.message : String(error)),
         'VALIDATION_PROCESS_ERROR',
         'critical'
       ));
@@ -274,7 +273,7 @@ export class BaseMLValidator {
     } catch (error: unknown) {
       logger.error('Prediction input validation failed', { error: error instanceof Error ? error?.message : String(error) });
       errors.push(new MLValidationError(
-        'Input validation process failed: ' + error instanceof Error ? error?.message : String(error),
+        'Input validation process failed: ' + (error instanceof Error ? error?.message : String(error)),
         'INPUT_VALIDATION_ERROR',
         'critical'
       ));
