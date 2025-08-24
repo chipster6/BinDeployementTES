@@ -163,7 +163,7 @@ export class PredictiveAnalyticsController {
               index,
               success: result.success,
               data: result.data,
-              message: result?.message,
+              message: result?.message || "Operation failed",
               request: forecastRequest
             };
           } catch (error: unknown) {
@@ -258,7 +258,7 @@ export class PredictiveAnalyticsController {
 
         ResponseHelper.success(res, req, {
           data: { model_id: result.data },
-          message: result?.message,
+          message: result?.message || "Operation failed",
           meta: {
             execution_time: timer.getDuration(),
             data_points: data?.length || 0

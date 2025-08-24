@@ -642,7 +642,7 @@ Organization.init(
         // PostGIS spatial index
         fields: ["service_location"],
         using: "gist",
-        where: { service_location: { [sequelize.Sequelize.Op.ne]: null } },
+        where: { service_location: { [sequelize.Op.ne]: null } },
       },
     ],
 
@@ -734,7 +734,7 @@ Organization.init(
       withLocation: {
         where: {
           serviceLocation: {
-            [sequelize.Sequelize.Op.ne]: null,
+            [sequelize.Op.ne]: null,
           },
           deletedAt: null,
         },

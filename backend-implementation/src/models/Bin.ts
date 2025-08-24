@@ -435,7 +435,7 @@ export class Bin extends Model<
     return await Bin.findAll({
       where: {
         fillLevelPercent: {
-          [database.Sequelize.Op.gte]: fillThreshold,
+          [database.Op.gte]: fillThreshold,
         },
         status: BinStatus.ACTIVE,
         deletedAt: null,
@@ -451,7 +451,7 @@ export class Bin extends Model<
     return await Bin.findAll({
       where: {
         nextServiceDate: {
-          [database.Sequelize.Op.lt]: today,
+          [database.Op.lt]: today,
         },
         status: BinStatus.ACTIVE,
         deletedAt: null,
@@ -464,7 +464,7 @@ export class Bin extends Model<
   public static async findSmartBins(): Promise<Bin[]> {
     return await Bin.findAll({
       where: {
-        [database.Sequelize.Op.or]: [
+        [database.Op.or]: [
           { gpsEnabled: true },
           { sensorEnabled: true },
         ],
@@ -537,7 +537,7 @@ export class Bin extends Model<
     const lastBin = await Bin.findOne({
       where: {
         binNumber: {
-          [database.Sequelize.Op.like]: `${prefix}%`,
+          [database.Op.like]: `${prefix}%`,
         },
       },
       order: [["binNumber", "DESC"]],
@@ -568,7 +568,7 @@ export class Bin extends Model<
     };
 
     if (excludeBinId) {
-      whereClause.id = { [database.Sequelize.Op.ne]: excludeBinId };
+      whereClause.id = { [database.Op.ne]: excludeBinId };
     }
 
     const bin = await Bin.findOne({ where: whereClause });
@@ -608,7 +608,7 @@ export class Bin extends Model<
         ],
         where: {
           deletedAt: null,
-          material: { [database.Sequelize.Op.ne]: null },
+          material: { [database.Op.ne]: null },
         },
         group: ["material"],
         raw: true,
@@ -678,7 +678,7 @@ export class Bin extends Model<
         [database.fn("COUNT", database.col("id")), "count"],
       ],
       where: {
-        fillLevelPercent: { [database.Sequelize.Op.ne]: null },
+        fillLevelPercent: { [database.Op.ne]: null },
         status: BinStatus.ACTIVE,
         deletedAt: null,
       },
@@ -711,7 +711,7 @@ export class Bin extends Model<
     return await Bin.findAll({
       where: {
         installationDate: {
-          [database.Sequelize.Op.lt]: cutoffDate,
+          [database.Op.lt]: cutoffDate,
         },
         status: BinStatus.ACTIVE,
         deletedAt: null,
@@ -978,17 +978,17 @@ Bin.init(
         name: "idx_bins_location",
         fields: [database.fn("ST_GeogFromWKB", database.col("location"))],
         using: "GIST",
-        where: { location: { [database.Sequelize.Op.ne]: null } },
+        where: { location: { [database.Op.ne]: null } },
       },
       {
         name: "idx_bins_fill_level",
         fields: ["fill_level_percent"],
-        where: { fill_level_percent: { [database.Sequelize.Op.ne]: null } },
+        where: { fill_level_percent: { [database.Op.ne]: null } },
       },
       {
         name: "idx_bins_next_service_date",
         fields: ["next_service_date"],
-        where: { next_service_date: { [database.Sequelize.Op.ne]: null } },
+        where: { next_service_date: { [database.Op.ne]: null } },
       },
       {
         name: "idx_bins_smart_features",
@@ -997,7 +997,7 @@ Bin.init(
       {
         name: "idx_bins_installation_date",
         fields: ["installation_date"],
-        where: { installation_date: { [database.Sequelize.Op.ne]: null } },
+        where: { installation_date: { [database.Op.ne]: null } },
       },
     ],
     hooks: {
@@ -1071,7 +1071,7 @@ Bin.init(
       needingService: (threshold: number = 80) => ({
         where: {
           fillLevelPercent: {
-            [database.Sequelize.Op.gte]: threshold,
+            [database.Op.gte]: threshold,
           },
           status: BinStatus.ACTIVE,
           deletedAt: null,
@@ -1080,7 +1080,7 @@ Bin.init(
       overdue: {
         where: {
           nextServiceDate: {
-            [database.Sequelize.Op.lt]: new Date(),
+            [database.Op.lt]: new Date(),
           },
           status: BinStatus.ACTIVE,
           deletedAt: null,
@@ -1088,7 +1088,7 @@ Bin.init(
       },
       smartBins: {
         where: {
-          [database.Sequelize.Op.or]: [
+          [database.Op.or]: [
             { gpsEnabled: true },
             { sensorEnabled: true },
           ],
@@ -1109,14 +1109,14 @@ Bin.init(
       },
       withLocation: {
         where: {
-          location: { [database.Sequelize.Op.ne]: null },
+          location: { [database.Op.ne]: null },
           deletedAt: null,
         },
       },
       dueForReplacement: (years: number = 5) => ({
         where: {
           installationDate: {
-            [database.Sequelize.Op.lt]: new Date(
+            [database.Op.lt]: new Date(
               Date.now() - years * 365 * 24 * 60 * 60 * 1000,
             ),
           },

@@ -619,7 +619,7 @@ AuditLog.init(
       recentActivity: (hours: number = 24) => ({
         where: {
           accessTimestamp: {
-            [sequelize.Sequelize.Op.gte]: new Date(
+            [sequelize.Op.gte]: new Date(
               Date.now() - hours * 60 * 60 * 1000,
             ),
           },
@@ -628,14 +628,14 @@ AuditLog.init(
       withinRetention: {
         where: {
           dataRetentionUntil: {
-            [sequelize.Sequelize.Op.gt]: new Date(),
+            [sequelize.Op.gt]: new Date(),
           },
         },
       },
       expiredRetention: {
         where: {
           dataRetentionUntil: {
-            [sequelize.Sequelize.Op.lte]: new Date(),
+            [sequelize.Op.lte]: new Date(),
           },
         },
       },

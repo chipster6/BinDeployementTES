@@ -419,7 +419,7 @@ export class Route extends Model<
   public static async findUnassigned(): Promise<Route[]> {
     return await Route.findAll({
       where: {
-        [database.Sequelize.Op.or]: [{ driverId: null }, { vehicleId: null }],
+        [database.Op.or]: [{ driverId: null }, { vehicleId: null }],
         status: RouteStatus.ACTIVE,
         deletedAt: null,
       },
@@ -436,9 +436,9 @@ export class Route extends Model<
 
     return await Route.findAll({
       where: {
-        [database.Sequelize.Op.or]: [
+        [database.Op.or]: [
           { lastOptimizedAt: null },
-          { lastOptimizedAt: { [database.Sequelize.Op.lt]: cutoffDate } },
+          { lastOptimizedAt: { [database.Op.lt]: cutoffDate } },
         ],
         status: RouteStatus.ACTIVE,
         deletedAt: null,
@@ -477,7 +477,7 @@ export class Route extends Model<
     const lastRoute = await Route.findOne({
       where: {
         routeNumber: {
-          [database.Sequelize.Op.like]: `${prefix}%`,
+          [database.Op.like]: `${prefix}%`,
         },
       },
       order: [["routeNumber", "DESC"]],
@@ -508,7 +508,7 @@ export class Route extends Model<
     };
 
     if (excludeRouteId) {
-      whereClause.id = { [database.Sequelize.Op.ne]: excludeRouteId };
+      whereClause.id = { [database.Op.ne]: excludeRouteId };
     }
 
     const route = await Route.findOne({ where: whereClause });
@@ -568,7 +568,7 @@ export class Route extends Model<
         ],
         where: {
           deletedAt: null,
-          routeType: { [database.Sequelize.Op.ne]: null },
+          routeType: { [database.Op.ne]: null },
         },
         group: ["routeType"],
         raw: true,
@@ -582,7 +582,7 @@ export class Route extends Model<
         ],
         where: {
           deletedAt: null,
-          serviceDay: { [database.Sequelize.Op.ne]: null },
+          serviceDay: { [database.Op.ne]: null },
         },
         group: ["serviceDay"],
         raw: true,
@@ -662,7 +662,7 @@ export class Route extends Model<
       ],
       where: {
         deletedAt: null,
-        territory: { [database.Sequelize.Op.ne]: null },
+        territory: { [database.Op.ne]: null },
       },
       group: ["territory"],
       order: [["territory", "ASC"]],
@@ -947,13 +947,13 @@ Route.init(
       {
         name: "idx_routes_last_optimized_at",
         fields: ["last_optimized_at"],
-        where: { last_optimized_at: { [database.Sequelize.Op.ne]: null } },
+        where: { last_optimized_at: { [database.Op.ne]: null } },
       },
       {
         name: "idx_routes_geometry",
         fields: [database.fn("ST_GeogFromWKB", database.col("route_geometry"))],
         using: "GIST",
-        where: { route_geometry: { [database.Sequelize.Op.ne]: null } },
+        where: { route_geometry: { [database.Op.ne]: null } },
       },
     ],
     hooks: {
@@ -1021,15 +1021,15 @@ Route.init(
       }),
       assigned: {
         where: {
-          driverId: { [database.Sequelize.Op.ne]: null },
-          vehicleId: { [database.Sequelize.Op.ne]: null },
+          driverId: { [database.Op.ne]: null },
+          vehicleId: { [database.Op.ne]: null },
           status: RouteStatus.ACTIVE,
           deletedAt: null,
         },
       },
       unassigned: {
         where: {
-          [database.Sequelize.Op.or]: [{ driverId: null }, { vehicleId: null }],
+          [database.Op.or]: [{ driverId: null }, { vehicleId: null }],
           status: RouteStatus.ACTIVE,
           deletedAt: null,
         },
@@ -1042,11 +1042,11 @@ Route.init(
       },
       needingOptimization: (days: number = 30) => ({
         where: {
-          [database.Sequelize.Op.or]: [
+          [database.Op.or]: [
             { lastOptimizedAt: null },
             {
               lastOptimizedAt: {
-                [database.Sequelize.Op.lt]: new Date(
+                [database.Op.lt]: new Date(
                   Date.now() - days * 24 * 60 * 60 * 1000,
                 ),
               },
@@ -1058,7 +1058,7 @@ Route.init(
       }),
       withGeometry: {
         where: {
-          routeGeometry: { [database.Sequelize.Op.ne]: null },
+          routeGeometry: { [database.Op.ne]: null },
           deletedAt: null,
         },
       },

@@ -222,7 +222,7 @@ export class UserSession extends Model<
       where: {
         userId: this.userId,
         status: SessionStatus.ACTIVE,
-        id: { [sequelize.Sequelize.Op.ne]: this.id },
+        id: { [sequelize.Op.ne]: this.id },
       },
       limit: 10,
       order: [['createdAt', 'DESC']],
@@ -247,7 +247,7 @@ export class UserSession extends Model<
       where: {
         userId: this.userId,
         status: SessionStatus.ACTIVE,
-        id: { [sequelize.Sequelize.Op.ne]: this.id },
+        id: { [sequelize.Op.ne]: this.id },
       },
     });
 
@@ -482,7 +482,7 @@ UserSession.init(
       {
         fields: ["refresh_token"],
         unique: true,
-        where: { refresh_token: { [sequelize.Sequelize.Op.ne]: null } },
+        where: { refresh_token: { [sequelize.Op.ne]: null } },
       },
       {
         fields: ["user_id", "status"],
@@ -498,7 +498,7 @@ UserSession.init(
       },
       {
         fields: ["risk_score"],
-        where: { risk_score: { [sequelize.Sequelize.Op.gt]: 0 } },
+        where: { risk_score: { [sequelize.Op.gt]: 0 } },
       },
     ],
 
@@ -553,18 +553,18 @@ UserSession.init(
         where: {
           status: SessionStatus.ACTIVE,
           expiresAt: {
-            [sequelize.Sequelize.Op.gt]: new Date(),
+            [sequelize.Op.gt]: new Date(),
           },
         },
       },
       expired: {
         where: {
-          [sequelize.Sequelize.Op.or]: [
+          [sequelize.Op.or]: [
             { status: SessionStatus.EXPIRED },
             {
               status: SessionStatus.ACTIVE,
               expiresAt: {
-                [sequelize.Sequelize.Op.lte]: new Date(),
+                [sequelize.Op.lte]: new Date(),
               },
             },
           ],
@@ -572,16 +572,16 @@ UserSession.init(
       },
       suspicious: {
         where: {
-          [sequelize.Sequelize.Op.or]: [
+          [sequelize.Op.or]: [
             { status: SessionStatus.SUSPICIOUS },
-            { riskScore: { [sequelize.Sequelize.Op.gte]: 75 } },
+            { riskScore: { [sequelize.Op.gte]: 75 } },
           ],
         },
       },
       highRisk: {
         where: {
           riskScore: {
-            [sequelize.Sequelize.Op.gte]: 50,
+            [sequelize.Op.gte]: 50,
           },
         },
       },

@@ -1845,7 +1845,7 @@ export class RouteOptimizationService extends BaseService<Route> {
       const optimizedRoutes = await OptimizedRoute.findAll({
         where: {
           optimizationId,
-          status: { [database.Sequelize.Op.ne]: OptimizationStatus.ARCHIVED }
+          status: { [database.Op.ne]: OptimizationStatus.ARCHIVED }
         },
         include: [
           { model: Route, as: 'baseRoute' },
@@ -2299,10 +2299,10 @@ export class RouteOptimizationService extends BaseService<Route> {
         ],
         where: {
           createdAt: {
-            [database.Sequelize.Op.between]: [timeRange.start, timeRange.end]
+            [database.Op.between]: [timeRange.start, timeRange.end]
           },
           status: {
-            [database.Sequelize.Op.in]: [OptimizationStatus.COMPLETED, OptimizationStatus.APPLIED]
+            [database.Op.in]: [OptimizationStatus.COMPLETED, OptimizationStatus.APPLIED]
           }
         }
       });

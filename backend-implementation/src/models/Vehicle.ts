@@ -368,10 +368,10 @@ export class Vehicle extends Model<
     return await Vehicle.findAll({
       where: {
         nextMaintenanceDate: {
-          [database.Sequelize.Op.lte]: warningDate,
+          [database.Op.lte]: warningDate,
         },
         status: {
-          [database.Sequelize.Op.in]: [
+          [database.Op.in]: [
             VehicleStatus.ACTIVE,
             VehicleStatus.MAINTENANCE,
           ],
@@ -389,10 +389,10 @@ export class Vehicle extends Model<
     return await Vehicle.findAll({
       where: {
         nextMaintenanceDate: {
-          [database.Sequelize.Op.lt]: today,
+          [database.Op.lt]: today,
         },
         status: {
-          [database.Sequelize.Op.ne]: VehicleStatus.RETIRED,
+          [database.Op.ne]: VehicleStatus.RETIRED,
         },
         deletedAt: null,
       },
@@ -405,7 +405,7 @@ export class Vehicle extends Model<
     return await Vehicle.findAll({
       where: {
         gpsDeviceId: {
-          [database.Sequelize.Op.ne]: null,
+          [database.Op.ne]: null,
         },
         status: VehicleStatus.ACTIVE,
         deletedAt: null,
@@ -441,7 +441,7 @@ export class Vehicle extends Model<
     const lastVehicle = await Vehicle.findOne({
       where: {
         vehicleNumber: {
-          [database.Sequelize.Op.like]: `${prefix}%`,
+          [database.Op.like]: `${prefix}%`,
         },
       },
       order: [["vehicleNumber", "DESC"]],
@@ -472,7 +472,7 @@ export class Vehicle extends Model<
     };
 
     if (excludeVehicleId) {
-      whereClause.id = { [database.Sequelize.Op.ne]: excludeVehicleId };
+      whereClause.id = { [database.Op.ne]: excludeVehicleId };
     }
 
     const vehicle = await Vehicle.findOne({ where: whereClause });
@@ -490,7 +490,7 @@ export class Vehicle extends Model<
     };
 
     if (excludeVehicleId) {
-      whereClause.id = { [database.Sequelize.Op.ne]: excludeVehicleId };
+      whereClause.id = { [database.Op.ne]: excludeVehicleId };
     }
 
     const vehicle = await Vehicle.findOne({ where: whereClause });
@@ -508,7 +508,7 @@ export class Vehicle extends Model<
     };
 
     if (excludeVehicleId) {
-      whereClause.id = { [database.Sequelize.Op.ne]: excludeVehicleId };
+      whereClause.id = { [database.Op.ne]: excludeVehicleId };
     }
 
     const vehicle = await Vehicle.findOne({ where: whereClause });
@@ -548,7 +548,7 @@ export class Vehicle extends Model<
         ],
         where: {
           deletedAt: null,
-          fuelType: { [database.Sequelize.Op.ne]: null },
+          fuelType: { [database.Op.ne]: null },
         },
         group: ["fuelType"],
         raw: true,
@@ -829,14 +829,14 @@ Vehicle.init(
         name: "idx_vehicles_vin",
         fields: ["vin"],
         unique: true,
-        where: { vin: { [database.Sequelize.Op.ne]: null }, deleted_at: null },
+        where: { vin: { [database.Op.ne]: null }, deleted_at: null },
       },
       {
         name: "idx_vehicles_license_plate",
         fields: ["license_plate"],
         unique: true,
         where: {
-          license_plate: { [database.Sequelize.Op.ne]: null },
+          license_plate: { [database.Op.ne]: null },
           deleted_at: null,
         },
       },
@@ -857,17 +857,17 @@ Vehicle.init(
       {
         name: "idx_vehicles_gps_device_id",
         fields: ["gps_device_id"],
-        where: { gps_device_id: { [database.Sequelize.Op.ne]: null } },
+        where: { gps_device_id: { [database.Op.ne]: null } },
       },
       {
         name: "idx_vehicles_samsara_vehicle_id",
         fields: ["samsara_vehicle_id"],
-        where: { samsara_vehicle_id: { [database.Sequelize.Op.ne]: null } },
+        where: { samsara_vehicle_id: { [database.Op.ne]: null } },
       },
       {
         name: "idx_vehicles_next_maintenance_date",
         fields: ["next_maintenance_date"],
-        where: { next_maintenance_date: { [database.Sequelize.Op.ne]: null } },
+        where: { next_maintenance_date: { [database.Op.ne]: null } },
       },
     ],
     hooks: {
@@ -924,12 +924,12 @@ Vehicle.init(
       needingMaintenance: {
         where: {
           nextMaintenanceDate: {
-            [database.Sequelize.Op.lte]: new Date(
+            [database.Op.lte]: new Date(
               Date.now() + 7 * 24 * 60 * 60 * 1000,
             ), // 7 days
           },
           status: {
-            [database.Sequelize.Op.in]: [
+            [database.Op.in]: [
               VehicleStatus.ACTIVE,
               VehicleStatus.MAINTENANCE,
             ],
@@ -946,7 +946,7 @@ Vehicle.init(
       withGpsTracking: {
         where: {
           gpsDeviceId: {
-            [database.Sequelize.Op.ne]: null,
+            [database.Op.ne]: null,
           },
           deletedAt: null,
         },
@@ -954,7 +954,7 @@ Vehicle.init(
       withSamsaraIntegration: {
         where: {
           samsaraVehicleId: {
-            [database.Sequelize.Op.ne]: null,
+            [database.Op.ne]: null,
           },
           deletedAt: null,
         },

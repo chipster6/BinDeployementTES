@@ -407,7 +407,7 @@ export class ServiceEvent extends Model<
     return await ServiceEvent.findAll({
       where: {
         scheduledDate: {
-          [database.Sequelize.Op.between]: [startDate, endDate],
+          [database.Op.between]: [startDate, endDate],
         },
         deletedAt: null,
       },
@@ -435,10 +435,10 @@ export class ServiceEvent extends Model<
     return await ServiceEvent.findAll({
       where: {
         scheduledDate: {
-          [database.Sequelize.Op.between]: [startOfDay, endOfDay],
+          [database.Op.between]: [startOfDay, endOfDay],
         },
         eventStatus: {
-          [database.Sequelize.Op.in]: [
+          [database.Op.in]: [
             ServiceEventStatus.SCHEDULED,
             ServiceEventStatus.IN_PROGRESS,
           ],
@@ -456,10 +456,10 @@ export class ServiceEvent extends Model<
     return await ServiceEvent.findAll({
       where: {
         scheduledDate: {
-          [database.Sequelize.Op.lt]: now,
+          [database.Op.lt]: now,
         },
         eventStatus: {
-          [database.Sequelize.Op.in]: [
+          [database.Op.in]: [
             ServiceEventStatus.SCHEDULED,
             ServiceEventStatus.IN_PROGRESS,
           ],
@@ -501,7 +501,7 @@ export class ServiceEvent extends Model<
     return await ServiceEvent.findAll({
       where: {
         eventStatus: {
-          [database.Sequelize.Op.in]: [
+          [database.Op.in]: [
             ServiceEventStatus.SCHEDULED,
             ServiceEventStatus.IN_PROGRESS,
             ServiceEventStatus.RESCHEDULED,
@@ -636,7 +636,7 @@ export class ServiceEvent extends Model<
       ],
       where: {
         scheduledDate: {
-          [database.Sequelize.Op.between]: [startOfDay, endOfDay],
+          [database.Op.between]: [startOfDay, endOfDay],
         },
         deletedAt: null,
       },
@@ -926,7 +926,7 @@ ServiceEvent.init(
           database.fn("ST_GeogFromWKB", database.col("service_location")),
         ],
         using: "GIST",
-        where: { service_location: { [database.Sequelize.Op.ne]: null } },
+        where: { service_location: { [database.Op.ne]: null } },
       },
       {
         name: "idx_service_events_scheduled_date_time",
@@ -936,8 +936,8 @@ ServiceEvent.init(
         name: "idx_service_events_actual_times",
         fields: ["actual_start_time", "actual_end_time"],
         where: {
-          actual_start_time: { [database.Sequelize.Op.ne]: null },
-          actual_end_time: { [database.Sequelize.Op.ne]: null },
+          actual_start_time: { [database.Op.ne]: null },
+          actual_end_time: { [database.Op.ne]: null },
         },
       },
     ],
@@ -1003,7 +1003,7 @@ ServiceEvent.init(
         where: {
           scheduledDate: new Date(),
           eventStatus: {
-            [database.Sequelize.Op.in]: [
+            [database.Op.in]: [
               ServiceEventStatus.SCHEDULED,
               ServiceEventStatus.IN_PROGRESS,
             ],
@@ -1014,10 +1014,10 @@ ServiceEvent.init(
       overdue: {
         where: {
           scheduledDate: {
-            [database.Sequelize.Op.lt]: new Date(),
+            [database.Op.lt]: new Date(),
           },
           eventStatus: {
-            [database.Sequelize.Op.in]: [
+            [database.Op.in]: [
               ServiceEventStatus.SCHEDULED,
               ServiceEventStatus.IN_PROGRESS,
             ],
@@ -1052,7 +1052,7 @@ ServiceEvent.init(
       withPhotos: {
         where: {
           photoUrls: {
-            [database.Sequelize.Op.ne]: null,
+            [database.Op.ne]: null,
           },
           deletedAt: null,
         },
@@ -1060,7 +1060,7 @@ ServiceEvent.init(
       withSignature: {
         where: {
           signatureUrl: {
-            [database.Sequelize.Op.ne]: null,
+            [database.Op.ne]: null,
           },
           deletedAt: null,
         },
@@ -1068,7 +1068,7 @@ ServiceEvent.init(
       withWeightData: {
         where: {
           weightCollectedLbs: {
-            [database.Sequelize.Op.gt]: 0,
+            [database.Op.gt]: 0,
           },
           deletedAt: null,
         },

@@ -14,7 +14,7 @@
 
 import type { MLInferenceRequest, MLInferenceResponse } from './BaseMlService';
 import { BaseMlService } from './BaseMlService';
-import { ServiceResult } from './BaseService';
+import type { ServiceResult } from './BaseService';
 import { logger, Timer } from '@/utils/logger';
 import { redisClient } from '@/config/redis';
 import Bull from 'bull';

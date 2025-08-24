@@ -406,9 +406,9 @@ export class OptimizedRoute extends Model<
   ): Promise<OptimizedRoute[]> {
     return await OptimizedRoute.findAll({
       where: {
-        [database.Sequelize.Op.or]: [
-          { distanceSavingsPercent: { [database.Sequelize.Op.gte]: threshold } },
-          { timeSavingsPercent: { [database.Sequelize.Op.gte]: threshold } }
+        [database.Op.or]: [
+          { distanceSavingsPercent: { [database.Op.gte]: threshold } },
+          { timeSavingsPercent: { [database.Op.gte]: threshold } }
         ],
         archivedAt: null
       },
@@ -486,8 +486,8 @@ export class OptimizedRoute extends Model<
       },
       {
         where: {
-          processedAt: { [database.Sequelize.Op.lt]: cutoffDate },
-          status: { [database.Sequelize.Op.ne]: OptimizationStatus.APPLIED },
+          processedAt: { [database.Op.lt]: cutoffDate },
+          status: { [database.Op.ne]: OptimizationStatus.APPLIED },
           archivedAt: null
         }
       }
@@ -856,7 +856,7 @@ OptimizedRoute.init(
       {
         name: "idx_optimized_routes_applied_at",
         fields: ["applied_at"],
-        where: { applied_at: { [database.Sequelize.Op.ne]: null } }
+        where: { applied_at: { [database.Op.ne]: null } }
       },
       {
         name: "idx_optimized_routes_score",
@@ -870,7 +870,7 @@ OptimizedRoute.init(
         name: "idx_optimized_routes_geometry",
         fields: [database.fn("ST_GeogFromWKB", database.col("route_geometry"))],
         using: "GIST",
-        where: { route_geometry: { [database.Sequelize.Op.ne]: null } }
+        where: { route_geometry: { [database.Op.ne]: null } }
       }
     ],
     hooks: {
@@ -910,9 +910,9 @@ OptimizedRoute.init(
       }),
       withSignificantImprovements: (threshold: number = 10) => ({
         where: {
-          [database.Sequelize.Op.or]: [
-            { distanceSavingsPercent: { [database.Sequelize.Op.gte]: threshold } },
-            { timeSavingsPercent: { [database.Sequelize.Op.gte]: threshold } }
+          [database.Op.or]: [
+            { distanceSavingsPercent: { [database.Op.gte]: threshold } },
+            { timeSavingsPercent: { [database.Op.gte]: threshold } }
           ],
           archivedAt: null
         }
@@ -920,7 +920,7 @@ OptimizedRoute.init(
       recent: (days: number = 30) => ({
         where: {
           processedAt: {
-            [database.Sequelize.Op.gte]: new Date(Date.now() - days * 24 * 60 * 60 * 1000)
+            [database.Op.gte]: new Date(Date.now() - days * 24 * 60 * 60 * 1000)
           },
           archivedAt: null
         }

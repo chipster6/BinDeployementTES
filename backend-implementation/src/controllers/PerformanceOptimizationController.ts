@@ -112,9 +112,9 @@ export class PerformanceOptimizationController {
       logger.error("❌ Performance optimization framework deployment failed", error);
       
       if (error instanceof AppError) {
-        ResponseHelper.error(res, error instanceof Error ? error?.message : String(error), error.statusCode);
+        ResponseHelper.error(res, { message: error instanceof Error ? error?.message : String(error), statusCode: error.statusCode });
       } else {
-        ResponseHelper.error(res, req, { message: "Failed to deploy performance optimization framework", statusCode: 500 });
+        ResponseHelper.error(res, { message: req, statusCode: { message: "Failed to deploy performance optimization framework", statusCode: 500 } });
       }
     }
   }
@@ -224,9 +224,9 @@ export class PerformanceOptimizationController {
       logger.error("❌ Comprehensive performance optimization failed", error);
       
       if (error instanceof AppError) {
-        ResponseHelper.error(res, error instanceof Error ? error?.message : String(error), error.statusCode);
+        ResponseHelper.error(res, { message: error instanceof Error ? error?.message : String(error), statusCode: error.statusCode });
       } else {
-        ResponseHelper.error(res, req, { message: "Failed to execute comprehensive optimization", statusCode: 500 });
+        ResponseHelper.error(res, { message: req, statusCode: { message: "Failed to execute comprehensive optimization", statusCode: 500 } });
       }
     }
   }
@@ -279,13 +279,13 @@ export class PerformanceOptimizationController {
         servicesActive: Object.values(statusData).filter(s => s !== null).length - 1 // -1 for overall
       });
 
-      ResponseHelper.success(res, statusData, "Performance optimization status retrieved successfully");
+      ResponseHelper.success(res, { data: statusData, message: "Performance optimization status retrieved successfully" });
 
     } catch (error: unknown) {
       timer.end({ error: error instanceof Error ? error?.message : String(error) });
       logger.error("❌ Failed to retrieve optimization status", error);
       
-      ResponseHelper.error(res, req, { message: "Failed to retrieve optimization status", statusCode: 500 });
+      ResponseHelper.error(res, { message: req, statusCode: { message: "Failed to retrieve optimization status", statusCode: 500 } });
     }
   }
 
@@ -389,13 +389,13 @@ export class PerformanceOptimizationController {
         includeHistory: includeHistory === 'true'
       });
 
-      ResponseHelper.success(res, metrics, "Performance metrics retrieved successfully");
+      ResponseHelper.success(res, { data: metrics, message: "Performance metrics retrieved successfully" });
 
     } catch (error: unknown) {
       timer.end({ error: error instanceof Error ? error?.message : String(error) });
       logger.error("❌ Failed to retrieve performance metrics", error);
       
-      ResponseHelper.error(res, req, { message: "Failed to retrieve performance metrics", statusCode: 500 });
+      ResponseHelper.error(res, { message: req, statusCode: { message: "Failed to retrieve performance metrics", statusCode: 500 } });
     }
   }
 
@@ -444,16 +444,16 @@ export class PerformanceOptimizationController {
         currentScore: benchmarkResult.data?.benchmarkScore
       });
 
-      ResponseHelper.success(res, benchmarkData, "Performance benchmarks retrieved successfully");
+      ResponseHelper.success(res, { data: benchmarkData, message: "Performance benchmarks retrieved successfully" });
 
     } catch (error: unknown) {
       timer.end({ error: error instanceof Error ? error?.message : String(error) });
       logger.error("❌ Failed to retrieve performance benchmarks", error);
       
       if (error instanceof AppError) {
-        ResponseHelper.error(res, error instanceof Error ? error?.message : String(error), error.statusCode);
+        ResponseHelper.error(res, { message: error instanceof Error ? error?.message : String(error), statusCode: error.statusCode });
       } else {
-        ResponseHelper.error(res, req, { message: "Failed to retrieve performance benchmarks", statusCode: 500 });
+        ResponseHelper.error(res, { message: req, statusCode: { message: "Failed to retrieve performance benchmarks", statusCode: 500 } });
       }
     }
   }
@@ -511,9 +511,9 @@ export class PerformanceOptimizationController {
       logger.error("❌ Performance optimization coordination failed", error);
       
       if (error instanceof AppError) {
-        ResponseHelper.error(res, error instanceof Error ? error?.message : String(error), error.statusCode);
+        ResponseHelper.error(res, { message: error instanceof Error ? error?.message : String(error), statusCode: error.statusCode });
       } else {
-        ResponseHelper.error(res, req, { message: "Failed to coordinate performance optimization", statusCode: 500 });
+        ResponseHelper.error(res, { message: req, statusCode: { message: "Failed to coordinate performance optimization", statusCode: 500 } });
       }
     }
   }

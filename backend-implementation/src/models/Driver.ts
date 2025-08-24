@@ -339,7 +339,7 @@ export class Driver extends Model<
     return await Driver.findAll({
       where: {
         licenseExpiryDate: {
-          [database.Sequelize.Op.between]: [new Date(), warningDate],
+          [database.Op.between]: [new Date(), warningDate],
         },
         employmentStatus: EmploymentStatus.ACTIVE,
         deletedAt: null,
@@ -355,7 +355,7 @@ export class Driver extends Model<
     return await Driver.findAll({
       where: {
         licenseExpiryDate: {
-          [database.Sequelize.Op.lt]: today,
+          [database.Op.lt]: today,
         },
         employmentStatus: EmploymentStatus.ACTIVE,
         deletedAt: null,
@@ -383,7 +383,7 @@ export class Driver extends Model<
     return await Driver.findAll({
       where: {
         licenseClass: {
-          [database.Sequelize.Op.in]: [
+          [database.Op.in]: [
             LicenseClass.CDL_A,
             LicenseClass.CDL_B,
             LicenseClass.CDL_C,
@@ -404,7 +404,7 @@ export class Driver extends Model<
     const lastDriver = await Driver.findOne({
       where: {
         driverNumber: {
-          [database.Sequelize.Op.like]: `${prefix}%`,
+          [database.Op.like]: `${prefix}%`,
         },
       },
       order: [["driverNumber", "DESC"]],
@@ -435,7 +435,7 @@ export class Driver extends Model<
     };
 
     if (excludeDriverId) {
-      whereClause.id = { [database.Sequelize.Op.ne]: excludeDriverId };
+      whereClause.id = { [database.Op.ne]: excludeDriverId };
     }
 
     const driver = await Driver.findOne({ where: whereClause });
@@ -461,7 +461,7 @@ export class Driver extends Model<
       ],
       where: {
         deletedAt: null,
-        licenseClass: { [database.Sequelize.Op.ne]: null },
+        licenseClass: { [database.Op.ne]: null },
       },
       group: ["licenseClass"],
       raw: true,
@@ -481,7 +481,7 @@ export class Driver extends Model<
     return await Driver.findAll({
       where: {
         hireDate: {
-          [database.Sequelize.Op.between]: [startDate, endDate],
+          [database.Op.between]: [startDate, endDate],
         },
         deletedAt: null,
       },
@@ -707,17 +707,17 @@ Driver.init(
       {
         name: "idx_drivers_license_expiry_date",
         fields: ["license_expiry_date"],
-        where: { license_expiry_date: { [database.Sequelize.Op.ne]: null } },
+        where: { license_expiry_date: { [database.Op.ne]: null } },
       },
       {
         name: "idx_drivers_hire_date",
         fields: ["hire_date"],
-        where: { hire_date: { [database.Sequelize.Op.ne]: null } },
+        where: { hire_date: { [database.Op.ne]: null } },
       },
       {
         name: "idx_drivers_cdl_endorsements",
         fields: ["cdl_endorsements"],
-        where: { cdl_endorsements: { [database.Sequelize.Op.ne]: null } },
+        where: { cdl_endorsements: { [database.Op.ne]: null } },
       },
     ],
     hooks: {
@@ -759,7 +759,7 @@ Driver.init(
       withCDL: {
         where: {
           licenseClass: {
-            [database.Sequelize.Op.in]: [
+            [database.Op.in]: [
               LicenseClass.CDL_A,
               LicenseClass.CDL_B,
               LicenseClass.CDL_C,
@@ -771,7 +771,7 @@ Driver.init(
       expiringLicenses: (days: number = 30) => ({
         where: {
           licenseExpiryDate: {
-            [database.Sequelize.Op.between]: [
+            [database.Op.between]: [
               new Date(),
               new Date(Date.now() + days * 24 * 60 * 60 * 1000),
             ],
@@ -783,7 +783,7 @@ Driver.init(
       expiredLicenses: {
         where: {
           licenseExpiryDate: {
-            [database.Sequelize.Op.lt]: new Date(),
+            [database.Op.lt]: new Date(),
           },
           employmentStatus: EmploymentStatus.ACTIVE,
           deletedAt: null,
@@ -800,7 +800,7 @@ Driver.init(
       recentHires: (days: number = 90) => ({
         where: {
           hireDate: {
-            [database.Sequelize.Op.gte]: new Date(
+            [database.Op.gte]: new Date(
               Date.now() - days * 24 * 60 * 60 * 1000,
             ),
           },

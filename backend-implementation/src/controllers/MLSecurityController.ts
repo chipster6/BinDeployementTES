@@ -87,10 +87,10 @@ export class MLSecurityController {
         const result = await this.mlSecurityService.analyzeBehavioralAnomaly(context);
 
         if (!result.success) {
-          return ResponseHelper.error(res, req, { 
-            message: result?.message, 
+          return ResponseHelper.error(res, { 
+            message: result?.message || "Operation failed", 
             statusCode: 400,
-            errors: result.errors 
+            errors: result.errors || [] 
           });
         }
 
@@ -101,7 +101,7 @@ export class MLSecurityController {
           requestId: req.headers["x-request-id"]
         });
 
-        return ResponseHelper.success(res, result.data, result?.message);
+        return ResponseHelper.success(res, { data: result.data, message: result?.message || "Success" });
 
       } catch (error: unknown) {
         logger.error("MLSecurityController.analyzeBehavioralAnomaly failed", {
@@ -133,14 +133,14 @@ export class MLSecurityController {
         const result = await this.mlSecurityService.getRealTimeThreatScore(userId, sessionId);
 
         if (!result.success) {
-          return ResponseHelper.error(res, req, { 
-            message: result?.message, 
+          return ResponseHelper.error(res, { 
+            message: result?.message || "Operation failed", 
             statusCode: 400,
-            errors: result.errors 
+            errors: result.errors || [] 
           });
         }
 
-        return ResponseHelper.success(res, result.data, result?.message);
+        return ResponseHelper.success(res, { data: result.data, message: result?.message || "Success" });
 
       } catch (error: unknown) {
         logger.error("MLSecurityController.getRealTimeThreatScore failed", {
@@ -174,10 +174,10 @@ export class MLSecurityController {
         const result = await this.fraudDetectionService.analyzeTransaction(transaction);
 
         if (!result.success) {
-          return ResponseHelper.error(res, req, { 
-            message: result?.message, 
+          return ResponseHelper.error(res, { 
+            message: result?.message || "Operation failed", 
             statusCode: 400,
-            errors: result.errors 
+            errors: result.errors || [] 
           });
         }
 
@@ -190,7 +190,7 @@ export class MLSecurityController {
           requestId: req.headers["x-request-id"]
         });
 
-        return ResponseHelper.success(res, result.data, result?.message);
+        return ResponseHelper.success(res, { data: result.data, message: result?.message || "Success" });
 
       } catch (error: unknown) {
         logger.error("MLSecurityController.analyzeFraudRisk failed", {
@@ -214,10 +214,10 @@ export class MLSecurityController {
         const result = await this.fraudDetectionService.getFraudMetrics();
 
         if (!result.success) {
-          return ResponseHelper.error(res, result?.message, 500, result.errors);
+          return ResponseHelper.error(res, { message: result?.message || "Operation failed", statusCode: 500, errors: result?.errors || [] });
         }
 
-        return ResponseHelper.success(res, result.data, result?.message);
+        return ResponseHelper.success(res, { data: result.data, message: result?.message || "Success" });
 
       } catch (error: unknown) {
         logger.error("MLSecurityController.getFraudMetrics failed", {
@@ -253,10 +253,10 @@ export class MLSecurityController {
         );
 
         if (!result.success) {
-          return ResponseHelper.error(res, req, { 
-            message: result?.message, 
+          return ResponseHelper.error(res, { 
+            message: result?.message || "Operation failed", 
             statusCode: 400,
-            errors: result.errors 
+            errors: result.errors || [] 
           });
         }
 
@@ -269,7 +269,7 @@ export class MLSecurityController {
           requestId: req.headers["x-request-id"]
         });
 
-        return ResponseHelper.success(res, result.data, result?.message);
+        return ResponseHelper.success(res, { data: result.data, message: result?.message || "Success" });
 
       } catch (error: unknown) {
         logger.error("MLSecurityController.analyzeAPTBehavior failed", {
@@ -302,10 +302,10 @@ export class MLSecurityController {
         const result = await this.aptDetectionService.detectLateralMovement(networkEvents);
 
         if (!result.success) {
-          return ResponseHelper.error(res, req, { 
-            message: result?.message, 
+          return ResponseHelper.error(res, { 
+            message: result?.message || "Operation failed", 
             statusCode: 400,
-            errors: result.errors 
+            errors: result.errors || [] 
           });
         }
 
@@ -316,7 +316,7 @@ export class MLSecurityController {
           requestId: req.headers["x-request-id"]
         });
 
-        return ResponseHelper.success(res, result.data, result?.message);
+        return ResponseHelper.success(res, { data: result.data, message: result?.message || "Success" });
 
       } catch (error: unknown) {
         logger.error("MLSecurityController.detectLateralMovement failed", {
@@ -348,10 +348,10 @@ export class MLSecurityController {
         const result = await this.aptDetectionService.detectC2Communications(networkTraffic);
 
         if (!result.success) {
-          return ResponseHelper.error(res, req, { 
-            message: result?.message, 
+          return ResponseHelper.error(res, { 
+            message: result?.message || "Operation failed", 
             statusCode: 400,
-            errors: result.errors 
+            errors: result.errors || [] 
           });
         }
 
@@ -363,7 +363,7 @@ export class MLSecurityController {
           requestId: req.headers["x-request-id"]
         });
 
-        return ResponseHelper.success(res, result.data, result?.message);
+        return ResponseHelper.success(res, { data: result.data, message: result?.message || "Success" });
 
       } catch (error: unknown) {
         logger.error("MLSecurityController.detectC2Communications failed", {
@@ -399,10 +399,10 @@ export class MLSecurityController {
         const result = await this.aptDetectionService.runThreatHunting(queryIds, timeRangeObj);
 
         if (!result.success) {
-          return ResponseHelper.error(res, req, { 
-            message: result?.message, 
+          return ResponseHelper.error(res, { 
+            message: result?.message || "Operation failed", 
             statusCode: 400,
-            errors: result.errors 
+            errors: result.errors || [] 
           });
         }
 
@@ -414,7 +414,7 @@ export class MLSecurityController {
           requestId: req.headers["x-request-id"]
         });
 
-        return ResponseHelper.success(res, result.data, result?.message);
+        return ResponseHelper.success(res, { data: result.data, message: result?.message || "Success" });
 
       } catch (error: unknown) {
         logger.error("MLSecurityController.runThreatHunting failed", {
@@ -438,10 +438,10 @@ export class MLSecurityController {
         const result = await this.aptDetectionService.getAPTDashboard();
 
         if (!result.success) {
-          return ResponseHelper.error(res, result?.message, 500, result.errors);
+          return ResponseHelper.error(res, { message: result?.message || "Operation failed", statusCode: 500, errors: result?.errors || [] });
         }
 
-        return ResponseHelper.success(res, result.data, result?.message);
+        return ResponseHelper.success(res, { data: result.data, message: result?.message || "Success" });
 
       } catch (error: unknown) {
         logger.error("MLSecurityController.getAPTDashboard failed", {
@@ -476,10 +476,10 @@ export class MLSecurityController {
         );
 
         if (!result.success) {
-          return ResponseHelper.error(res, req, { 
-            message: result?.message, 
+          return ResponseHelper.error(res, { 
+            message: result?.message || "Operation failed", 
             statusCode: 400,
-            errors: result.errors 
+            errors: result.errors || [] 
           });
         }
 
@@ -491,7 +491,7 @@ export class MLSecurityController {
           requestId: req.headers["x-request-id"]
         });
 
-        return ResponseHelper.success(res, result.data, result?.message);
+        return ResponseHelper.success(res, { data: result.data, message: result?.message || "Success" });
 
       } catch (error: unknown) {
         logger.error("MLSecurityController.generateThreatPredictions failed", {
@@ -523,10 +523,10 @@ export class MLSecurityController {
         const result = await this.securityAnalyticsService.analyzeRiskTrajectories(targets, horizon);
 
         if (!result.success) {
-          return ResponseHelper.error(res, req, { 
-            message: result?.message, 
+          return ResponseHelper.error(res, { 
+            message: result?.message || "Operation failed", 
             statusCode: 400,
-            errors: result.errors 
+            errors: result.errors || [] 
           });
         }
 
@@ -537,7 +537,7 @@ export class MLSecurityController {
           requestId: req.headers["x-request-id"]
         });
 
-        return ResponseHelper.success(res, result.data, result?.message);
+        return ResponseHelper.success(res, { data: result.data, message: result?.message || "Success" });
 
       } catch (error: unknown) {
         logger.error("MLSecurityController.analyzeRiskTrajectories failed", {
@@ -561,10 +561,10 @@ export class MLSecurityController {
         const result = await this.securityAnalyticsService.getSecurityAnalyticsDashboard();
 
         if (!result.success) {
-          return ResponseHelper.error(res, result?.message, 500, result.errors);
+          return ResponseHelper.error(res, { message: result?.message || "Operation failed", statusCode: 500, errors: result?.errors || [] });
         }
 
-        return ResponseHelper.success(res, result.data, result?.message);
+        return ResponseHelper.success(res, { data: result.data, message: result?.message || "Success" });
 
       } catch (error: unknown) {
         logger.error("MLSecurityController.getSecurityAnalyticsDashboard failed", {
@@ -595,10 +595,10 @@ export class MLSecurityController {
         const result = await this.mlModelTrainingService.submitTrainingJob(config);
 
         if (!result.success) {
-          return ResponseHelper.error(res, req, { 
-            message: result?.message, 
+          return ResponseHelper.error(res, { 
+            message: result?.message || "Operation failed", 
             statusCode: 400,
-            errors: result.errors 
+            errors: result.errors || [] 
           });
         }
 
@@ -610,7 +610,7 @@ export class MLSecurityController {
           requestId: req.headers["x-request-id"]
         });
 
-        return ResponseHelper.success(res, result.data, result?.message);
+        return ResponseHelper.success(res, { data: result.data, message: result?.message || "Success" });
 
       } catch (error: unknown) {
         logger.error("MLSecurityController.submitTrainingJob failed", {
@@ -639,10 +639,10 @@ export class MLSecurityController {
         const result = await this.mlModelTrainingService.getTrainingJobStatus(jobId);
 
         if (!result.success) {
-          return ResponseHelper.error(res, result?.message, 404, result.errors);
+          return ResponseHelper.error(res, { message: result?.message || "Not found", statusCode: 404, errors: result?.errors || [] });
         }
 
-        return ResponseHelper.success(res, result.data, result?.message);
+        return ResponseHelper.success(res, { data: result.data, message: result?.message || "Success" });
 
       } catch (error: unknown) {
         logger.error("MLSecurityController.getTrainingJobStatus failed", {
@@ -677,10 +677,10 @@ export class MLSecurityController {
         );
 
         if (!result.success) {
-          return ResponseHelper.error(res, req, { 
-            message: result?.message, 
+          return ResponseHelper.error(res, { 
+            message: result?.message || "Operation failed", 
             statusCode: 400,
-            errors: result.errors 
+            errors: result.errors || [] 
           });
         }
 
@@ -692,7 +692,7 @@ export class MLSecurityController {
           requestId: req.headers["x-request-id"]
         });
 
-        return ResponseHelper.success(res, result.data, result?.message);
+        return ResponseHelper.success(res, { data: result.data, message: result?.message || "Success" });
 
       } catch (error: unknown) {
         logger.error("MLSecurityController.deployModel failed", {
@@ -730,10 +730,10 @@ export class MLSecurityController {
         const result = await this.mlModelTrainingService.monitorModelPerformance(modelId, timeRange);
 
         if (!result.success) {
-          return ResponseHelper.error(res, result?.message, 404, result.errors);
+          return ResponseHelper.error(res, { message: result?.message || "Not found", statusCode: 404, errors: result?.errors || [] });
         }
 
-        return ResponseHelper.success(res, result.data, result?.message);
+        return ResponseHelper.success(res, { data: result.data, message: result?.message || "Success" });
 
       } catch (error: unknown) {
         logger.error("MLSecurityController.monitorModelPerformance failed", {
@@ -757,10 +757,10 @@ export class MLSecurityController {
         const result = await this.mlModelTrainingService.getTrainingDashboard();
 
         if (!result.success) {
-          return ResponseHelper.error(res, result?.message, 500, result.errors);
+          return ResponseHelper.error(res, { message: result?.message || "Operation failed", statusCode: 500, errors: result?.errors || [] });
         }
 
-        return ResponseHelper.success(res, result.data, result?.message);
+        return ResponseHelper.success(res, { data: result.data, message: result?.message || "Success" });
 
       } catch (error: unknown) {
         logger.error("MLSecurityController.getTrainingDashboard failed", {
@@ -796,10 +796,10 @@ export class MLSecurityController {
         );
 
         if (!result.success) {
-          return ResponseHelper.error(res, req, { 
-            message: result?.message, 
+          return ResponseHelper.error(res, { 
+            message: result?.message || "Operation failed", 
             statusCode: 400,
-            errors: result.errors 
+            errors: result.errors || [] 
           });
         }
 
@@ -812,7 +812,7 @@ export class MLSecurityController {
           requestId: req.headers["x-request-id"]
         });
 
-        return ResponseHelper.success(res, undefined, result?.message);
+        return ResponseHelper.success(res, { data: undefined, message: result?.message || "Success" });
 
       } catch (error: unknown) {
         logger.error("MLSecurityController.blockEntity failed", {
@@ -849,10 +849,10 @@ export class MLSecurityController {
         );
 
         if (!result.success) {
-          return ResponseHelper.error(res, req, { 
-            message: result?.message, 
+          return ResponseHelper.error(res, { 
+            message: result?.message || "Operation failed", 
             statusCode: 400,
-            errors: result.errors 
+            errors: result.errors || [] 
           });
         }
 
@@ -864,7 +864,7 @@ export class MLSecurityController {
           requestId: req.headers["x-request-id"]
         });
 
-        return ResponseHelper.success(res, result.data, result?.message);
+        return ResponseHelper.success(res, { data: result.data, message: result?.message || "Success" });
 
       } catch (error: unknown) {
         logger.error("MLSecurityController.triggerRetraining failed", {

@@ -119,7 +119,7 @@ export class MasterTrafficCoordinationController {
 
     } catch (error: unknown) {
       logger.error("Failed to initialize Master Traffic Coordination Controller", {
-        error: error instanceof Error ? error?.message : String(error),
+        error: error instanceof Error ? error.message : String(error),
         stack: error instanceof Error ? error?.stack : undefined
       });
       throw new AppError("Controller initialization failed", 500);
@@ -216,23 +216,23 @@ export class MasterTrafficCoordinationController {
         executionTime
       });
 
-      ResponseHelper.success(res, req, { data: responseData, 
+      ResponseHelper.success(res, { data: responseData, 
             message: 'System-wide traffic coordination executed successfully' });
 
     } catch (error: unknown) {
-      timer.end({ error: error instanceof Error ? error?.message : String(error) });
+      timer.end({ error: error instanceof Error ? error.message : String(error) });
       
       logger.error("System coordination failed", {
         userId: (req.user as any)?.id,
         sourceService: req.body?.sourceService,
-        error: error instanceof Error ? error?.message : String(error),
+        error: error instanceof Error ? error.message : String(error),
         stack: error instanceof Error ? error?.stack : undefined
       });
 
       if (error instanceof AppError) {
-        ResponseHelper.error(res, req, { message: error instanceof Error ? error?.message : String(error), statusCode: error.statusCode });
+        ResponseHelper.error(res, { message: error.message, statusCode: error.statusCode });
       } else {
-        ResponseHelper.error(res, req, { message: 'Internal server error during system coordination', statusCode: 500 });
+        ResponseHelper.error(res, { message: 'Internal server error during system coordination', statusCode: 500 });
       }
     }
   };
@@ -310,22 +310,22 @@ export class MasterTrafficCoordinationController {
         executionTime
       });
 
-      ResponseHelper.success(res, req, { data: configuration, 
+      ResponseHelper.success(res, { data: configuration, 
             message: 'Load balancing configuration applied successfully' });
 
     } catch (error: unknown) {
-      timer.end({ error: error instanceof Error ? error?.message : String(error) });
+      timer.end({ error: error instanceof Error ? error.message : String(error) });
       
       logger.error("Load balancing configuration failed", {
         userId: (req.user as any)?.id,
         strategy: req.body?.strategy,
-        error: error instanceof Error ? error?.message : String(error)
+        error: error instanceof Error ? error.message : String(error)
       });
 
       if (error instanceof AppError) {
-        ResponseHelper.error(res, req, { message: error instanceof Error ? error?.message : String(error), statusCode: error.statusCode });
+        ResponseHelper.error(res, { message: error.message, statusCode: error.statusCode });
       } else {
-        ResponseHelper.error(res, req, { message: 'Internal server error during load balancing configuration', statusCode: 500 });
+        ResponseHelper.error(res, { message: 'Internal server error during load balancing configuration', statusCode: 500 });
       }
     }
   };
@@ -390,18 +390,18 @@ export class MasterTrafficCoordinationController {
         executionTime
       });
 
-      ResponseHelper.success(res, req, { data: statusData, 
+      ResponseHelper.success(res, { data: statusData, 
             message: 'System status retrieved successfully' });
 
     } catch (error: unknown) {
-      timer.end({ error: error instanceof Error ? error?.message : String(error) });
+      timer.end({ error: error instanceof Error ? error.message : String(error) });
       
       logger.error("System status request failed", {
         userId: (req.user as any)?.id,
-        error: error instanceof Error ? error?.message : String(error)
+        error: error instanceof Error ? error.message : String(error)
       });
 
-      ResponseHelper.error(res, req, { message: 'Internal server error while retrieving system status', statusCode: 500 });
+      ResponseHelper.error(res, { message: 'Internal server error while retrieving system status', statusCode: 500 });
     }
   };
 
@@ -443,19 +443,19 @@ export class MasterTrafficCoordinationController {
         executionTime
       });
 
-      ResponseHelper.success(res, req, { data: analytics, 
+      ResponseHelper.success(res, { data: analytics, 
             message: 'Coordination analytics retrieved successfully' });
 
     } catch (error: unknown) {
-      timer.end({ error: error instanceof Error ? error?.message : String(error) });
+      timer.end({ error: error instanceof Error ? error.message : String(error) });
       
       logger.error("Coordination analytics request failed", {
         userId: (req.user as any)?.id,
         timeRange: req.query?.timeRange,
-        error: error instanceof Error ? error?.message : String(error)
+        error: error instanceof Error ? error.message : String(error)
       });
 
-      ResponseHelper.error(res, req, { message: 'Internal server error while retrieving coordination analytics', statusCode: 500 });
+      ResponseHelper.error(res, { message: 'Internal server error while retrieving coordination analytics', statusCode: 500 });
     }
   };
 
@@ -485,18 +485,18 @@ export class MasterTrafficCoordinationController {
         executionTime
       });
 
-      ResponseHelper.success(res, req, { data: integrationStatus, 
+      ResponseHelper.success(res, { data: integrationStatus, 
             message: 'Group integration status retrieved successfully' });
 
     } catch (error: unknown) {
-      timer.end({ error: error instanceof Error ? error?.message : String(error) });
+      timer.end({ error: error instanceof Error ? error.message : String(error) });
       
       logger.error("Group integration status request failed", {
         userId: (req.user as any)?.id,
-        error: error instanceof Error ? error?.message : String(error)
+        error: error instanceof Error ? error.message : String(error)
       });
 
-      ResponseHelper.error(res, req, { message: 'Internal server error while retrieving group integration status', statusCode: 500 });
+      ResponseHelper.error(res, { message: 'Internal server error while retrieving group integration status', statusCode: 500 });
     }
   };
 
@@ -536,18 +536,18 @@ export class MasterTrafficCoordinationController {
         executionTime
       });
 
-      ResponseHelper.success(res, req, { data: activeCoordinations, 
+      ResponseHelper.success(res, { data: activeCoordinations, 
             message: 'Active coordinations retrieved successfully' });
 
     } catch (error: unknown) {
-      timer.end({ error: error instanceof Error ? error?.message : String(error) });
+      timer.end({ error: error instanceof Error ? error.message : String(error) });
       
       logger.error("Active coordinations request failed", {
         userId: (req.user as any)?.id,
-        error: error instanceof Error ? error?.message : String(error)
+        error: error instanceof Error ? error.message : String(error)
       });
 
-      ResponseHelper.error(res, req, { message: 'Internal server error while retrieving active coordinations', statusCode: 500 });
+      ResponseHelper.error(res, { message: 'Internal server error while retrieving active coordinations', statusCode: 500 });
     }
   };
 
@@ -577,18 +577,18 @@ export class MasterTrafficCoordinationController {
         executionTime
       });
 
-      ResponseHelper.success(res, req, { data: healthStatus, 
+      ResponseHelper.success(res, { data: healthStatus, 
             message: 'Service health status retrieved successfully' });
 
     } catch (error: unknown) {
-      timer.end({ error: error instanceof Error ? error?.message : String(error) });
+      timer.end({ error: error instanceof Error ? error.message : String(error) });
       
       logger.error("Service health check failed", {
         userId: (req.user as any)?.id,
-        error: error instanceof Error ? error?.message : String(error)
+        error: error instanceof Error ? error.message : String(error)
       });
 
-      ResponseHelper.error(res, req, { message: 'Service health check failed', statusCode: 503 });
+      ResponseHelper.error(res, { message: 'Service health check failed', statusCode: 503 });
     }
   };
 

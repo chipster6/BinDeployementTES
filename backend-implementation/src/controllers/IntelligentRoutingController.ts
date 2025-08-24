@@ -90,18 +90,18 @@ export class IntelligentRoutingController {
 
       // Validate required fields
       if (!context.serviceName) {
-        ResponseHelper.badRequest(res, req, "Service name is required");
+        ResponseHelper.badRequest(res, "Service name is required");
         return;
       }
 
       if (!context.operation) {
-        ResponseHelper.badRequest(res, req, "Operation is required");
+        ResponseHelper.badRequest(res, "Operation is required");
         return;
       }
 
       // Check user permissions
       if (!req.user?.hasPermission('routing:coordinate', context.organizationId)) {
-        ResponseHelper.forbidden(res, req, "Insufficient permissions for routing coordination");
+        ResponseHelper.forbidden(res, "Insufficient permissions for routing coordination");
         return;
       }
 
@@ -127,7 +127,7 @@ export class IntelligentRoutingController {
         userId: req.user?.id
       });
 
-      ResponseHelper.success(res, req, {
+      ResponseHelper.success(res, {
         data: {
           decision,
           contextAnalysis: {
@@ -152,7 +152,7 @@ export class IntelligentRoutingController {
         userId: req.user?.id
       });
 
-      ResponseHelper.internalError(res, req, "Failed to make routing decision");
+      ResponseHelper.internalError(res, "Failed to make routing decision");
     }
   };
 
@@ -169,7 +169,7 @@ export class IntelligentRoutingController {
 
       // Check user permissions
       if (!req.user?.hasPermission('routing:monitor')) {
-        ResponseHelper.forbidden(res, req, "Insufficient permissions for routing monitoring");
+        ResponseHelper.forbidden(res, "Insufficient permissions for routing monitoring");
         return;
       }
 
@@ -297,7 +297,7 @@ export class IntelligentRoutingController {
         userId: req.user?.id
       });
 
-      ResponseHelper.success(res, req, {
+      ResponseHelper.success(res, {
         data: healthStatus,
         message: "Routing health status retrieved successfully"
       });
@@ -312,7 +312,7 @@ export class IntelligentRoutingController {
         userId: req.user?.id
       });
 
-      ResponseHelper.internalError(res, req, "Failed to retrieve routing health status");
+      ResponseHelper.internalError(res, "Failed to retrieve routing health status");
     }
   };
 
@@ -328,18 +328,18 @@ export class IntelligentRoutingController {
 
       // Validate required fields
       if (!serviceName) {
-        ResponseHelper.badRequest(res, req, "Service name is required");
+        ResponseHelper.badRequest(res, "Service name is required");
         return;
       }
 
       if (!nodes || !Array.isArray(nodes) || nodes.length === 0) {
-        ResponseHelper.badRequest(res, req, "Nodes array is required and must not be empty");
+        ResponseHelper.badRequest(res, "Nodes array is required and must not be empty");
         return;
       }
 
       // Check user permissions
       if (!req.user?.hasPermission('routing:manage')) {
-        ResponseHelper.forbidden(res, req, "Insufficient permissions for routing management");
+        ResponseHelper.forbidden(res, "Insufficient permissions for routing management");
         return;
       }
 
@@ -402,7 +402,7 @@ export class IntelligentRoutingController {
         userId: req.user?.id
       });
 
-      ResponseHelper.success(res, req, {
+      ResponseHelper.success(res, {
         data: {
           serviceName,
           nodesRegistered: validatedNodes.length,
@@ -432,7 +432,7 @@ export class IntelligentRoutingController {
         userId: req.user?.id
       });
 
-      ResponseHelper.internalError(res, req, "Failed to register routing nodes");
+      ResponseHelper.internalError(res, "Failed to register routing nodes");
     }
   };
 
@@ -450,7 +450,7 @@ export class IntelligentRoutingController {
 
       // Check user permissions
       if (!req.user?.hasPermission('routing:analytics')) {
-        ResponseHelper.forbidden(res, req, "Insufficient permissions for routing analytics");
+        ResponseHelper.forbidden(res, "Insufficient permissions for routing analytics");
         return;
       }
 
@@ -581,7 +581,7 @@ export class IntelligentRoutingController {
         userId: req.user?.id
       });
 
-      ResponseHelper.success(res, req, {
+      ResponseHelper.success(res, {
         data: analytics,
         message: "Routing analytics retrieved successfully"
       });
@@ -596,7 +596,7 @@ export class IntelligentRoutingController {
         userId: req.user?.id
       });
 
-      ResponseHelper.internalError(res, req, "Failed to retrieve routing analytics");
+      ResponseHelper.internalError(res, "Failed to retrieve routing analytics");
     }
   };
 
@@ -612,7 +612,7 @@ export class IntelligentRoutingController {
 
       // Check user permissions
       if (!req.user?.hasPermission('routing:manage')) {
-        ResponseHelper.forbidden(res, req, "Insufficient permissions for algorithm management");
+        ResponseHelper.forbidden(res, "Insufficient permissions for algorithm management");
         return;
       }
 
@@ -639,7 +639,7 @@ export class IntelligentRoutingController {
 
       const responseTime = Date.now() - startTime;
 
-      ResponseHelper.success(res, req, {
+      ResponseHelper.success(res, {
         data: {
           optimization: {
             completed: true,
@@ -667,7 +667,7 @@ export class IntelligentRoutingController {
         userId: req.user?.id
       });
 
-      ResponseHelper.internalError(res, req, "Failed to optimize algorithm parameters");
+      ResponseHelper.internalError(res, "Failed to optimize algorithm parameters");
     }
   };
 
@@ -681,7 +681,7 @@ export class IntelligentRoutingController {
     try {
       // Check user permissions
       if (!req.user?.hasPermission('system:architecture')) {
-        ResponseHelper.forbidden(res, req, "Insufficient permissions for system architecture coordination");
+        ResponseHelper.forbidden(res, "Insufficient permissions for system architecture coordination");
         return;
       }
 
@@ -743,7 +743,7 @@ export class IntelligentRoutingController {
         userId: req.user?.id
       });
 
-      ResponseHelper.success(res, req, {
+      ResponseHelper.success(res, {
         data: {
           ...readinessStatus
         },
@@ -760,7 +760,7 @@ export class IntelligentRoutingController {
         userId: req.user?.id
       });
 
-      ResponseHelper.internalError(res, req, "Failed to retrieve coordination readiness status");
+      ResponseHelper.internalError(res, "Failed to retrieve coordination readiness status");
     }
   };
 

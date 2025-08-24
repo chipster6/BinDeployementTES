@@ -384,12 +384,12 @@ export class RouteOptimizationController {
 
       // Return response
       if (result.success) {
-        ResponseHelper.success(res, result.data!, result?.message, {
-          executionTime,
-          cached: executionTime < 1000 // Likely cached if very fast
+        ResponseHelper.success(res, { 
+          data: result.data!, 
+          message: result?.message 
         });
       } else {
-        ResponseHelper.error(res, result?.message || "Optimization failed", 400, result.errors);
+        ResponseHelper.error(res, { message: result?.message || "Optimization failed", statusCode: 400, errors: result?.errors || [] });
       }
       
     } catch (error: unknown) {
@@ -453,12 +453,12 @@ export class RouteOptimizationController {
 
       // Return response
       if (result.success) {
-        ResponseHelper.success(res, result.data!, result?.message, {
-          executionTime,
-          priority: request.priority
+        ResponseHelper.success(res, { 
+          data: result.data!, 
+          message: result?.message 
         });
       } else {
-        ResponseHelper.error(res, result?.message || "Adaptation failed", 400, result.errors);
+        ResponseHelper.error(res, { message: result?.message || "Adaptation failed", statusCode: 400, errors: result?.errors || [] });
       }
       
     } catch (error: unknown) {
@@ -545,12 +545,12 @@ export class RouteOptimizationController {
 
       // Return response
       if (result.success) {
-        ResponseHelper.success(res, result.data!, result?.message, {
-          executionTime,
-          solutionCount: result.data?.solutions?.length || 0
+        ResponseHelper.success(res, { 
+          data: result.data!, 
+          message: result?.message 
         });
       } else {
-        ResponseHelper.error(res, result?.message || "Alternative generation failed", 400, result.errors);
+        ResponseHelper.error(res, { message: result?.message || "Alternative generation failed", statusCode: 400, errors: result?.errors || [] });
       }
       
     } catch (error: unknown) {
@@ -626,13 +626,12 @@ export class RouteOptimizationController {
 
       // Return response
       if (result.success) {
-        ResponseHelper.success(res, result.data!, result?.message, {
-          executionTime,
-          timeRange,
-          cached: executionTime < 500 // Likely cached if very fast
+        ResponseHelper.success(res, { 
+          data: result.data!, 
+          message: result?.message 
         });
       } else {
-        ResponseHelper.error(res, result?.message || "Analytics generation failed", 400, result.errors);
+        ResponseHelper.error(res, { message: result?.message || "Analytics generation failed", statusCode: 400, errors: result?.errors || [] });
       }
       
     } catch (error: unknown) {
@@ -678,7 +677,7 @@ export class RouteOptimizationController {
         success: result.success
       });
 
-      ResponseHelper.error(res, req, { message: result?.message, statusCode: 501 }); // Not implemented
+      ResponseHelper.error(res, { message: result?.message || "Operation failed", statusCode: 501 }); // Not implemented
       
     } catch (error: unknown) {
       timer.end({ error: error instanceof Error ? error?.message : String(error) });
@@ -728,7 +727,7 @@ export class RouteOptimizationController {
         success: result.success
       });
 
-      ResponseHelper.error(res, req, { message: result?.message, statusCode: 501 }); // Not implemented
+      ResponseHelper.error(res, { message: result?.message || "Operation failed", statusCode: 501 }); // Not implemented
       
     } catch (error: unknown) {
       timer.end({ error: error instanceof Error ? error?.message : String(error) });
