@@ -1,0 +1,24 @@
+{
+  "name": "@waste-mgmt/observability",
+  "version": "1.0.0",
+  "description": "Shared observability utilities - logging, tracing, metrics",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch"
+  },
+  "dependencies": {
+    "@waste-mgmt/types": "file:../types",
+    "@opentelemetry/api": "^1.7.0",
+    "@opentelemetry/sdk-node": "^0.45.0",
+    "@opentelemetry/resources": "^1.18.0",
+    "@opentelemetry/semantic-conventions": "^1.18.0",
+    "winston": "^3.11.0",
+    "prom-client": "^15.1.0",
+    "typescript": "^5.3.3"
+  },
+  "devDependencies": {
+    "@types/winston": "^2.4.4"
+  }
+}

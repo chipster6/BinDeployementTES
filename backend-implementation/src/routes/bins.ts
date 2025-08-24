@@ -13,7 +13,12 @@
 
 import { Router } from "express";
 import { body, query, param } from "express-validator";
-import { BinController } from "@/controllers/BinController";
+import {
+  BinController,
+  BinIoTController,
+  BinAnalyticsController,
+  CustomerBinController,
+} from "@/controllers/refactored/BinController";
 import { authenticateToken } from "@/middleware/auth";
 import type { BinType, BinStatus, BinMaterial } from "@/models/Bin";
 
@@ -228,78 +233,42 @@ const customerIdValidation = [
 // @route   GET /api/v1/bins
 // @desc    Get all bins with filtering and pagination
 // @access  Private (Admin, Office Staff, Dispatcher, Driver)
-router.get("/", authenticateToken, getBinsValidation, BinController.getBins);
+router.get("/", ...BinController.getBins);
 
 // @route   POST /api/v1/bins
 // @desc    Create new bin
 // @access  Private (Admin, Office Staff)
-router.post(
-  "/",
-  authenticateToken,
-  createBinValidation,
-  BinController.createBin,
-);
+router.post("/", ...BinController.createBin);
 
 // @route   GET /api/v1/bins/analytics/overview
 // @desc    Get bin analytics and statistics
 // @access  Private (Admin, Office Staff, Dispatcher)
-router.get(
-  "/analytics/overview",
-  authenticateToken,
-  BinController.getBinAnalytics,
-);
+router.get("/analytics/overview", ...BinAnalyticsController.getBinAnalytics);
 
 // @route   GET /api/v1/bins/customer/:customerId
 // @desc    Get bins by customer
 // @access  Private (Admin, Office Staff, Customer owns)
-router.get(
-  "/customer/:customerId",
-  authenticateToken,
-  customerIdValidation,
-  BinController.getBinsByCustomer,
-);
+router.get("/customer/:customerId", ...CustomerBinController.getBinsByCustomer);
 
 // @route   GET /api/v1/bins/:id
 // @desc    Get bin by ID
 // @access  Private (Admin, Office Staff, Dispatcher, Driver, Customer owns)
-router.get(
-  "/:id",
-  authenticateToken,
-  binIdValidation,
-  BinController.getBinById,
-);
+router.get("/:id", ...BinController.getBinById);
 
 // @route   PUT /api/v1/bins/:id
 // @desc    Update bin information
 // @access  Private (Admin, Office Staff)
-router.put(
-  "/:id",
-  authenticateToken,
-  binIdValidation,
-  updateBinValidation,
-  BinController.updateBin,
-);
+router.put("/:id", ...BinController.updateBin);
 
 // @route   DELETE /api/v1/bins/:id
 // @desc    Delete bin (soft delete)
 // @access  Private (Admin)
-router.delete(
-  "/:id",
-  authenticateToken,
-  binIdValidation,
-  BinController.deleteBin,
-);
+router.delete("/:id", ...BinController.deleteBin);
 
 // @route   PUT /api/v1/bins/:id/fill-level
 // @desc    Update bin fill level (IoT sensor endpoint)
 // @access  Private (Admin, Office Staff, System)
-router.put(
-  "/:id/fill-level",
-  authenticateToken,
-  binIdValidation,
-  updateFillLevelValidation,
-  BinController.updateFillLevel,
-);
+router.put("/:id/fill-level", ...BinIoTController.updateFillLevel);
 
 /**
  * Bin Service and Maintenance Routes (Placeholders)

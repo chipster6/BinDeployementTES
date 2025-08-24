@@ -1,0 +1,19 @@
+{
+  "name": "@waste-mgmt/authz",
+  "version": "1.0.0",
+  "description": "Shared authorization and policy checking utilities",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch"
+  },
+  "dependencies": {
+    "@waste-mgmt/types": "file:../types",
+    "jsonwebtoken": "^9.0.2",
+    "typescript": "^5.3.3"
+  },
+  "devDependencies": {
+    "@types/jsonwebtoken": "^9.0.5"
+  }
+}

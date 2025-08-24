@@ -3,6 +3,13 @@
   "version": "1.0.0",
   "description": "Comprehensive Waste Management System Backend API",
   "main": "dist/server.js",
+  "workspaces": [
+    "shared/types",
+    "shared/authz", 
+    "shared/observability",
+    "shared/events",
+    "api-gateway"
+  ],
   "scripts": {
     "build": "tsc --project tsconfig.production.json",
     "build:dev": "tsc --project tsconfig.dev.json",
@@ -12,6 +19,9 @@
     "dev": "concurrently \"npm run build:watch\" \"nodemon dist/server.js\"",
     "dev:ts": "ts-node-dev --respawn --transpile-only --project tsconfig.dev.json src/server.ts",
     "dev:fast": "ts-node-dev --respawn --transpile-only --no-deps --prefer-ts-exts src/server.ts",
+    "gateway:dev": "npm run dev --workspace=api-gateway",
+    "gateway:build": "npm run build --workspace=api-gateway",
+    "gateway:start": "npm run start --workspace=api-gateway",
     "test": "jest --runInBand",
     "test:watch": "jest --watch --runInBand",
     "test:coverage": "jest --coverage --runInBand",

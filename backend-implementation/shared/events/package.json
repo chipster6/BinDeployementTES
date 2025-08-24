@@ -1,0 +1,21 @@
+{
+  "name": "@waste-mgmt/events",
+  "version": "1.0.0",
+  "description": "Shared event sourcing and domain events utilities",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch"
+  },
+  "dependencies": {
+    "@waste-mgmt/types": "file:../types",
+    "@waste-mgmt/observability": "file:../observability",
+    "eventemitter3": "^5.0.1",
+    "uuid": "^9.0.1",
+    "typescript": "^5.3.3"
+  },
+  "devDependencies": {
+    "@types/uuid": "^9.0.7"
+  }
+}

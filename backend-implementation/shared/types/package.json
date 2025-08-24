@@ -1,0 +1,17 @@
+{
+  "name": "@waste-mgmt/types",
+  "version": "1.0.0",
+  "description": "Shared TypeScript types and DTOs for waste management system",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch"
+  },
+  "dependencies": {
+    "typescript": "^5.3.3"
+  },
+  "peerDependencies": {
+    "@types/node": ">=20.0.0"
+  }
+}

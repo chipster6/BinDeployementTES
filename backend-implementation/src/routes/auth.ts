@@ -27,12 +27,16 @@
 import { Router } from "express";
 import {
   AuthController,
-  authRateLimit,
-  failedLoginRateLimit,
+  MfaController,
+  ProfileController,
+} from "@/controllers/refactored/AuthController";
+import { authRateLimiter, generalRateLimiter } from "@/middleware/rateLimit";
+import { validateAndHandle } from "@/middleware/validation/validationHandler";
+import {
   validateRegistration,
   validateLogin,
   validatePasswordChange,
-} from "@/controllers/AuthController";
+} from "@/middleware/validation/authValidation";
 import {
   authenticate,
   optionalAuth,
@@ -51,7 +55,7 @@ const authRouter = Router();
 /**
  * Apply rate limiting to all auth routes
  */
-authRouter.use(authRateLimit);
+authRouter.use(authRateLimiter);
 
 /**
  * Public endpoints (no authentication required)
@@ -62,19 +66,14 @@ authRouter.use(authRateLimit);
  * @desc Register a new user
  * @access Public (with validation)
  */
-authRouter.post("/register", validateRegistration, AuthController.register);
+authRouter.post("/register", AuthController.register);
 
 /**
  * @route POST /auth/login
  * @desc Authenticate user and get tokens
  * @access Public
  */
-authRouter.post(
-  "/login",
-  failedLoginRateLimit,
-  validateLogin,
-  AuthController.login,
-);
+authRouter.post("/login", AuthController.login);
 
 /**
  * @route POST /auth/refresh
@@ -106,26 +105,21 @@ authRouter.post("/logout-all", authenticate, AuthController.logoutAll);
  * @desc Change user password
  * @access Private
  */
-authRouter.post(
-  "/change-password",
-  authenticate,
-  validatePasswordChange,
-  AuthController.changePassword,
-);
+authRouter.post("/change-password", authenticate, AuthController.changePassword);
 
 /**
  * @route GET /auth/profile
  * @desc Get current user profile
  * @access Private
  */
-authRouter.get("/profile", authenticate, AuthController.getProfile);
+authRouter.get("/profile", authenticate, ProfileController.getProfile);
 
 /**
  * @route GET /auth/sessions
  * @desc Get all user sessions
  * @access Private
  */
-authRouter.get("/sessions", authenticate, AuthController.getSessions);
+authRouter.get("/sessions", authenticate, ProfileController.getSessions);
 
 /**
  * @route DELETE /auth/sessions/:sessionId
@@ -135,7 +129,7 @@ authRouter.get("/sessions", authenticate, AuthController.getSessions);
 authRouter.delete(
   "/sessions/:sessionId",
   authenticate,
-  AuthController.revokeSession,
+  ProfileController.revokeSession,
 );
 
 /**
@@ -147,14 +141,14 @@ authRouter.delete(
  * @desc Setup multi-factor authentication
  * @access Private
  */
-authRouter.post("/setup-mfa", authenticate, AuthController.setupMFA);
+authRouter.post("/setup-mfa", authenticate, MfaController.setupMFA);
 
 /**
  * @route POST /auth/verify-mfa
  * @desc Verify and enable MFA
  * @access Private
  */
-authRouter.post("/verify-mfa", authenticate, AuthController.verifyMFASetup);
+authRouter.post("/verify-mfa", authenticate, MfaController.verifyMFASetup);
 
 /**
  * Administrative endpoints (admin only)
