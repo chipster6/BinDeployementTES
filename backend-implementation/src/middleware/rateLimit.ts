@@ -1,5 +1,6 @@
 import rateLimit from "express-rate-limit";
 import RedisStore from "rate-limit-redis";
+import type { Request, Response, NextFunction, RequestHandler } from "express";
 import { config } from "@/config";
 import { redisClient } from "@/config/redis";
 import { logger, logSecurityEvent } from "@/utils/logger";
@@ -15,11 +16,11 @@ const createRedisStore = () => {
   });
 };
 
-const keyGenerator = (req: any): string => {
+const keyGenerator = (req: Request): string => {
   return req.user?.id || req.ip;
 };
 
-const handler = (req: any, res: any, next: any, options: any) => {
+const handler = (req: Request, res: Response, next: NextFunction, options: any) => {
   logSecurityEvent(
     "rate_limit_exceeded",
     {
@@ -57,7 +58,7 @@ export const rateLimiter = (options: {
   message: string;
   standardHeaders?: boolean;
   legacyHeaders?: boolean;
-}) => {
+}): RequestHandler => {
   return rateLimit({
     windowMs: options.windowMs,
     max: options.max,

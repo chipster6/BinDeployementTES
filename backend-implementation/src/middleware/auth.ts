@@ -11,7 +11,7 @@
  * Version: 1.1.0
  */
 
-import { Request, type Response, type NextFunction } from "express";
+import { Request, type Response, type NextFunction, type RequestHandler } from "express";
 import jwt, { Algorithm } from "jsonwebtoken";
 import { config } from "@/config";
 import { logger } from "@/utils/logger";
@@ -106,7 +106,7 @@ const verifyToken = (token: string): JWTPayload => {
 /**
  * Main authentication middleware
  */
-export const authenticateToken = async (
+export const authenticateToken: RequestHandler = async (
   req: Request,
   res: Response,
   next: NextFunction,
@@ -196,7 +196,7 @@ export const authenticateToken = async (
 /**
  * Optional authentication middleware (doesn't fail if no token)
  */
-export const optionalAuth = async (
+export const optionalAuth: RequestHandler = async (
   req: Request,
   res: Response,
   next: NextFunction,

@@ -1,4 +1,4 @@
-import type { Response } from 'express';
+import type { Response, Request } from 'express';
 
 export interface ErrorResponseOptions {
   message: string;
@@ -12,6 +12,10 @@ export interface SuccessResponseOptions<T = any> {
   statusCode?: number;
 }
 
+function isRequest(x: any): x is Request {
+  return x && typeof x === 'object' && 'method' in x && 'url' in x;
+}
+
 export class ResponseHelper {
   static success<T = any>(res: Response, options: SuccessResponseOptions<T>): Response {
     const { data, message = 'Success', statusCode = 200 } = options;
@@ -22,12 +26,25 @@ export class ResponseHelper {
     });
   }
 
-  static error(res: Response, options: ErrorResponseOptions): Response {
-    const { message, statusCode = 500, errors = [] } = options;
-    return res.status(statusCode).json({
+  // Support both (res, details) and legacy (res, req, details) call patterns
+  static error(res: Response, a: ErrorResponseOptions | Request, b?: ErrorResponseOptions | number): Response {
+    let details: ErrorResponseOptions = { message: 'Error' };
+    let status = 500;
+
+    if (isRequest(a)) {
+      // Legacy: (res, req, details)
+      details = (b as ErrorResponseOptions) ?? details;
+      status = details.statusCode ?? status;
+    } else {
+      // Modern: (res, details[, status])
+      details = a;
+      status = (typeof b === 'number' ? b : details.statusCode) ?? status;
+    }
+
+    return res.status(status).json({
       success: false,
-      message,
-      errors
+      message: details.message,
+      errors: details.errors ?? []
     });
   }
 

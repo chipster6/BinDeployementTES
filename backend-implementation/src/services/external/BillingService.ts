@@ -21,6 +21,7 @@
  */
 
 import { BaseService, ServiceResult } from '../BaseService';
+import { asResult } from '@/shared/ServiceResult';
 import { logger, Timer } from '@/utils/logger';
 import { ResponseHelper } from '@/utils/ResponseHelper';
 import { database } from '@/config/database';
@@ -106,7 +107,11 @@ class BillingServiceClass extends BaseService {
       // Validate input data
       const validation = this.validateInvoiceRequest(request);
       if (!validation.success) {
-        return ResponseHelper.error(validation?.message, 400, validation.errors);
+        return {
+          success: false,
+          errors: [validation?.message || 'Validation failed'],
+          status: 400
+        };
       }
 
       // Calculate billing amounts
@@ -178,18 +183,22 @@ class BillingServiceClass extends BaseService {
         duration: `${duration}ms`
       });
 
-      return ResponseHelper.success({
-        invoiceId: invoiceData.id,
-        invoiceNumber,
-        totalAmount: calculations.total,
-        subtotalAmount: calculations.subtotal,
-        taxAmount: calculations.tax,
-        dueDate,
-        status: 'draft',
-        pdfUrl,
-        paymentUrl,
-        createdAt: invoiceData.createdAt.toISOString()
-      }, 'Invoice generated successfully');
+      return {
+        success: true,
+        data: {
+          invoiceId: invoiceData.id,
+          invoiceNumber,
+          totalAmount: calculations.total,
+          subtotalAmount: calculations.subtotal,
+          taxAmount: calculations.tax,
+          dueDate,
+          status: 'draft',
+          pdfUrl,
+          paymentUrl,
+          createdAt: invoiceData.createdAt.toISOString()
+        },
+        status: 200
+      };
 
     } catch (error: unknown) {
       timer.end({ error: error instanceof Error ? error?.message : String(error) });
@@ -200,10 +209,18 @@ class BillingServiceClass extends BaseService {
       });
 
       if (error instanceof AppError) {
-        return ResponseHelper.error(error instanceof Error ? error?.message : String(error), error.statusCode);
+        return {
+          success: false,
+          errors: [error instanceof Error ? error?.message : String(error)],
+          status: error.statusCode
+        };
       }
 
-      return ResponseHelper.error('Failed to generate invoice', 500, error);
+      return {
+        success: false,
+        errors: ['Failed to generate invoice'],
+        status: 500
+      };
     }
   }
 
@@ -217,11 +234,19 @@ class BillingServiceClass extends BaseService {
       // Load invoice
       const invoice = await database.models.Invoice.findByPk(invoiceId);
       if (!invoice) {
-        return ResponseHelper.error('Invoice not found', 404);
+        return {
+          success: false,
+          errors: ['Invoice not found'],
+          status: 404
+        };
       }
 
       if (invoice.status === 'paid') {
-        return ResponseHelper.error('Invoice is already paid', 400);
+        return {
+          success: false,
+          errors: ['Invoice is already paid'],
+          status: 400
+        };
       }
 
       // Process payment through Stripe
@@ -234,8 +259,13 @@ class BillingServiceClass extends BaseService {
         ...paymentData
       });
 
-      if (!paymentResult.success) {
-        return ResponseHelper.error('Payment processing failed', 400, paymentResult.errors);
+      const paymentResultCompatible = asResult(paymentResult);
+      if (!paymentResultCompatible.success) {
+        return {
+          success: false,
+          errors: paymentResultCompatible.errors || ['Payment processing failed'],
+          status: 400
+        };
       }
 
       // Update invoice status
@@ -294,12 +324,16 @@ class BillingServiceClass extends BaseService {
         duration: `${duration}ms`
       });
 
-      return ResponseHelper.success({
-        invoiceId,
-        paymentId: paymentResult.data.paymentId,
-        amount: invoice.totalAmount,
-        status: 'paid'
-      }, 'Payment processed successfully');
+      return {
+        success: true,
+        data: {
+          invoiceId,
+          paymentId: paymentResultCompatible.data.paymentId,
+          amount: invoice.totalAmount,
+          status: 'paid'
+        },
+        status: 200
+      };
 
     } catch (error: unknown) {
       timer.end({ error: error instanceof Error ? error?.message : String(error) });
@@ -308,7 +342,11 @@ class BillingServiceClass extends BaseService {
         error: error instanceof Error ? error?.message : String(error)
       });
 
-      return ResponseHelper.error('Failed to process payment', 500, error);
+      return {
+        success: false,
+        errors: ['Failed to process payment'],
+        status: 500
+      };
     }
   }
 
@@ -362,25 +400,29 @@ class BillingServiceClass extends BaseService {
         invoicesFound: invoices.length
       });
 
-      return ResponseHelper.success({
-        invoices: invoices.map(invoice => ({
-          invoiceId: invoice.id,
-          invoiceNumber: invoice.invoiceNumber,
-          totalAmount: invoice.totalAmount,
-          status: invoice.status,
-          dueDate: invoice.dueDate,
-          createdAt: invoice.createdAt,
-          paidAt: invoice.paidAt,
-          lineItems: invoice.lineItems,
-          payments: invoice.payments
-        })),
-        pagination: {
-          total: count,
-          limit,
-          offset,
-          hasMore: offset + limit < count
-        }
-      }, 'Billing history retrieved');
+      return {
+        success: true,
+        data: {
+          invoices: invoices.map(invoice => ({
+            invoiceId: invoice.id,
+            invoiceNumber: invoice.invoiceNumber,
+            totalAmount: invoice.totalAmount,
+            status: invoice.status,
+            dueDate: invoice.dueDate,
+            createdAt: invoice.createdAt,
+            paidAt: invoice.paidAt,
+            lineItems: invoice.lineItems,
+            payments: invoice.payments
+          })),
+          pagination: {
+            total: count,
+            limit,
+            offset,
+            hasMore: offset + limit < count
+          }
+        },
+        status: 200
+      };
 
     } catch (error: unknown) {
       timer.end({ error: error instanceof Error ? error?.message : String(error) });
@@ -389,7 +431,11 @@ class BillingServiceClass extends BaseService {
         error: error instanceof Error ? error?.message : String(error)
       });
 
-      return ResponseHelper.error('Failed to retrieve billing history', 500, error);
+      return {
+        success: false,
+        errors: ['Failed to retrieve billing history'],
+        status: 500
+      };
     }
   }
 
@@ -424,7 +470,11 @@ class BillingServiceClass extends BaseService {
           cronExpression = '0 9 1 1 *'; // January 1st at 9 AM
           break;
         default:
-          return ResponseHelper.error('Invalid billing frequency', 400);
+          return {
+            success: false,
+            errors: ['Invalid billing frequency'],
+            status: 400
+          };
       }
 
       // Schedule recurring job
@@ -471,7 +521,11 @@ class BillingServiceClass extends BaseService {
     } catch (error: unknown) {
       timer.end({ error: error instanceof Error ? error?.message : String(error) });
       logger.error('Schedule recurring billing failed:', error);
-      return ResponseHelper.error('Failed to schedule recurring billing', 500, error);
+      return {
+        success: false,
+        errors: ['Failed to schedule recurring billing'],
+        status: 500
+      };
     }
   }
 

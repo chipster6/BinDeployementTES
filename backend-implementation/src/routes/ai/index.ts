@@ -25,6 +25,7 @@ import { Router } from "express";
 import { authenticateToken, requireRole } from "@/middleware/auth";
 import { UserRole } from "@/models/User";
 import { ResponseHelper } from "@/utils/ResponseHelper";
+import { asResult, isSuccessResult } from "@/shared/ServiceResult";
 import FeatureFlagService from "@/services/FeatureFlagService";
 import ABTestingService from "@/services/ABTestingService";
 import AIPerformanceMonitoringService from "@/services/AIPerformanceMonitoringService";
@@ -53,11 +54,12 @@ router.use(authenticateToken);
 router.get("/features", requireRole(UserRole.ADMIN), async (req, res) => {
   try {
     const result = await featureFlagService.getFeatureFlagDashboard();
+    const compatibleResult = asResult(result);
     
-    if (result.success) {
-      ResponseHelper.success(res, { data: result.data, message: result?.message });
+    if (isSuccessResult(compatibleResult)) {
+      ResponseHelper.success(res, { data: compatibleResult.data, message: compatibleResult.message });
     } else {
-      ResponseHelper.error(res, { statusCode: 400, message: result?.message, errors: result.errors });
+      ResponseHelper.error(res, { statusCode: compatibleResult.statusCode || 400, message: compatibleResult.error || 'Unknown error', errors: compatibleResult.errors });
     }
   } catch (error: unknown) {
     ResponseHelper.error(res, { statusCode: 500, message: "Failed to get feature flags", errors: [error instanceof Error ? error?.message : String(error)] });
@@ -69,18 +71,25 @@ router.get("/features", requireRole(UserRole.ADMIN), async (req, res) => {
  * @desc    Create new feature flag
  * @access  Admin
  */
-router.post("/features", requireRole("admin"), async (req, res) => {
+router.post("/features", requireRole(UserRole.ADMIN), async (req, res) => {
   try {
     const flagConfig = req.body;
+    
+    // Guard pattern for req.user
+    if (!req.user || !req.user.id) {
+      return ResponseHelper.error(res, { statusCode: 401, message: "User authentication required", errors: ["Missing user information"] });
+    }
+    
     flagConfig.createdBy = req.user.id;
     flagConfig.lastModifiedBy = req.user.id;
     
     const result = await featureFlagService.createFeatureFlag(flagConfig);
+    const compatibleResult = asResult(result);
     
-    if (result.success) {
-      ResponseHelper.success(res, { data: result.data, message: result?.message, statusCode: 201 });
+    if (isSuccessResult(compatibleResult)) {
+      ResponseHelper.success(res, { data: compatibleResult.data, message: compatibleResult.message, statusCode: 201 });
     } else {
-      ResponseHelper.error(res, { statusCode: 400, message: result?.message, errors: result.errors });
+      ResponseHelper.error(res, { statusCode: 400, message: compatibleResult.error || 'Unknown error', errors: compatibleResult.errors });
     }
   } catch (error: unknown) {
     ResponseHelper.error(res, { statusCode: 500, message: "Failed to create feature flag", errors: [error instanceof Error ? error?.message : String(error)] });
@@ -95,15 +104,22 @@ router.post("/features", requireRole("admin"), async (req, res) => {
 router.get("/features/:featureId/evaluate", async (req, res) => {
   try {
     const { featureId } = req.params;
+    
+    // Guard pattern for req.user
+    if (!req.user || !req.user.id) {
+      return ResponseHelper.error(res, { statusCode: 401, message: "User authentication required", errors: ["Missing user information"] });
+    }
+    
     const userId = req.user.id;
-    const organizationId = req.user.organizationId;
+    const organizationId = req.user.organizationId || null;
     
     const result = await featureFlagService.evaluateFeature(featureId, userId, organizationId);
+    const compatibleResult = asResult(result);
     
-    if (result.success) {
-      ResponseHelper.success(res, { data: result.data, message: result?.message });
+    if (isSuccessResult(compatibleResult)) {
+      ResponseHelper.success(res, { data: compatibleResult.data, message: compatibleResult.message });
     } else {
-      ResponseHelper.error(res, { statusCode: 400, message: result?.message, errors: result.errors });
+      ResponseHelper.error(res, { statusCode: 400, message: compatibleResult.error || 'Unknown error', errors: compatibleResult.errors });
     }
   } catch (error: unknown) {
     ResponseHelper.error(res, { statusCode: 500, message: "Failed to evaluate feature", errors: [error instanceof Error ? error?.message : String(error)] });
@@ -115,7 +131,7 @@ router.get("/features/:featureId/evaluate", async (req, res) => {
  * @desc    Start gradual rollout for feature
  * @access  Admin
  */
-router.post("/features/:featureId/rollout", requireRole("admin"), async (req, res) => {
+router.post("/features/:featureId/rollout", requireRole(UserRole.ADMIN), async (req, res) => {
   try {
     const { featureId } = req.params;
     const rolloutConfig = {
@@ -124,11 +140,12 @@ router.post("/features/:featureId/rollout", requireRole("admin"), async (req, re
     };
     
     const result = await featureFlagService.startGradualRollout(rolloutConfig);
+    const compatibleResult = asResult(result);
     
-    if (result.success) {
-      ResponseHelper.success(res, { data: result.data, message: result?.message });
+    if (isSuccessResult(compatibleResult)) {
+      ResponseHelper.success(res, { data: compatibleResult.data, message: compatibleResult.message });
     } else {
-      ResponseHelper.error(res, { statusCode: 400, message: result?.message, errors: result.errors });
+      ResponseHelper.error(res, { statusCode: 400, message: compatibleResult.error || 'Unknown error', errors: compatibleResult.errors });
     }
   } catch (error: unknown) {
     ResponseHelper.error(res, { statusCode: 500, message: "Failed to start rollout", errors: [error instanceof Error ? error?.message : String(error)] });
@@ -140,18 +157,25 @@ router.post("/features/:featureId/rollout", requireRole("admin"), async (req, re
  * @desc    Emergency rollback for feature
  * @access  Admin
  */
-router.post("/features/:featureId/rollback", requireRole("admin"), async (req, res) => {
+router.post("/features/:featureId/rollback", requireRole(UserRole.ADMIN), async (req, res) => {
   try {
     const { featureId } = req.params;
     const { reason } = req.body;
+    
+    // Guard pattern for req.user
+    if (!req.user || !req.user.id) {
+      return ResponseHelper.error(res, { statusCode: 401, message: "User authentication required", errors: ["Missing user information"] });
+    }
+    
     const rollbackBy = req.user.id;
     
     const result = await featureFlagService.emergencyRollback(featureId, reason, rollbackBy);
+    const compatibleResult = asResult(result);
     
-    if (result.success) {
-      ResponseHelper.success(res, { data: result.data, message: result?.message });
+    if (isSuccessResult(compatibleResult)) {
+      ResponseHelper.success(res, { data: compatibleResult.data, message: compatibleResult.message });
     } else {
-      ResponseHelper.error(res, { statusCode: 400, message: result?.message, errors: result.errors });
+      ResponseHelper.error(res, { statusCode: 400, message: compatibleResult.error || 'Unknown error', errors: compatibleResult.errors });
     }
   } catch (error: unknown) {
     ResponseHelper.error(res, { statusCode: 500, message: "Failed to rollback feature", errors: [error instanceof Error ? error?.message : String(error)] });
@@ -163,16 +187,17 @@ router.post("/features/:featureId/rollback", requireRole("admin"), async (req, r
  * @desc    Monitor performance impact of feature
  * @access  Admin, Operations
  */
-router.get("/features/:featureId/performance", requireRole("admin", "operations"), async (req, res) => {
+router.get("/features/:featureId/performance", requireRole(UserRole.ADMIN, UserRole.OFFICE_STAFF), async (req, res) => {
   try {
     const { featureId } = req.params;
     
     const result = await featureFlagService.monitorPerformanceImpact(featureId);
+    const compatibleResult = asResult(result);
     
-    if (result.success) {
-      ResponseHelper.success(res, { data: result.data, message: result?.message });
+    if (isSuccessResult(compatibleResult)) {
+      ResponseHelper.success(res, { data: compatibleResult.data, message: compatibleResult.message });
     } else {
-      ResponseHelper.error(res, { statusCode: 400, message: result?.message, errors: result.errors });
+      ResponseHelper.error(res, { statusCode: 400, message: compatibleResult.error || 'Unknown error', errors: compatibleResult.errors });
     }
   } catch (error: unknown) {
     ResponseHelper.error(res, { statusCode: 500, message: "Failed to monitor performance", errors: [error instanceof Error ? error?.message : String(error)] });
@@ -190,14 +215,15 @@ router.get("/features/:featureId/performance", requireRole("admin", "operations"
  * @desc    Get A/B testing dashboard
  * @access  Admin, Data Science
  */
-router.get("/experiments", requireRole("admin", "data_science"), async (req, res) => {
+router.get("/experiments", requireRole(UserRole.ADMIN, UserRole.OFFICE_STAFF), async (req, res) => {
   try {
     const result = await abTestingService.getExperimentDashboard();
+    const compatibleResult = asResult(result);
     
-    if (result.success) {
-      ResponseHelper.success(res, { data: result.data, message: result?.message });
+    if (isSuccessResult(compatibleResult)) {
+      ResponseHelper.success(res, { data: compatibleResult.data, message: compatibleResult.message });
     } else {
-      ResponseHelper.error(res, { statusCode: 400, message: result?.message, errors: result.errors });
+      ResponseHelper.error(res, { statusCode: 400, message: compatibleResult.error || 'Unknown error', errors: compatibleResult.errors });
     }
   } catch (error: unknown) {
     ResponseHelper.error(res, { statusCode: 500, message: "Failed to get experiments dashboard", errors: [error instanceof Error ? error?.message : String(error)] });
@@ -209,7 +235,7 @@ router.get("/experiments", requireRole("admin", "data_science"), async (req, res
  * @desc    Create new A/B test experiment
  * @access  Admin, Data Science
  */
-router.post("/experiments", requireRole("admin", "data_science"), async (req, res) => {
+router.post("/experiments", requireRole(UserRole.ADMIN, UserRole.OFFICE_STAFF), async (req, res) => {
   try {
     const experimentConfig = {
       ...req.body,
@@ -218,11 +244,12 @@ router.post("/experiments", requireRole("admin", "data_science"), async (req, re
     };
     
     const result = await abTestingService.createExperiment(experimentConfig);
+    const compatibleResult = asResult(result);
     
-    if (result.success) {
-      ResponseHelper.success(res, { data: result.data, message: result?.message, statusCode: 201 });
+    if (isSuccessResult(compatibleResult)) {
+      ResponseHelper.success(res, { data: compatibleResult.data, message: compatibleResult.message, statusCode: 201 });
     } else {
-      ResponseHelper.error(res, { statusCode: 400, message: result?.message, errors: result.errors });
+      ResponseHelper.error(res, { statusCode: 400, message: compatibleResult.error || 'Unknown error', errors: compatibleResult.errors });
     }
   } catch (error: unknown) {
     ResponseHelper.error(res, { statusCode: 500, message: "Failed to create experiment", errors: [error instanceof Error ? error?.message : String(error)] });
@@ -234,16 +261,17 @@ router.post("/experiments", requireRole("admin", "data_science"), async (req, re
  * @desc    Start A/B test experiment
  * @access  Admin, Data Science
  */
-router.post("/experiments/:experimentId/start", requireRole("admin", "data_science"), async (req, res) => {
+router.post("/experiments/:experimentId/start", requireRole(UserRole.ADMIN, UserRole.OFFICE_STAFF), async (req, res) => {
   try {
     const { experimentId } = req.params;
     
     const result = await abTestingService.startExperiment(experimentId);
+    const compatibleResult = asResult(result);
     
-    if (result.success) {
-      ResponseHelper.success(res, { data: result.data, message: result?.message });
+    if (isSuccessResult(compatibleResult)) {
+      ResponseHelper.success(res, { data: compatibleResult.data, message: compatibleResult.message });
     } else {
-      ResponseHelper.error(res, { statusCode: 400, message: result?.message, errors: result.errors });
+      ResponseHelper.error(res, { statusCode: 400, message: compatibleResult.error || 'Unknown error', errors: compatibleResult.errors });
     }
   } catch (error: unknown) {
     ResponseHelper.error(res, { statusCode: 500, message: "Failed to start experiment", errors: [error instanceof Error ? error?.message : String(error)] });
@@ -255,17 +283,18 @@ router.post("/experiments/:experimentId/start", requireRole("admin", "data_scien
  * @desc    Stop A/B test experiment
  * @access  Admin, Data Science
  */
-router.post("/experiments/:experimentId/stop", requireRole("admin", "data_science"), async (req, res) => {
+router.post("/experiments/:experimentId/stop", requireRole(UserRole.ADMIN, UserRole.OFFICE_STAFF), async (req, res) => {
   try {
     const { experimentId } = req.params;
     const { reason, winnerVariantId } = req.body;
     
     const result = await abTestingService.stopExperiment(experimentId, reason, winnerVariantId);
+    const compatibleResult = asResult(result);
     
-    if (result.success) {
-      ResponseHelper.success(res, { data: result.data, message: result?.message });
+    if (isSuccessResult(compatibleResult)) {
+      ResponseHelper.success(res, { data: compatibleResult.data, message: compatibleResult.message });
     } else {
-      ResponseHelper.error(res, { statusCode: 400, message: result?.message, errors: result.errors });
+      ResponseHelper.error(res, { statusCode: 400, message: compatibleResult.error || 'Unknown error', errors: compatibleResult.errors });
     }
   } catch (error: unknown) {
     ResponseHelper.error(res, { statusCode: 500, message: "Failed to stop experiment", errors: [error instanceof Error ? error?.message : String(error)] });
@@ -284,11 +313,12 @@ router.get("/experiments/:experimentId/assign", async (req, res) => {
     const organizationId = req.user.organizationId;
     
     const result = await abTestingService.assignUserToExperiment(experimentId, userId, organizationId);
+    const compatibleResult = asResult(result);
     
-    if (result.success) {
-      ResponseHelper.success(res, { data: result.data, message: result?.message });
+    if (isSuccessResult(compatibleResult)) {
+      ResponseHelper.success(res, { data: compatibleResult.data, message: compatibleResult.message });
     } else {
-      ResponseHelper.error(res, { statusCode: 400, message: result?.message, errors: result.errors });
+      ResponseHelper.error(res, { statusCode: 400, message: compatibleResult.error || 'Unknown error', errors: compatibleResult.errors });
     }
   } catch (error: unknown) {
     ResponseHelper.error(res, { statusCode: 500, message: "Failed to assign user to experiment", errors: [error instanceof Error ? error?.message : String(error)] });
@@ -307,11 +337,12 @@ router.post("/experiments/:experimentId/track", async (req, res) => {
     const userId = req.user.id;
     
     const result = await abTestingService.trackMetric(experimentId, userId, metricId, value, metadata);
+    const compatibleResult = asResult(result);
     
-    if (result.success) {
-      ResponseHelper.success(res, { data: result.data, message: result?.message });
+    if (isSuccessResult(compatibleResult)) {
+      ResponseHelper.success(res, { data: compatibleResult.data, message: compatibleResult.message });
     } else {
-      ResponseHelper.error(res, { statusCode: 400, message: result?.message, errors: result.errors });
+      ResponseHelper.error(res, { statusCode: 400, message: compatibleResult.error || 'Unknown error', errors: compatibleResult.errors });
     }
   } catch (error: unknown) {
     ResponseHelper.error(res, { statusCode: 500, message: "Failed to track metric", errors: [error instanceof Error ? error?.message : String(error)] });
@@ -323,16 +354,17 @@ router.post("/experiments/:experimentId/track", async (req, res) => {
  * @desc    Get experiment analysis results
  * @access  Admin, Data Science
  */
-router.get("/experiments/:experimentId/results", requireRole("admin", "data_science"), async (req, res) => {
+router.get("/experiments/:experimentId/results", requireRole(UserRole.ADMIN, UserRole.OFFICE_STAFF), async (req, res) => {
   try {
     const { experimentId } = req.params;
     
     const result = await abTestingService.analyzeExperimentResults(experimentId);
+    const compatibleResult = asResult(result);
     
-    if (result.success) {
-      ResponseHelper.success(res, { data: result.data, message: result?.message });
+    if (isSuccessResult(compatibleResult)) {
+      ResponseHelper.success(res, { data: compatibleResult.data, message: compatibleResult.message });
     } else {
-      ResponseHelper.error(res, { statusCode: 400, message: result?.message, errors: result.errors });
+      ResponseHelper.error(res, { statusCode: 400, message: compatibleResult.error || 'Unknown error', errors: compatibleResult.errors });
     }
   } catch (error: unknown) {
     ResponseHelper.error(res, { statusCode: 500, message: "Failed to analyze experiment results", errors: [error instanceof Error ? error?.message : String(error)] });
@@ -350,16 +382,17 @@ router.get("/experiments/:experimentId/results", requireRole("admin", "data_scie
  * @desc    Record performance metric
  * @access  System, Internal services
  */
-router.post("/performance/metrics", requireRole("system", "admin"), async (req, res) => {
+router.post("/performance/metrics", requireRole(UserRole.ADMIN), async (req, res) => {
   try {
     const { metricId, value, metadata } = req.body;
     
     const result = await performanceService.recordPerformanceMetric(metricId, value, metadata);
+    const compatibleResult = asResult(result);
     
-    if (result.success) {
-      ResponseHelper.success(res, { data: result.data, message: result?.message });
+    if (isSuccessResult(compatibleResult)) {
+      ResponseHelper.success(res, { data: compatibleResult.data, message: compatibleResult.message });
     } else {
-      ResponseHelper.error(res, { statusCode: 400, message: result?.message, errors: result.errors });
+      ResponseHelper.error(res, { statusCode: 400, message: compatibleResult.error || 'Unknown error', errors: compatibleResult.errors });
     }
   } catch (error: unknown) {
     ResponseHelper.error(res, { statusCode: 500, message: "Failed to record performance metric", errors: [error instanceof Error ? error?.message : String(error)] });
@@ -371,7 +404,7 @@ router.post("/performance/metrics", requireRole("system", "admin"), async (req, 
  * @desc    Get comprehensive performance dashboard
  * @access  Admin, Operations
  */
-router.get("/performance/dashboard", requireRole("admin", "operations"), async (req, res) => {
+router.get("/performance/dashboard", requireRole(UserRole.ADMIN, UserRole.OFFICE_STAFF), async (req, res) => {
   try {
     const { startDate, endDate, category } = req.query;
     
@@ -381,11 +414,12 @@ router.get("/performance/dashboard", requireRole("admin", "operations"), async (
     };
     
     const result = await performanceService.getPerformanceDashboard(timeRange, category as any);
+    const compatibleResult = asResult(result);
     
-    if (result.success) {
-      ResponseHelper.success(res, { data: result.data, message: result?.message });
+    if (isSuccessResult(compatibleResult)) {
+      ResponseHelper.success(res, { data: compatibleResult.data, message: compatibleResult.message });
     } else {
-      ResponseHelper.error(res, { statusCode: 400, message: result?.message, errors: result.errors });
+      ResponseHelper.error(res, { statusCode: 400, message: compatibleResult.error || 'Unknown error', errors: compatibleResult.errors });
     }
   } catch (error: unknown) {
     ResponseHelper.error(res, { statusCode: 500, message: "Failed to get performance dashboard", errors: [error instanceof Error ? error?.message : String(error)] });
@@ -397,16 +431,17 @@ router.get("/performance/dashboard", requireRole("admin", "operations"), async (
  * @desc    Record business impact metric
  * @access  Admin, Business Intelligence
  */
-router.post("/performance/business-impact", requireRole("admin", "business_intelligence"), async (req, res) => {
+router.post("/performance/business-impact", requireRole(UserRole.ADMIN, UserRole.OFFICE_STAFF), async (req, res) => {
   try {
     const impactMetric = req.body;
     
     const result = await performanceService.recordBusinessImpact(impactMetric);
+    const compatibleResult = asResult(result);
     
-    if (result.success) {
-      ResponseHelper.success(res, { data: result.data, message: result?.message });
+    if (isSuccessResult(compatibleResult)) {
+      ResponseHelper.success(res, { data: compatibleResult.data, message: compatibleResult.message });
     } else {
-      ResponseHelper.error(res, { statusCode: 400, message: result?.message, errors: result.errors });
+      ResponseHelper.error(res, { statusCode: 400, message: compatibleResult.error || 'Unknown error', errors: compatibleResult.errors });
     }
   } catch (error: unknown) {
     ResponseHelper.error(res, { statusCode: 500, message: "Failed to record business impact", errors: [error instanceof Error ? error?.message : String(error)] });
@@ -418,16 +453,17 @@ router.post("/performance/business-impact", requireRole("admin", "business_intel
  * @desc    Track AI/ML costs
  * @access  Admin, Finance
  */
-router.post("/performance/costs", requireRole("admin", "finance"), async (req, res) => {
+router.post("/performance/costs", requireRole(UserRole.ADMIN, UserRole.OFFICE_STAFF), async (req, res) => {
   try {
     const costMetric = req.body;
     
     const result = await performanceService.trackCosts(costMetric);
+    const compatibleResult = asResult(result);
     
-    if (result.success) {
-      ResponseHelper.success(res, { data: result.data, message: result?.message });
+    if (isSuccessResult(compatibleResult)) {
+      ResponseHelper.success(res, { data: compatibleResult.data, message: compatibleResult.message });
     } else {
-      ResponseHelper.error(res, { statusCode: 400, message: result?.message, errors: result.errors });
+      ResponseHelper.error(res, { statusCode: 400, message: compatibleResult.error || 'Unknown error', errors: compatibleResult.errors });
     }
   } catch (error: unknown) {
     ResponseHelper.error(res, { statusCode: 500, message: "Failed to track costs", errors: [error instanceof Error ? error?.message : String(error)] });
@@ -439,14 +475,15 @@ router.post("/performance/costs", requireRole("admin", "finance"), async (req, r
  * @desc    Get cost optimization recommendations
  * @access  Admin, Finance
  */
-router.get("/performance/costs/optimize", requireRole("admin", "finance"), async (req, res) => {
+router.get("/performance/costs/optimize", requireRole(UserRole.ADMIN, UserRole.OFFICE_STAFF), async (req, res) => {
   try {
     const result = await performanceService.optimizeCosts();
+    const compatibleResult = asResult(result);
     
-    if (result.success) {
-      ResponseHelper.success(res, { data: result.data, message: result?.message });
+    if (isSuccessResult(compatibleResult)) {
+      ResponseHelper.success(res, { data: compatibleResult.data, message: compatibleResult.message });
     } else {
-      ResponseHelper.error(res, { statusCode: 400, message: result?.message, errors: result.errors });
+      ResponseHelper.error(res, { statusCode: 400, message: compatibleResult.error || 'Unknown error', errors: compatibleResult.errors });
     }
   } catch (error: unknown) {
     ResponseHelper.error(res, { statusCode: 500, message: "Failed to optimize costs", errors: [error instanceof Error ? error?.message : String(error)] });
@@ -464,7 +501,7 @@ router.get("/performance/costs/optimize", requireRole("admin", "finance"), async
  * @desc    Analyze model performance
  * @access  Admin, Data Science
  */
-router.get("/models/:modelId/performance", requireRole("admin", "data_science"), async (req, res) => {
+router.get("/models/:modelId/performance", requireRole(UserRole.ADMIN, UserRole.OFFICE_STAFF), async (req, res) => {
   try {
     const { modelId } = req.params;
     const { version } = req.query;
@@ -473,11 +510,12 @@ router.get("/models/:modelId/performance", requireRole("admin", "data_science"),
       modelId,
       version as string || "latest"
     );
+    const compatibleResult = asResult(result);
     
-    if (result.success) {
-      ResponseHelper.success(res, { data: result.data, message: result?.message });
+    if (isSuccessResult(compatibleResult)) {
+      ResponseHelper.success(res, { data: compatibleResult.data, message: compatibleResult.message });
     } else {
-      ResponseHelper.error(res, { statusCode: 400, message: result?.message, errors: result.errors });
+      ResponseHelper.error(res, { statusCode: 400, message: compatibleResult.error || 'Unknown error', errors: compatibleResult.errors });
     }
   } catch (error: unknown) {
     ResponseHelper.error(res, { statusCode: 500, message: "Failed to analyze model performance", errors: [error instanceof Error ? error?.message : String(error)] });
@@ -511,15 +549,19 @@ router.get("/dashboard/overview", requireRole(UserRole.ADMIN, UserRole.OFFICE_ST
       )
     ]);
     
+    const featureFlagResult = asResult(featureFlagData);
+    const experimentResult = asResult(experimentData);
+    const performanceResult = asResult(performanceData);
+    
     const overviewData = {
-      featureFlags: featureFlagData.success ? featureFlagData.data : null,
-      experiments: experimentData.success ? experimentData.data : null,
-      performance: performanceData.success ? performanceData.data : null,
+      featureFlags: isSuccessResult(featureFlagResult) ? featureFlagResult.data : null,
+      experiments: isSuccessResult(experimentResult) ? experimentResult.data : null,
+      performance: isSuccessResult(performanceResult) ? performanceResult.data : null,
       summary: {
-        totalActiveFeatures: featureFlagData.success ? featureFlagData.data.overview.activeFeatures : 0,
-        runningExperiments: experimentData.success ? experimentData.data.overview.runningExperiments : 0,
-        averageLatency: performanceData.success ? performanceData.data.overview.averageLatency : 0,
-        totalCost: performanceData.success ? performanceData.data.overview.totalCost : 0
+        totalActiveFeatures: isSuccessResult(featureFlagResult) ? featureFlagResult.data?.overview?.activeFeatures : 0,
+        runningExperiments: isSuccessResult(experimentResult) ? experimentResult.data?.overview?.runningExperiments : 0,
+        averageLatency: isSuccessResult(performanceResult) ? performanceResult.data?.overview?.averageLatency : 0,
+        totalCost: isSuccessResult(performanceResult) ? performanceResult.data?.overview?.totalCost : 0
       }
     };
     
@@ -534,7 +576,7 @@ router.get("/dashboard/overview", requireRole(UserRole.ADMIN, UserRole.OFFICE_ST
  * @desc    Get ROI and business impact dashboard
  * @access  Admin, Business Intelligence, Finance
  */
-router.get("/dashboard/roi", requireRole("admin", "business_intelligence", "finance"), async (req, res) => {
+router.get("/dashboard/roi", requireRole(UserRole.ADMIN, UserRole.OFFICE_STAFF), async (req, res) => {
   try {
     const { timeRange } = req.query;
     
@@ -546,13 +588,15 @@ router.get("/dashboard/roi", requireRole("admin", "business_intelligence", "fina
     );
     
     const costOptimizationResult = await performanceService.optimizeCosts();
+    const costOptimizationCompatible = asResult(costOptimizationResult);
+    const performanceCompatible = asResult(performanceResult);
     
     const roiData = {
-      businessImpact: performanceResult.success ? performanceResult.data.businessImpact : null,
-      costOptimization: costOptimizationResult.success ? costOptimizationResult.data : null,
+      businessImpact: isSuccessResult(performanceCompatible) ? performanceCompatible.data?.businessImpact : null,
+      costOptimization: isSuccessResult(costOptimizationCompatible) ? costOptimizationCompatible.data : null,
       roi: {
-        total: performanceResult.success ? performanceResult.data.businessImpact.totalROI : 0,
-        breakdown: performanceResult.success ? performanceResult.data.businessImpact.impactByService : [],
+        total: isSuccessResult(performanceCompatible) ? performanceCompatible.data?.businessImpact?.totalROI : 0,
+        breakdown: isSuccessResult(performanceCompatible) ? performanceCompatible.data?.businessImpact?.impactByService : [],
         trends: "positive", // Mock trend data
         projection: "4.2x ROI in next 12 months"
       }
@@ -587,7 +631,10 @@ router.get("/health", async (req, res) => {
         uptime: "99.9%",
         averageResponseTime: "150ms",
         errorRate: "0.1%",
-        activeFeatures: await featureFlagService.getFeatureFlagDashboard().then(r => r.success ? r.data.overview.activeFeatures : 0)
+        activeFeatures: await featureFlagService.getFeatureFlagDashboard().then(r => {
+          const compatible = asResult(r);
+          return isSuccessResult(compatible) ? compatible.data?.overview?.activeFeatures || 0 : 0;
+        })
       }
     };
     

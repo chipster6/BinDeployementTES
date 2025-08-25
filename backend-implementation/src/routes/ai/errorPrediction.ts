@@ -24,6 +24,7 @@ import { Router } from "express";
 import { authenticateToken, requireRole } from "@/middleware/auth";
 import { ResponseHelper } from "@/utils/ResponseHelper";
 import { logger, Timer } from "@/utils/logger";
+import { UserRole } from "@/models/User";
 import {
   getErrorPredictionEngine,
   getMLModelManager,
@@ -47,16 +48,20 @@ router.use(authenticateToken);
  * @desc    Generate error prediction with 85%+ accuracy and <100ms response
  * @access  Admin, Operations, System
  */
-router.post("/predict", requireRole(["admin", "operations", "system"]), async (req, res) => {
+router.post("/predict", requireRole(UserRole.ADMIN, UserRole.DISPATCHER, UserRole.OFFICE_STAFF), async (req, res) => {
   const timer = new Timer("api.errorPrediction.predict");
   
   try {
     const predictionService = getErrorPredictionEngine();
     const { predictionWindow, systemLayer, features, historicalData, businessContext } = req.body;
 
-    // Validate required fields
+    // Validate required fields using guard pattern
     if (!predictionWindow || !predictionWindow.start || !predictionWindow.end) {
-      return res.status(400).json(ResponseHelper.error("Prediction window is required", ["Missing start or end time"]));
+      return ResponseHelper.error(res, { 
+        message: "Prediction window is required", 
+        statusCode: 400, 
+        errors: ["Missing start or end time"] 
+      });
     }
 
     const predictionContext = {
@@ -87,7 +92,7 @@ router.post("/predict", requireRole(["admin", "operations", "system"]), async (r
       });
     }
 
-    res.json(ResponseHelper.success(result, "Error prediction generated successfully"));
+    ResponseHelper.success(res, { data: result, message: "Error prediction generated successfully" });
 
   } catch (error: unknown) {
     timer.end({ error: error instanceof Error ? error?.message : String(error) });
@@ -96,7 +101,11 @@ router.post("/predict", requireRole(["admin", "operations", "system"]), async (r
       endpoint: "/predict",
       body: req.body,
     });
-    res.status(500).json(ResponseHelper.error("Failed to generate error prediction", [error instanceof Error ? error?.message : String(error)]));
+    ResponseHelper.error(res, { 
+      message: "Failed to generate error prediction", 
+      statusCode: 500, 
+      errors: [error instanceof Error ? error?.message : String(error)] 
+    });
   }
 });
 
@@ -105,15 +114,20 @@ router.post("/predict", requireRole(["admin", "operations", "system"]), async (r
  * @desc    Generate batch predictions for multiple contexts
  * @access  Admin, Operations, System
  */
-router.post("/batch", requireRole(["admin", "operations", "system"]), async (req, res) => {
+router.post("/batch", requireRole(UserRole.ADMIN, UserRole.DISPATCHER, UserRole.OFFICE_STAFF), async (req, res) => {
   const timer = new Timer("api.errorPrediction.batch");
 
   try {
     const predictionService = getErrorPredictionEngine();
     const { contexts } = req.body;
 
+    // Guard pattern for validating contexts array
     if (!contexts || !Array.isArray(contexts) || contexts.length === 0) {
-      return res.status(400).json(ResponseHelper.error("Prediction contexts array is required", ["Empty or invalid contexts"]));
+      return ResponseHelper.error(res, { 
+        message: "Prediction contexts array is required", 
+        statusCode: 400, 
+        errors: ["Empty or invalid contexts"] 
+      });
     }
 
     // Validate and transform contexts
@@ -136,7 +150,7 @@ router.post("/batch", requireRole(["admin", "operations", "system"]), async (req
       totalExecutionTime: results.reduce((sum, r) => sum + r.executionTime, 0),
     });
 
-    res.json(ResponseHelper.success(results, `${results.length} batch predictions generated successfully`));
+    ResponseHelper.success(res, { data: results, message: `${results.length} batch predictions generated successfully` });
 
   } catch (error: unknown) {
     timer.end({ error: error instanceof Error ? error?.message : String(error) });
@@ -145,7 +159,7 @@ router.post("/batch", requireRole(["admin", "operations", "system"]), async (req
       endpoint: "/batch",
       contextCount: req.body?.contexts?.length || 0,
     });
-    res.status(500).json(ResponseHelper.error("Failed to generate batch predictions", [error instanceof Error ? error?.message : String(error)]));
+    ResponseHelper.error(res, { message: "Failed to generate batch predictions", statusCode: 500, errors: [error instanceof Error ? error?.message : String(error)] });
   }
 });
 
@@ -166,7 +180,7 @@ router.get("/performance", requireRole(["admin", "operations"]), async (req, res
       accuracy: performance.accuracy,
     });
 
-    res.json(ResponseHelper.success(performance, "Prediction performance metrics retrieved"));
+    ResponseHelper.success(res, { data: performance, message: "Prediction performance metrics retrieved" });
 
   } catch (error: unknown) {
     timer.end({ error: error instanceof Error ? error?.message : String(error) });
@@ -174,7 +188,7 @@ router.get("/performance", requireRole(["admin", "operations"]), async (req, res
       error: error instanceof Error ? error?.message : String(error),
       endpoint: "/performance",
     });
-    res.status(500).json(ResponseHelper.error("Failed to get prediction performance", [error instanceof Error ? error?.message : String(error)]));
+    ResponseHelper.error(res, { message: "Failed to get prediction performance", statusCode: 500, errors: [error instanceof Error ? error?.message : String(error)] });
   }
 });
 
@@ -191,7 +205,7 @@ router.post("/validate", requireRole(["admin", "data_science"]), async (req, res
     const { testData } = req.body;
 
     if (!testData || !testData.features || !testData.expectedOutcomes) {
-      return res.status(400).json(ResponseHelper.error("Test data is required", ["Missing features or expectedOutcomes"]));
+      return ResponseHelper.error(res, { message: "Test data is required", statusCode: 400, errors: ["Missing features or expectedOutcomes"] });
     }
 
     const validationData = {
@@ -210,7 +224,7 @@ router.post("/validate", requireRole(["admin", "data_science"]), async (req, res
       modelsValidated: Object.keys(accuracy.byModel).length,
     });
 
-    res.json(ResponseHelper.success(accuracy, "Prediction accuracy validation completed"));
+    ResponseHelper.success(res, { data: accuracy, message: "Prediction accuracy validation completed" });
 
   } catch (error: unknown) {
     timer.end({ error: error instanceof Error ? error?.message : String(error) });
@@ -218,7 +232,7 @@ router.post("/validate", requireRole(["admin", "data_science"]), async (req, res
       error: error instanceof Error ? error?.message : String(error),
       endpoint: "/validate",
     });
-    res.status(500).json(ResponseHelper.error("Failed to validate prediction accuracy", [error instanceof Error ? error?.message : String(error)]));
+    ResponseHelper.error(res, { message: "Failed to validate prediction accuracy", statusCode: 500, errors: [error instanceof Error ? error?.message : String(error)] });
   }
 });
 
@@ -252,7 +266,7 @@ router.get("/models", requireRole(["admin", "data_science", "operations"]), asyn
       filters: Object.keys(filters),
     });
 
-    res.json(ResponseHelper.success(models, `${models.length} models retrieved`));
+    ResponseHelper.success(res, { data: models, message: `${models.length} models retrieved` });
 
   } catch (error: unknown) {
     timer.end({ error: error instanceof Error ? error?.message : String(error) });
@@ -260,7 +274,7 @@ router.get("/models", requireRole(["admin", "data_science", "operations"]), asyn
       error: error instanceof Error ? error?.message : String(error),
       endpoint: "/models",
     });
-    res.status(500).json(ResponseHelper.error("Failed to retrieve models", [error instanceof Error ? error?.message : String(error)]));
+    ResponseHelper.error(res, { message: "Failed to retrieve models", statusCode: 500, errors: [error instanceof Error ? error?.message : String(error)] });
   }
 });
 
@@ -298,7 +312,7 @@ router.post("/models/:modelId/deploy", requireRole(["admin", "data_science"]), a
     }
 
     const statusCode = result.success ? 200 : 400;
-    res.status(statusCode).json(ResponseHelper.success(result, result?.message));
+    ResponseHelper.success(res, { data: result, message: result?.message || "Operation completed successfully", statusCode });
 
   } catch (error: unknown) {
     timer.end({ error: error instanceof Error ? error?.message : String(error) });
@@ -307,7 +321,7 @@ router.post("/models/:modelId/deploy", requireRole(["admin", "data_science"]), a
       endpoint: "/models/deploy",
       modelId: req.params.modelId,
     });
-    res.status(500).json(ResponseHelper.error("Failed to deploy model", [error instanceof Error ? error?.message : String(error)]));
+    ResponseHelper.error(res, { message: "Failed to deploy model", statusCode: 500, errors: [error instanceof Error ? error?.message : String(error)] });
   }
 });
 
@@ -333,7 +347,7 @@ router.post("/models/:modelId/rollback", requireRole(["admin", "data_science"]),
     });
 
     const statusCode = result.success ? 200 : 400;
-    res.status(statusCode).json(ResponseHelper.success(result, result?.message));
+    ResponseHelper.success(res, { data: result, message: result?.message || "Operation completed successfully", statusCode });
 
   } catch (error: unknown) {
     timer.end({ error: error instanceof Error ? error?.message : String(error) });
@@ -342,7 +356,7 @@ router.post("/models/:modelId/rollback", requireRole(["admin", "data_science"]),
       endpoint: "/models/rollback",
       modelId: req.params.modelId,
     });
-    res.status(500).json(ResponseHelper.error("Failed to rollback model", [error instanceof Error ? error?.message : String(error)]));
+    ResponseHelper.error(res, { message: "Failed to rollback model", statusCode: 500, errors: [error instanceof Error ? error?.message : String(error)] });
   }
 });
 
@@ -359,7 +373,7 @@ router.post("/models/train", requireRole(["admin", "data_science"]), async (req,
     const trainingConfig = req.body;
 
     if (!trainingConfig.modelId) {
-      return res.status(400).json(ResponseHelper.error("Model ID is required", ["Missing modelId in training config"]));
+      return ResponseHelper.error(res, { message: "Model ID is required", statusCode: 400, errors: ["Missing modelId in training config"] });
     }
 
     const jobId = await modelManager.startTrainingJob(trainingConfig);
@@ -369,7 +383,7 @@ router.post("/models/train", requireRole(["admin", "data_science"]), async (req,
       jobId,
     });
 
-    res.status(201).json(ResponseHelper.success({ jobId }, "Training job started successfully"));
+    ResponseHelper.success(res, { data: { jobId }, message: "Training job started successfully", statusCode: 201 });
 
   } catch (error: unknown) {
     timer.end({ error: error instanceof Error ? error?.message : String(error) });
@@ -378,7 +392,7 @@ router.post("/models/train", requireRole(["admin", "data_science"]), async (req,
       endpoint: "/models/train",
       modelId: req.body.modelId,
     });
-    res.status(500).json(ResponseHelper.error("Failed to start training job", [error instanceof Error ? error?.message : String(error)]));
+    ResponseHelper.error(res, { message: "Failed to start training job", statusCode: 500, errors: [error instanceof Error ? error?.message : String(error)] });
   }
 });
 
@@ -402,7 +416,7 @@ router.get("/models/jobs/:jobId", requireRole(["admin", "data_science"]), async 
       progress: job.progress,
     });
 
-    res.json(ResponseHelper.success(job, "Training job status retrieved"));
+    ResponseHelper.success(res, { data: job, message: "Training job status retrieved" });
 
   } catch (error: unknown) {
     timer.end({ error: error instanceof Error ? error?.message : String(error) });
@@ -411,7 +425,7 @@ router.get("/models/jobs/:jobId", requireRole(["admin", "data_science"]), async 
       endpoint: "/models/jobs/status",
       jobId: req.params.jobId,
     });
-    res.status(500).json(ResponseHelper.error("Failed to get training job status", [error instanceof Error ? error?.message : String(error)]));
+    ResponseHelper.error(res, { message: "Failed to get training job status", statusCode: 500, errors: [error instanceof Error ? error?.message : String(error)] });
   }
 });
 
@@ -435,7 +449,7 @@ router.get("/models/:modelId/health", requireRole(["admin", "operations"]), asyn
       responseTime: health.responseTime,
     });
 
-    res.json(ResponseHelper.success(health, "Model health status retrieved"));
+    ResponseHelper.success(res, { data: health, message: "Model health status retrieved" });
 
   } catch (error: unknown) {
     timer.end({ error: error instanceof Error ? error?.message : String(error) });
@@ -444,7 +458,7 @@ router.get("/models/:modelId/health", requireRole(["admin", "operations"]), asyn
       endpoint: "/models/health",
       modelId: req.params.modelId,
     });
-    res.status(500).json(ResponseHelper.error("Failed to get model health", [error instanceof Error ? error?.message : String(error)]));
+    ResponseHelper.error(res, { message: "Failed to get model health", statusCode: 500, errors: [error instanceof Error ? error?.message : String(error)] });
   }
 });
 
@@ -485,7 +499,7 @@ router.get("/analytics/trends", requireRole(["admin", "operations", "business_in
       granularity: timeRange.granularity,
     });
 
-    res.json(ResponseHelper.success(trends, `${trends.length} trend data points retrieved`));
+    ResponseHelper.success(res, { data: trends, message: `${trends.length} trend data points retrieved` });
 
   } catch (error: unknown) {
     timer.end({ error: error instanceof Error ? error?.message : String(error) });
@@ -493,7 +507,7 @@ router.get("/analytics/trends", requireRole(["admin", "operations", "business_in
       error: error instanceof Error ? error?.message : String(error),
       endpoint: "/analytics/trends",
     });
-    res.status(500).json(ResponseHelper.error("Failed to get error trends", [error instanceof Error ? error?.message : String(error)]));
+    ResponseHelper.error(res, { message: "Failed to get error trends", statusCode: 500, errors: [error instanceof Error ? error?.message : String(error)] });
   }
 });
 
@@ -523,7 +537,7 @@ router.get("/analytics/dashboard", requireRole(["admin", "operations", "business
       systemHealth: dashboard.summary.systemHealth,
     });
 
-    res.json(ResponseHelper.success(dashboard, "Analytics dashboard data retrieved"));
+    ResponseHelper.success(res, { data: dashboard, message: "Analytics dashboard data retrieved" });
 
   } catch (error: unknown) {
     timer.end({ error: error instanceof Error ? error?.message : String(error) });
@@ -531,7 +545,7 @@ router.get("/analytics/dashboard", requireRole(["admin", "operations", "business
       error: error instanceof Error ? error?.message : String(error),
       endpoint: "/analytics/dashboard",
     });
-    res.status(500).json(ResponseHelper.error("Failed to get analytics dashboard", [error instanceof Error ? error?.message : String(error)]));
+    ResponseHelper.error(res, { message: "Failed to get analytics dashboard", statusCode: 500, errors: [error instanceof Error ? error?.message : String(error)] });
   }
 });
 
@@ -553,7 +567,7 @@ router.get("/analytics/realtime", requireRole(["admin", "operations"]), async (r
       activeAnomalies: realtimeData.activeAnomalies,
     });
 
-    res.json(ResponseHelper.success(realtimeData, "Real-time analytics retrieved"));
+    ResponseHelper.success(res, { data: realtimeData, message: "Real-time analytics retrieved" });
 
   } catch (error: unknown) {
     timer.end({ error: error instanceof Error ? error?.message : String(error) });
@@ -561,7 +575,7 @@ router.get("/analytics/realtime", requireRole(["admin", "operations"]), async (r
       error: error instanceof Error ? error?.message : String(error),
       endpoint: "/analytics/realtime",
     });
-    res.status(500).json(ResponseHelper.error("Failed to get real-time analytics", [error instanceof Error ? error?.message : String(error)]));
+    ResponseHelper.error(res, { message: "Failed to get real-time analytics", statusCode: 500, errors: [error instanceof Error ? error?.message : String(error)] });
   }
 });
 
@@ -584,7 +598,7 @@ router.post("/coordination/register", requireRole(["system", "admin"]), async (r
     const context = req.body;
 
     if (!context.streamId || !context.streamType) {
-      return res.status(400).json(ResponseHelper.error("Stream ID and type are required", ["Missing streamId or streamType"]));
+      return ResponseHelper.error(res, { message: "Stream ID and type are required", statusCode: 400, errors: ["Missing streamId or streamType"] });
     }
 
     const result = await coordinationService.registerStream(context);
@@ -595,7 +609,7 @@ router.post("/coordination/register", requireRole(["system", "admin"]), async (r
       registered: result.registered,
     });
 
-    res.status(201).json(ResponseHelper.success(result, "Stream registered for coordination"));
+    ResponseHelper.success(res, { data: result, message: "Stream registered for coordination", statusCode: 201 });
 
   } catch (error: unknown) {
     timer.end({ error: error instanceof Error ? error?.message : String(error) });
@@ -603,7 +617,7 @@ router.post("/coordination/register", requireRole(["system", "admin"]), async (r
       error: error instanceof Error ? error?.message : String(error),
       endpoint: "/coordination/register",
     });
-    res.status(500).json(ResponseHelper.error("Failed to register stream", [error instanceof Error ? error?.message : String(error)]));
+    ResponseHelper.error(res, { message: "Failed to register stream", statusCode: 500, errors: [error instanceof Error ? error?.message : String(error)] });
   }
 });
 
@@ -620,7 +634,7 @@ router.post("/coordination/coordinate", requireRole(["system", "admin"]), async 
     const event = req.body;
 
     if (!event.eventId || !event.sourceStream) {
-      return res.status(400).json(ResponseHelper.error("Event ID and source stream are required", ["Missing eventId or sourceStream"]));
+      return ResponseHelper.error(res, { message: "Event ID and source stream are required", statusCode: 400, errors: ["Missing eventId or sourceStream"] });
     }
 
     const result = await coordinationService.coordinateErrorEvent(event);
@@ -632,7 +646,7 @@ router.post("/coordination/coordinate", requireRole(["system", "admin"]), async 
       streamsAffected: result.streamsAffected.length,
     });
 
-    res.json(ResponseHelper.success(result, "Error event coordination completed"));
+    ResponseHelper.success(res, { data: result, message: "Error event coordination completed" });
 
   } catch (error: unknown) {
     timer.end({ error: error instanceof Error ? error?.message : String(error) });
@@ -640,7 +654,7 @@ router.post("/coordination/coordinate", requireRole(["system", "admin"]), async 
       error: error instanceof Error ? error?.message : String(error),
       endpoint: "/coordination/coordinate",
     });
-    res.status(500).json(ResponseHelper.error("Failed to coordinate error event", [error instanceof Error ? error?.message : String(error)]));
+    ResponseHelper.error(res, { message: "Failed to coordinate error event", statusCode: 500, errors: [error instanceof Error ? error?.message : String(error)] });
   }
 });
 
@@ -665,7 +679,7 @@ router.get("/coordination/health", requireRole(["admin", "operations"]), async (
       healthPercentage: streamCount > 0 ? (healthyStreams / streamCount) * 100 : 0,
     });
 
-    res.json(ResponseHelper.success(healthStatuses, `Health status for ${streamCount} streams retrieved`));
+    ResponseHelper.success(res, { data: healthStatuses, message: `Health status for ${streamCount} streams retrieved` });
 
   } catch (error: unknown) {
     timer.end({ error: error instanceof Error ? error?.message : String(error) });
@@ -673,7 +687,7 @@ router.get("/coordination/health", requireRole(["admin", "operations"]), async (
       error: error instanceof Error ? error?.message : String(error),
       endpoint: "/coordination/health",
     });
-    res.status(500).json(ResponseHelper.error("Failed to get coordination health", [error instanceof Error ? error?.message : String(error)]));
+    ResponseHelper.error(res, { message: "Failed to get coordination health", statusCode: 500, errors: [error instanceof Error ? error?.message : String(error)] });
   }
 });
 
@@ -702,7 +716,7 @@ router.get("/coordination/analytics", requireRole(["admin", "operations"]), asyn
       cascadesPrevented: analytics.cascadesPrevented,
     });
 
-    res.json(ResponseHelper.success(analytics, "Coordination analytics retrieved"));
+    ResponseHelper.success(res, { data: analytics, message: "Coordination analytics retrieved" });
 
   } catch (error: unknown) {
     timer.end({ error: error instanceof Error ? error?.message : String(error) });
@@ -710,7 +724,7 @@ router.get("/coordination/analytics", requireRole(["admin", "operations"]), asyn
       error: error instanceof Error ? error?.message : String(error),
       endpoint: "/coordination/analytics",
     });
-    res.status(500).json(ResponseHelper.error("Failed to get coordination analytics", [error instanceof Error ? error?.message : String(error)]));
+    ResponseHelper.error(res, { message: "Failed to get coordination analytics", statusCode: 500, errors: [error instanceof Error ? error?.message : String(error)] });
   }
 });
 
