@@ -1,0 +1,1817 @@
+# ============================================================================= 
+# FEDERATED GRAPHQL SCHEMA - WASTE MANAGEMENT SYSTEM
+# =============================================================================
+# 
+# This schema defines the federated GraphQL API that combines all 6 services
+# using Apollo Federation. Each service owns specific entities and can extend
+# entities owned by other services.
+
+# =============================================================================
+# AUTH SERVICE - User Management & Authentication
+# =============================================================================
+
+extend type Query {
+  """Get current authenticated user"""
+  me: User
+  
+  """Get user by ID (admin only)"""
+  user(id: ID!): User
+  
+  """List users with pagination and filters"""
+  users(
+    page: Int = 1
+    limit: Int = 50
+    role: UserRole
+    status: UserStatus
+    organization_id: ID
+  ): UserConnection
+}
+
+extend type Mutation {
+  """Authenticate user with email/password"""
+  login(email: String!, password: String!, mfa_code: String): AuthPayload!
+  
+  """Logout current user"""
+  logout: Boolean!
+  
+  """Refresh access token"""
+  refreshToken(refresh_token: String!): AuthPayload!
+  
+  """Create new user (admin only)"""
+  createUser(input: CreateUserInput!): User!
+  
+  """Update user (admin or self)"""
+  updateUser(id: ID!, input: UpdateUserInput!): User!
+  
+  """Delete user (admin only)"""
+  deleteUser(id: ID!): Boolean!
+}
+
+type User @key(fields: "id") {
+  id: ID!
+  email: String!
+  first_name: String!
+  last_name: String!
+  full_name: String!
+  role: UserRole!
+  status: UserStatus!
+  organization_id: ID!
+  last_login: DateTime
+  created_at: DateTime!
+  updated_at: DateTime!
+  
+  # Extended by operations-service
+  managed_customers: [Customer!]!
+  
+  # Extended by spatial-routing-service  
+  driver_profile: Driver
+  assigned_routes: [Route!]!
+  
+  # Extended by analytics-service
+  dashboard_preferences: DashboardPreferences
+}
+
+type AuthPayload {
+  user: User!
+  token: String!
+  refresh_token: String!
+  expires_at: DateTime!
+}
+
+enum UserRole {
+  ADMIN
+  MANAGER
+  DRIVER
+  CUSTOMER
+}
+
+enum UserStatus {
+  ACTIVE
+  INACTIVE
+  SUSPENDED
+}
+
+input CreateUserInput {
+  email: String!
+  first_name: String!
+  last_name: String!
+  role: UserRole!
+  organization_id: ID!
+  phone: String
+  password: String!
+}
+
+input UpdateUserInput {
+  email: String
+  first_name: String
+  last_name: String
+  role: UserRole
+  status: UserStatus
+  phone: String
+}
+
+type UserConnection {
+  edges: [UserEdge!]!
+  pageInfo: PageInfo!
+  total_count: Int!
+}
+
+type UserEdge {
+  node: User!
+  cursor: String!
+}
+
+# =============================================================================
+# OPERATIONS SERVICE - Core Business Logic
+# =============================================================================
+
+extend type Query {
+  """Get customer by ID"""
+  customer(id: ID!): Customer
+  
+  """List customers with pagination and filters"""
+  customers(
+    page: Int = 1
+    limit: Int = 50
+    organization_id: ID
+    status: CustomerStatus
+    account_manager_id: ID
+  ): CustomerConnection
+  
+  """Get bin by ID"""
+  bin(id: ID!): Bin
+  
+  """List bins with pagination and filters"""
+  bins(
+    page: Int = 1
+    limit: Int = 50
+    customer_id: ID
+    status: BinStatus
+    needs_collection: Boolean
+    location_within: LocationFilter
+  ): BinConnection
+  
+  """Get service event by ID"""
+  serviceEvent(id: ID!): ServiceEvent
+  
+  """List service events with pagination and filters"""
+  serviceEvents(
+    page: Int = 1
+    limit: Int = 50
+    customer_id: ID
+    route_id: ID
+    event_type: ServiceEventType
+    date_from: Date
+    date_to: Date
+  ): ServiceEventConnection
+}
+
+extend type Mutation {
+  """Create new customer"""
+  createCustomer(input: CreateCustomerInput!): Customer!
+  
+  """Update customer"""
+  updateCustomer(id: ID!, input: UpdateCustomerInput!): Customer!
+  
+  """Create new bin for customer"""
+  createBin(input: CreateBinInput!): Bin!
+  
+  """Update bin"""
+  updateBin(id: ID!, input: UpdateBinInput!): Bin!
+  
+  """Update bin status"""
+  updateBinStatus(id: ID!, status: BinStatus!, reason: String): Bin!
+  
+  """Create service event"""
+  createServiceEvent(input: CreateServiceEventInput!): ServiceEvent!
+  
+  """Complete service event"""
+  completeServiceEvent(id: ID!, input: CompleteServiceEventInput!): ServiceEvent!
+}
+
+type Customer @key(fields: "id") {
+  id: ID!
+  company_name: String!
+  contact_name: String!
+  email: String!
+  phone: String
+  organization_id: ID!
+  account_manager_id: ID
+  status: CustomerStatus!
+  service_frequency: ServiceFrequency!
+  preferred_service_day: WeekDay
+  address: Address!
+  billing_address: Address
+  payment_terms: PaymentTerms!
+  created_at: DateTime!
+  updated_at: DateTime!
+  
+  # Relationships
+  account_manager: User
+  bins: [Bin!]!
+  service_events: [ServiceEvent!]!
+  
+  # Extended by integration-service
+  payment_history: [Payment!]!
+  invoices: [Invoice!]!
+  
+  # Extended by analytics-service
+  usage_metrics: CustomerUsageMetrics
+  satisfaction_score: Float
+}
+
+type Bin @key(fields: "id") {
+  id: ID!
+  customer_id: ID!
+  bin_type: BinType!
+  capacity: Float!
+  current_level: Float!
+  status: BinStatus!
+  needs_collection: Boolean!
+  last_collected: DateTime
+  next_scheduled: DateTime
+  location: Location!
+  material_type: MaterialType!
+  created_at: DateTime!
+  updated_at: DateTime!
+  
+  # Relationships
+  customer: Customer!
+  service_events: [ServiceEvent!]!
+  
+  # Extended by spatial-routing-service
+  route_assignments: [RouteStop!]!
+  
+  # Extended by ai-intelligence-service
+  predicted_fill_date: DateTime
+  collection_priority: Int
+}
+
+type ServiceEvent @key(fields: "id") {
+  id: ID!
+  customer_id: ID!
+  bin_id: ID!
+  route_id: ID
+  driver_id: ID
+  event_type: ServiceEventType!
+  status: ServiceEventStatus!
+  scheduled_at: DateTime
+  completed_at: DateTime
+  notes: String
+  volume_collected: Float
+  created_at: DateTime!
+  
+  # Relationships
+  customer: Customer!
+  bin: Bin!
+  route: Route
+  driver: User
+}
+
+enum CustomerStatus {
+  ACTIVE
+  INACTIVE
+  SUSPENDED
+  TRIAL
+}
+
+enum ServiceFrequency {
+  WEEKLY
+  BI_WEEKLY
+  MONTHLY
+  ON_DEMAND
+  SEASONAL
+}
+
+enum WeekDay {
+  MONDAY
+  TUESDAY
+  WEDNESDAY
+  THURSDAY
+  FRIDAY
+  SATURDAY
+  SUNDAY
+}
+
+enum PaymentTerms {
+  NET_30
+  NET_15
+  DUE_ON_RECEIPT
+  CREDIT_CARD
+  PREPAID
+}
+
+enum BinType {
+  RESIDENTIAL
+  COMMERCIAL
+  RECYCLING
+  COMPOST
+  HAZARDOUS
+  YARD_WASTE
+}
+
+enum BinStatus {
+  ACTIVE
+  INACTIVE
+  MAINTENANCE
+  FULL
+  DAMAGED
+}
+
+enum MaterialType {
+  MIXED_WASTE
+  RECYCLING
+  COMPOST
+  HAZARDOUS
+  YARD_WASTE
+  CONSTRUCTION
+}
+
+enum ServiceEventType {
+  PICKUP
+  DELIVERY
+  MAINTENANCE
+  INSPECTION
+  EMERGENCY
+}
+
+enum ServiceEventStatus {
+  SCHEDULED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+  FAILED
+}
+
+type Address {
+  street: String!
+  city: String!
+  state: String!
+  zip: String!
+  country: String!
+}
+
+type Location {
+  latitude: Float!
+  longitude: Float!
+  address: String
+  altitude: Float
+}
+
+input LocationFilter {
+  center: LocationInput!
+  radius_km: Float!
+}
+
+input LocationInput {
+  latitude: Float!
+  longitude: Float!
+}
+
+input CreateCustomerInput {
+  company_name: String!
+  contact_name: String!
+  email: String!
+  phone: String
+  organization_id: ID!
+  account_manager_id: ID
+  service_frequency: ServiceFrequency!
+  preferred_service_day: WeekDay
+  address: AddressInput!
+  billing_address: AddressInput
+  payment_terms: PaymentTerms!
+}
+
+input UpdateCustomerInput {
+  company_name: String
+  contact_name: String
+  email: String
+  phone: String
+  account_manager_id: ID
+  status: CustomerStatus
+  service_frequency: ServiceFrequency
+  preferred_service_day: WeekDay
+  address: AddressInput
+  billing_address: AddressInput
+  payment_terms: PaymentTerms
+}
+
+input AddressInput {
+  street: String!
+  city: String!
+  state: String!
+  zip: String!
+  country: String!
+}
+
+input CreateBinInput {
+  customer_id: ID!
+  bin_type: BinType!
+  capacity: Float!
+  location: LocationInput!
+  material_type: MaterialType!
+}
+
+input UpdateBinInput {
+  bin_type: BinType
+  capacity: Float
+  current_level: Float
+  status: BinStatus
+  location: LocationInput
+  material_type: MaterialType
+}
+
+input CreateServiceEventInput {
+  customer_id: ID!
+  bin_id: ID!
+  route_id: ID
+  driver_id: ID
+  event_type: ServiceEventType!
+  scheduled_at: DateTime
+  notes: String
+}
+
+input CompleteServiceEventInput {
+  volume_collected: Float
+  notes: String
+  issues_encountered: String
+}
+
+# =============================================================================
+# SPATIAL-ROUTING SERVICE - Route Optimization & GPS Tracking
+# =============================================================================
+
+extend type Query {
+  """Get route by ID"""
+  route(id: ID!): Route
+  
+  """List routes with pagination and filters"""
+  routes(
+    page: Int = 1
+    limit: Int = 50
+    driver_id: ID
+    vehicle_id: ID
+    status: RouteStatus
+    service_day: WeekDay
+    date: Date
+  ): RouteConnection
+  
+  """Get optimized route by ID"""
+  optimizedRoute(id: ID!): OptimizedRoute
+  
+  """Get vehicle current location"""
+  vehicleLocation(vehicle_id: ID!): VehicleLocation
+  
+  """Get vehicle tracking history"""
+  vehicleTracking(
+    vehicle_id: ID!
+    from: DateTime
+    to: DateTime
+    route_id: ID
+  ): [TrackingPoint!]!
+}
+
+extend type Mutation {
+  """Create new route"""
+  createRoute(input: CreateRouteInput!): Route!
+  
+  """Update route"""
+  updateRoute(id: ID!, input: UpdateRouteInput!): Route!
+  
+  """Optimize route using AI algorithms"""
+  optimizeRoute(id: ID!, input: OptimizeRouteInput!): OptimizedRoute!
+  
+  """Start route execution"""
+  startRoute(id: ID!, input: StartRouteInput!): ActiveRoute!
+  
+  """Complete route execution"""  
+  completeRoute(id: ID!, input: CompleteRouteInput!): Route!
+  
+  """Update vehicle location"""
+  updateVehicleLocation(vehicle_id: ID!, input: LocationUpdateInput!): VehicleLocation!
+  
+  """Geocode address to coordinates"""
+  geocodeAddress(address: String!): GeocodeResult!
+  
+  """Reverse geocode coordinates to address"""
+  reverseGeocode(latitude: Float!, longitude: Float!): ReverseGeocodeResult!
+}
+
+type Route @key(fields: "id") {
+  id: ID!
+  name: String!
+  description: String
+  route_type: RouteType!
+  service_day: WeekDay!
+  driver_id: ID
+  vehicle_id: ID
+  status: RouteStatus!
+  scheduled_start: DateTime
+  actual_start: DateTime
+  scheduled_end: DateTime
+  actual_end: DateTime
+  estimated_distance: Float
+  actual_distance: Float
+  estimated_duration: Int
+  actual_duration: Int
+  stops: [RouteStop!]!
+  created_at: DateTime!
+  updated_at: DateTime!
+  
+  # Relationships
+  driver: User
+  vehicle: Vehicle
+  
+  # Extended by operations-service
+  service_events: [ServiceEvent!]!
+  
+  # Extended by ai-intelligence-service
+  optimization_suggestions: RouteOptimizationSuggestions
+  traffic_predictions: [TrafficPrediction!]!
+}
+
+type OptimizedRoute @key(fields: "id") {
+  id: ID!
+  base_route_id: ID!
+  algorithm_used: OptimizationAlgorithm!
+  optimization_score: Float!
+  efficiency_improvement: Float!
+  total_distance: Float!
+  total_duration: Int!
+  cost_savings: Float!
+  optimized_stops: [OptimizedRouteStop!]!
+  optimization_metadata: OptimizationMetadata!
+  created_at: DateTime!
+  
+  # Relationships
+  base_route: Route!
+}
+
+type RouteStop @key(fields: "id") {
+  id: ID!
+  route_id: ID!
+  customer_id: ID!
+  bin_id: ID!
+  stop_order: Int!
+  location: Location!
+  scheduled_arrival: DateTime
+  actual_arrival: DateTime
+  service_duration: Int
+  status: RouteStopStatus!
+  notes: String
+  
+  # Relationships
+  route: Route!
+  customer: Customer!
+  bin: Bin!
+}
+
+type OptimizedRouteStop {
+  stop_id: ID!
+  optimized_order: Int!
+  estimated_arrival: DateTime!
+  estimated_departure: DateTime!
+  travel_time_to_next: Int
+  distance_to_next: Float
+}
+
+type Vehicle @key(fields: "id") {
+  id: ID!
+  license_plate: String!
+  vehicle_type: VehicleType!
+  capacity: Float!
+  fuel_type: FuelType!
+  status: VehicleStatus!
+  current_location: VehicleLocation
+  
+  # Extended by operations-service
+  maintenance_records: [MaintenanceRecord!]!
+  
+  # Extended by analytics-service
+  utilization_metrics: VehicleUtilizationMetrics
+  fuel_efficiency: Float
+}
+
+type Driver @key(fields: "user_id") {
+  user_id: ID!
+  license_number: String!
+  license_class: LicenseClass!
+  hire_date: Date!
+  employment_status: EmploymentStatus!
+  
+  # Relationships
+  user: User!
+  current_route: Route
+  assigned_vehicle: Vehicle
+}
+
+type VehicleLocation {
+  vehicle_id: ID!
+  driver_id: ID
+  route_id: ID
+  location: Location!
+  speed: Float
+  heading: Float
+  status: VehicleLocationStatus!
+  timestamp: DateTime!
+}
+
+type TrackingPoint {
+  id: ID!
+  vehicle_id: ID!
+  route_id: ID
+  location: Location!
+  speed: Float
+  heading: Float
+  event_type: TrackingEventType!
+  timestamp: DateTime!
+}
+
+type ActiveRoute {
+  route_id: ID!
+  driver_id: ID!
+  vehicle_id: ID!
+  status: ActiveRouteStatus!
+  current_stop: RouteStop
+  next_stop: RouteStop
+  progress: RouteProgress!
+}
+
+type RouteProgress {
+  stops_completed: Int!
+  stops_remaining: Int!
+  distance_traveled: Float!
+  time_elapsed: Int!
+  estimated_completion: DateTime
+}
+
+type GeocodeResult {
+  location: Location!
+  formatted_address: String!
+  confidence: Float!
+  place_type: String
+}
+
+type ReverseGeocodeResult {
+  address: String!
+  components: AddressComponents!
+  confidence: Float!
+}
+
+type AddressComponents {
+  street_number: String
+  street_name: String
+  city: String
+  state: String
+  zip: String
+  country: String
+}
+
+type OptimizationMetadata {
+  calculation_time: Float!
+  iterations: Int
+  constraints_satisfied: Boolean!
+  traffic_considered: Boolean!
+  algorithm_version: String
+}
+
+enum RouteType {
+  PICKUP
+  DELIVERY
+  MIXED
+  EMERGENCY
+  MAINTENANCE
+}
+
+enum RouteStatus {
+  PLANNED
+  ACTIVE
+  COMPLETED
+  CANCELLED
+  PAUSED
+}
+
+enum RouteStopStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+  SKIPPED
+  FAILED
+}
+
+enum VehicleType {
+  GARBAGE_TRUCK
+  RECYCLING_TRUCK
+  COMPOST_TRUCK
+  PICKUP_TRUCK
+  VAN
+}
+
+enum FuelType {
+  DIESEL
+  GASOLINE
+  ELECTRIC
+  HYBRID
+  CNG
+}
+
+enum VehicleStatus {
+  ACTIVE
+  MAINTENANCE
+  OUT_OF_SERVICE
+  RETIRED
+}
+
+enum VehicleLocationStatus {
+  IDLE
+  DRIVING
+  SERVICE
+  BREAK
+  MAINTENANCE
+}
+
+enum LicenseClass {
+  CLASS_A
+  CLASS_B
+  CLASS_C
+  CDL_A
+  CDL_B
+}
+
+enum EmploymentStatus {
+  FULL_TIME
+  PART_TIME
+  CONTRACT
+  TERMINATED
+}
+
+enum TrackingEventType {
+  LOCATION_UPDATE
+  STOP_ARRIVAL
+  STOP_DEPARTURE
+  BREAK_START
+  BREAK_END
+  ROUTE_START
+  ROUTE_END
+}
+
+enum ActiveRouteStatus {
+  ACTIVE
+  PAUSED
+  COMPLETED
+  EMERGENCY_STOP
+}
+
+enum OptimizationAlgorithm {
+  OR_TOOLS
+  GENETIC_ALGORITHM
+  SIMULATED_ANNEALING
+  NEAREST_NEIGHBOR
+  CLARKE_WRIGHT
+}
+
+input CreateRouteInput {
+  name: String!
+  description: String
+  route_type: RouteType!
+  service_day: WeekDay!
+  driver_id: ID
+  vehicle_id: ID
+  scheduled_start: DateTime
+  stops: [CreateRouteStopInput!]!
+}
+
+input CreateRouteStopInput {
+  customer_id: ID!
+  bin_id: ID!
+  location: LocationInput!
+  scheduled_arrival: DateTime
+  service_duration: Int
+  notes: String
+}
+
+input UpdateRouteInput {
+  name: String
+  description: String
+  driver_id: ID
+  vehicle_id: ID
+  scheduled_start: DateTime
+  stops: [CreateRouteStopInput!]
+}
+
+input OptimizeRouteInput {
+  algorithm: OptimizationAlgorithm = OR_TOOLS
+  constraints: OptimizationConstraintsInput
+  optimization_goals: [OptimizationGoal!] = [MINIMIZE_DISTANCE, MINIMIZE_TIME]
+}
+
+input OptimizationConstraintsInput {
+  max_duration: Int
+  max_distance: Float
+  vehicle_capacity: Float
+  time_windows: Boolean = true
+  traffic_aware: Boolean = true
+  balance_workload: Boolean = false
+}
+
+enum OptimizationGoal {
+  MINIMIZE_DISTANCE
+  MINIMIZE_TIME
+  MINIMIZE_COST
+  BALANCE_LOAD
+  MINIMIZE_FUEL
+}
+
+input StartRouteInput {
+  driver_id: ID!
+  vehicle_id: ID!
+  start_location: LocationInput
+}
+
+input CompleteRouteInput {
+  actual_distance: Float
+  actual_duration: Int
+  services_completed: Int
+  services_missed: Int
+  notes: String
+}
+
+input LocationUpdateInput {
+  latitude: Float!
+  longitude: Float!
+  speed: Float
+  heading: Float
+  altitude: Float
+  accuracy: Float
+  timestamp: DateTime!
+}
+
+# =============================================================================
+# INTEGRATION SERVICE - External APIs & Notifications
+# =============================================================================
+
+extend type Query {
+  """Get payment by ID"""
+  payment(id: ID!): Payment
+  
+  """List payments with pagination and filters"""
+  payments(
+    page: Int = 1
+    limit: Int = 50
+    customer_id: ID
+    status: PaymentStatus
+    date_from: Date
+    date_to: Date
+  ): PaymentConnection
+  
+  """Get invoice by ID"""
+  invoice(id: ID!): Invoice
+  
+  """List invoices with pagination and filters"""
+  invoices(
+    page: Int = 1
+    limit: Int = 50
+    customer_id: ID
+    status: InvoiceStatus
+    date_from: Date
+    date_to: Date
+  ): InvoiceConnection
+  
+  """Get external service health status"""
+  externalServiceHealth: [ExternalServiceHealth!]!
+}
+
+extend type Mutation {
+  """Process payment for customer"""
+  processPayment(input: ProcessPaymentInput!): Payment!
+  
+  """Send notification to user"""
+  sendNotification(input: SendNotificationInput!): Notification!
+  
+  """Generate invoice for customer"""
+  generateInvoice(input: GenerateInvoiceInput!): Invoice!
+  
+  """Sync data with external service"""
+  syncExternalData(service: ExternalService!, data_type: String!): SyncResult!
+}
+
+type Payment @key(fields: "id") {
+  id: ID!
+  customer_id: ID!
+  amount: Float!
+  currency: String!
+  payment_method: PaymentMethod!
+  stripe_payment_intent_id: String
+  status: PaymentStatus!
+  processed_at: DateTime
+  created_at: DateTime!
+  
+  # Relationships
+  customer: Customer!
+  invoice: Invoice
+}
+
+type Invoice @key(fields: "id") {
+  id: ID!
+  customer_id: ID!
+  invoice_number: String!
+  amount: Float!
+  currency: String!
+  status: InvoiceStatus!
+  due_date: Date!
+  issued_date: Date!
+  paid_date: Date
+  line_items: [InvoiceLineItem!]!
+  
+  # Relationships
+  customer: Customer!
+  payments: [Payment!]!
+}
+
+type InvoiceLineItem {
+  id: ID!
+  description: String!
+  quantity: Float!
+  unit_price: Float!
+  total: Float!
+}
+
+type Notification @key(fields: "id") {
+  id: ID!
+  recipient_id: ID!
+  type: NotificationType!
+  subject: String
+  message: String!
+  status: NotificationStatus!
+  provider: NotificationProvider!
+  cost: Float
+  sent_at: DateTime
+  created_at: DateTime!
+  
+  # Relationships
+  recipient: User!
+}
+
+type ExternalServiceHealth {
+  service: ExternalService!
+  status: ServiceHealthStatus!
+  response_time_ms: Float
+  last_check: DateTime!
+  error_rate: Float
+  uptime_percentage: Float
+}
+
+type SyncResult {
+  service: ExternalService!
+  data_type: String!
+  records_processed: Int!
+  records_successful: Int!
+  records_failed: Int!
+  duration_ms: Float!
+  started_at: DateTime!
+  completed_at: DateTime!
+}
+
+enum PaymentMethod {
+  CREDIT_CARD
+  BANK_TRANSFER
+  CASH
+  CHECK
+  AUTOPAY
+}
+
+enum PaymentStatus {
+  PENDING
+  PROCESSING
+  SUCCEEDED
+  FAILED
+  CANCELLED
+  REFUNDED
+}
+
+enum InvoiceStatus {
+  DRAFT
+  SENT
+  PAID
+  OVERDUE
+  CANCELLED
+  REFUNDED
+}
+
+enum NotificationType {
+  EMAIL
+  SMS
+  PUSH
+  WEBHOOK
+}
+
+enum NotificationStatus {
+  PENDING
+  SENT
+  DELIVERED
+  FAILED
+  BOUNCED
+}
+
+enum NotificationProvider {
+  SENDGRID
+  TWILIO
+  FIREBASE
+  STRIPE
+  INTERNAL
+}
+
+enum ExternalService {
+  STRIPE
+  TWILIO
+  SENDGRID
+  SAMSARA
+  AIRTABLE
+  MAPBOX
+  GOOGLE_MAPS
+}
+
+enum ServiceHealthStatus {
+  HEALTHY
+  DEGRADED
+  UNHEALTHY
+  UNKNOWN
+}
+
+input ProcessPaymentInput {
+  customer_id: ID!
+  amount: Float!
+  currency: String = "USD"
+  payment_method: PaymentMethod!
+  payment_method_id: String
+  invoice_id: ID
+  metadata: JSON
+}
+
+input SendNotificationInput {
+  recipient_id: ID!
+  type: NotificationType!
+  subject: String
+  message: String!
+  template_id: String
+  variables: JSON
+  scheduled_for: DateTime
+}
+
+input GenerateInvoiceInput {
+  customer_id: ID!
+  due_date: Date!
+  line_items: [InvoiceLineItemInput!]!
+  notes: String
+  auto_send: Boolean = false
+}
+
+input InvoiceLineItemInput {
+  description: String!
+  quantity: Float!
+  unit_price: Float!
+}
+
+# =============================================================================
+# AI-INTELLIGENCE SERVICE - ML/AI Features
+# =============================================================================
+
+extend type Query {
+  """Get ML prediction by ID"""
+  prediction(id: ID!): Prediction
+  
+  """Get model performance metrics"""
+  modelPerformance(model_id: ID!): ModelPerformance
+  
+  """Search knowledge base using vector similarity"""
+  vectorSearch(
+    query: String!
+    limit: Int = 10
+    similarity_threshold: Float = 0.8
+  ): [VectorSearchResult!]!
+  
+  """Get route optimization suggestions"""
+  routeOptimizationSuggestions(route_id: ID!): RouteOptimizationSuggestions
+  
+  """Get customer churn prediction"""
+  churnPrediction(customer_id: ID!): ChurnPrediction
+}
+
+extend type Mutation {
+  """Generate prediction using ML model"""
+  generatePrediction(input: GeneratePredictionInput!): Prediction!
+  
+  """Train ML model with new data"""
+  trainModel(input: TrainModelInput!): ModelTrainingJob!
+  
+  """Add document to knowledge base"""
+  addToKnowledgeBase(input: AddToKnowledgeBaseInput!): KnowledgeBaseDocument!
+}
+
+type Prediction @key(fields: "id") {
+  id: ID!
+  model_type: ModelType!
+  model_version: String!
+  input_features: JSON!
+  prediction_result: JSON!
+  confidence_score: Float!
+  generated_at: DateTime!
+  
+  # Model-specific predictions
+  demand_forecast: DemandForecast
+  route_optimization: RouteOptimizationPrediction
+  equipment_maintenance: MaintenancePrediction
+  customer_churn: ChurnPrediction
+}
+
+type ModelPerformance {
+  model_id: ID!
+  model_type: ModelType!
+  accuracy_score: Float!
+  precision: Float!
+  recall: Float!
+  f1_score: Float!
+  training_data_size: Int!
+  last_trained: DateTime!
+  prediction_count: Int!
+}
+
+type VectorSearchResult {
+  id: ID!
+  content: String!
+  metadata: JSON!
+  similarity_score: Float!
+  document_type: String!
+}
+
+type RouteOptimizationSuggestions {
+  route_id: ID!
+  suggestions: [OptimizationSuggestion!]!
+  potential_savings: OptimizationSavings!
+  confidence: Float!
+}
+
+type OptimizationSuggestion {
+  type: SuggestionType!
+  description: String!
+  impact_score: Float!
+  implementation_difficulty: DifficultyLevel!
+}
+
+type OptimizationSavings {
+  distance_reduction_km: Float
+  time_reduction_minutes: Int
+  fuel_savings_liters: Float
+  cost_savings_dollars: Float
+}
+
+type ChurnPrediction {
+  customer_id: ID!
+  churn_probability: Float!
+  risk_level: RiskLevel!
+  contributing_factors: [ChurnFactor!]!
+  recommended_actions: [RetentionAction!]!
+  prediction_date: DateTime!
+}
+
+type ChurnFactor {
+  factor: String!
+  impact_score: Float!
+  description: String!
+}
+
+type RetentionAction {
+  action: String!
+  priority: ActionPriority!
+  estimated_effectiveness: Float!
+  description: String!
+}
+
+type DemandForecast {
+  location: Location!
+  forecast_period: DateRange!
+  predicted_demand: [DemandDataPoint!]!
+  confidence_interval: ConfidenceInterval!
+  seasonality_factors: [SeasonalityFactor!]!
+}
+
+type DemandDataPoint {
+  date: Date!
+  predicted_volume: Float!
+  confidence: Float!
+}
+
+type RouteOptimizationPrediction {
+  route_id: ID!
+  predicted_duration: Int!
+  predicted_distance: Float!
+  predicted_fuel_consumption: Float!
+  traffic_impact: TrafficImpact!
+  weather_impact: WeatherImpact!
+}
+
+type MaintenancePrediction {
+  vehicle_id: ID!
+  predicted_maintenance_date: Date!
+  maintenance_type: MaintenanceType!
+  confidence: Float!
+  cost_estimate: Float!
+  risk_level: RiskLevel!
+}
+
+type TrafficPrediction {
+  location: Location!
+  time_period: DateRange!
+  predicted_delay: Int!
+  confidence: Float!
+}
+
+type ModelTrainingJob @key(fields: "id") {
+  id: ID!
+  model_type: ModelType!
+  status: TrainingStatus!
+  progress: Float!
+  training_data_size: Int!
+  started_at: DateTime!
+  completed_at: DateTime
+  metrics: ModelPerformance
+}
+
+type KnowledgeBaseDocument @key(fields: "id") {
+  id: ID!
+  title: String!
+  content: String!
+  document_type: String!
+  metadata: JSON!
+  vector_embeddings: [Float!]!
+  created_at: DateTime!
+  updated_at: DateTime!
+}
+
+enum ModelType {
+  DEMAND_FORECASTING
+  ROUTE_OPTIMIZATION
+  CUSTOMER_CHURN
+  EQUIPMENT_MAINTENANCE
+  PRICE_OPTIMIZATION
+  SENTIMENT_ANALYSIS
+}
+
+enum SuggestionType {
+  ROUTE_REORDER
+  TIME_WINDOW_ADJUSTMENT
+  VEHICLE_REALLOCATION
+  CAPACITY_OPTIMIZATION
+  TRAFFIC_AVOIDANCE
+}
+
+enum DifficultyLevel {
+  LOW
+  MEDIUM
+  HIGH
+  VERY_HIGH
+}
+
+enum RiskLevel {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum ActionPriority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+enum TrainingStatus {
+  QUEUED
+  RUNNING
+  COMPLETED
+  FAILED
+  CANCELLED
+}
+
+enum MaintenanceType {
+  ROUTINE
+  PREVENTIVE
+  CORRECTIVE
+  EMERGENCY
+}
+
+type ConfidenceInterval {
+  lower_bound: Float!
+  upper_bound: Float!
+  confidence_level: Float!
+}
+
+type SeasonalityFactor {
+  factor: String!
+  impact: Float!
+  period: String!
+}
+
+type TrafficImpact {
+  delay_minutes: Int!
+  confidence: Float!
+  peak_hours: [String!]!
+}
+
+type WeatherImpact {
+  delay_minutes: Int!
+  conditions: [String!]!
+  confidence: Float!
+}
+
+type DateRange {
+  start: DateTime!
+  end: DateTime!
+}
+
+input GeneratePredictionInput {
+  model_type: ModelType!
+  input_features: JSON!
+  metadata: JSON
+}
+
+input TrainModelInput {
+  model_type: ModelType!
+  training_data_query: String!
+  hyperparameters: JSON
+  validation_split: Float = 0.2
+}
+
+input AddToKnowledgeBaseInput {
+  title: String!
+  content: String!
+  document_type: String!
+  metadata: JSON
+}
+
+# =============================================================================
+# ANALYTICS SERVICE - Business Intelligence & Reporting
+# =============================================================================
+
+extend type Query {
+  """Get dashboard data for authenticated user"""
+  dashboard(
+    dashboard_type: DashboardType!
+    date_range: DateRangeInput
+    filters: JSON
+  ): Dashboard
+  
+  """Get business metrics with aggregation"""
+  businessMetrics(
+    metrics: [MetricType!]!
+    aggregation: AggregationPeriod!
+    date_range: DateRangeInput!
+    filters: JSON
+  ): [BusinessMetric!]!
+  
+  """Get customer analytics"""
+  customerAnalytics(
+    customer_id: ID
+    metrics: [CustomerMetric!]!
+    date_range: DateRangeInput!
+  ): CustomerAnalytics
+  
+  """Get operational report"""
+  operationalReport(
+    report_type: ReportType!
+    parameters: JSON!
+  ): OperationalReport
+}
+
+extend type Mutation {
+  """Generate custom report"""
+  generateReport(input: GenerateReportInput!): Report!
+  
+  """Export dashboard data"""
+  exportDashboard(
+    dashboard_type: DashboardType!
+    format: ExportFormat!
+    date_range: DateRangeInput!
+  ): ExportJob!
+  
+  """Save dashboard preferences"""
+  saveDashboardPreferences(input: DashboardPreferencesInput!): DashboardPreferences!
+}
+
+type Dashboard {
+  dashboard_type: DashboardType!
+  widgets: [DashboardWidget!]!
+  last_updated: DateTime!
+  refresh_interval: Int
+}
+
+type DashboardWidget {
+  id: ID!
+  widget_type: WidgetType!
+  title: String!
+  data: JSON!
+  configuration: JSON!
+  position: WidgetPosition!
+}
+
+type WidgetPosition {
+  x: Int!
+  y: Int!
+  width: Int!
+  height: Int!
+}
+
+type BusinessMetric {
+  metric_type: MetricType!
+  value: Float!
+  unit: String!
+  period: String!
+  change_percentage: Float
+  trend: TrendDirection!
+  benchmark: Float
+  target: Float
+}
+
+type CustomerAnalytics {
+  customer_id: ID
+  total_customers: Int
+  metrics: [CustomerMetricValue!]!
+  segmentation: CustomerSegmentation!
+  satisfaction: CustomerSatisfaction!
+}
+
+type CustomerMetricValue {
+  metric: CustomerMetric!
+  value: Float!
+  unit: String!
+  period: String!
+  trend: TrendDirection!
+}
+
+type CustomerSegmentation {
+  segments: [CustomerSegment!]!
+  distribution: [SegmentDistribution!]!
+}
+
+type CustomerSegment {
+  name: String!
+  criteria: JSON!
+  count: Int!
+  percentage: Float!
+}
+
+type SegmentDistribution {
+  segment: String!
+  count: Int!
+  percentage: Float!
+  revenue_contribution: Float!
+}
+
+type CustomerSatisfaction {
+  average_score: Float!
+  response_count: Int!
+  trend: TrendDirection!
+  by_segment: [SegmentSatisfaction!]!
+}
+
+type SegmentSatisfaction {
+  segment: String!
+  score: Float!
+  response_count: Int!
+}
+
+type OperationalReport {
+  report_type: ReportType!
+  generated_at: DateTime!
+  data: JSON!
+  summary: ReportSummary!
+  charts: [ChartData!]!
+}
+
+type ReportSummary {
+  key_findings: [String!]!
+  recommendations: [String!]!
+  performance_indicators: [KPI!]!
+}
+
+type KPI {
+  name: String!
+  value: Float!
+  unit: String!
+  target: Float
+  status: KPIStatus!
+}
+
+type ChartData {
+  chart_type: ChartType!
+  title: String!
+  data: JSON!
+  configuration: JSON!
+}
+
+type Report @key(fields: "id") {
+  id: ID!
+  report_type: ReportType!
+  title: String!
+  parameters: JSON!
+  status: ReportStatus!
+  file_path: String
+  generated_at: DateTime
+  requested_by: ID!
+  
+  # Relationships
+  requester: User!
+}
+
+type ExportJob @key(fields: "id") {
+  id: ID!
+  export_type: ExportType!
+  format: ExportFormat!
+  status: ExportStatus!
+  file_path: String
+  progress: Float!
+  created_at: DateTime!
+  completed_at: DateTime
+}
+
+type DashboardPreferences {
+  user_id: ID!
+  default_dashboard: DashboardType!
+  widget_preferences: JSON!
+  refresh_interval: Int!
+  date_range_default: DateRangePreset!
+}
+
+# Extended types for analytics
+extend type Customer {
+  usage_metrics: CustomerUsageMetrics
+  satisfaction_score: Float
+  lifetime_value: Float
+  churn_risk: RiskLevel
+}
+
+extend type Vehicle {
+  utilization_metrics: VehicleUtilizationMetrics
+  fuel_efficiency: Float
+  maintenance_cost: Float
+  downtime_percentage: Float
+}
+
+type CustomerUsageMetrics {
+  monthly_volume: Float!
+  service_frequency: Float!
+  payment_reliability: Float!
+  complaints_count: Int!
+  last_service: DateTime
+}
+
+type VehicleUtilizationMetrics {
+  daily_hours: Float!
+  weekly_miles: Float!
+  capacity_utilization: Float!
+  idle_time_percentage: Float!
+  maintenance_frequency: Float!
+}
+
+enum DashboardType {
+  EXECUTIVE
+  OPERATIONS
+  DRIVER
+  CUSTOMER
+  FINANCIAL
+  ANALYTICS
+}
+
+enum WidgetType {
+  CHART
+  TABLE
+  METRIC
+  MAP
+  GAUGE
+  PROGRESS
+  LIST
+}
+
+enum MetricType {
+  REVENUE
+  CUSTOMER_COUNT
+  ROUTE_EFFICIENCY
+  FUEL_CONSUMPTION
+  SERVICE_COMPLETION_RATE
+  CUSTOMER_SATISFACTION
+  VEHICLE_UTILIZATION
+  COST_PER_SERVICE
+  PROFIT_MARGIN
+  GROWTH_RATE
+}
+
+enum CustomerMetric {
+  ACQUISITION_RATE
+  RETENTION_RATE
+  LIFETIME_VALUE
+  SATISFACTION_SCORE
+  SERVICE_FREQUENCY
+  PAYMENT_TIMELINESS
+  COMPLAINT_RATE
+}
+
+enum ReportType {
+  OPERATIONAL_PERFORMANCE
+  FINANCIAL_SUMMARY
+  CUSTOMER_ANALYSIS
+  ROUTE_EFFICIENCY
+  VEHICLE_UTILIZATION
+  ENVIRONMENTAL_IMPACT
+  CUSTOM
+}
+
+enum AggregationPeriod {
+  HOURLY
+  DAILY
+  WEEKLY
+  MONTHLY
+  QUARTERLY
+  YEARLY
+}
+
+enum TrendDirection {
+  UP
+  DOWN
+  STABLE
+  VOLATILE
+}
+
+enum ChartType {
+  LINE
+  BAR
+  PIE
+  AREA
+  SCATTER
+  HEATMAP
+  GAUGE
+}
+
+enum KPIStatus {
+  EXCEEDING
+  ON_TARGET
+  BELOW_TARGET
+  CRITICAL
+}
+
+enum ReportStatus {
+  PENDING
+  GENERATING
+  COMPLETED
+  FAILED
+}
+
+enum ExportType {
+  DASHBOARD
+  REPORT
+  DATASET
+  CHART
+}
+
+enum ExportFormat {
+  PDF
+  EXCEL
+  CSV
+  JSON
+  PNG
+}
+
+enum ExportStatus {
+  QUEUED
+  PROCESSING
+  COMPLETED
+  FAILED
+}
+
+enum DateRangePreset {
+  TODAY
+  YESTERDAY
+  LAST_7_DAYS
+  LAST_30_DAYS
+  THIS_MONTH
+  LAST_MONTH
+  THIS_QUARTER
+  LAST_QUARTER
+  THIS_YEAR
+  LAST_YEAR
+  CUSTOM
+}
+
+input DateRangeInput {
+  start: DateTime!
+  end: DateTime!
+}
+
+input GenerateReportInput {
+  report_type: ReportType!
+  title: String!
+  parameters: JSON!
+  format: ExportFormat = PDF
+  schedule: ReportScheduleInput
+}
+
+input ReportScheduleInput {
+  frequency: ScheduleFrequency!
+  time: String!
+  recipients: [ID!]!
+}
+
+enum ScheduleFrequency {
+  DAILY
+  WEEKLY
+  MONTHLY
+  QUARTERLY
+}
+
+input DashboardPreferencesInput {
+  default_dashboard: DashboardType!
+  widget_preferences: JSON!
+  refresh_interval: Int = 300
+  date_range_default: DateRangePreset = LAST_30_DAYS
+}
+
+# =============================================================================
+# SHARED TYPES & UTILITIES
+# =============================================================================
+
+scalar DateTime
+scalar Date
+scalar JSON
+
+type PageInfo {
+  hasNextPage: Boolean!
+  hasPreviousPage: Boolean!
+  startCursor: String
+  endCursor: String
+}
+
+type CustomerConnection {
+  edges: [CustomerEdge!]!
+  pageInfo: PageInfo!
+  total_count: Int!
+}
+
+type CustomerEdge {
+  node: Customer!
+  cursor: String!
+}
+
+type BinConnection {
+  edges: [BinEdge!]!
+  pageInfo: PageInfo!
+  total_count: Int!
+}
+
+type BinEdge {
+  node: Bin!
+  cursor: String!
+}
+
+type ServiceEventConnection {
+  edges: [ServiceEventEdge!]!
+  pageInfo: PageInfo!
+  total_count: Int!
+}
+
+type ServiceEventEdge {
+  node: ServiceEvent!
+  cursor: String!
+}
+
+type RouteConnection {
+  edges: [RouteEdge!]!
+  pageInfo: PageInfo!
+  total_count: Int!
+}
+
+type RouteEdge {
+  node: Route!
+  cursor: String!
+}
+
+type PaymentConnection {
+  edges: [PaymentEdge!]!
+  pageInfo: PageInfo!
+  total_count: Int!
+}
+
+type PaymentEdge {
+  node: Payment!
+  cursor: String!
+}
+
+type InvoiceConnection {
+  edges: [InvoiceEdge!]!
+  pageInfo: PageInfo!
+  total_count: Int!
+}
+
+type InvoiceEdge {
+  node: Invoice!
+  cursor: String!
+}

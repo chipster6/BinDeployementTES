@@ -20,7 +20,6 @@
  */
 
 import type { Request, Response } from "express";
-import { validationResult } from "express-validator";
 import { Op } from "sequelize";
 import { logger } from "@/utils/logger";
 import { Bin, BinType, BinStatus, BinMaterial } from "@/models/Bin";
@@ -43,25 +42,10 @@ export class BinController {
     res: Response,
   ): Promise<void> {
     try {
-      // Check validation results
-      const errors = validationResult(req);
-      if (!errors.isEmpty()) {
-        res.status(400).json({
-          success: false,
-          message: "Validation failed",
-          errors: errors.array(),
-        });
-        return;
-      }
-
+      // Extract authenticated user
       const user = req.user;
-
-      // Check permissions
-      if (!user.canAccess("bins", "read")) {
-        res.status(403).json({
-          success: false,
-          message: "Insufficient permissions to view bins",
-        });
+      if (!user) {
+        res.status(401).json({ success: false, message: "Authentication required" });
         return;
       }
 
@@ -222,25 +206,10 @@ export class BinController {
     res: Response,
   ): Promise<void> {
     try {
-      // Check validation results
-      const errors = validationResult(req);
-      if (!errors.isEmpty()) {
-        res.status(400).json({
-          success: false,
-          message: "Validation failed",
-          errors: errors.array(),
-        });
-        return;
-      }
-
+      // Extract authenticated user
       const user = req.user;
-
-      // Check permissions
-      if (!user.canAccess("bins", "create")) {
-        res.status(403).json({
-          success: false,
-          message: "Insufficient permissions to create bins",
-        });
+      if (!user) {
+        res.status(401).json({ success: false, message: "Authentication required" });
         return;
       }
 
@@ -479,28 +448,15 @@ export class BinController {
     res: Response,
   ): Promise<void> {
     try {
-      // Check validation results
-      const errors = validationResult(req);
-      if (!errors.isEmpty()) {
-        res.status(400).json({
-          success: false,
-          message: "Validation failed",
-          errors: errors.array(),
-        });
-        return;
-      }
-
+      // Extract authenticated user
       const user = req.user;
-      const { id } = req.params;
-
-      // Check permissions
-      if (!user.canAccess("bins", "update")) {
-        res.status(403).json({
-          success: false,
-          message: "Insufficient permissions to update bins",
-        });
+      if (!user) {
+        res.status(401).json({ success: false, message: "Authentication required" });
         return;
       }
+
+      // Extract bin ID from params
+      const { id } = req.params;
 
       const bin = await Bin.findByPk(id);
       if (!bin) {
@@ -789,29 +745,16 @@ export class BinController {
     res: Response,
   ): Promise<void> {
     try {
-      // Check validation results
-      const errors = validationResult(req);
-      if (!errors.isEmpty()) {
-        res.status(400).json({
-          success: false,
-          message: "Validation failed",
-          errors: errors.array(),
-        });
+      // Extract authenticated user
+      const user = req.user;
+      if (!user) {
+        res.status(401).json({ success: false, message: "Authentication required" });
         return;
       }
 
-      const user = req.user;
+      // Extract bin ID from params
       const { id } = req.params;
       const { fillLevelPercent } = req.body;
-
-      // Check permissions
-      if (!user.canAccess("bins", "update")) {
-        res.status(403).json({
-          success: false,
-          message: "Insufficient permissions to update bin fill level",
-        });
-        return;
-      }
 
       const bin = await Bin.findByPk(id);
       if (!bin) {

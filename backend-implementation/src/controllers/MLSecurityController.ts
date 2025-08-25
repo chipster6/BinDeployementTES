@@ -80,7 +80,7 @@ export class MLSecurityController {
         }).required()
       })
     ),
-    async (req: Request, res: Response, next: NextFunction) => {
+    async (req: Request, res: Response, next: NextFunction): Promise<Response> => {
       try {
         const { context } = req.body;
 
@@ -90,7 +90,7 @@ export class MLSecurityController {
           return ResponseHelper.error(res, { 
             message: result?.message || "Operation failed", 
             statusCode: 400,
-            errors: result.errors || [] 
+            errors: result.errors || []
           });
         }
 
@@ -109,6 +109,7 @@ export class MLSecurityController {
           requestId: req.headers["x-request-id"]
         });
         next(error);
+        return ResponseHelper.error(res, { message: "Internal server error", statusCode: 500 });
       }
     }
   ];
@@ -126,11 +127,11 @@ export class MLSecurityController {
       }),
       'params'
     ),
-    async (req: Request, res: Response, next: NextFunction) => {
+    async (req: Request, res: Response, next: NextFunction): Promise<Response> => {
       try {
         const { userId, sessionId } = req.params;
 
-        const result = await this.mlSecurityService.getRealTimeThreatScore(userId, sessionId);
+        const result = await this.mlSecurityService.getRealTimeThreatScore(userId || '', sessionId || '');
 
         if (!result.success) {
           return ResponseHelper.error(res, { 
@@ -150,6 +151,7 @@ export class MLSecurityController {
           requestId: req.headers["x-request-id"]
         });
         next(error);
+        return ResponseHelper.error(res, { message: "Internal server error", statusCode: 500 });
       }
     }
   ];
@@ -159,15 +161,21 @@ export class MLSecurityController {
    */
   public analyzeFraudRisk = [
     authMiddleware,
-    requireRole(["admin", "fraud_analyst", "risk_manager"]),
-    validateRequest([
-      body("transaction.id").notEmpty().withMessage("Transaction ID required"),
-      body("transaction.customerId").notEmpty().withMessage("Customer ID required"),
-      body("transaction.amount").isNumeric().withMessage("Valid amount required"),
-      body("transaction.currency").isLength({ min: 3, max: 3 }).withMessage("Valid currency code required"),
-      body("transaction.paymentMethod.type").isIn(["card", "bank_transfer", "digital_wallet"]).withMessage("Valid payment method required")
-    ]),
-    async (req: Request, res: Response, next: NextFunction) => {
+    requireRole(UserRole.ADMIN),
+    validateRequest(
+      Joi.object({
+        transaction: Joi.object({
+          id: Joi.string().required(),
+          customerId: Joi.string().required(),
+          amount: Joi.number().required(),
+          currency: Joi.string().length(3).required(),
+          paymentMethod: Joi.object({
+            type: Joi.string().valid("card", "bank_transfer", "digital_wallet").required()
+          }).required()
+        }).required()
+      })
+    ),
+    async (req: Request, res: Response, next: NextFunction): Promise<Response> => {
       try {
         const { transaction } = req.body;
 
@@ -184,9 +192,9 @@ export class MLSecurityController {
         logger.info("Fraud risk analysis completed", {
           transactionId: transaction.id,
           customerId: transaction.customerId,
-          decision: result.data.decision,
-          fraudScore: result.data.fraudScore,
-          riskLevel: result.data.riskLevel,
+          decision: result.data?.decision,
+          fraudScore: result.data?.fraudScore,
+          riskLevel: result.data?.riskLevel,
           requestId: req.headers["x-request-id"]
         });
 
@@ -199,6 +207,7 @@ export class MLSecurityController {
           requestId: req.headers["x-request-id"]
         });
         next(error);
+        return ResponseHelper.error(res, { message: "Internal server error", statusCode: 500 });
       }
     }
   ];
@@ -208,8 +217,8 @@ export class MLSecurityController {
    */
   public getFraudMetrics = [
     authMiddleware,
-    requireRole(["admin", "fraud_analyst", "risk_manager", "dashboard_viewer"]),
-    async (req: Request, res: Response, next: NextFunction) => {
+    requireRole(UserRole.ADMIN),
+    async (req: Request, res: Response, next: NextFunction): Promise<Response> => {
       try {
         const result = await this.fraudDetectionService.getFraudMetrics();
 
@@ -225,6 +234,7 @@ export class MLSecurityController {
           requestId: req.headers["x-request-id"]
         });
         next(error);
+        return ResponseHelper.error(res, { message: "Internal server error", statusCode: 500 });
       }
     }
   ];
@@ -234,15 +244,19 @@ export class MLSecurityController {
    */
   public analyzeAPTBehavior = [
     authMiddleware,
-    requireRole(["admin", "security_analyst", "threat_hunter"]),
-    validateRequest([
-      body("userId").notEmpty().withMessage("User ID required"),
-      body("sessionId").notEmpty().withMessage("Session ID required"),
-      body("activityData.actions").isArray().withMessage("Actions array required"),
-      body("activityData.networkActivity").isArray().withMessage("Network activity array required"),
-      body("activityData.systemEvents").isArray().withMessage("System events array required")
-    ]),
-    async (req: Request, res: Response, next: NextFunction) => {
+    requireRole(UserRole.ADMIN),
+    validateRequest(
+      Joi.object({
+        userId: Joi.string().required(),
+        sessionId: Joi.string().required(),
+        activityData: Joi.object({
+          actions: Joi.array().required(),
+          networkActivity: Joi.array().required(),
+          systemEvents: Joi.array().required()
+        }).required()
+      })
+    ),
+    async (req: Request, res: Response, next: NextFunction): Promise<Response> => {
       try {
         const { userId, sessionId, activityData } = req.body;
 
@@ -263,9 +277,9 @@ export class MLSecurityController {
         logger.info("APT behavior analysis completed", {
           userId,
           sessionId,
-          anomaliesDetected: result.data.anomalies.length,
-          riskScore: result.data.riskScore,
-          suspectedTechniques: result.data.suspectedTechniques.length,
+          anomaliesDetected: result.data?.anomalies.length,
+          riskScore: result.data?.riskScore,
+          suspectedTechniques: result.data?.suspectedTechniques.length,
           requestId: req.headers["x-request-id"]
         });
 
@@ -279,6 +293,7 @@ export class MLSecurityController {
           requestId: req.headers["x-request-id"]
         });
         next(error);
+        return ResponseHelper.error(res, { message: "Internal server error", statusCode: 500 });
       }
     }
   ];
@@ -288,14 +303,19 @@ export class MLSecurityController {
    */
   public detectLateralMovement = [
     authMiddleware,
-    requireRole(["admin", "security_analyst", "threat_hunter"]),
-    validateRequest([
-      body("networkEvents").isArray().withMessage("Network events array required"),
-      body("networkEvents.*.sourceIp").isIP().withMessage("Valid source IP required"),
-      body("networkEvents.*.targetIp").isIP().withMessage("Valid target IP required"),
-      body("networkEvents.*.protocol").notEmpty().withMessage("Protocol required")
-    ]),
-    async (req: Request, res: Response, next: NextFunction) => {
+    requireRole(UserRole.ADMIN),
+    validateRequest(
+      Joi.object({
+        networkEvents: Joi.array().items(
+          Joi.object({
+            sourceIp: Joi.string().ip().required(),
+            targetIp: Joi.string().ip().required(),
+            protocol: Joi.string().required()
+          })
+        ).required()
+      })
+    ),
+    async (req: Request, res: Response, next: NextFunction): Promise<Response> => {
       try {
         const { networkEvents } = req.body;
 
@@ -311,8 +331,8 @@ export class MLSecurityController {
 
         logger.info("Lateral movement detection completed", {
           networkEventsCount: networkEvents.length,
-          movementsDetected: result.data.movements.length,
-          suspiciousChains: result.data.suspiciousChains.length,
+          movementsDetected: result.data?.movements.length,
+          suspiciousChains: result.data?.suspiciousChains.length,
           requestId: req.headers["x-request-id"]
         });
 
@@ -325,6 +345,7 @@ export class MLSecurityController {
           requestId: req.headers["x-request-id"]
         });
         next(error);
+        return ResponseHelper.error(res, { message: "Internal server error", statusCode: 500 });
       }
     }
   ];
@@ -334,14 +355,19 @@ export class MLSecurityController {
    */
   public detectC2Communications = [
     authMiddleware,
-    requireRole(["admin", "security_analyst", "threat_hunter"]),
-    validateRequest([
-      body("networkTraffic").isArray().withMessage("Network traffic array required"),
-      body("networkTraffic.*.sourceIp").isIP().withMessage("Valid source IP required"),
-      body("networkTraffic.*.destinationIp").isIP().withMessage("Valid destination IP required"),
-      body("networkTraffic.*.protocol").notEmpty().withMessage("Protocol required")
-    ]),
-    async (req: Request, res: Response, next: NextFunction) => {
+    requireRole(UserRole.ADMIN),
+    validateRequest(
+      Joi.object({
+        networkTraffic: Joi.array().items(
+          Joi.object({
+            sourceIp: Joi.string().ip().required(),
+            destinationIp: Joi.string().ip().required(),
+            protocol: Joi.string().required()
+          })
+        ).required()
+      })
+    ),
+    async (req: Request, res: Response, next: NextFunction): Promise<Response> => {
       try {
         const { networkTraffic } = req.body;
 
@@ -357,9 +383,9 @@ export class MLSecurityController {
 
         logger.info("C2 communication detection completed", {
           trafficCount: networkTraffic.length,
-          c2Communications: result.data.c2Communications.length,
-          blockedCommunications: result.data.blockedCommunications,
-          suspiciousPatterns: result.data.suspiciousPatterns.length,
+          c2Communications: result.data?.c2Communications.length,
+          blockedCommunications: result.data?.blockedCommunications,
+          suspiciousPatterns: result.data?.suspiciousPatterns.length,
           requestId: req.headers["x-request-id"]
         });
 
@@ -372,6 +398,7 @@ export class MLSecurityController {
           requestId: req.headers["x-request-id"]
         });
         next(error);
+        return ResponseHelper.error(res, { message: "Internal server error", statusCode: 500 });
       }
     }
   ];
@@ -381,13 +408,17 @@ export class MLSecurityController {
    */
   public runThreatHunting = [
     authMiddleware,
-    requireRole(["admin", "threat_hunter", "security_analyst"]),
-    validateRequest([
-      body("queryIds").optional().isArray().withMessage("Query IDs must be array"),
-      body("timeRange.start").optional().isISO8601().withMessage("Valid start date required"),
-      body("timeRange.end").optional().isISO8601().withMessage("Valid end date required")
-    ]),
-    async (req: Request, res: Response, next: NextFunction) => {
+    requireRole(UserRole.ADMIN),
+    validateRequest(
+      Joi.object({
+        queryIds: Joi.array().optional(),
+        timeRange: Joi.object({
+          start: Joi.date().iso().optional(),
+          end: Joi.date().iso().optional()
+        }).optional()
+      })
+    ),
+    async (req: Request, res: Response, next: NextFunction): Promise<Response> => {
       try {
         const { queryIds, timeRange } = req.body;
 
@@ -408,9 +439,9 @@ export class MLSecurityController {
 
         logger.info("Threat hunting completed", {
           queryIds: queryIds?.length || "all",
-          totalFindings: result.data.totalFindings,
-          newCampaigns: result.data.newCampaigns.length,
-          updatedCampaigns: result.data.updatedCampaigns.length,
+          totalFindings: result.data?.totalFindings,
+          newCampaigns: result.data?.newCampaigns.length,
+          updatedCampaigns: result.data?.updatedCampaigns.length,
           requestId: req.headers["x-request-id"]
         });
 
@@ -423,6 +454,7 @@ export class MLSecurityController {
           requestId: req.headers["x-request-id"]
         });
         next(error);
+        return ResponseHelper.error(res, { message: "Internal server error", statusCode: 500 });
       }
     }
   ];
@@ -433,7 +465,7 @@ export class MLSecurityController {
   public getAPTDashboard = [
     authMiddleware,
     requireRole(["admin", "security_analyst", "threat_hunter", "dashboard_viewer"]),
-    async (req: Request, res: Response, next: NextFunction) => {
+    async (req: Request, res: Response, next: NextFunction): Promise<Response> => {
       try {
         const result = await this.aptDetectionService.getAPTDashboard();
 
@@ -449,6 +481,7 @@ export class MLSecurityController {
           requestId: req.headers["x-request-id"]
         });
         next(error);
+        return ResponseHelper.error(res, { message: "Internal server error", statusCode: 500 });
       }
     }
   ];
@@ -458,14 +491,18 @@ export class MLSecurityController {
    */
   public generateThreatPredictions = [
     authMiddleware,
-    requireRole(["admin", "security_analyst", "risk_manager"]),
-    validateRequest([
-      body("modelTypes").isArray().withMessage("Model types array required"),
-      body("horizons").isArray().withMessage("Horizons array required"),
-      body("scope.userId").optional().notEmpty().withMessage("User ID must not be empty"),
-      body("scope.systemId").optional().notEmpty().withMessage("System ID must not be empty")
-    ]),
-    async (req: Request, res: Response, next: NextFunction) => {
+    requireRole(UserRole.ADMIN),
+    validateRequest(
+      Joi.object({
+        modelTypes: Joi.array().required(),
+        horizons: Joi.array().required(),
+        scope: Joi.object({
+          userId: Joi.string().optional(),
+          systemId: Joi.string().optional()
+        }).optional()
+      })
+    ),
+    async (req: Request, res: Response, next: NextFunction): Promise<Response> => {
       try {
         const { modelTypes, horizons, scope } = req.body;
 
@@ -486,8 +523,8 @@ export class MLSecurityController {
         logger.info("Threat predictions generated", {
           modelTypes: modelTypes.length,
           horizons: horizons.length,
-          predictionsGenerated: result.data.predictions.length,
-          avgConfidence: result.data.summary.avgConfidence,
+          predictionsGenerated: result.data?.predictions.length,
+          avgConfidence: result.data?.summary.avgConfidence,
           requestId: req.headers["x-request-id"]
         });
 
@@ -500,6 +537,7 @@ export class MLSecurityController {
           requestId: req.headers["x-request-id"]
         });
         next(error);
+        return ResponseHelper.error(res, { message: "Internal server error", statusCode: 500 });
       }
     }
   ];
@@ -509,14 +547,19 @@ export class MLSecurityController {
    */
   public analyzeRiskTrajectories = [
     authMiddleware,
-    requireRole(["admin", "security_analyst", "risk_manager"]),
-    validateRequest([
-      body("targets").isArray().withMessage("Targets array required"),
-      body("targets.*.type").isIn(["user", "system"]).withMessage("Valid target type required"),
-      body("targets.*.id").notEmpty().withMessage("Target ID required"),
-      body("horizon").optional().isIn(["1h", "6h", "24h", "7d", "30d", "90d"]).withMessage("Valid horizon required")
-    ]),
-    async (req: Request, res: Response, next: NextFunction) => {
+    requireRole(UserRole.ADMIN),
+    validateRequest(
+      Joi.object({
+        targets: Joi.array().items(
+          Joi.object({
+            type: Joi.string().valid("user", "system").required(),
+            id: Joi.string().required()
+          })
+        ).required(),
+        horizon: Joi.string().valid("1h", "6h", "24h", "7d", "30d", "90d").optional()
+      })
+    ),
+    async (req: Request, res: Response, next: NextFunction): Promise<Response> => {
       try {
         const { targets, horizon } = req.body;
 
@@ -532,8 +575,8 @@ export class MLSecurityController {
 
         logger.info("Risk trajectory analysis completed", {
           targetsAnalyzed: targets.length,
-          highRiskTargets: result.data.summary.highRiskTargets,
-          interventionsRecommended: result.data.interventions.length,
+          highRiskTargets: result.data?.summary.highRiskTargets,
+          interventionsRecommended: result.data?.interventions.length,
           requestId: req.headers["x-request-id"]
         });
 
@@ -546,6 +589,7 @@ export class MLSecurityController {
           requestId: req.headers["x-request-id"]
         });
         next(error);
+        return ResponseHelper.error(res, { message: "Internal server error", statusCode: 500 });
       }
     }
   ];
@@ -555,8 +599,8 @@ export class MLSecurityController {
    */
   public getSecurityAnalyticsDashboard = [
     authMiddleware,
-    requireRole(["admin", "security_analyst", "risk_manager", "dashboard_viewer"]),
-    async (req: Request, res: Response, next: NextFunction) => {
+    requireRole(UserRole.ADMIN),
+    async (req: Request, res: Response, next: NextFunction): Promise<Response> => {
       try {
         const result = await this.securityAnalyticsService.getSecurityAnalyticsDashboard();
 
@@ -572,6 +616,7 @@ export class MLSecurityController {
           requestId: req.headers["x-request-id"]
         });
         next(error);
+        return ResponseHelper.error(res, { message: "Internal server error", statusCode: 500 });
       }
     }
   ];
@@ -581,14 +626,20 @@ export class MLSecurityController {
    */
   public submitTrainingJob = [
     authMiddleware,
-    requireRole(["admin", "ml_engineer", "security_analyst"]),
-    validateRequest([
-      body("config.modelType").notEmpty().withMessage("Model type required"),
-      body("config.algorithm").notEmpty().withMessage("Training algorithm required"),
-      body("config.features").isArray().withMessage("Features array required"),
-      body("config.trainingData.source").notEmpty().withMessage("Training data source required")
-    ]),
-    async (req: Request, res: Response, next: NextFunction) => {
+    requireRole(UserRole.ADMIN),
+    validateRequest(
+      Joi.object({
+        config: Joi.object({
+          modelType: Joi.string().required(),
+          algorithm: Joi.string().required(),
+          features: Joi.array().required(),
+          trainingData: Joi.object({
+            source: Joi.string().required()
+          }).required()
+        }).required()
+      })
+    ),
+    async (req: Request, res: Response, next: NextFunction): Promise<Response> => {
       try {
         const { config } = req.body;
 
@@ -603,10 +654,10 @@ export class MLSecurityController {
         }
 
         logger.info("ML training job submitted", {
-          jobId: result.data.jobId,
+          jobId: result.data?.jobId,
           modelType: config.modelType,
           algorithm: config.algorithm,
-          estimatedDuration: result.data.estimatedDuration,
+          estimatedDuration: result.data?.estimatedDuration,
           requestId: req.headers["x-request-id"]
         });
 
@@ -619,6 +670,7 @@ export class MLSecurityController {
           requestId: req.headers["x-request-id"]
         });
         next(error);
+        return ResponseHelper.error(res, { message: "Internal server error", statusCode: 500 });
       }
     }
   ];
@@ -628,11 +680,14 @@ export class MLSecurityController {
    */
   public getTrainingJobStatus = [
     authMiddleware,
-    requireRole(["admin", "ml_engineer", "security_analyst"]),
-    validateRequest([
-      param("jobId").notEmpty().withMessage("Job ID required")
-    ]),
-    async (req: Request, res: Response, next: NextFunction) => {
+    requireRole(UserRole.ADMIN),
+    validateRequest(
+      Joi.object({
+        jobId: Joi.string().required()
+      }),
+      'params'
+    ),
+    async (req: Request, res: Response, next: NextFunction): Promise<Response> => {
       try {
         const { jobId } = req.params;
 
@@ -651,6 +706,7 @@ export class MLSecurityController {
           requestId: req.headers["x-request-id"]
         });
         next(error);
+        return ResponseHelper.error(res, { message: "Internal server error", statusCode: 500 });
       }
     }
   ];
@@ -660,13 +716,15 @@ export class MLSecurityController {
    */
   public deployModel = [
     authMiddleware,
-    requireRole(["admin", "ml_engineer"]),
-    validateRequest([
-      body("modelId").notEmpty().withMessage("Model ID required"),
-      body("environment").isIn(["staging", "production"]).withMessage("Valid environment required"),
-      body("trafficPercentage").optional().isInt({ min: 1, max: 100 }).withMessage("Traffic percentage must be 1-100")
-    ]),
-    async (req: Request, res: Response, next: NextFunction) => {
+    requireRole(UserRole.ADMIN),
+    validateRequest(
+      Joi.object({
+        modelId: Joi.string().required(),
+        environment: Joi.string().valid("staging", "production").required(),
+        trafficPercentage: Joi.number().integer().min(1).max(100).optional().default(100)
+      })
+    ),
+    async (req: Request, res: Response, next: NextFunction): Promise<Response> => {
       try {
         const { modelId, environment, trafficPercentage = 100 } = req.body;
 
@@ -687,7 +745,7 @@ export class MLSecurityController {
         logger.info("Model deployment initiated", {
           modelId,
           environment,
-          deploymentId: result.data.deploymentId,
+          deploymentId: result.data?.deploymentId,
           trafficPercentage,
           requestId: req.headers["x-request-id"]
         });
@@ -702,6 +760,7 @@ export class MLSecurityController {
           requestId: req.headers["x-request-id"]
         });
         next(error);
+        return ResponseHelper.error(res, { message: "Internal server error", statusCode: 500 });
       }
     }
   ];
@@ -711,13 +770,21 @@ export class MLSecurityController {
    */
   public monitorModelPerformance = [
     authMiddleware,
-    requireRole(["admin", "ml_engineer", "security_analyst"]),
-    validateRequest([
-      param("modelId").notEmpty().withMessage("Model ID required"),
-      query("startDate").optional().isISO8601().withMessage("Valid start date required"),
-      query("endDate").optional().isISO8601().withMessage("Valid end date required")
-    ]),
-    async (req: Request, res: Response, next: NextFunction) => {
+    requireRole(UserRole.ADMIN),
+    validateRequest(
+      Joi.object({
+        modelId: Joi.string().required()
+      }),
+      'params'
+    ),
+    validateRequest(
+      Joi.object({
+        startDate: Joi.date().iso().optional(),
+        endDate: Joi.date().iso().optional()
+      }),
+      'query'
+    ),
+    async (req: Request, res: Response, next: NextFunction): Promise<Response> => {
       try {
         const { modelId } = req.params;
         const { startDate, endDate } = req.query;
@@ -742,6 +809,7 @@ export class MLSecurityController {
           requestId: req.headers["x-request-id"]
         });
         next(error);
+        return ResponseHelper.error(res, { message: "Internal server error", statusCode: 500 });
       }
     }
   ];
@@ -752,7 +820,7 @@ export class MLSecurityController {
   public getTrainingDashboard = [
     authMiddleware,
     requireRole(["admin", "ml_engineer", "security_analyst", "dashboard_viewer"]),
-    async (req: Request, res: Response, next: NextFunction) => {
+    async (req: Request, res: Response, next: NextFunction): Promise<Response> => {
       try {
         const result = await this.mlModelTrainingService.getTrainingDashboard();
 
@@ -768,6 +836,7 @@ export class MLSecurityController {
           requestId: req.headers["x-request-id"]
         });
         next(error);
+        return ResponseHelper.error(res, { message: "Internal server error", statusCode: 500 });
       }
     }
   ];
@@ -777,14 +846,16 @@ export class MLSecurityController {
    */
   public blockEntity = [
     authMiddleware,
-    requireRole(["admin", "fraud_analyst", "security_analyst"]),
-    validateRequest([
-      body("entityType").isIn(["customer", "card", "ip", "device"]).withMessage("Valid entity type required"),
-      body("entityId").notEmpty().withMessage("Entity ID required"),
-      body("reason").notEmpty().withMessage("Block reason required"),
-      body("duration").optional().isInt({ min: 300 }).withMessage("Duration must be at least 300 seconds")
-    ]),
-    async (req: Request, res: Response, next: NextFunction) => {
+    requireRole(UserRole.ADMIN),
+    validateRequest(
+      Joi.object({
+        entityType: Joi.string().valid("customer", "card", "ip", "device").required(),
+        entityId: Joi.string().required(),
+        reason: Joi.string().required(),
+        duration: Joi.number().integer().min(300).optional()
+      })
+    ),
+    async (req: Request, res: Response, next: NextFunction): Promise<Response> => {
       try {
         const { entityType, entityId, reason, duration } = req.body;
 
@@ -822,6 +893,7 @@ export class MLSecurityController {
           requestId: req.headers["x-request-id"]
         });
         next(error);
+        return ResponseHelper.error(res, { message: "Internal server error", statusCode: 500 });
       }
     }
   ];
@@ -831,13 +903,20 @@ export class MLSecurityController {
    */
   public triggerRetraining = [
     authMiddleware,
-    requireRole(["admin", "ml_engineer"]),
-    validateRequest([
-      param("modelId").notEmpty().withMessage("Model ID required"),
-      body("reason").notEmpty().withMessage("Retraining reason required"),
-      body("config").optional().isObject().withMessage("Config must be object")
-    ]),
-    async (req: Request, res: Response, next: NextFunction) => {
+    requireRole(UserRole.ADMIN),
+    validateRequest(
+      Joi.object({
+        modelId: Joi.string().required()
+      }),
+      'params'
+    ),
+    validateRequest(
+      Joi.object({
+        reason: Joi.string().required(),
+        config: Joi.object().optional()
+      })
+    ),
+    async (req: Request, res: Response, next: NextFunction): Promise<Response> => {
       try {
         const { modelId } = req.params;
         const { reason, config } = req.body;
@@ -859,7 +938,7 @@ export class MLSecurityController {
         logger.info("Model retraining triggered", {
           modelId,
           reason,
-          jobId: result.data.jobId,
+          jobId: result.data?.jobId,
           triggeredBy: req.user?.id,
           requestId: req.headers["x-request-id"]
         });
@@ -874,6 +953,7 @@ export class MLSecurityController {
           requestId: req.headers["x-request-id"]
         });
         next(error);
+        return ResponseHelper.error(res, { message: "Internal server error", statusCode: 500 });
       }
     }
   ];

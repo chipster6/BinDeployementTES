@@ -3,20 +3,32 @@
   "compilerOptions": {
     "sourceMap": false,
     "declarationMap": false,
+    "declaration": false,
     "removeComments": true,
     "importsNotUsedAsValues": "remove",
     "noEmitOnError": true,
-    "stripInternal": true
+    "stripInternal": true,
+    "incremental": false,
+    "tsBuildInfoFile": null,
+    "composite": false,
+    "isolatedModules": true
   },
   "exclude": [
     "node_modules",
     "dist",
     "coverage",
     "tests",
+    "cypress",
+    "scripts",
     "**/*.test.ts",
     "**/*.spec.ts",
     "**/*.dev.ts",
+    "**/*.cy.ts",
     "src/**/__tests__",
-    "src/**/__mocks__"
+    "src/**/__mocks__",
+    "src/test",
+    "shared/*/tests",
+    "*.config.js",
+    "*.config.ts"
   ]
 }

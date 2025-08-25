@@ -17,14 +17,16 @@ import * as Joi from "joi";
  * Security environment variable validation schema
  */
 export const securityEnvSchema = Joi.object({
-  // JWT - RS256 requires public/private key pairs
-  JWT_PRIVATE_KEY: Joi.string().required(),
-  JWT_PUBLIC_KEY: Joi.string().required(),
-  JWT_REFRESH_PRIVATE_KEY: Joi.string().required(),
-  JWT_REFRESH_PUBLIC_KEY: Joi.string().required(),
-  JWT_EXPIRES_IN: Joi.string().default("15m"),
-  JWT_REFRESH_EXPIRES_IN: Joi.string().default("7d"),
-  JWT_ALGORITHM: Joi.string().default("RS256"),
+  // JWT - RS256 requires public/private key pairs (SECURITY HARDENED)
+  JWT_PRIVATE_KEY: Joi.string().required().description("RSA private key for JWT signing"),
+  JWT_PUBLIC_KEY: Joi.string().required().description("RSA public key for JWT verification"),
+  JWT_REFRESH_PRIVATE_KEY: Joi.string().required().description("RSA private key for refresh token signing"),
+  JWT_REFRESH_PUBLIC_KEY: Joi.string().required().description("RSA public key for refresh token verification"),
+  JWT_EXPIRES_IN: Joi.string().default("15m").description("JWT access token expiration"),
+  JWT_REFRESH_EXPIRES_IN: Joi.string().default("7d").description("JWT refresh token expiration"),
+  JWT_ALGORITHM: Joi.string().valid("RS256").default("RS256").description("JWT algorithm (must be RS256 for production)"),
+  JWT_ISSUER: Joi.string().default("waste-management-api"),
+  JWT_AUDIENCE: Joi.string().default("waste-management-users"),
 
   // Encryption
   ENCRYPTION_KEY: Joi.string().length(32).required(),
@@ -41,10 +43,28 @@ export const securityEnvSchema = Joi.object({
   TRUST_PROXY: Joi.boolean().default(false),
   SECURE_COOKIES: Joi.boolean().default(false),
 
-  // Rate Limiting
+  // TIERED RATE LIMITING (SECURITY HARDENED)
+  RATE_LIMIT_ANONYMOUS_WINDOW_MS: Joi.number().default(900000),
+  RATE_LIMIT_ANONYMOUS_MAX_REQUESTS: Joi.number().default(100),
+  RATE_LIMIT_AUTH_WINDOW_MS: Joi.number().default(900000),
+  RATE_LIMIT_AUTH_MAX_REQUESTS: Joi.number().default(1000),
+  RATE_LIMIT_ADMIN_WINDOW_MS: Joi.number().default(900000),
+  RATE_LIMIT_ADMIN_MAX_REQUESTS: Joi.number().default(5000),
+  RATE_LIMIT_CRITICAL_WINDOW_MS: Joi.number().default(900000),
+  RATE_LIMIT_CRITICAL_MAX_REQUESTS: Joi.number().default(10),
+  
+  // Legacy rate limiting (deprecated)
   RATE_LIMIT_WINDOW_MS: Joi.number().default(3600000),
   RATE_LIMIT_MAX_REQUESTS: Joi.number().default(1000),
   RATE_LIMIT_SKIP_SUCCESSFUL_REQUESTS: Joi.boolean().default(true),
+
+  // REQUEST SIZE LIMITS (SECURITY HARDENED)
+  REQUEST_SIZE_LIMIT_DEFAULT: Joi.string().default("1mb"),
+  REQUEST_SIZE_LIMIT_FILE_UPLOAD: Joi.string().default("10mb"),
+  REQUEST_SIZE_LIMIT_JSON: Joi.string().default("1mb"),
+  REQUEST_SIZE_LIMIT_URL_ENCODED: Joi.string().default("1mb"),
+  REQUEST_SIZE_LIMIT_AUTH: Joi.string().default("100kb"),
+  REQUEST_SIZE_LIMIT_EMERGENCY: Joi.string().default("50mb"),
 });
 
 /**

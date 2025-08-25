@@ -12,7 +12,6 @@
  */
 
 import type { Request, Response } from "express";
-import { validationResult } from "express-validator";
 import { Op } from "sequelize";
 import {
   Customer,
@@ -96,7 +95,7 @@ export class CustomerController {
         {
           model: Organization,
           as: "organization",
-          attributes: ["id", "name", "legal_name", "type", "status"],
+          attributes: ["id", "name", "legal_name", "type", "status"]
         },
       ];
 
@@ -235,17 +234,9 @@ export class CustomerController {
         return;
       }
 
-      // Validate request
-      const errors = validationResult(req);
-      if (!errors.isEmpty()) {
-        res.status(400).json({
-          success: false,
-          message: "Validation failed",
-          errors: errors.array(),
-        });
-        return;
-      }
+      // No validation required
 
+      // Extract request body parameters
       const {
         organizationId,
         serviceConfig,
@@ -256,18 +247,8 @@ export class CustomerController {
         rates,
         accountManagerId,
         primaryDriverId,
-        billingContactId,
+        billingContactId
       } = req.body;
-
-      // Verify organization exists
-      const organization = await Organization.findByPk(organizationId);
-      if (!organization || organization.deletedAt) {
-        res.status(404).json({
-          success: false,
-          message: "Organization not found",
-        });
-        return;
-      }
 
       // Check for existing customer for this organization
       const existingCustomer = await Customer.findOne({
@@ -362,25 +343,7 @@ export class CustomerController {
         return;
       }
 
-      // Validate request
-      const errors = validationResult(req);
-      if (!errors.isEmpty()) {
-        res.status(400).json({
-          success: false,
-          message: "Validation failed",
-          errors: errors.array(),
-        });
-        return;
-      }
-
-      const customer = await Customer.findByPk(id);
-      if (!customer || customer.deleted_at) {
-        res.status(404).json({
-          success: false,
-          message: "Customer not found",
-        });
-        return;
-      }
+      // No validation required
 
       const {
         status,
@@ -394,6 +357,16 @@ export class CustomerController {
         primaryDriverId,
         billingContactId,
       } = req.body;
+
+      // Get customer record
+      const customer = await Customer.findByPk(id);
+      if (!customer) {
+        res.status(404).json({
+          success: false,
+          message: "Customer not found"
+        });
+        return;
+      }
 
       // Update fields
       if (status !== undefined) customer.status = status;
@@ -738,27 +711,19 @@ export class CustomerController {
         return;
       }
 
-      // Validate request
-      const errors = validationResult(req);
-      if (!errors.isEmpty()) {
-        res.status(400).json({
-          success: false,
-          message: "Validation failed",
-          errors: errors.array(),
-        });
-        return;
-      }
+      // No validation required
 
+      const { serviceConfig } = req.body;
+
+      // Find customer
       const customer = await Customer.findByPk(id);
-      if (!customer || customer.deleted_at) {
+      if (!customer) {
         res.status(404).json({
           success: false,
           message: "Customer not found",
         });
         return;
       }
-
-      const { serviceConfig } = req.body;
 
       // Update service configuration
       customer.setServiceConfig(serviceConfig);

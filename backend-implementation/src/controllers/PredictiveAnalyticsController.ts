@@ -27,7 +27,6 @@ import { ResponseHelper } from '@/utils/ResponseHelper';
 import { predictiveAnalyticsService } from '@/services/PredictiveAnalyticsService';
 import { prophetIntegrationService } from '@/services/ProphetIntegrationService';
 import { lightgbmWrapperService } from '@/services/LightGBMWrapperService';
-import { validationResult } from 'express-validator';
 import { AppError, ValidationError } from '@/middleware/errorHandler';
 
 /**
@@ -44,11 +43,7 @@ export class PredictiveAnalyticsController {
 
     try {
       // Validate request
-      const errors = validationResult(req);
-      if (!errors.isEmpty()) {
-        ResponseHelper.badRequest(res, req, 'Validation failed', errors.array());
-        return;
-      }
+      
 
       const { target, timeframe, granularity, filters, features, modelPreference } = req.body;
 
@@ -79,7 +74,7 @@ export class PredictiveAnalyticsController {
           cached: result.data?.cached || false
         });
 
-        ResponseHelper.success(res, req, {
+        ResponseHelper.success(res, {
           data: result.data,
           message: 'Forecast generated successfully',
           meta: {
@@ -91,7 +86,7 @@ export class PredictiveAnalyticsController {
         });
       } else {
         timer.end({ error: result?.message });
-        ResponseHelper.internalError(res, req, result?.message || 'Forecast generation failed');
+        ResponseHelper.internalError(res, result?.message || 'Forecast generation failed');
       }
 
     } catch (error: unknown) {
@@ -106,13 +101,13 @@ export class PredictiveAnalyticsController {
       
       // Enhanced error handling for ML-specific failures
       if (errorMessage.includes('model not found')) {
-        ResponseHelper.internalError(res, req, 'Requested model is not available. Please train the model first.', 404);
+        ResponseHelper.error(res, { message: 'Requested model is not available. Please train the model first.', statusCode: 404 });
       } else if (errorMessage.includes('insufficient data')) {
-        ResponseHelper.internalError(res, req, 'Insufficient historical data for reliable forecasting.', 400);
+        ResponseHelper.error(res, { message: 'Insufficient historical data for reliable forecasting.', statusCode: 400 });
       } else if (errorMessage.includes('timeout')) {
-        ResponseHelper.internalError(res, req, 'Forecast generation timed out. Please try with a smaller timeframe.', 408);
+        ResponseHelper.error(res, { message: 'Forecast generation timed out. Please try with a smaller timeframe.', statusCode: 408 });
       } else {
-        ResponseHelper.internalError(res, req, 'Internal server error during forecast generation', 500);
+        ResponseHelper.internalError(res, 'Internal server error during forecast generation');
       }
     }
   }
@@ -126,22 +121,18 @@ export class PredictiveAnalyticsController {
 
     try {
       // Validate request
-      const errors = validationResult(req);
-      if (!errors.isEmpty()) {
-        ResponseHelper.badRequest(res, req, 'Validation failed', errors.array());
-        return;
-      }
+      
 
       const { requests, options } = req.body;
 
       // Validate batch request structure
       if (!Array.isArray(requests) || requests.length === 0) {
-        ResponseHelper.internalError(res, req, 'Batch requests array is required', 400);
+        ResponseHelper.internalError(res, 'Batch requests array is required', 400);
         return;
       }
 
       if (requests.length > 10) {
-        ResponseHelper.internalError(res, req, 'Maximum 10 requests allowed per batch', 400);
+        ResponseHelper.internalError(res, 'Maximum 10 requests allowed per batch', 400);
         return;
       }
 
@@ -199,7 +190,7 @@ export class PredictiveAnalyticsController {
         failedResults: failedResults.length
       });
 
-      ResponseHelper.success(res, req, {
+      ResponseHelper.success(res, {
         successful: successfulResults,
         failed: failedResults,
         summary: {
@@ -221,7 +212,7 @@ export class PredictiveAnalyticsController {
         stack: errorStack,
         body: req.body 
       });
-      ResponseHelper.internalError(res, req, 'Internal server error during batch forecast generation', 500);
+      ResponseHelper.internalError(res, 'Internal server error during batch forecast generation', 500);
     }
   }
 
@@ -233,11 +224,7 @@ export class PredictiveAnalyticsController {
     const timer = new Timer('PredictiveAnalyticsController.trainProphetModel');
 
     try {
-      const errors = validationResult(req);
-      if (!errors.isEmpty()) {
-        ResponseHelper.badRequest(res, req, 'Validation failed', errors.array());
-        return;
-      }
+      
 
       const { data, config, customSeasonalities, holidays } = req.body;
 
@@ -256,7 +243,7 @@ export class PredictiveAnalyticsController {
           dataPoints: data?.length || 0
         });
 
-        ResponseHelper.success(res, req, {
+        ResponseHelper.success(res, {
           data: { model_id: result.data },
           message: result?.message || "Operation failed",
           meta: {
@@ -266,14 +253,14 @@ export class PredictiveAnalyticsController {
         });
       } else {
         timer.end({ error: result?.message });
-        ResponseHelper.internalError(res, req, result?.message || 'Prophet training failed');
+        ResponseHelper.internalError(res, result?.message || 'Prophet training failed');
       }
 
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error?.message : 'Unknown Prophet training error';
       timer.end({ error: errorMessage });
       logger.error('Prophet training failed', { error: errorMessage });
-      ResponseHelper.internalError(res, req, 'Internal server error during Prophet training', 500);
+      ResponseHelper.internalError(res, 'Internal server error during Prophet training', 500);
     }
   }
 
@@ -310,14 +297,14 @@ export class PredictiveAnalyticsController {
         });
       } else {
         timer.end({ error: result?.message });
-        ResponseHelper.internalError(res, req, result?.message || 'Prophet forecast failed');
+        ResponseHelper.internalError(res, result?.message || 'Prophet forecast failed');
       }
 
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error?.message : 'Unknown Prophet forecast error';
       timer.end({ error: errorMessage });
       logger.error('Prophet forecast failed', { error: errorMessage });
-      ResponseHelper.internalError(res, req, 'Internal server error during Prophet forecast', 500);
+      ResponseHelper.internalError(res, 'Internal server error during Prophet forecast', 500);
     }
   }
 
@@ -329,11 +316,7 @@ export class PredictiveAnalyticsController {
     const timer = new Timer('PredictiveAnalyticsController.trainLightGBMModel');
 
     try {
-      const errors = validationResult(req);
-      if (!errors.isEmpty()) {
-        ResponseHelper.badRequest(res, req, 'Validation failed', errors.array());
-        return;
-      }
+      
 
       const { dataset, config, validationDataset } = req.body;
 
@@ -359,14 +342,14 @@ export class PredictiveAnalyticsController {
         });
       } else {
         timer.end({ error: result?.message });
-        ResponseHelper.internalError(res, req, result?.message || 'LightGBM training failed');
+        ResponseHelper.internalError(res, result?.message || 'LightGBM training failed');
       }
 
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error?.message : 'Unknown LightGBM training error';
       timer.end({ error: errorMessage });
       logger.error('LightGBM training failed', { error: errorMessage });
-      ResponseHelper.internalError(res, req, 'Internal server error during LightGBM training', 500);
+      ResponseHelper.internalError(res, 'Internal server error during LightGBM training', 500);
     }
   }
 
@@ -378,11 +361,7 @@ export class PredictiveAnalyticsController {
     const timer = new Timer('PredictiveAnalyticsController.makeLightGBMPredictions');
 
     try {
-      const errors = validationResult(req);
-      if (!errors.isEmpty()) {
-        ResponseHelper.badRequest(res, req, 'Validation failed', errors.array());
-        return;
-      }
+      
 
       const predictionRequest = req.body;
 
@@ -403,14 +382,14 @@ export class PredictiveAnalyticsController {
         });
       } else {
         timer.end({ error: result?.message });
-        ResponseHelper.internalError(res, req, result?.message || 'LightGBM prediction failed');
+        ResponseHelper.internalError(res, result?.message || 'LightGBM prediction failed');
       }
 
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error?.message : 'Unknown LightGBM prediction error';
       timer.end({ error: errorMessage });
       logger.error('LightGBM prediction failed', { error: errorMessage });
-      ResponseHelper.internalError(res, req, 'Internal server error during LightGBM prediction', 500);
+      ResponseHelper.internalError(res, 'Internal server error during LightGBM prediction', 500);
     }
   }
 
@@ -441,7 +420,7 @@ export class PredictiveAnalyticsController {
           shuffle !== false
         );
       } else {
-        ResponseHelper.internalError(res, req, 'Invalid service specified', 400);
+        ResponseHelper.internalError(res, 'Invalid service specified', 400);
         return;
       }
 
@@ -460,14 +439,14 @@ export class PredictiveAnalyticsController {
         });
       } else {
         timer.end({ error: result?.message });
-        ResponseHelper.internalError(res, req, result?.message || 'Cross-validation failed');
+        ResponseHelper.internalError(res, result?.message || 'Cross-validation failed');
       }
 
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error?.message : 'Unknown cross-validation error';
       timer.end({ error: errorMessage });
       logger.error('Cross-validation failed', { service: req.params.service, error: errorMessage });
-      ResponseHelper.internalError(res, req, 'Internal server error during cross-validation', 500);
+      ResponseHelper.internalError(res, 'Internal server error during cross-validation', 500);
     }
   }
 
@@ -479,11 +458,7 @@ export class PredictiveAnalyticsController {
     const timer = new Timer('PredictiveAnalyticsController.optimizeHyperparameters');
 
     try {
-      const errors = validationResult(req);
-      if (!errors.isEmpty()) {
-        ResponseHelper.badRequest(res, req, 'Validation failed', errors.array());
-        return;
-      }
+      
 
       const { dataset, validationDataset, optimizationMethod, maxEvals } = req.body;
 
@@ -509,14 +484,14 @@ export class PredictiveAnalyticsController {
         });
       } else {
         timer.end({ error: result?.message });
-        ResponseHelper.internalError(res, req, result?.message || 'Hyperparameter optimization failed');
+        ResponseHelper.internalError(res, result?.message || 'Hyperparameter optimization failed');
       }
 
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error?.message : 'Unknown optimization error';
       timer.end({ error: errorMessage });
       logger.error('Hyperparameter optimization failed', { error: errorMessage });
-      ResponseHelper.internalError(res, req, 'Internal server error during optimization', 500);
+      ResponseHelper.internalError(res, 'Internal server error during optimization', 500);
     }
   }
 
@@ -550,7 +525,7 @@ export class PredictiveAnalyticsController {
           };
         }
       } else {
-        ResponseHelper.internalError(res, req, 'Invalid service specified', 400);
+        ResponseHelper.internalError(res, 'Invalid service specified', 400);
         return;
       }
 
@@ -563,7 +538,7 @@ export class PredictiveAnalyticsController {
         });
       } else {
         timer.end({ error: result?.message });
-        ResponseHelper.internalError(res, req, result?.message || 'Failed to get diagnostics');
+        ResponseHelper.internalError(res, result?.message || 'Failed to get diagnostics');
       }
 
     } catch (error: unknown) {
@@ -574,7 +549,7 @@ export class PredictiveAnalyticsController {
         modelId: req.params.modelId, 
         error: errorMessage 
       });
-      ResponseHelper.internalError(res, req, 'Internal server error getting diagnostics', 500);
+      ResponseHelper.internalError(res, 'Internal server error getting diagnostics', 500);
     }
   }
 
@@ -618,7 +593,7 @@ export class PredictiveAnalyticsController {
       const errorMessage = error instanceof Error ? error?.message : 'Unknown service status error';
       timer.end({ error: errorMessage });
       logger.error('Failed to get service status', { error: errorMessage });
-      ResponseHelper.internalError(res, req, 'Internal server error getting status', 500);
+      ResponseHelper.internalError(res, 'Internal server error getting status', 500);
     }
   }
 
@@ -639,13 +614,13 @@ export class PredictiveAnalyticsController {
       } else if (service === 'lightgbm') {
         models = lightgbmWrapperService.getCachedModels();
       } else {
-        ResponseHelper.internalError(res, req, 'Invalid service specified', 400);
+        ResponseHelper.internalError(res, 'Invalid service specified', 400);
         return;
       }
 
       timer.end({ success: true, service, modelsCount: models.length });
 
-      ResponseHelper.success(res, req, { models, count: models.length }, 'Cached models retrieved successfully', {
+      ResponseHelper.success(res, { models, count: models.length }, 'Cached models retrieved successfully', {
         execution_time: timer.getDuration(),
         service,
         models_count: models.length
@@ -658,7 +633,7 @@ export class PredictiveAnalyticsController {
         service: req.params.service, 
         error: errorMessage 
       });
-      ResponseHelper.internalError(res, req, 'Internal server error getting cached models', 500);
+      ResponseHelper.internalError(res, 'Internal server error getting cached models', 500);
     }
   }
 
@@ -680,7 +655,7 @@ export class PredictiveAnalyticsController {
         prophetIntegrationService.clearModelCache();
         lightgbmWrapperService.clearModelCache();
       } else {
-        ResponseHelper.internalError(res, req, 'Invalid service specified', 400);
+        ResponseHelper.internalError(res, 'Invalid service specified', 400);
         return;
       }
 
@@ -698,7 +673,7 @@ export class PredictiveAnalyticsController {
         service: req.params.service, 
         error: errorMessage 
       });
-      ResponseHelper.internalError(res, req, 'Internal server error clearing cache', 500);
+      ResponseHelper.internalError(res, 'Internal server error clearing cache', 500);
     }
   }
 
@@ -724,7 +699,7 @@ export class PredictiveAnalyticsController {
         });
       } else {
         timer.end({ error: result?.message });
-        ResponseHelper.internalError(res, req, result?.message || 'Failed to add seasonality');
+        ResponseHelper.internalError(res, result?.message || 'Failed to add seasonality');
       }
 
     } catch (error: unknown) {
@@ -734,7 +709,7 @@ export class PredictiveAnalyticsController {
         modelId: req.params.modelId, 
         error: errorMessage 
       });
-      ResponseHelper.internalError(res, req, 'Internal server error adding seasonality', 500);
+      ResponseHelper.internalError(res, 'Internal server error adding seasonality', 500);
     }
   }
 
@@ -768,7 +743,7 @@ export class PredictiveAnalyticsController {
       const errorMessage = error instanceof Error ? error?.message : 'Unknown health check error';
       timer.end({ error: errorMessage });
       logger.error('Health check failed', { error: errorMessage });
-      ResponseHelper.internalError(res, req, 'Health check failed', 503);
+      ResponseHelper.internalError(res, 'Health check failed', 503);
     }
   }
 
@@ -795,7 +770,7 @@ export class PredictiveAnalyticsController {
       }
 
       if (!modelExists) {
-        ResponseHelper.internalError(res, req, `Model ${modelId} not found in cache`, 404);
+        ResponseHelper.internalError(res, `Model ${modelId} not found in cache`, 404);
         return;
       }
 
@@ -879,7 +854,7 @@ export class PredictiveAnalyticsController {
         modelId: req.params.modelId, 
         error: errorMessage 
       });
-      ResponseHelper.internalError(res, req, 'Internal server error starting stream', 500);
+      ResponseHelper.internalError(res, 'Internal server error starting stream', 500);
     }
   }
 
@@ -942,7 +917,7 @@ export class PredictiveAnalyticsController {
       const errorMessage = error instanceof Error ? error?.message : 'Unknown performance metrics error';
       timer.end({ error: errorMessage });
       logger.error('Failed to get performance metrics', { error: errorMessage });
-      ResponseHelper.internalError(res, req, 'Internal server error getting performance metrics', 500);
+      ResponseHelper.internalError(res, 'Internal server error getting performance metrics', 500);
     }
   }
 
@@ -1016,7 +991,7 @@ export class PredictiveAnalyticsController {
       const errorMessage = error instanceof Error ? error?.message : 'Unknown advanced health check error';
       timer.end({ error: errorMessage });
       logger.error('Advanced health check failed', { error: errorMessage });
-      ResponseHelper.internalError(res, req, 'Internal server error during health check', 500);
+      ResponseHelper.internalError(res, 'Internal server error during health check', 500);
     }
   }
 }

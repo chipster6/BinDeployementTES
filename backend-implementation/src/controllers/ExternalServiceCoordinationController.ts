@@ -83,7 +83,7 @@ export class ExternalServiceCoordinationController {
         await this.broadcastServiceStatusUpdate(response);
       }
 
-      ResponseHelper.success(res, req, { 
+      ResponseHelper.success(res, { 
         data: response, 
         message: 'Service status retrieved successfully' 
       });
@@ -94,7 +94,7 @@ export class ExternalServiceCoordinationController {
         error: errorMessage,
         stack: errorStack,
       });
-      ResponseHelper.error(res, req, {
+      ResponseHelper.error(res, {
         message: 'Failed to retrieve service status',
         statusCode: 500
       });
@@ -232,7 +232,7 @@ export class ExternalServiceCoordinationController {
             'webhook_events',
             'webhook_errors',
             'webhook_security_alerts',
-          ],
+          ]
         },
         securityMetrics: await this.getWebhookSecurityMetrics(),
       };
@@ -453,7 +453,7 @@ export class ExternalServiceCoordinationController {
     try {
       const serviceName = req.params.serviceName;
       if (!serviceName) {
-        ResponseHelper.error(res, req, { 
+        ResponseHelper.error(res, { 
           message: 'Service name is required', 
           statusCode: 400 
         });
@@ -501,7 +501,7 @@ export class ExternalServiceCoordinationController {
     try {
       const serviceName = req.params.serviceName;
       if (!serviceName) {
-        ResponseHelper.error(res, req, { 
+        ResponseHelper.error(res, { 
           message: 'Service name is required', 
           statusCode: 400 
         });

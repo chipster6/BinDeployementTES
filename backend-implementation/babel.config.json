@@ -1,0 +1,16 @@
+{
+  "presets": [
+    [
+      "@typescript-eslint/eslint-plugin",
+      {
+        "targets": {
+          "node": "18"
+        }
+      }
+    ]
+  ],
+  "plugins": [],
+  "compact": true,
+  "minified": true,
+  "comments": false
+}

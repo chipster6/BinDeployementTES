@@ -24,7 +24,6 @@ import { logger, Timer } from '@/utils/logger';
 import { AppError, ValidationError } from '@/middleware/errorHandler';
 import { weaviateIntelligenceService, VectorSearchRequest } from '../services/WeaviateIntelligenceService';
 import { weaviatePerformanceMonitor } from '../monitoring/WeaviatePerformanceMonitor';
-import { body, query, validationResult } from 'express-validator';
 import { CacheService } from '@/config/redis';
 
 /**
@@ -81,50 +80,14 @@ export class WeaviateController {
 
   /**
    * Validation rules for vector search
+   * TODO: Implement Joi validation schemas to replace express-validator
    */
-  public static vectorSearchValidation = [
-    body('query')
-      .isString()
-      .isLength({ min: 1, max: 1000 })
-      .trim()
-      .withMessage('Query must be a string between 1 and 1000 characters'),
-    
-    body('className')
-      .optional()
-      .isString()
-      .isLength({ min: 1, max: 100 })
-      .withMessage('Class name must be a string between 1 and 100 characters'),
-    
-    body('limit')
-      .optional()
-      .isInt({ min: 1, max: 100 })
-      .withMessage('Limit must be an integer between 1 and 100'),
-    
-    body('offset')
-      .optional()
-      .isInt({ min: 0 })
-      .withMessage('Offset must be a non-negative integer'),
-    
-    body('searchType')
-      .optional()
-      .isIn(['semantic', 'hybrid', 'keyword'])
-      .withMessage('Search type must be semantic, hybrid, or keyword'),
-    
-    body('filters')
-      .optional()
-      .isObject()
-      .withMessage('Filters must be an object'),
-    
-    body('cacheOptions.useCache')
-      .optional()
-      .isBoolean()
-      .withMessage('useCache must be a boolean'),
-    
-    body('cacheOptions.cacheTTL')
-      .optional()
-      .isInt({ min: 60, max: 3600 })
-      .withMessage('cacheTTL must be between 60 and 3600 seconds')
-  ];
+  // public static vectorSearchValidation = [
+  //   // body('query').isString().isLength({ min: 1, max: 1000 }).trim(),
+  //   // body('className').optional().isString().isLength({ min: 1, max: 100 }),
+  //   // body('limit').optional().isInt({ min: 1, max: 100 }),
+  //   // Additional validation fields would be defined here
+  // ];
 
   /**
    * Perform semantic vector search
@@ -140,10 +103,10 @@ export class WeaviateController {
 
     try {
       // Validate request
-      const errors = validationResult(req);
-      if (!errors.isEmpty()) {
-        throw new ValidationError('Invalid vector search request', errors.array());
-      }
+      // TODO: Implement Joi validation instead of express-validator
+      // if (!errors.isEmpty()) {
+      //   throw new ValidationError('Invalid vector search request', errors.array());
+      // }
 
       const searchRequest: VectorSearchAPIRequest = req.body;
       

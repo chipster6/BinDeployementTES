@@ -1,0 +1,813 @@
+openapi: 3.0.3
+info:
+  title: Spatial Routing Service API
+  version: 1.0.0
+  description: Route optimization, GPS tracking, and spatial operations
+  
+servers:
+  - url: http://localhost:3004
+    description: Local development
+  - url: https://api.wastemanagement.com/spatial/v1
+    description: Production
+
+paths:
+  /routes:
+    get:
+      summary: List routes
+      operationId: listRoutes
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 50
+        - name: driver_id
+          in: query
+          schema:
+            type: string
+        - name: vehicle_id
+          in: query
+          schema:
+            type: string
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [planned, active, completed, cancelled]
+        - name: service_day
+          in: query
+          schema:
+            type: string
+            enum: [monday, tuesday, wednesday, thursday, friday, saturday, sunday]
+      responses:
+        '200':
+          description: Routes retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Route'
+                  pagination:
+                    $ref: '#/components/schemas/Pagination'
+
+    post:
+      summary: Create route
+      operationId: createRoute
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateRouteRequest'
+      responses:
+        '201':
+          description: Route created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Route'
+
+  /routes/{routeId}:
+    get:
+      summary: Get route by ID
+      operationId: getRouteById
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: routeId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Route retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Route'
+
+    put:
+      summary: Update route
+      operationId: updateRoute
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: routeId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateRouteRequest'
+      responses:
+        '200':
+          description: Route updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Route'
+
+  /routes/{routeId}/optimize:
+    post:
+      summary: Optimize route
+      operationId: optimizeRoute
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: routeId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OptimizeRouteRequest'
+      responses:
+        '200':
+          description: Route optimized successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OptimizedRoute'
+
+  /routes/{routeId}/start:
+    post:
+      summary: Start route execution
+      operationId: startRoute
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: routeId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [driver_id, vehicle_id]
+              properties:
+                driver_id:
+                  type: string
+                vehicle_id:
+                  type: string
+                start_location:
+                  $ref: '#/components/schemas/Location'
+      responses:
+        '200':
+          description: Route started successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ActiveRoute'
+
+  /routes/{routeId}/complete:
+    post:
+      summary: Complete route execution
+      operationId: completeRoute
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: routeId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                actual_distance:
+                  type: number
+                actual_duration:
+                  type: number
+                services_completed:
+                  type: integer
+                services_missed:
+                  type: integer
+                notes:
+                  type: string
+      responses:
+        '200':
+          description: Route completed successfully
+
+  /vehicles/{vehicleId}/location:
+    get:
+      summary: Get vehicle current location
+      operationId: getVehicleLocation
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: vehicleId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Vehicle location retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VehicleLocation'
+
+    post:
+      summary: Update vehicle location
+      operationId: updateVehicleLocation
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: vehicleId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LocationUpdate'
+      responses:
+        '200':
+          description: Vehicle location updated successfully
+
+  /vehicles/{vehicleId}/tracking:
+    get:
+      summary: Get vehicle tracking history
+      operationId: getVehicleTracking
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: vehicleId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: from
+          in: query
+          schema:
+            type: string
+            format: date-time
+        - name: to
+          in: query
+          schema:
+            type: string
+            format: date-time
+        - name: route_id
+          in: query
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Vehicle tracking history retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/TrackingPoint'
+
+  /spatial/geocode:
+    post:
+      summary: Geocode address
+      operationId: geocodeAddress
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [address]
+              properties:
+                address:
+                  type: string
+      responses:
+        '200':
+          description: Address geocoded successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GeocodeResult'
+
+  /spatial/reverse-geocode:
+    post:
+      summary: Reverse geocode coordinates
+      operationId: reverseGeocodeCoordinates
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [latitude, longitude]
+              properties:
+                latitude:
+                  type: number
+                longitude:
+                  type: number
+      responses:
+        '200':
+          description: Coordinates reverse geocoded successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReverseGeocodeResult'
+
+  /spatial/distance-matrix:
+    post:
+      summary: Calculate distance matrix
+      operationId: calculateDistanceMatrix
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DistanceMatrixRequest'
+      responses:
+        '200':
+          description: Distance matrix calculated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DistanceMatrixResponse'
+
+components:
+  schemas:
+    Route:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        description:
+          type: string
+        route_type:
+          type: string
+          enum: [pickup, delivery, mixed, emergency]
+        service_day:
+          type: string
+          enum: [monday, tuesday, wednesday, thursday, friday, saturday, sunday]
+        driver_id:
+          type: string
+        vehicle_id:
+          type: string
+        status:
+          type: string
+          enum: [planned, active, completed, cancelled]
+        scheduled_start:
+          type: string
+          format: date-time
+        actual_start:
+          type: string
+          format: date-time
+        scheduled_end:
+          type: string
+          format: date-time
+        actual_end:
+          type: string
+          format: date-time
+        estimated_distance:
+          type: number
+        actual_distance:
+          type: number
+        estimated_duration:
+          type: number
+        actual_duration:
+          type: number
+        stops:
+          type: array
+          items:
+            $ref: '#/components/schemas/RouteStop'
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    CreateRouteRequest:
+      type: object
+      required: [name, route_type, service_day]
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+        route_type:
+          type: string
+          enum: [pickup, delivery, mixed, emergency]
+        service_day:
+          type: string
+          enum: [monday, tuesday, wednesday, thursday, friday, saturday, sunday]
+        driver_id:
+          type: string
+        vehicle_id:
+          type: string
+        scheduled_start:
+          type: string
+          format: date-time
+        stops:
+          type: array
+          items:
+            $ref: '#/components/schemas/CreateRouteStopRequest'
+
+    UpdateRouteRequest:
+      type: object
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+        driver_id:
+          type: string
+        vehicle_id:
+          type: string
+        scheduled_start:
+          type: string
+          format: date-time
+        stops:
+          type: array
+          items:
+            $ref: '#/components/schemas/CreateRouteStopRequest'
+
+    RouteStop:
+      type: object
+      properties:
+        id:
+          type: string
+        route_id:
+          type: string
+        customer_id:
+          type: string
+        bin_id:
+          type: string
+        stop_order:
+          type: integer
+        location:
+          $ref: '#/components/schemas/Location'
+        scheduled_arrival:
+          type: string
+          format: date-time
+        actual_arrival:
+          type: string
+          format: date-time
+        service_duration:
+          type: number
+        status:
+          type: string
+          enum: [pending, in_progress, completed, skipped, failed]
+        notes:
+          type: string
+
+    CreateRouteStopRequest:
+      type: object
+      required: [customer_id, bin_id, location]
+      properties:
+        customer_id:
+          type: string
+        bin_id:
+          type: string
+        location:
+          $ref: '#/components/schemas/Location'
+        scheduled_arrival:
+          type: string
+          format: date-time
+        service_duration:
+          type: number
+        notes:
+          type: string
+
+    OptimizeRouteRequest:
+      type: object
+      properties:
+        algorithm:
+          type: string
+          enum: [or_tools, genetic_algorithm, simulated_annealing, nearest_neighbor]
+          default: or_tools
+        constraints:
+          type: object
+          properties:
+            max_duration:
+              type: number
+            max_distance:
+              type: number
+            vehicle_capacity:
+              type: number
+            time_windows:
+              type: boolean
+              default: true
+            traffic_aware:
+              type: boolean
+              default: true
+            balance_workload:
+              type: boolean
+              default: false
+        optimization_goals:
+          type: array
+          items:
+            type: string
+            enum: [minimize_distance, minimize_time, minimize_cost, balance_load]
+          default: [minimize_distance, minimize_time]
+
+    OptimizedRoute:
+      type: object
+      properties:
+        id:
+          type: string
+        base_route_id:
+          type: string
+        algorithm_used:
+          type: string
+        optimization_score:
+          type: number
+        efficiency_improvement:
+          type: number
+        total_distance:
+          type: number
+        total_duration:
+          type: number
+        cost_savings:
+          type: number
+        optimized_stops:
+          type: array
+          items:
+            $ref: '#/components/schemas/OptimizedRouteStop'
+        optimization_metadata:
+          type: object
+          properties:
+            calculation_time:
+              type: number
+            iterations:
+              type: integer
+            constraints_satisfied:
+              type: boolean
+            traffic_considered:
+              type: boolean
+        created_at:
+          type: string
+          format: date-time
+
+    OptimizedRouteStop:
+      type: object
+      properties:
+        stop_id:
+          type: string
+        optimized_order:
+          type: integer
+        estimated_arrival:
+          type: string
+          format: date-time
+        estimated_departure:
+          type: string
+          format: date-time
+        travel_time_to_next:
+          type: number
+        distance_to_next:
+          type: number
+
+    ActiveRoute:
+      type: object
+      properties:
+        route_id:
+          type: string
+        driver_id:
+          type: string
+        vehicle_id:
+          type: string
+        status:
+          type: string
+          enum: [active, paused, completed]
+        current_stop:
+          $ref: '#/components/schemas/RouteStop'
+        next_stop:
+          $ref: '#/components/schemas/RouteStop'
+        progress:
+          type: object
+          properties:
+            stops_completed:
+              type: integer
+            stops_remaining:
+              type: integer
+            distance_traveled:
+              type: number
+            time_elapsed:
+              type: number
+            estimated_completion:
+              type: string
+              format: date-time
+
+    VehicleLocation:
+      type: object
+      properties:
+        vehicle_id:
+          type: string
+        driver_id:
+          type: string
+        route_id:
+          type: string
+        location:
+          $ref: '#/components/schemas/Location'
+        speed:
+          type: number
+        heading:
+          type: number
+        status:
+          type: string
+          enum: [idle, driving, service, break]
+        timestamp:
+          type: string
+          format: date-time
+
+    LocationUpdate:
+      type: object
+      required: [latitude, longitude, timestamp]
+      properties:
+        latitude:
+          type: number
+        longitude:
+          type: number
+        speed:
+          type: number
+        heading:
+          type: number
+        altitude:
+          type: number
+        accuracy:
+          type: number
+        timestamp:
+          type: string
+          format: date-time
+
+    TrackingPoint:
+      type: object
+      properties:
+        id:
+          type: string
+        vehicle_id:
+          type: string
+        route_id:
+          type: string
+        location:
+          $ref: '#/components/schemas/Location'
+        speed:
+          type: number
+        heading:
+          type: number
+        event_type:
+          type: string
+          enum: [location_update, stop_arrival, stop_departure, break_start, break_end]
+        timestamp:
+          type: string
+          format: date-time
+
+    Location:
+      type: object
+      required: [latitude, longitude]
+      properties:
+        latitude:
+          type: number
+          format: double
+        longitude:
+          type: number
+          format: double
+        address:
+          type: string
+        altitude:
+          type: number
+
+    GeocodeResult:
+      type: object
+      properties:
+        location:
+          $ref: '#/components/schemas/Location'
+        formatted_address:
+          type: string
+        confidence:
+          type: number
+        place_type:
+          type: string
+
+    ReverseGeocodeResult:
+      type: object
+      properties:
+        address:
+          type: string
+        components:
+          type: object
+          properties:
+            street_number:
+              type: string
+            street_name:
+              type: string
+            city:
+              type: string
+            state:
+              type: string
+            zip:
+              type: string
+            country:
+              type: string
+        confidence:
+          type: number
+
+    DistanceMatrixRequest:
+      type: object
+      required: [origins, destinations]
+      properties:
+        origins:
+          type: array
+          items:
+            $ref: '#/components/schemas/Location'
+        destinations:
+          type: array
+          items:
+            $ref: '#/components/schemas/Location'
+        traffic_aware:
+          type: boolean
+          default: true
+        departure_time:
+          type: string
+          format: date-time
+
+    DistanceMatrixResponse:
+      type: object
+      properties:
+        origins:
+          type: array
+          items:
+            $ref: '#/components/schemas/Location'
+        destinations:
+          type: array
+          items:
+            $ref: '#/components/schemas/Location'
+        matrix:
+          type: array
+          items:
+            type: array
+            items:
+              type: object
+              properties:
+                distance:
+                  type: number
+                duration:
+                  type: number
+                status:
+                  type: string
+                  enum: [ok, not_found, zero_results]
+
+    Pagination:
+      type: object
+      properties:
+        page:
+          type: integer
+        limit:
+          type: integer
+        total:
+          type: integer
+        totalPages:
+          type: integer
+        hasNextPage:
+          type: boolean
+        hasPrevPage:
+          type: boolean
+
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT

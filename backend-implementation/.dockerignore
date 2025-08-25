@@ -200,10 +200,15 @@ documentation/
 tests/
 test/
 spec/
+cypress/
+src/test/
+src/**/__tests__/
+src/**/__mocks__/
 **/*.test.js
 **/*.test.ts
 **/*.spec.js
 **/*.spec.ts
+**/*.cy.ts
 
 # Build artifacts
 dist/

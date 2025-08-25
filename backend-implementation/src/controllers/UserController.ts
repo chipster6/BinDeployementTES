@@ -13,7 +13,6 @@
 
 import type { Request, Response } from "express";
 import { Op } from "sequelize";
-import { validationResult } from "express-validator";
 import { User, UserModel, UserRole, UserStatus } from "@/models/User";
 import { logger } from "@/utils/logger";
 import { withTransaction } from "@/config/database";
@@ -186,15 +185,7 @@ export class UserController {
       }
 
       // Validate request
-      const errors = validationResult(req);
-      if (!errors.isEmpty()) {
-        res.status(400).json({
-          success: false,
-          message: "Validation failed",
-          errors: errors.array(),
-        });
-        return;
-      }
+      
 
       const {
         email,
@@ -292,15 +283,7 @@ export class UserController {
       }
 
       // Validate request
-      const errors = validationResult(req);
-      if (!errors.isEmpty()) {
-        res.status(400).json({
-          success: false,
-          message: "Validation failed",
-          errors: errors.array(),
-        });
-        return;
-      }
+      
 
       const user = await User.findByPk(id);
       if (!user || user.deleted_at) {
@@ -515,15 +498,7 @@ export class UserController {
       }
 
       // Validate request
-      const errors = validationResult(req);
-      if (!errors.isEmpty()) {
-        res.status(400).json({
-          success: false,
-          message: "Validation failed",
-          errors: errors.array(),
-        });
-        return;
-      }
+      
 
       const { newPassword } = req.body;
 

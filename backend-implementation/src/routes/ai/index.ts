@@ -23,6 +23,7 @@
 
 import { Router } from "express";
 import { authenticateToken, requireRole } from "@/middleware/auth";
+import { UserRole } from "@/models/User";
 import { ResponseHelper } from "@/utils/ResponseHelper";
 import FeatureFlagService from "@/services/FeatureFlagService";
 import ABTestingService from "@/services/ABTestingService";
@@ -49,17 +50,17 @@ router.use(authenticateToken);
  * @desc    Get all feature flags with status
  * @access  Admin, Operations
  */
-router.get("/features", requireRole(["admin", "operations"]), async (req, res) => {
+router.get("/features", requireRole(UserRole.ADMIN), async (req, res) => {
   try {
     const result = await featureFlagService.getFeatureFlagDashboard();
     
     if (result.success) {
-      res.json(ResponseHelper.success(result.data, result?.message));
+      ResponseHelper.success(res, { data: result.data, message: result?.message });
     } else {
-      res.status(400).json(ResponseHelper.error(result?.message, result.errors));
+      ResponseHelper.error(res, { statusCode: 400, message: result?.message, errors: result.errors });
     }
   } catch (error: unknown) {
-    res.status(500).json(ResponseHelper.error("Failed to get feature flags", [error instanceof Error ? error?.message : String(error)]));
+    ResponseHelper.error(res, { statusCode: 500, message: "Failed to get feature flags", errors: [error instanceof Error ? error?.message : String(error)] });
   }
 });
 
@@ -68,7 +69,7 @@ router.get("/features", requireRole(["admin", "operations"]), async (req, res) =
  * @desc    Create new feature flag
  * @access  Admin
  */
-router.post("/features", requireRole(["admin"]), async (req, res) => {
+router.post("/features", requireRole("admin"), async (req, res) => {
   try {
     const flagConfig = req.body;
     flagConfig.createdBy = req.user.id;
@@ -77,12 +78,12 @@ router.post("/features", requireRole(["admin"]), async (req, res) => {
     const result = await featureFlagService.createFeatureFlag(flagConfig);
     
     if (result.success) {
-      res.status(201).json(ResponseHelper.success(result.data, result?.message));
+      ResponseHelper.success(res, { data: result.data, message: result?.message, statusCode: 201 });
     } else {
-      res.status(400).json(ResponseHelper.error(result?.message, result.errors));
+      ResponseHelper.error(res, { statusCode: 400, message: result?.message, errors: result.errors });
     }
   } catch (error: unknown) {
-    res.status(500).json(ResponseHelper.error("Failed to create feature flag", [error instanceof Error ? error?.message : String(error)]));
+    ResponseHelper.error(res, { statusCode: 500, message: "Failed to create feature flag", errors: [error instanceof Error ? error?.message : String(error)] });
   }
 });
 
@@ -100,12 +101,12 @@ router.get("/features/:featureId/evaluate", async (req, res) => {
     const result = await featureFlagService.evaluateFeature(featureId, userId, organizationId);
     
     if (result.success) {
-      res.json(ResponseHelper.success(result.data, result?.message));
+      ResponseHelper.success(res, { data: result.data, message: result?.message });
     } else {
-      res.status(400).json(ResponseHelper.error(result?.message, result.errors));
+      ResponseHelper.error(res, { statusCode: 400, message: result?.message, errors: result.errors });
     }
   } catch (error: unknown) {
-    res.status(500).json(ResponseHelper.error("Failed to evaluate feature", [error instanceof Error ? error?.message : String(error)]));
+    ResponseHelper.error(res, { statusCode: 500, message: "Failed to evaluate feature", errors: [error instanceof Error ? error?.message : String(error)] });
   }
 });
 
@@ -114,7 +115,7 @@ router.get("/features/:featureId/evaluate", async (req, res) => {
  * @desc    Start gradual rollout for feature
  * @access  Admin
  */
-router.post("/features/:featureId/rollout", requireRole(["admin"]), async (req, res) => {
+router.post("/features/:featureId/rollout", requireRole("admin"), async (req, res) => {
   try {
     const { featureId } = req.params;
     const rolloutConfig = {
@@ -125,12 +126,12 @@ router.post("/features/:featureId/rollout", requireRole(["admin"]), async (req, 
     const result = await featureFlagService.startGradualRollout(rolloutConfig);
     
     if (result.success) {
-      res.json(ResponseHelper.success(result.data, result?.message));
+      ResponseHelper.success(res, { data: result.data, message: result?.message });
     } else {
-      res.status(400).json(ResponseHelper.error(result?.message, result.errors));
+      ResponseHelper.error(res, { statusCode: 400, message: result?.message, errors: result.errors });
     }
   } catch (error: unknown) {
-    res.status(500).json(ResponseHelper.error("Failed to start rollout", [error instanceof Error ? error?.message : String(error)]));
+    ResponseHelper.error(res, { statusCode: 500, message: "Failed to start rollout", errors: [error instanceof Error ? error?.message : String(error)] });
   }
 });
 
@@ -139,7 +140,7 @@ router.post("/features/:featureId/rollout", requireRole(["admin"]), async (req, 
  * @desc    Emergency rollback for feature
  * @access  Admin
  */
-router.post("/features/:featureId/rollback", requireRole(["admin"]), async (req, res) => {
+router.post("/features/:featureId/rollback", requireRole("admin"), async (req, res) => {
   try {
     const { featureId } = req.params;
     const { reason } = req.body;
@@ -148,12 +149,12 @@ router.post("/features/:featureId/rollback", requireRole(["admin"]), async (req,
     const result = await featureFlagService.emergencyRollback(featureId, reason, rollbackBy);
     
     if (result.success) {
-      res.json(ResponseHelper.success(result.data, result?.message));
+      ResponseHelper.success(res, { data: result.data, message: result?.message });
     } else {
-      res.status(400).json(ResponseHelper.error(result?.message, result.errors));
+      ResponseHelper.error(res, { statusCode: 400, message: result?.message, errors: result.errors });
     }
   } catch (error: unknown) {
-    res.status(500).json(ResponseHelper.error("Failed to rollback feature", [error instanceof Error ? error?.message : String(error)]));
+    ResponseHelper.error(res, { statusCode: 500, message: "Failed to rollback feature", errors: [error instanceof Error ? error?.message : String(error)] });
   }
 });
 
@@ -162,19 +163,19 @@ router.post("/features/:featureId/rollback", requireRole(["admin"]), async (req,
  * @desc    Monitor performance impact of feature
  * @access  Admin, Operations
  */
-router.get("/features/:featureId/performance", requireRole(["admin", "operations"]), async (req, res) => {
+router.get("/features/:featureId/performance", requireRole("admin", "operations"), async (req, res) => {
   try {
     const { featureId } = req.params;
     
     const result = await featureFlagService.monitorPerformanceImpact(featureId);
     
     if (result.success) {
-      res.json(ResponseHelper.success(result.data, result?.message));
+      ResponseHelper.success(res, { data: result.data, message: result?.message });
     } else {
-      res.status(400).json(ResponseHelper.error(result?.message, result.errors));
+      ResponseHelper.error(res, { statusCode: 400, message: result?.message, errors: result.errors });
     }
   } catch (error: unknown) {
-    res.status(500).json(ResponseHelper.error("Failed to monitor performance", [error instanceof Error ? error?.message : String(error)]));
+    ResponseHelper.error(res, { statusCode: 500, message: "Failed to monitor performance", errors: [error instanceof Error ? error?.message : String(error)] });
   }
 });
 
@@ -189,17 +190,17 @@ router.get("/features/:featureId/performance", requireRole(["admin", "operations
  * @desc    Get A/B testing dashboard
  * @access  Admin, Data Science
  */
-router.get("/experiments", requireRole(["admin", "data_science"]), async (req, res) => {
+router.get("/experiments", requireRole("admin", "data_science"), async (req, res) => {
   try {
     const result = await abTestingService.getExperimentDashboard();
     
     if (result.success) {
-      res.json(ResponseHelper.success(result.data, result?.message));
+      ResponseHelper.success(res, { data: result.data, message: result?.message });
     } else {
-      res.status(400).json(ResponseHelper.error(result?.message, result.errors));
+      ResponseHelper.error(res, { statusCode: 400, message: result?.message, errors: result.errors });
     }
   } catch (error: unknown) {
-    res.status(500).json(ResponseHelper.error("Failed to get experiments dashboard", [error instanceof Error ? error?.message : String(error)]));
+    ResponseHelper.error(res, { statusCode: 500, message: "Failed to get experiments dashboard", errors: [error instanceof Error ? error?.message : String(error)] });
   }
 });
 
@@ -208,7 +209,7 @@ router.get("/experiments", requireRole(["admin", "data_science"]), async (req, r
  * @desc    Create new A/B test experiment
  * @access  Admin, Data Science
  */
-router.post("/experiments", requireRole(["admin", "data_science"]), async (req, res) => {
+router.post("/experiments", requireRole("admin", "data_science"), async (req, res) => {
   try {
     const experimentConfig = {
       ...req.body,
@@ -219,12 +220,12 @@ router.post("/experiments", requireRole(["admin", "data_science"]), async (req, 
     const result = await abTestingService.createExperiment(experimentConfig);
     
     if (result.success) {
-      res.status(201).json(ResponseHelper.success(result.data, result?.message));
+      ResponseHelper.success(res, { data: result.data, message: result?.message, statusCode: 201 });
     } else {
-      res.status(400).json(ResponseHelper.error(result?.message, result.errors));
+      ResponseHelper.error(res, { statusCode: 400, message: result?.message, errors: result.errors });
     }
   } catch (error: unknown) {
-    res.status(500).json(ResponseHelper.error("Failed to create experiment", [error instanceof Error ? error?.message : String(error)]));
+    ResponseHelper.error(res, { statusCode: 500, message: "Failed to create experiment", errors: [error instanceof Error ? error?.message : String(error)] });
   }
 });
 
@@ -233,19 +234,19 @@ router.post("/experiments", requireRole(["admin", "data_science"]), async (req, 
  * @desc    Start A/B test experiment
  * @access  Admin, Data Science
  */
-router.post("/experiments/:experimentId/start", requireRole(["admin", "data_science"]), async (req, res) => {
+router.post("/experiments/:experimentId/start", requireRole("admin", "data_science"), async (req, res) => {
   try {
     const { experimentId } = req.params;
     
     const result = await abTestingService.startExperiment(experimentId);
     
     if (result.success) {
-      res.json(ResponseHelper.success(result.data, result?.message));
+      ResponseHelper.success(res, { data: result.data, message: result?.message });
     } else {
-      res.status(400).json(ResponseHelper.error(result?.message, result.errors));
+      ResponseHelper.error(res, { statusCode: 400, message: result?.message, errors: result.errors });
     }
   } catch (error: unknown) {
-    res.status(500).json(ResponseHelper.error("Failed to start experiment", [error instanceof Error ? error?.message : String(error)]));
+    ResponseHelper.error(res, { statusCode: 500, message: "Failed to start experiment", errors: [error instanceof Error ? error?.message : String(error)] });
   }
 });
 
@@ -254,7 +255,7 @@ router.post("/experiments/:experimentId/start", requireRole(["admin", "data_scie
  * @desc    Stop A/B test experiment
  * @access  Admin, Data Science
  */
-router.post("/experiments/:experimentId/stop", requireRole(["admin", "data_science"]), async (req, res) => {
+router.post("/experiments/:experimentId/stop", requireRole("admin", "data_science"), async (req, res) => {
   try {
     const { experimentId } = req.params;
     const { reason, winnerVariantId } = req.body;
@@ -262,12 +263,12 @@ router.post("/experiments/:experimentId/stop", requireRole(["admin", "data_scien
     const result = await abTestingService.stopExperiment(experimentId, reason, winnerVariantId);
     
     if (result.success) {
-      res.json(ResponseHelper.success(result.data, result?.message));
+      ResponseHelper.success(res, { data: result.data, message: result?.message });
     } else {
-      res.status(400).json(ResponseHelper.error(result?.message, result.errors));
+      ResponseHelper.error(res, { statusCode: 400, message: result?.message, errors: result.errors });
     }
   } catch (error: unknown) {
-    res.status(500).json(ResponseHelper.error("Failed to stop experiment", [error instanceof Error ? error?.message : String(error)]));
+    ResponseHelper.error(res, { statusCode: 500, message: "Failed to stop experiment", errors: [error instanceof Error ? error?.message : String(error)] });
   }
 });
 
@@ -285,12 +286,12 @@ router.get("/experiments/:experimentId/assign", async (req, res) => {
     const result = await abTestingService.assignUserToExperiment(experimentId, userId, organizationId);
     
     if (result.success) {
-      res.json(ResponseHelper.success(result.data, result?.message));
+      ResponseHelper.success(res, { data: result.data, message: result?.message });
     } else {
-      res.status(400).json(ResponseHelper.error(result?.message, result.errors));
+      ResponseHelper.error(res, { statusCode: 400, message: result?.message, errors: result.errors });
     }
   } catch (error: unknown) {
-    res.status(500).json(ResponseHelper.error("Failed to assign user to experiment", [error instanceof Error ? error?.message : String(error)]));
+    ResponseHelper.error(res, { statusCode: 500, message: "Failed to assign user to experiment", errors: [error instanceof Error ? error?.message : String(error)] });
   }
 });
 
@@ -308,12 +309,12 @@ router.post("/experiments/:experimentId/track", async (req, res) => {
     const result = await abTestingService.trackMetric(experimentId, userId, metricId, value, metadata);
     
     if (result.success) {
-      res.json(ResponseHelper.success(result.data, result?.message));
+      ResponseHelper.success(res, { data: result.data, message: result?.message });
     } else {
-      res.status(400).json(ResponseHelper.error(result?.message, result.errors));
+      ResponseHelper.error(res, { statusCode: 400, message: result?.message, errors: result.errors });
     }
   } catch (error: unknown) {
-    res.status(500).json(ResponseHelper.error("Failed to track metric", [error instanceof Error ? error?.message : String(error)]));
+    ResponseHelper.error(res, { statusCode: 500, message: "Failed to track metric", errors: [error instanceof Error ? error?.message : String(error)] });
   }
 });
 
@@ -322,19 +323,19 @@ router.post("/experiments/:experimentId/track", async (req, res) => {
  * @desc    Get experiment analysis results
  * @access  Admin, Data Science
  */
-router.get("/experiments/:experimentId/results", requireRole(["admin", "data_science"]), async (req, res) => {
+router.get("/experiments/:experimentId/results", requireRole("admin", "data_science"), async (req, res) => {
   try {
     const { experimentId } = req.params;
     
     const result = await abTestingService.analyzeExperimentResults(experimentId);
     
     if (result.success) {
-      res.json(ResponseHelper.success(result.data, result?.message));
+      ResponseHelper.success(res, { data: result.data, message: result?.message });
     } else {
-      res.status(400).json(ResponseHelper.error(result?.message, result.errors));
+      ResponseHelper.error(res, { statusCode: 400, message: result?.message, errors: result.errors });
     }
   } catch (error: unknown) {
-    res.status(500).json(ResponseHelper.error("Failed to analyze experiment results", [error instanceof Error ? error?.message : String(error)]));
+    ResponseHelper.error(res, { statusCode: 500, message: "Failed to analyze experiment results", errors: [error instanceof Error ? error?.message : String(error)] });
   }
 });
 
@@ -349,19 +350,19 @@ router.get("/experiments/:experimentId/results", requireRole(["admin", "data_sci
  * @desc    Record performance metric
  * @access  System, Internal services
  */
-router.post("/performance/metrics", requireRole(["system", "admin"]), async (req, res) => {
+router.post("/performance/metrics", requireRole("system", "admin"), async (req, res) => {
   try {
     const { metricId, value, metadata } = req.body;
     
     const result = await performanceService.recordPerformanceMetric(metricId, value, metadata);
     
     if (result.success) {
-      res.json(ResponseHelper.success(result.data, result?.message));
+      ResponseHelper.success(res, { data: result.data, message: result?.message });
     } else {
-      res.status(400).json(ResponseHelper.error(result?.message, result.errors));
+      ResponseHelper.error(res, { statusCode: 400, message: result?.message, errors: result.errors });
     }
   } catch (error: unknown) {
-    res.status(500).json(ResponseHelper.error("Failed to record performance metric", [error instanceof Error ? error?.message : String(error)]));
+    ResponseHelper.error(res, { statusCode: 500, message: "Failed to record performance metric", errors: [error instanceof Error ? error?.message : String(error)] });
   }
 });
 
@@ -370,7 +371,7 @@ router.post("/performance/metrics", requireRole(["system", "admin"]), async (req
  * @desc    Get comprehensive performance dashboard
  * @access  Admin, Operations
  */
-router.get("/performance/dashboard", requireRole(["admin", "operations"]), async (req, res) => {
+router.get("/performance/dashboard", requireRole("admin", "operations"), async (req, res) => {
   try {
     const { startDate, endDate, category } = req.query;
     
@@ -382,12 +383,12 @@ router.get("/performance/dashboard", requireRole(["admin", "operations"]), async
     const result = await performanceService.getPerformanceDashboard(timeRange, category as any);
     
     if (result.success) {
-      res.json(ResponseHelper.success(result.data, result?.message));
+      ResponseHelper.success(res, { data: result.data, message: result?.message });
     } else {
-      res.status(400).json(ResponseHelper.error(result?.message, result.errors));
+      ResponseHelper.error(res, { statusCode: 400, message: result?.message, errors: result.errors });
     }
   } catch (error: unknown) {
-    res.status(500).json(ResponseHelper.error("Failed to get performance dashboard", [error instanceof Error ? error?.message : String(error)]));
+    ResponseHelper.error(res, { statusCode: 500, message: "Failed to get performance dashboard", errors: [error instanceof Error ? error?.message : String(error)] });
   }
 });
 
@@ -396,19 +397,19 @@ router.get("/performance/dashboard", requireRole(["admin", "operations"]), async
  * @desc    Record business impact metric
  * @access  Admin, Business Intelligence
  */
-router.post("/performance/business-impact", requireRole(["admin", "business_intelligence"]), async (req, res) => {
+router.post("/performance/business-impact", requireRole("admin", "business_intelligence"), async (req, res) => {
   try {
     const impactMetric = req.body;
     
     const result = await performanceService.recordBusinessImpact(impactMetric);
     
     if (result.success) {
-      res.json(ResponseHelper.success(result.data, result?.message));
+      ResponseHelper.success(res, { data: result.data, message: result?.message });
     } else {
-      res.status(400).json(ResponseHelper.error(result?.message, result.errors));
+      ResponseHelper.error(res, { statusCode: 400, message: result?.message, errors: result.errors });
     }
   } catch (error: unknown) {
-    res.status(500).json(ResponseHelper.error("Failed to record business impact", [error instanceof Error ? error?.message : String(error)]));
+    ResponseHelper.error(res, { statusCode: 500, message: "Failed to record business impact", errors: [error instanceof Error ? error?.message : String(error)] });
   }
 });
 
@@ -417,19 +418,19 @@ router.post("/performance/business-impact", requireRole(["admin", "business_inte
  * @desc    Track AI/ML costs
  * @access  Admin, Finance
  */
-router.post("/performance/costs", requireRole(["admin", "finance"]), async (req, res) => {
+router.post("/performance/costs", requireRole("admin", "finance"), async (req, res) => {
   try {
     const costMetric = req.body;
     
     const result = await performanceService.trackCosts(costMetric);
     
     if (result.success) {
-      res.json(ResponseHelper.success(result.data, result?.message));
+      ResponseHelper.success(res, { data: result.data, message: result?.message });
     } else {
-      res.status(400).json(ResponseHelper.error(result?.message, result.errors));
+      ResponseHelper.error(res, { statusCode: 400, message: result?.message, errors: result.errors });
     }
   } catch (error: unknown) {
-    res.status(500).json(ResponseHelper.error("Failed to track costs", [error instanceof Error ? error?.message : String(error)]));
+    ResponseHelper.error(res, { statusCode: 500, message: "Failed to track costs", errors: [error instanceof Error ? error?.message : String(error)] });
   }
 });
 
@@ -438,17 +439,17 @@ router.post("/performance/costs", requireRole(["admin", "finance"]), async (req,
  * @desc    Get cost optimization recommendations
  * @access  Admin, Finance
  */
-router.get("/performance/costs/optimize", requireRole(["admin", "finance"]), async (req, res) => {
+router.get("/performance/costs/optimize", requireRole("admin", "finance"), async (req, res) => {
   try {
     const result = await performanceService.optimizeCosts();
     
     if (result.success) {
-      res.json(ResponseHelper.success(result.data, result?.message));
+      ResponseHelper.success(res, { data: result.data, message: result?.message });
     } else {
-      res.status(400).json(ResponseHelper.error(result?.message, result.errors));
+      ResponseHelper.error(res, { statusCode: 400, message: result?.message, errors: result.errors });
     }
   } catch (error: unknown) {
-    res.status(500).json(ResponseHelper.error("Failed to optimize costs", [error instanceof Error ? error?.message : String(error)]));
+    ResponseHelper.error(res, { statusCode: 500, message: "Failed to optimize costs", errors: [error instanceof Error ? error?.message : String(error)] });
   }
 });
 
@@ -463,7 +464,7 @@ router.get("/performance/costs/optimize", requireRole(["admin", "finance"]), asy
  * @desc    Analyze model performance
  * @access  Admin, Data Science
  */
-router.get("/models/:modelId/performance", requireRole(["admin", "data_science"]), async (req, res) => {
+router.get("/models/:modelId/performance", requireRole("admin", "data_science"), async (req, res) => {
   try {
     const { modelId } = req.params;
     const { version } = req.query;
@@ -474,12 +475,12 @@ router.get("/models/:modelId/performance", requireRole(["admin", "data_science"]
     );
     
     if (result.success) {
-      res.json(ResponseHelper.success(result.data, result?.message));
+      ResponseHelper.success(res, { data: result.data, message: result?.message });
     } else {
-      res.status(400).json(ResponseHelper.error(result?.message, result.errors));
+      ResponseHelper.error(res, { statusCode: 400, message: result?.message, errors: result.errors });
     }
   } catch (error: unknown) {
-    res.status(500).json(ResponseHelper.error("Failed to analyze model performance", [error instanceof Error ? error?.message : String(error)]));
+    ResponseHelper.error(res, { statusCode: 500, message: "Failed to analyze model performance", errors: [error instanceof Error ? error?.message : String(error)] });
   }
 });
 
@@ -494,7 +495,7 @@ router.get("/models/:modelId/performance", requireRole(["admin", "data_science"]
  * @desc    Get comprehensive AI/ML overview dashboard
  * @access  Admin, Operations, Business Intelligence
  */
-router.get("/dashboard/overview", requireRole(["admin", "operations", "business_intelligence"]), async (req, res) => {
+router.get("/dashboard/overview", requireRole(UserRole.ADMIN, UserRole.OFFICE_STAFF), async (req, res) => {
   try {
     const { timeRange } = req.query;
     
@@ -522,9 +523,9 @@ router.get("/dashboard/overview", requireRole(["admin", "operations", "business_
       }
     };
     
-    res.json(ResponseHelper.success(overviewData, "AI/ML overview dashboard generated"));
+    ResponseHelper.success(res, { data: overviewData, message: "AI/ML overview dashboard generated" });
   } catch (error: unknown) {
-    res.status(500).json(ResponseHelper.error("Failed to generate overview dashboard", [error instanceof Error ? error?.message : String(error)]));
+    ResponseHelper.error(res, { statusCode: 500, message: "Failed to generate overview dashboard", errors: [error instanceof Error ? error?.message : String(error)] });
   }
 });
 
@@ -533,7 +534,7 @@ router.get("/dashboard/overview", requireRole(["admin", "operations", "business_
  * @desc    Get ROI and business impact dashboard
  * @access  Admin, Business Intelligence, Finance
  */
-router.get("/dashboard/roi", requireRole(["admin", "business_intelligence", "finance"]), async (req, res) => {
+router.get("/dashboard/roi", requireRole("admin", "business_intelligence", "finance"), async (req, res) => {
   try {
     const { timeRange } = req.query;
     
@@ -557,9 +558,9 @@ router.get("/dashboard/roi", requireRole(["admin", "business_intelligence", "fin
       }
     };
     
-    res.json(ResponseHelper.success(roiData, "ROI dashboard generated"));
+    ResponseHelper.success(res, { data: roiData, message: "ROI dashboard generated" });
   } catch (error: unknown) {
-    res.status(500).json(ResponseHelper.error("Failed to generate ROI dashboard", [error instanceof Error ? error?.message : String(error)]));
+    ResponseHelper.error(res, { statusCode: 500, message: "Failed to generate ROI dashboard", errors: [error instanceof Error ? error?.message : String(error)] });
   }
 });
 
@@ -590,9 +591,9 @@ router.get("/health", async (req, res) => {
       }
     };
     
-    res.json(ResponseHelper.success(healthStatus, "AI/ML system health check"));
+    ResponseHelper.success(res, { data: healthStatus, message: "AI/ML system health check" });
   } catch (error: unknown) {
-    res.status(500).json(ResponseHelper.error("Health check failed", [error instanceof Error ? error?.message : String(error)]));
+    ResponseHelper.error(res, { statusCode: 500, message: "Health check failed", errors: [error instanceof Error ? error?.message : String(error)] });
   }
 });
 

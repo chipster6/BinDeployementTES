@@ -110,7 +110,7 @@ router.post(
       const result = await threatDetectionService.analyzeThreat(threatRequest);
 
       if (!result.success) {
-        return ResponseHelper.error(res, req, { message: result.errors?.[0] || "Threat analysis failed", statusCode: 500 });
+        return ResponseHelper.error(res, { message: result.errors?.[0] || "Threat analysis failed", statusCode: 500 });
       }
 
       logger.info("Threat analyzed", {
@@ -120,10 +120,10 @@ router.post(
         userId: req.user?.id,
       });
 
-      return ResponseHelper.success(res, result.data, "Threat analysis completed");
+      return ResponseHelper.success(res, { data: result.data, message: "Threat analysis completed" });
     } catch (error: unknown) {
       logger.error("Threat analysis endpoint error", { error: error instanceof Error ? error?.message : String(error) });
-      return ResponseHelper.error(res, req, { message: "Internal server error", statusCode: 500 });
+      return ResponseHelper.error(res, { message: "Internal server error", statusCode: 500 });
     }
   },
 );
@@ -153,13 +153,13 @@ router.get(
       const result = await threatDetectionService.getActiveThreats(severity, limit);
 
       if (!result.success) {
-        return ResponseHelper.error(res, req, { message: result.errors?.[0] || "Failed to get active threats", statusCode: 500 });
+        return ResponseHelper.error(res, { message: result.errors?.[0] || "Failed to get active threats", statusCode: 500 });
       }
 
-      return ResponseHelper.success(res, result.data, "Active threats retrieved");
+      return ResponseHelper.success(res, { data: result.data, message: "Active threats retrieved" });
     } catch (error: unknown) {
       logger.error("Get active threats endpoint error", { error: error instanceof Error ? error?.message : String(error) });
-      return ResponseHelper.error(res, req, { message: "Internal server error", statusCode: 500 });
+      return ResponseHelper.error(res, { message: "Internal server error", statusCode: 500 });
     }
   },
 );
@@ -199,7 +199,7 @@ router.post(
       const result = await threatDetectionService.respondToThreat(responseAction);
 
       if (!result.success) {
-        return ResponseHelper.error(res, req, { message: result.errors?.[0] || "Threat response failed", statusCode: 500 });
+        return ResponseHelper.error(res, { message: result.errors?.[0] || "Threat response failed", statusCode: 500 });
       }
 
       logger.info("Threat response executed", {
@@ -208,10 +208,10 @@ router.post(
         userId: req.user?.id,
       });
 
-      return ResponseHelper.success(res, result.data, "Threat response executed");
+      return ResponseHelper.success(res, { data: result.data, message: "Threat response executed" });
     } catch (error: unknown) {
       logger.error("Threat response endpoint error", { error: error instanceof Error ? error?.message : String(error) });
-      return ResponseHelper.error(res, req, { message: "Internal server error", statusCode: 500 });
+      return ResponseHelper.error(res, { message: "Internal server error", statusCode: 500 });
     }
   },
 );
@@ -245,13 +245,13 @@ router.get(
       const result = await securityMonitoringService.getDashboardData(timeframe);
 
       if (!result.success) {
-        return ResponseHelper.error(res, req, { message: result.errors?.[0] || "Failed to get dashboard data", statusCode: 500 });
+        return ResponseHelper.error(res, { message: result.errors?.[0] || "Failed to get dashboard data", statusCode: 500 });
       }
 
-      return ResponseHelper.success(res, result.data, "Dashboard data retrieved");
+      return ResponseHelper.success(res, { data: result.data, message: "Dashboard data retrieved" });
     } catch (error: unknown) {
       logger.error("Security dashboard endpoint error", { error: error instanceof Error ? error?.message : String(error) });
-      return ResponseHelper.error(res, req, { message: "Internal server error", statusCode: 500 });
+      return ResponseHelper.error(res, { message: "Internal server error", statusCode: 500 });
     }
   },
 );
@@ -297,13 +297,13 @@ router.get(
       const result = await securityMonitoringService.getSecurityEvents(filters);
 
       if (!result.success) {
-        return ResponseHelper.error(res, req, { message: result.errors?.[0] || "Failed to get security events", statusCode: 500 });
+        return ResponseHelper.error(res, { message: result.errors?.[0] || "Failed to get security events", statusCode: 500 });
       }
 
-      return ResponseHelper.success(res, result.data, "Security events retrieved");
+      return ResponseHelper.success(res, { data: result.data, message: "Security events retrieved" });
     } catch (error: unknown) {
       logger.error("Security events endpoint error", { error: error instanceof Error ? error?.message : String(error) });
-      return ResponseHelper.error(res, req, { message: "Internal server error", statusCode: 500 });
+      return ResponseHelper.error(res, { message: "Internal server error", statusCode: 500 });
     }
   },
 );
@@ -350,7 +350,7 @@ router.post(
       );
 
       if (!result.success) {
-        return ResponseHelper.error(res, req, { message: result.errors?.[0] || "Failed to create security alert", statusCode: 500 });
+        return ResponseHelper.error(res, { message: result.errors?.[0] || "Failed to create security alert", statusCode: 500 });
       }
 
       logger.info("Security alert created", {
@@ -359,10 +359,10 @@ router.post(
         userId: req.user?.id,
       });
 
-      return ResponseHelper.success(res, result.data, "Security alert created");
+      return ResponseHelper.success(res, { data: result.data, message: "Security alert created" });
     } catch (error: unknown) {
       logger.error("Create security alert endpoint error", { error: error instanceof Error ? error?.message : String(error) });
-      return ResponseHelper.error(res, req, { message: "Internal server error", statusCode: 500 });
+      return ResponseHelper.error(res, { message: "Internal server error", statusCode: 500 });
     }
   },
 );
@@ -421,7 +421,7 @@ router.post(
       const result = await incidentResponseService.createIncident(incidentData);
 
       if (!result.success) {
-        return ResponseHelper.error(res, req, { message: result.errors?.[0] || "Failed to create incident", statusCode: 500 });
+        return ResponseHelper.error(res, { message: result.errors?.[0] || "Failed to create incident", statusCode: 500 });
       }
 
       logger.info("Security incident created", {
@@ -431,10 +431,10 @@ router.post(
         userId: req.user?.id,
       });
 
-      return ResponseHelper.success(res, result.data, "Security incident created", 201);
+      return ResponseHelper.success(res, { data: result.data, message: "Security incident created", statusCode: 201 });
     } catch (error: unknown) {
       logger.error("Create incident endpoint error", { error: error instanceof Error ? error?.message : String(error) });
-      return ResponseHelper.error(res, req, { message: "Internal server error", statusCode: 500 });
+      return ResponseHelper.error(res, { message: "Internal server error", statusCode: 500 });
     }
   },
 );
@@ -470,13 +470,13 @@ router.get(
       const result = await incidentResponseService.getActiveIncidents(filters);
 
       if (!result.success) {
-        return ResponseHelper.error(res, req, { message: result.errors?.[0] || "Failed to get active incidents", statusCode: 500 });
+        return ResponseHelper.error(res, { message: result.errors?.[0] || "Failed to get active incidents", statusCode: 500 });
       }
 
-      return ResponseHelper.success(res, result.data, "Active incidents retrieved");
+      return ResponseHelper.success(res, { data: result.data, message: "Active incidents retrieved" });
     } catch (error: unknown) {
       logger.error("Get active incidents endpoint error", { error: error instanceof Error ? error?.message : String(error) });
-      return ResponseHelper.error(res, req, { message: "Internal server error", statusCode: 500 });
+      return ResponseHelper.error(res, { message: "Internal server error", statusCode: 500 });
     }
   },
 );
@@ -511,7 +511,7 @@ router.put(
       );
 
       if (!result.success) {
-        return ResponseHelper.error(res, req, { message: result.errors?.[0] || "Failed to escalate incident", statusCode: 500 });
+        return ResponseHelper.error(res, { message: result.errors?.[0] || "Failed to escalate incident", statusCode: 500 });
       }
 
       logger.info("Incident escalated", {
@@ -520,10 +520,10 @@ router.put(
         escalatedBy,
       });
 
-      return ResponseHelper.success(res, result.data, "Incident escalated");
+      return ResponseHelper.success(res, { data: result.data, message: "Incident escalated" });
     } catch (error: unknown) {
       logger.error("Escalate incident endpoint error", { error: error instanceof Error ? error?.message : String(error) });
-      return ResponseHelper.error(res, req, { message: "Internal server error", statusCode: 500 });
+      return ResponseHelper.error(res, { message: "Internal server error", statusCode: 500 });
     }
   },
 );
@@ -580,13 +580,13 @@ router.get(
       const result = await securityAuditService.getAuditEvents(filters, pagination);
 
       if (!result.success) {
-        return ResponseHelper.error(res, req, { message: result.errors?.[0] || "Failed to get audit events", statusCode: 500 });
+        return ResponseHelper.error(res, { message: result.errors?.[0] || "Failed to get audit events", statusCode: 500 });
       }
 
-      return ResponseHelper.success(res, result.data, "Audit events retrieved");
+      return ResponseHelper.success(res, { data: result.data, message: "Audit events retrieved" });
     } catch (error: unknown) {
       logger.error("Get audit events endpoint error", { error: error instanceof Error ? error?.message : String(error) });
-      return ResponseHelper.error(res, req, { message: "Internal server error", statusCode: 500 });
+      return ResponseHelper.error(res, { message: "Internal server error", statusCode: 500 });
     }
   },
 );
@@ -620,7 +620,7 @@ router.post(
 
       // Validate date range
       if (startDate >= endDate) {
-        return ResponseHelper.error(res, req, { message: "Start date must be before end date", statusCode: 400 });
+        return ResponseHelper.error(res, { message: "Start date must be before end date", statusCode: 400 });
       }
 
       const result = await securityAuditService.generateComplianceReport(
@@ -630,7 +630,7 @@ router.post(
       );
 
       if (!result.success) {
-        return ResponseHelper.error(res, req, { message: result.errors?.[0] || "Failed to generate compliance report", statusCode: 500 });
+        return ResponseHelper.error(res, { message: result.errors?.[0] || "Failed to generate compliance report", statusCode: 500 });
       }
 
       logger.info("Compliance report generated", {
@@ -641,10 +641,10 @@ router.post(
         userId: req.user?.id,
       });
 
-      return ResponseHelper.success(res, result.data, "Compliance report generated");
+      return ResponseHelper.success(res, { data: result.data, message: "Compliance report generated" });
     } catch (error: unknown) {
       logger.error("Generate compliance report endpoint error", { error: error instanceof Error ? error?.message : String(error) });
-      return ResponseHelper.error(res, req, { message: "Internal server error", statusCode: 500 });
+      return ResponseHelper.error(res, { message: "Internal server error", statusCode: 500 });
     }
   },
 );
@@ -672,13 +672,13 @@ router.get(
       const result = await securityAuditService.performAuditAnalytics(timeframe);
 
       if (!result.success) {
-        return ResponseHelper.error(res, req, { message: result.errors?.[0] || "Failed to get audit metrics", statusCode: 500 });
+        return ResponseHelper.error(res, { message: result.errors?.[0] || "Failed to get audit metrics", statusCode: 500 });
       }
 
-      return ResponseHelper.success(res, result.data, "Audit metrics retrieved");
+      return ResponseHelper.success(res, { data: result.data, message: "Audit metrics retrieved" });
     } catch (error: unknown) {
       logger.error("Get audit metrics endpoint error", { error: error instanceof Error ? error?.message : String(error) });
-      return ResponseHelper.error(res, req, { message: "Internal server error", statusCode: 500 });
+      return ResponseHelper.error(res, { message: "Internal server error", statusCode: 500 });
     }
   },
 );
@@ -710,7 +710,7 @@ router.get("/health", async (req: Request, res: Response) => {
     return ResponseHelper.success(res, health, "Security services are healthy");
   } catch (error: unknown) {
     logger.error("Security health check error", { error: error instanceof Error ? error?.message : String(error) });
-    return ResponseHelper.error(res, req, { message: "Security services health check failed", statusCode: 500 });
+    return ResponseHelper.error(res, { message: "Security services health check failed", statusCode: 500 });
   }
 });
 
@@ -724,14 +724,14 @@ router.use((error: any, req: Request, res: Response, next: any) => {
   });
 
   if (error instanceof ValidationError) {
-    return ResponseHelper.error(res, req, { message: error instanceof Error ? error?.message : String(error), statusCode: 400 });
+    return ResponseHelper.error(res, { message: error instanceof Error ? error?.message : String(error), statusCode: 400 });
   }
 
   if (error instanceof AppError) {
     return ResponseHelper.error(res, error instanceof Error ? error?.message : String(error), error.statusCode);
   }
 
-  return ResponseHelper.error(res, req, { message: "Internal security service error", statusCode: 500 });
+  return ResponseHelper.error(res, { message: "Internal security service error", statusCode: 500 });
 });
 
 logger.info("✅ Security routes configured");

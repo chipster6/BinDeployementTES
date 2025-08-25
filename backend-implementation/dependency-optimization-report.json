@@ -1,0 +1,488 @@
+{
+  "timestamp": "2025-08-24T18:41:49.671Z",
+  "metrics": {
+    "initialSize": "429M",
+    "optimizedSize": 0,
+    "removedDeps": [],
+    "consolidatedDeps": [],
+    "securityImprovements": []
+  },
+  "optimizations": [
+    {
+      "type": "unused-dependencies",
+      "items": [
+        {
+          "name": "@mapbox/mapbox-sdk",
+          "version": "^0.15.6",
+          "type": "dependency"
+        },
+        {
+          "name": "@sendgrid/mail",
+          "version": "^8.1.5",
+          "type": "dependency"
+        },
+        {
+          "name": "compression",
+          "version": "^1.8.1",
+          "type": "dependency"
+        },
+        {
+          "name": "cookie-parser",
+          "version": "^1.4.7",
+          "type": "dependency"
+        },
+        {
+          "name": "cors",
+          "version": "^2.8.5",
+          "type": "dependency"
+        },
+        {
+          "name": "helmet",
+          "version": "^8.1.0",
+          "type": "dependency"
+        },
+        {
+          "name": "moment-timezone",
+          "version": "^0.5.48",
+          "type": "dependency"
+        },
+        {
+          "name": "morgan",
+          "version": "^1.10.1",
+          "type": "dependency"
+        },
+        {
+          "name": "node-vault",
+          "version": "^0.10.5",
+          "type": "dependency"
+        },
+        {
+          "name": "sequelize-cli",
+          "version": "^6.6.3",
+          "type": "dependency"
+        },
+        {
+          "name": "speakeasy",
+          "version": "^2.0.0",
+          "type": "dependency"
+        },
+        {
+          "name": "stripe",
+          "version": "^18.4.0",
+          "type": "dependency"
+        },
+        {
+          "name": "swagger-ui-express",
+          "version": "^5.0.1",
+          "type": "dependency"
+        },
+        {
+          "name": "twilio",
+          "version": "^5.8.0",
+          "type": "dependency"
+        },
+        {
+          "name": "winston",
+          "version": "^3.17.0",
+          "type": "dependency"
+        },
+        {
+          "name": "winston-daily-rotate-file",
+          "version": "^5.0.0",
+          "type": "dependency"
+        },
+        {
+          "name": "@babel/core",
+          "version": "^7.28.3",
+          "type": "devDependency"
+        },
+        {
+          "name": "@babel/plugin-proposal-class-properties",
+          "version": "^7.18.6",
+          "type": "devDependency"
+        },
+        {
+          "name": "@babel/plugin-proposal-decorators",
+          "version": "^7.28.0",
+          "type": "devDependency"
+        },
+        {
+          "name": "@babel/plugin-transform-class-properties",
+          "version": "^7.27.1",
+          "type": "devDependency"
+        },
+        {
+          "name": "@babel/plugin-transform-runtime",
+          "version": "^7.28.3",
+          "type": "devDependency"
+        },
+        {
+          "name": "@babel/preset-env",
+          "version": "^7.28.3",
+          "type": "devDependency"
+        },
+        {
+          "name": "concurrently",
+          "version": "^8.2.2",
+          "type": "devDependency"
+        },
+        {
+          "name": "swagger-jsdoc",
+          "version": "^6.2.8",
+          "type": "devDependency"
+        },
+        {
+          "name": "ts-node",
+          "version": "^10.9.2",
+          "type": "devDependency"
+        },
+        {
+          "name": "ts-node-dev",
+          "version": "^2.0.0",
+          "type": "devDependency"
+        },
+        {
+          "name": "tsconfig-paths",
+          "version": "^4.2.0",
+          "type": "devDependency"
+        },
+        {
+          "name": "xss",
+          "version": "^1.0.15",
+          "type": "devDependency"
+        }
+      ],
+      "impact": "Remove 28 unused dependencies",
+      "commands": [
+        "npm uninstall @mapbox/mapbox-sdk",
+        "npm uninstall @sendgrid/mail",
+        "npm uninstall compression",
+        "npm uninstall cookie-parser",
+        "npm uninstall cors",
+        "npm uninstall helmet",
+        "npm uninstall moment-timezone",
+        "npm uninstall morgan",
+        "npm uninstall node-vault",
+        "npm uninstall sequelize-cli",
+        "npm uninstall speakeasy",
+        "npm uninstall stripe",
+        "npm uninstall swagger-ui-express",
+        "npm uninstall twilio",
+        "npm uninstall winston",
+        "npm uninstall winston-daily-rotate-file",
+        "npm uninstall @babel/core",
+        "npm uninstall @babel/plugin-proposal-class-properties",
+        "npm uninstall @babel/plugin-proposal-decorators",
+        "npm uninstall @babel/plugin-transform-class-properties",
+        "npm uninstall @babel/plugin-transform-runtime",
+        "npm uninstall @babel/preset-env",
+        "npm uninstall concurrently",
+        "npm uninstall swagger-jsdoc",
+        "npm uninstall ts-node",
+        "npm uninstall ts-node-dev",
+        "npm uninstall tsconfig-paths",
+        "npm uninstall xss"
+      ]
+    },
+    {
+      "type": "dev-dependency-optimization",
+      "items": [
+        {
+          "name": "@babel/core",
+          "version": "^7.28.3",
+          "category": "tooling"
+        },
+        {
+          "name": "@babel/plugin-proposal-class-properties",
+          "version": "^7.18.6",
+          "category": "tooling"
+        },
+        {
+          "name": "@babel/plugin-proposal-decorators",
+          "version": "^7.28.0",
+          "category": "tooling"
+        },
+        {
+          "name": "@babel/plugin-transform-class-properties",
+          "version": "^7.27.1",
+          "category": "tooling"
+        },
+        {
+          "name": "@babel/plugin-transform-runtime",
+          "version": "^7.28.3",
+          "category": "tooling"
+        },
+        {
+          "name": "@babel/preset-env",
+          "version": "^7.28.3",
+          "category": "tooling"
+        },
+        {
+          "name": "@babel/preset-typescript",
+          "version": "^7.27.1",
+          "category": "tooling"
+        },
+        {
+          "name": "@cypress/grep",
+          "version": "^4.1.1",
+          "category": "tooling"
+        },
+        {
+          "name": "@testing-library/cypress",
+          "version": "^10.0.3",
+          "category": "tooling"
+        },
+        {
+          "name": "@types/cypress",
+          "version": "^0.1.6",
+          "category": "tooling"
+        },
+        {
+          "name": "@types/jest",
+          "version": "^30.0.0",
+          "category": "tooling"
+        },
+        {
+          "name": "@typescript-eslint/eslint-plugin",
+          "version": "^8.39.1",
+          "category": "tooling"
+        },
+        {
+          "name": "@typescript-eslint/parser",
+          "version": "^8.39.1",
+          "category": "tooling"
+        },
+        {
+          "name": "cypress",
+          "version": "^14.5.4",
+          "category": "tooling"
+        },
+        {
+          "name": "cypress-axe",
+          "version": "^1.6.0",
+          "category": "tooling"
+        },
+        {
+          "name": "cypress-multi-reporters",
+          "version": "^2.0.5",
+          "category": "tooling"
+        },
+        {
+          "name": "cypress-real-events",
+          "version": "^1.14.0",
+          "category": "tooling"
+        },
+        {
+          "name": "eslint",
+          "version": "^8.45.0",
+          "category": "tooling"
+        },
+        {
+          "name": "eslint-config-prettier",
+          "version": "^8.8.0",
+          "category": "tooling"
+        },
+        {
+          "name": "eslint-plugin-prettier",
+          "version": "^5.0.1",
+          "category": "tooling"
+        },
+        {
+          "name": "jest",
+          "version": "^30.0.5",
+          "category": "tooling"
+        },
+        {
+          "name": "jest-html-reporters",
+          "version": "^3.1.7",
+          "category": "tooling"
+        },
+        {
+          "name": "jest-junit",
+          "version": "^16.0.0",
+          "category": "tooling"
+        },
+        {
+          "name": "ts-jest",
+          "version": "^29.4.1",
+          "category": "tooling"
+        },
+        {
+          "name": "typescript",
+          "version": "^5.9.2",
+          "category": "tooling"
+        }
+      ],
+      "impact": "Optimize development tooling dependencies",
+      "suggestions": [
+        "Consider using npx for rarely used tools",
+        "Move testing dependencies to separate workspace",
+        "Use --save-exact for dev dependencies to avoid range issues"
+      ]
+    },
+    {
+      "type": "bundle-size-optimization",
+      "items": [
+        {
+          "name": "moment-timezone",
+          "version": "^0.5.48",
+          "optimization": "Consider date-fns for smaller bundle size"
+        },
+        {
+          "name": "swagger-ui-express",
+          "version": "^5.0.1",
+          "optimization": "Consider conditional loading for non-production"
+        },
+        {
+          "name": "weaviate-ts-client",
+          "version": "^1.4.0",
+          "optimization": "Vector database client - consider lazy loading"
+        },
+        {
+          "name": "winston",
+          "version": "^3.17.0",
+          "optimization": "Large logging library - consider lighter alternatives"
+        }
+      ],
+      "impact": "Reduce production bundle size by optimizing large dependencies",
+      "suggestions": [
+        "moment-timezone: Consider date-fns for smaller bundle size",
+        "swagger-ui-express: Consider conditional loading for non-production",
+        "weaviate-ts-client: Vector database client - consider lazy loading",
+        "winston: Large logging library - consider lighter alternatives"
+      ]
+    },
+    {
+      "type": "workspace-optimization",
+      "items": [
+        {
+          "workspace": "shared/types",
+          "dependency": "typescript",
+          "version": "^5.3.3"
+        },
+        {
+          "workspace": "shared/authz",
+          "dependency": "jsonwebtoken",
+          "version": "^9.0.2"
+        },
+        {
+          "workspace": "shared/authz",
+          "dependency": "typescript",
+          "version": "^5.3.3"
+        },
+        {
+          "workspace": "shared/authz",
+          "dependency": "@types/jsonwebtoken",
+          "version": "^9.0.5"
+        },
+        {
+          "workspace": "shared/observability",
+          "dependency": "winston",
+          "version": "^3.11.0"
+        },
+        {
+          "workspace": "shared/observability",
+          "dependency": "typescript",
+          "version": "^5.3.3"
+        },
+        {
+          "workspace": "shared/events",
+          "dependency": "uuid",
+          "version": "^9.0.1"
+        },
+        {
+          "workspace": "shared/events",
+          "dependency": "typescript",
+          "version": "^5.3.3"
+        },
+        {
+          "workspace": "shared/events",
+          "dependency": "@types/uuid",
+          "version": "^9.0.7"
+        },
+        {
+          "workspace": "api-gateway",
+          "dependency": "compression",
+          "version": "^1.7.4"
+        },
+        {
+          "workspace": "api-gateway",
+          "dependency": "cors",
+          "version": "^2.8.5"
+        },
+        {
+          "workspace": "api-gateway",
+          "dependency": "express",
+          "version": "^5.1.0"
+        },
+        {
+          "workspace": "api-gateway",
+          "dependency": "express-rate-limit",
+          "version": "^8.0.1"
+        },
+        {
+          "workspace": "api-gateway",
+          "dependency": "helmet",
+          "version": "^8.0.0"
+        },
+        {
+          "workspace": "api-gateway",
+          "dependency": "typescript",
+          "version": "^5.3.3"
+        },
+        {
+          "workspace": "api-gateway",
+          "dependency": "@types/compression",
+          "version": "^1.7.5"
+        },
+        {
+          "workspace": "api-gateway",
+          "dependency": "@types/cors",
+          "version": "^2.8.17"
+        },
+        {
+          "workspace": "api-gateway",
+          "dependency": "@types/express",
+          "version": "^5.0.3"
+        },
+        {
+          "workspace": "api-gateway",
+          "dependency": "ts-node-dev",
+          "version": "^2.0.0"
+        }
+      ],
+      "impact": "Optimize shared dependencies across workspaces",
+      "suggestions": [
+        "Hoist common dependencies to root package.json",
+        "Use workspace:* protocol for internal dependencies",
+        "Consolidate version ranges across workspaces"
+      ]
+    }
+  ],
+  "recommendations": [
+    {
+      "category": "immediate",
+      "actions": [
+        "Remove unused dependencies to reduce bundle size",
+        "Fix security vulnerabilities with npm audit fix",
+        "Consolidate duplicate dependencies with npm dedupe"
+      ]
+    },
+    {
+      "category": "short-term",
+      "actions": [
+        "Move build-time dependencies to devDependencies",
+        "Implement lazy loading for large libraries",
+        "Use exact versions for dev dependencies"
+      ]
+    },
+    {
+      "category": "long-term",
+      "actions": [
+        "Implement automated dependency monitoring",
+        "Set up continuous security scanning",
+        "Create dependency update automation"
+      ]
+    }
+  ]
+}

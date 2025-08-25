@@ -133,11 +133,8 @@
     "performance:typescript:baseline": "npm run typescript-modernization:validate && echo '✅ TypeScript performance baseline established'",
     "performance:typescript:monitor": "npm run typescript-modernization:monitor",
     "performance:typescript:optimize": "npm run typescript-modernization:optimize && npm run typescript-modernization:benchmark",
-    "build:production": "NODE_ENV=production npm run build:minimal",
-    "build:optimized": "tsc --project tsconfig.production.json --removeComments --declaration false",
-    "build:minimal": "tsc --project tsconfig.production.json --skipLibCheck --noEmitOnError false --removeComments --declaration false",
-    "start:production": "NODE_ENV=production node dist/server.js",
-    "clean:aggressive": "rimraf dist coverage .nyc_output junit.xml node_modules/.cache"
+    "build:production": "NODE_ENV=production npm run build",
+    "build:optimized": "tsc --project tsconfig.production.json --removeComments --declaration false"
   },
   "keywords": [
     "waste-management",
@@ -151,7 +148,6 @@
   "author": "Backend Development Agent",
   "license": "PROPRIETARY",
   "dependencies": {
-    "@types/node-vault": "^0.9.1",
     "axios": "^1.11.0",
     "bcrypt": "^6.0.0",
     "bull": "^4.16.5",
@@ -165,8 +161,6 @@
     "jsonwebtoken": "^9.0.2",
     "moment-timezone": "^0.5.48",
     "morgan": "^1.10.1",
-    "node-vault": "^0.10.5",
-    "otplib": "^12.0.1",
     "pg": "^8.16.3",
     "reflect-metadata": "^0.2.2",
     "sequelize": "^6.37.7",
@@ -183,6 +177,12 @@
     "zod": "^4.1.1"
   },
   "devDependencies": {
+    "@babel/core": "^7.28.3",
+    "@babel/plugin-transform-runtime": "^7.28.3",
+    "@babel/preset-env": "^7.28.3",
+    "@babel/preset-typescript": "^7.27.1",
+    "@cypress/grep": "^4.1.1",
+    "@testing-library/cypress": "^10.0.3",
     "@types/bcrypt": "^5.0.2",
     "@types/cli-table": "^0.3.4",
     "@types/compression": "^1.7.5",
@@ -192,8 +192,10 @@
     "@types/express": "^5.0.3",
     "@types/express-session": "^1.17.10",
     "@types/glob": "^8.1.0",
+    "@types/helmet": "^4.0.0",
     "@types/inquirer": "^8.2.12",
     "@types/jest": "^30.0.0",
+    "@types/joi": "^17.2.3",
     "@types/jsonwebtoken": "^9.0.10",
     "@types/morgan": "^1.9.10",
     "@types/node": "^24.3.0",
@@ -206,19 +208,25 @@
     "@typescript-eslint/eslint-plugin": "^8.39.1",
     "@typescript-eslint/parser": "^8.39.1",
     "concurrently": "^8.2.2",
+    "cypress": "^14.5.4",
+    "cypress-axe": "^1.6.0",
+    "cypress-multi-reporters": "^2.0.5",
+    "cypress-real-events": "^1.14.0",
     "eslint": "^8.45.0",
     "eslint-config-prettier": "^8.8.0",
     "eslint-plugin-prettier": "^5.0.1",
     "jest": "^30.0.5",
+    "jest-html-reporters": "^3.1.7",
+    "jest-junit": "^16.0.0",
     "nodemon": "^3.0.3",
     "prettier": "^3.0.3",
     "supertest": "^6.3.4",
-    "swagger-ui-express": "^5.0.1",
     "ts-jest": "^29.4.1",
     "ts-node": "^10.9.2",
     "ts-node-dev": "^2.0.0",
     "tsconfig-paths": "^4.2.0",
-    "typescript": "^5.9.2"
+    "typescript": "^5.9.2",
+    "swagger-ui-express": "^5.0.1"
   },
   "engines": {
     "node": ">=18.0.0",
@@ -230,10 +238,9 @@
   },
   "files": [
     "dist/**/*",
-    "src/**/*.ts",
-    "!src/**/*.test.ts",
-    "!src/**/*.spec.ts",
-    "!src/test/**/*"
+    "src/**/*",
+    "README.md",
+    "LICENSE"
   ],
   "sideEffects": false
 }

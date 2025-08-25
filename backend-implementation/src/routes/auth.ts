@@ -32,11 +32,7 @@ import {
 } from "@/controllers/refactored/AuthController";
 import { authRateLimiter, generalRateLimiter } from "@/middleware/rateLimit";
 import { validateAndHandle } from "@/middleware/validation/validationHandler";
-import {
-  validateRegistration,
-  validateLogin,
-  validatePasswordChange,
-} from "@/middleware/validation/authValidation";
+import { authValidation } from "@/middleware/validation/joiValidation";
 import {
   authenticate,
   optionalAuth,
@@ -66,14 +62,14 @@ authRouter.use(authRateLimiter);
  * @desc Register a new user
  * @access Public (with validation)
  */
-authRouter.post("/register", AuthController.register);
+authRouter.post("/register", authValidation.registration, AuthController.register);
 
 /**
  * @route POST /auth/login
  * @desc Authenticate user and get tokens
  * @access Public
  */
-authRouter.post("/login", AuthController.login);
+authRouter.post("/login", authValidation.login, AuthController.login);
 
 /**
  * @route POST /auth/refresh

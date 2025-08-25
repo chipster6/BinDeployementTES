@@ -151,7 +151,7 @@ export class ResilienceErrorHandlerMiddleware {
       }
 
       // If resilience framework couldn't handle, fall back to standard error handling
-      await this.sendStandardErrorResponse(res, err, resilienceContext, requestId);
+      await this.sendStandardErrorResponse(req, res, err, resilienceContext, requestId);
 
     } catch (resilienceError) {
       // Resilience framework itself failed - use emergency error handling
@@ -252,6 +252,7 @@ export class ResilienceErrorHandlerMiddleware {
    * Send standard error response when resilience options are exhausted
    */
   private async sendStandardErrorResponse(
+    req: Request,
     res: Response,
     error: any,
     context: ResilienceContext,

@@ -1,0 +1,44 @@
+{
+  "timestamp": "2025-08-24T18:47:22.234Z",
+  "health": {
+    "overall": "excellent",
+    "score": 91,
+    "issues": []
+  },
+  "metrics": {
+    "bundleSize": "279M",
+    "dependencies": 27,
+    "devDependencies": 36,
+    "totalDependencies": 63,
+    "nodeModulesExists": true
+  },
+  "security": {
+    "vulnerabilities": {},
+    "auditScore": 100,
+    "lastAuditDate": "2025-08-24T18:47:22.328Z",
+    "criticalIssues": 0,
+    "highIssues": 0,
+    "moderateIssues": 0,
+    "lowIssues": 0
+  },
+  "performance": {
+    "bundleSizeOptimal": false,
+    "dependencyCountOptimal": true,
+    "unusedDependencies": [],
+    "largeDependencies": [],
+    "performanceScore": 70
+  },
+  "optimization": {
+    "opportunities": [],
+    "potentialSavings": 0,
+    "optimizationScore": 100
+  },
+  "recommendations": [
+    {
+      "priority": "medium",
+      "category": "performance",
+      "action": "Reduce bundle size by removing unused dependencies",
+      "command": "node scripts/execute-dependency-optimizations.js"
+    }
+  ]
+}

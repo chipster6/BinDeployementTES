@@ -1,0 +1,29 @@
+{
+  "name": "waste-management-microservices",
+  "version": "1.0.0",
+  "description": "Waste management system - microservices build",
+  "scripts": {
+    "build": "npm run build:shared && npm run build:gateway && npm run build:main",
+    "build:shared": "npm run build:types && npm run build:authz && npm run build:observability",
+    "build:types": "cd shared/types && npm run build",
+    "build:authz": "cd shared/authz && npm run build", 
+    "build:observability": "cd shared/observability && npm run build",
+    "build:gateway": "cd api-gateway && npm run build",
+    "build:main": "tsc --project tsconfig.microservices.json",
+    "build:contracts": "node scripts/generate-contract-types.js",
+    "build:watch": "npm run build:main -- --watch",
+    "build:incremental": "npm run build:main -- --incremental",
+    "dev": "npm run build:shared && npm run dev:main",
+    "dev:main": "ts-node-dev --project tsconfig.microservices.json --respawn src/server.ts",
+    "dev:gateway": "cd api-gateway && npm run dev",
+    "type-check": "tsc --project tsconfig.microservices.json --noEmit",
+    "type-check:watch": "npm run type-check -- --watch",
+    "clean": "rm -rf dist coverage shared/*/dist api-gateway/dist",
+    "test": "jest",
+    "test:types": "npm run type-check"
+  },
+  "workspaces": [
+    "shared/*",
+    "api-gateway"
+  ]
+}

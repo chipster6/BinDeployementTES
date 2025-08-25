@@ -33,6 +33,7 @@ import {
 } from "sequelize";
 import { sequelize } from "@/config/database";
 import { User } from "./User";
+import { logger } from "@/utils/logger";
 import crypto from "crypto";
 
 /**

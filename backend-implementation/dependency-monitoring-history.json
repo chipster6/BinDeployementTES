@@ -1,0 +1,32 @@
+[
+  {
+    "timestamp": "2025-08-24T18:45:29.063Z",
+    "health": {
+      "overall": "excellent",
+      "score": 91,
+      "issues": []
+    },
+    "metrics": {
+      "bundleSize": "324M",
+      "dependencies": 27,
+      "devDependencies": 50,
+      "totalDependencies": 77,
+      "nodeModulesExists": true
+    }
+  },
+  {
+    "timestamp": "2025-08-24T18:47:22.234Z",
+    "health": {
+      "overall": "excellent",
+      "score": 91,
+      "issues": []
+    },
+    "metrics": {
+      "bundleSize": "279M",
+      "dependencies": 27,
+      "devDependencies": 36,
+      "totalDependencies": 63,
+      "nodeModulesExists": true
+    }
+  }
+]

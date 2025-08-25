@@ -23,6 +23,7 @@
 
 import { Router } from 'express';
 import { body, param, query } from 'express-validator';
+import { logger } from '@/utils/logger';
 import { auth } from '@/middleware/auth';
 import { validation } from '@/middleware/validation';
 import { rateLimit } from '@/middleware/rateLimit';

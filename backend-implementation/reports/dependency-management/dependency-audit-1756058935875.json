@@ -1,0 +1,48 @@
+{
+  "timestamp": "2025-08-24T18:08:55.874Z",
+  "metrics": {
+    "bundleSize": "429M",
+    "duplicates": 1,
+    "vulnerabilities": 0,
+    "conflicts": 2
+  },
+  "issues": [
+    {
+      "type": "BUNDLE_SIZE",
+      "severity": "HIGH",
+      "message": "Bundle size 429M exceeds 300MB threshold",
+      "recommendation": "Remove unused dependencies and optimize package selection"
+    },
+    {
+      "type": "VERSION_CONFLICT",
+      "severity": "CRITICAL",
+      "message": "Express version conflict detected: 5.1.0, 5.0.1",
+      "recommendation": "Standardize Express version across all workspace packages"
+    },
+    {
+      "type": "VERSION_CONFLICT",
+      "severity": "MEDIUM",
+      "message": "joi version conflict: 17.2.3, 18.0.0",
+      "recommendation": "Standardize joi version across packages"
+    },
+    {
+      "type": "VALIDATION_DUPLICATION",
+      "severity": "HIGH",
+      "message": "Multiple validation frameworks detected: joi, zod",
+      "recommendation": "Consolidate to single validation framework (recommend Joi for consistency)"
+    }
+  ],
+  "fixes": [
+    {
+      "type": "OPTIMIZATION",
+      "action": "Remove unused devDependencies from production builds",
+      "impact": "Reduce bundle size by ~30-50%"
+    },
+    {
+      "type": "VERSION_ALIGNMENT",
+      "action": "Update workspace packages to use consistent versions",
+      "impact": "Eliminate version conflicts and reduce duplicate dependencies"
+    }
+  ],
+  "healthScore": 50
+}
