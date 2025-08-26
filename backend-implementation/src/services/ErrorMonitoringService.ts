@@ -24,32 +24,8 @@ import { AppError } from "@/middleware/errorHandler";
 import { logger, logSecurityEvent, logAuditEvent } from "@/utils/logger";
 import { redisClient } from "@/config/redis";
 import { config } from "@/config";
-import { BusinessImpact, SystemLayer } from "./ErrorOrchestrationService";
-
-/**
- * Error severity levels
- */
-export enum ErrorSeverity {
-  LOW = "low",
-  MEDIUM = "medium",
-  HIGH = "high",
-  CRITICAL = "critical",
-}
-
-/**
- * Error category classifications
- */
-export enum ErrorCategory {
-  AUTHENTICATION = "authentication",
-  AUTHORIZATION = "authorization",
-  VALIDATION = "validation",
-  DATABASE = "database",
-  EXTERNAL_SERVICE = "external_service",
-  NETWORK = "network",
-  SYSTEM = "system",
-  BUSINESS_LOGIC = "business_logic",
-  SECURITY = "security",
-}
+import { ErrorSeverity, ErrorCategory, BusinessImpact, SystemLayer } from "./ports/ErrorTypes";
+import { ErrorReporterPort } from "./ports/ErrorReporterPort";
 
 /**
  * Error event interface
@@ -145,7 +121,7 @@ export interface PredictiveInsight {
 /**
  * Enhanced error monitoring service with AI/ML capabilities
  */
-export class ErrorMonitoringService extends EventEmitter {
+export class ErrorMonitoringService extends EventEmitter implements ErrorReporterPort {
   private errorBuffer: Map<string, ErrorEvent> = new Map();
   private errorPatterns: Map<string, ErrorPattern> = new Map();
   private alertConfigs: AlertConfig[] = [];
@@ -167,6 +143,28 @@ export class ErrorMonitoringService extends EventEmitter {
     this.startCleanup();
     this.startMLPrediction();
     this.startCorrelationAnalysis();
+  }
+
+  /**
+   * Report method implementation for ErrorReporterPort interface
+   */
+  public async report(event: {
+    code: string;
+    message: string;
+    meta?: unknown;
+    severity: ErrorSeverity;
+    category?: ErrorCategory;
+    businessImpact?: BusinessImpact;
+    systemLayer?: SystemLayer;
+  }): Promise<void> {
+    const appError = new AppError(event.message, 500, event.code);
+    const context = {
+      businessImpact: event.businessImpact,
+      systemLayer: event.systemLayer,
+      ...(typeof event.meta === 'object' && event.meta ? event.meta : {})
+    };
+    
+    await this.trackError(appError, context, { reportedViaPort: true });
   }
 
   /**

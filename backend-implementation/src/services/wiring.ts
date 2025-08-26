@@ -7,6 +7,12 @@
 
 import { jobQueue } from "./jobQueue";
 import { ExternalServicesAdapter } from "./external/ExternalServicesAdapter";
+import { ErrorMonitoringService } from './ErrorMonitoringService';
+import { ErrorOrchestrationService } from './ErrorOrchestrationService';
+
+// Service singletons
+let errorMonitoringService: ErrorMonitoringService | null = null;
+let errorOrchestrationService: ErrorOrchestrationService | null = null;
 
 /**
  * Wire all service dependencies
@@ -15,6 +21,27 @@ import { ExternalServicesAdapter } from "./external/ExternalServicesAdapter";
 export function wireServices(): void {
   // Break ExternalServicesManager ↔ jobQueue cycle
   jobQueue.setExternalServicesHandler(new ExternalServicesAdapter());
+  
+  // Break ErrorMonitoring ↔ ErrorOrchestration cycle
+  errorMonitoringService = new ErrorMonitoringService();
+  errorOrchestrationService = new ErrorOrchestrationService(errorMonitoringService);
+}
+
+/**
+ * Get wired service instances
+ */
+export function getErrorMonitoringService(): ErrorMonitoringService {
+  if (!errorMonitoringService) {
+    throw new Error('Services not wired - call wireServices() first');
+  }
+  return errorMonitoringService;
+}
+
+export function getErrorOrchestrationService(): ErrorOrchestrationService {
+  if (!errorOrchestrationService) {
+    throw new Error('Services not wired - call wireServices() first');
+  }
+  return errorOrchestrationService;
 }
 
 /**

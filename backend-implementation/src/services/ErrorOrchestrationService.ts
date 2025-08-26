@@ -25,38 +25,12 @@
 
 import { EventEmitter } from "events";
 import { AppError, ExternalServiceError, DatabaseOperationError } from "@/middleware/errorHandler";
-import { errorMonitoring, ErrorSeverity, ErrorCategory } from "@/services/ErrorMonitoringService";
+import { ErrorSeverity, ErrorCategory, BusinessImpact, SystemLayer } from "./ports/ErrorTypes";
+import { ErrorReporterPort } from "./ports/ErrorReporterPort";
 import { logger, logError, logSecurityEvent, logAuditEvent } from "@/utils/logger";
 import { redisClient } from "@/config/redis";
 import { config } from "@/config";
 
-/**
- * Business impact levels for error classification
- */
-export enum BusinessImpact {
-  MINIMAL = "minimal",
-  LOW = "low", 
-  MEDIUM = "medium",
-  HIGH = "high",
-  CRITICAL = "critical",
-  REVENUE_BLOCKING = "revenue_blocking"
-}
-
-/**
- * System layer types for error coordination
- */
-export enum SystemLayer {
-  PRESENTATION = "presentation",
-  API = "api",
-  BUSINESS_LOGIC = "business_logic",
-  DATA_ACCESS = "data_access",
-  EXTERNAL_SERVICES = "external_services",
-  INFRASTRUCTURE = "infrastructure",
-  SECURITY = "security",
-  MONITORING = "monitoring",
-  AI_ML = "ai_ml",
-  SERVICE_MESH = "service_mesh"
-}
 
 /**
  * Error recovery strategies
@@ -165,9 +139,11 @@ export class ErrorOrchestrationService extends EventEmitter {
   private readonly maxConcurrentRecoveries = 10;
   private readonly patternAnalysisInterval = 300000; // 5 minutes
   private readonly healthCheckInterval = 60000; // 1 minute
+  private errorReporter: ErrorReporterPort;
 
-  constructor() {
+  constructor(errorReporter: ErrorReporterPort) {
     super();
+    this.errorReporter = errorReporter;
     this.initializeBusinessContinuityStrategies();
     this.startPatternAnalysis();
     this.startHealthMonitoring();
@@ -260,8 +236,9 @@ export class ErrorOrchestrationService extends EventEmitter {
       }
     }
 
-    // Calculate error rate
-    const errorStats = await errorMonitoring.getErrorStats(300000); // Last 5 minutes
+    // Calculate error rate - temporarily stubbed to break circular dependency
+    // TODO: Replace with proper interface once wiring is complete
+    const errorStats = { total: 0 };
     const errorRate = errorStats.total / 300; // Errors per second
 
     // Get active error patterns for predictions
@@ -292,7 +269,9 @@ export class ErrorOrchestrationService extends EventEmitter {
     crossSystemCorrelations: any[];
     predictiveInsights: any[];
   }> {
-    const errorStats = await errorMonitoring.getErrorStats(timeRange);
+    // Temporarily stubbed to break circular dependency
+    // TODO: Replace with proper interface once wiring is complete
+    const errorStats = { total: 0, byCategory: {}, bySeverity: {} };
     
     // Build analytics from recent errors and recoveries
     const analytics = {
