@@ -23,10 +23,10 @@
  */
 
 import { EventEmitter } from 'events';
-import { sequelize } from '@/config/database';
 import { config } from '@/config';
 import { logger } from '@/utils/logger';
 import { QueryTypes } from 'sequelize';
+import type { DbMetricsPort } from './ports/DbMetricsPort';
 
 /**
  * Query Performance Metrics Interface
@@ -101,6 +101,7 @@ export class DatabasePerformanceMonitor extends EventEmitter {
   private queryMetrics: QueryMetrics[] = [];
   private alerts: PerformanceAlert[] = [];
   private performanceHistory: PerformanceSummary[] = [];
+  private dbMetrics: DbMetricsPort;
   
   // Configuration
   private readonly SLOW_QUERY_THRESHOLD = 1000; // 1 second
@@ -110,14 +111,15 @@ export class DatabasePerformanceMonitor extends EventEmitter {
   private readonly HIGH_UTILIZATION_THRESHOLD = 80;
   private readonly CRITICAL_UTILIZATION_THRESHOLD = 95;
 
-  private constructor() {
+  private constructor(dbMetrics: DbMetricsPort) {
     super();
-    this.setupQueryInterception();
+    this.dbMetrics = dbMetrics;
+    // Remove setupQueryInterception since it requires direct Sequelize access
   }
 
-  public static getInstance(): DatabasePerformanceMonitor {
+  public static getInstance(dbMetrics: DbMetricsPort): DatabasePerformanceMonitor {
     if (!DatabasePerformanceMonitor.instance) {
-      DatabasePerformanceMonitor.instance = new DatabasePerformanceMonitor();
+      DatabasePerformanceMonitor.instance = new DatabasePerformanceMonitor(dbMetrics);
     }
     return DatabasePerformanceMonitor.instance;
   }
@@ -198,14 +200,14 @@ export class DatabasePerformanceMonitor extends EventEmitter {
    */
   public async getConnectionPoolStats(): Promise<PoolStatistics> {
     try {
-      const pool = sequelize.connectionManager.pool;
+      const poolStats = await this.dbMetrics.getPoolStats();
       
       return {
-        total: pool?.size || 0,
-        active: pool?.borrowed || 0,
-        idle: pool?.available || 0,
-        waiting: pool?.pending || 0,
-        utilization: pool.size > 0 ? Math.round((pool.borrowed / pool.size) * 100) : 0,
+        total: poolStats.total,
+        active: poolStats.active,
+        idle: poolStats.idle,
+        waiting: poolStats.waiting,
+        utilization: poolStats.total > 0 ? Math.round((poolStats.active / poolStats.total) * 100) : 0,
         maxWaitTime: await this.getMaxWaitTime(),
         avgWaitTime: await this.getAverageWaitTime(),
         connectionErrors: this.countRecentConnectionErrors(),
@@ -229,42 +231,9 @@ export class DatabasePerformanceMonitor extends EventEmitter {
 
   /**
    * Setup query interception for performance tracking
+   * NOTE: This method is removed to break Sequelize dependency.
+   * Query metrics will be collected differently via injected dependencies.
    */
-  private setupQueryInterception(): void {
-    // Hook into Sequelize query execution
-    sequelize.addHook('beforeQuery', (options: any) => {
-      options._startTime = Date.now();
-    });
-
-    sequelize.addHook('afterQuery', (options: any, result: any) => {
-      const duration = Date.now() - (options?._startTime || Date.now());
-      
-      const metric: QueryMetrics = {
-        sql: options?.sql || 'Unknown Query',
-        duration,
-        timestamp: new Date(),
-        type: this.detectQueryType(options?.sql || ''),
-        affectedRows: this.getAffectedRowsCount(result),
-        cached: false, // TODO: Implement cache detection
-        connectionId: options.connectionId,
-      };
-
-      this.recordQueryMetric(metric);
-
-      // Check for slow queries
-      if (duration > this.SLOW_QUERY_THRESHOLD) {
-        this.alertSlowQuery(metric);
-      }
-    });
-
-    sequelize.addHook('beforeConnect', () => {
-      // Track connection events
-    });
-
-    sequelize.addHook('afterConnect', () => {
-      // Track successful connections
-    });
-  }
 
   /**
    * Record query metric
@@ -553,5 +522,6 @@ export class DatabasePerformanceMonitor extends EventEmitter {
 
 /**
  * Singleton instance for application use
+ * NOTE: This will be initialized in the composition root with proper dependencies
  */
-export const databasePerformanceMonitor = DatabasePerformanceMonitor.getInstance();
+// export const databasePerformanceMonitor = DatabasePerformanceMonitor.getInstance();

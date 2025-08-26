@@ -24,9 +24,10 @@ import { BaseService, ServiceResult } from '../BaseService';
 import { asResult } from '@/shared/ServiceResult';
 import { logger, Timer } from '@/utils/logger';
 import { ResponseHelper } from '@/utils/ResponseHelper';
-import { database } from '@/config/database';
 import { AppError } from '@/middleware/errorHandler';
 import { EventBusPort } from '../ports/EventBusPort';
+import type { Sequelize } from 'sequelize';
+import { Op } from 'sequelize';
 
 /**
  * Billing data interfaces
@@ -91,8 +92,8 @@ export interface InvoiceResult {
 class BillingServiceClass extends BaseService {
   private eventBus?: EventBusPort;
   
-  constructor(eventBus?: EventBusPort) {
-    super(null as any, 'BillingService');
+  constructor(database: Sequelize, eventBus?: EventBusPort) {
+    super(null as any, database, 'BillingService');
     this.cacheNamespace = 'billing_service';
     this.defaultCacheTTL = 600; // 10 minutes
     this.eventBus = eventBus;
@@ -126,7 +127,7 @@ class BillingServiceClass extends BaseService {
       // Create invoice record in database
       const invoiceData = await this.withTransaction(async (transaction) => {
         // Create invoice record
-        const invoice = await database.models.Invoice.create({
+        const invoice = await (this.database.models as any).Invoice.create({
           invoiceNumber,
           customerId,
           organizationId,
@@ -145,7 +146,7 @@ class BillingServiceClass extends BaseService {
 
         // Create invoice line items
         for (const service of services) {
-          await database.models.InvoiceLineItem.create({
+          await (this.database.models as any).InvoiceLineItem.create({
             invoiceId: invoice.id,
             serviceId: service.serviceId,
             serviceName: service.serviceName,
@@ -235,7 +236,7 @@ class BillingServiceClass extends BaseService {
 
     try {
       // Load invoice
-      const invoice = await database.models.Invoice.findByPk(invoiceId);
+      const invoice = await (this.database.models as any).Invoice.findByPk(invoiceId);
       if (!invoice) {
         return {
           success: false,
@@ -282,7 +283,7 @@ class BillingServiceClass extends BaseService {
         }, { transaction });
 
         // Create payment record
-        await database.models.Payment.create({
+        await (this.database.models as any).Payment.create({
           invoiceId: invoice.id,
           customerId: invoice.customerId,
           amount: invoice.totalAmount,
@@ -378,22 +379,22 @@ class BillingServiceClass extends BaseService {
 
       if (startDate && endDate) {
         whereClause.createdAt = {
-          [database.Sequelize.Op.between]: [new Date(startDate), new Date(endDate)]
+          [Op.between]: [new Date(startDate), new Date(endDate)]
         };
       }
 
-      const { count, rows: invoices } = await database.models.Invoice.findAndCountAll({
+      const { count, rows: invoices } = await (this.database.models as any).Invoice.findAndCountAll({
         where: whereClause,
         limit,
         offset,
         order: [['createdAt', 'DESC']],
         include: [
           {
-            model: database.models.InvoiceLineItem,
+            model: (this.database.models as any).InvoiceLineItem,
             as: 'lineItems'
           },
           {
-            model: database.models.Payment,
+            model: (this.database.models as any).Payment,
             as: 'payments',
             required: false
           }
@@ -504,7 +505,7 @@ class BillingServiceClass extends BaseService {
 
       if (result.success) {
         // Store recurring billing configuration
-        await database.models.RecurringBilling.create({
+        await (this.database.models as any).RecurringBilling.create({
           customerId,
           organizationId,
           frequency,
@@ -589,12 +590,12 @@ class BillingServiceClass extends BaseService {
 
   private async getNextInvoiceSequence(organizationId: string, year: number): Promise<number> {
     // Get next sequence number for invoice numbering
-    const lastInvoice = await database.models.Invoice.findOne({
+    const lastInvoice = await (this.database.models as any).Invoice.findOne({
       where: {
         organizationId,
         createdAt: {
-          [database.Sequelize.Op.gte]: new Date(`${year}-01-01`),
-          [database.Sequelize.Op.lt]: new Date(`${year + 1}-01-01`)
+          [Op.gte]: new Date(`${year}-01-01`),
+          [Op.lt]: new Date(`${year + 1}-01-01`)
         }
       },
       order: [['createdAt', 'DESC']]

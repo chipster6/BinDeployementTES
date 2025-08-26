@@ -20,8 +20,7 @@
  * Version: 1.0.0
  */
 
-import { Model, type ModelStatic, type Transaction, type FindOptions, type CreateOptions, type UpdateOptions, type DestroyOptions, type  } from "sequelize";
-import { database } from "@/config/database";
+import { Model, type ModelStatic, type Transaction, type FindOptions, type CreateOptions, type UpdateOptions, type DestroyOptions, type Sequelize } from "sequelize";
 import { redisClient } from "@/config/redis";
 import { logger, Timer } from "@/utils/logger";
 import {
@@ -82,9 +81,11 @@ export abstract class BaseService<T extends Model = Model> {
   protected serviceName: string;
   protected cacheNamespace: string;
   protected defaultCacheTTL: number = 300; // 5 minutes
+  protected database: Sequelize;
 
-  constructor(model: ModelStatic<T>, serviceName?: string) {
+  constructor(model: ModelStatic<T>, database: Sequelize, serviceName?: string) {
     this.model = model;
+    this.database = database;
     this.serviceName = serviceName || model.name + "Service";
     this.cacheNamespace =
       serviceName?.toLowerCase() || model.name.toLowerCase();
@@ -107,7 +108,7 @@ export abstract class BaseService<T extends Model = Model> {
     }
 
     // Create new transaction
-    const newTransaction = await database.transaction();
+    const newTransaction = await this.database.transaction();
     try {
       const result = await operation(newTransaction);
       await newTransaction.commit();

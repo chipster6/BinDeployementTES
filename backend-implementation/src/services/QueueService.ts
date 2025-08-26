@@ -28,6 +28,7 @@ import { config } from "@/config";
 import { queueRedisClient } from "@/config/redis";
 import { logger, Timer } from "@/utils/logger";
 import { ResponseHelper } from "@/utils/ResponseHelper";
+import type { Sequelize } from 'sequelize';
 
 /**
  * Queue job data interfaces
@@ -135,9 +136,9 @@ export class QueueService extends BaseService {
   private metrics: Map<string, any> = new Map();
   private isInitialized = false;
 
-  constructor() {
+  constructor(database: Sequelize) {
     // No model needed for QueueService
-    super(null as any, 'QueueService');
+    super(null as any, database, 'QueueService');
     this.cacheNamespace = 'queue_service';
     this.defaultCacheTTL = 300; // 5 minutes
   }

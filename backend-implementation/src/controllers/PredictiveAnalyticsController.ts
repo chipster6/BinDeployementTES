@@ -59,7 +59,7 @@ export class PredictiveAnalyticsController {
 
       // Validate business logic constraints
       if (!['demand', 'revenue', 'churn', 'maintenance', 'cost'].includes(forecastRequest.target)) {
-        ResponseHelper.badRequest(res, req, 'Invalid target type');
+        ResponseHelper.badRequest(res, 'Invalid target type');
         return;
       }
 
@@ -74,16 +74,7 @@ export class PredictiveAnalyticsController {
           cached: result.data?.cached || false
         });
 
-        ResponseHelper.success(res, {
-          data: result.data,
-          message: 'Forecast generated successfully',
-          meta: {
-            execution_time: timer.getDuration(),
-            model_used: result.data?.model_info?.primary_model,
-            forecast_periods: result.data?.predictions?.length || 0,
-            accuracy: result.data?.model_info?.accuracy_metrics?.r2_score || 0
-          }
-        });
+        ResponseHelper.success(res, result.data, 'Forecast generated successfully');
       } else {
         timer.end({ error: result?.message });
         ResponseHelper.internalError(res, result?.message || 'Forecast generation failed');
@@ -132,7 +123,7 @@ export class PredictiveAnalyticsController {
       }
 
       if (requests.length > 10) {
-        ResponseHelper.internalError(res, 'Maximum 10 requests allowed per batch', 400);
+        ResponseHelper.badRequest(res, 'Maximum 10 requests allowed per batch');
         return;
       }
 
@@ -169,8 +160,8 @@ export class PredictiveAnalyticsController {
       );
 
       // Process results
-      const successfulResults = [];
-      const failedResults = [];
+      const successfulResults: any[] = [];
+      const failedResults: any[] = [];
 
       batchResults.forEach((result, index) => {
         if (result.status === 'fulfilled' && result.value.success) {
@@ -190,7 +181,7 @@ export class PredictiveAnalyticsController {
         failedResults: failedResults.length
       });
 
-      ResponseHelper.success(res, {
+      const batchData = {
         successful: successfulResults,
         failed: failedResults,
         summary: {
@@ -198,10 +189,9 @@ export class PredictiveAnalyticsController {
           successful: successfulResults.length,
           failed: failedResults.length
         }
-      }, 'Batch forecast processing completed', {
-        execution_time: timer.getDuration(),
-        processing_mode: options?.concurrent ? 'concurrent' : 'sequential'
-      });
+      };
+      
+      ResponseHelper.success(res, batchData, 'Batch forecast processing completed');
 
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error?.message : 'Unknown batch error';

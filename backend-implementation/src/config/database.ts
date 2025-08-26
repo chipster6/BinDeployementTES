@@ -24,7 +24,6 @@ import type { Transaction } from "sequelize";
 import { config } from "@/config";
 import { logger } from "@/utils/logger";
 import { WeaviateConnectionManager, WeaviateConnection } from "../database/WeaviateConnection";
-import { VectorSyncService } from "../services/VectorSyncService";
 
 /**
  * =============================================================================
