@@ -26,6 +26,7 @@ import { logger, Timer } from '@/utils/logger';
 import { ResponseHelper } from '@/utils/ResponseHelper';
 import { database } from '@/config/database';
 import { AppError } from '@/middleware/errorHandler';
+import { EventBusPort } from '../ports/EventBusPort';
 
 /**
  * Billing data interfaces
@@ -88,11 +89,13 @@ export interface InvoiceResult {
  * Billing Service Class
  */
 class BillingServiceClass extends BaseService {
+  private eventBus?: EventBusPort;
   
-  constructor() {
+  constructor(eventBus?: EventBusPort) {
     super(null as any, 'BillingService');
     this.cacheNamespace = 'billing_service';
     this.defaultCacheTTL = 600; // 10 minutes
+    this.eventBus = eventBus;
   }
 
   /**
@@ -295,21 +298,23 @@ class BillingServiceClass extends BaseService {
       // Clear invoice cache
       await this.deleteFromCache(`invoice:${invoiceId}`);
 
-      // Queue payment confirmation notification
-      const { queueService } = await import('../QueueService');
-      await queueService.addJob('notifications', 'payment-confirmation', {
-        recipientId: invoice.customerId,
-        type: 'email',
-        channel: 'billing',
-        template: 'payment-confirmation',
-        data: {
-          invoiceId: invoice.id,
-          invoiceNumber: invoice.invoiceNumber,
-          amount: invoice.totalAmount,
-          paidAt: new Date().toISOString()
-        },
-        priority: 8
-      });
+      // Publish payment confirmation event (breaks QueueService cycle)
+      // Queue will subscribe to this event instead of direct import
+      if (this.eventBus) {
+        await this.eventBus.publish('billing.payment.confirmed', {
+          recipientId: invoice.customerId,
+          type: 'email',
+          channel: 'billing',
+          template: 'payment-confirmation',
+          data: {
+            invoiceId: invoice.id,
+            invoiceNumber: invoice.invoiceNumber,
+            amount: invoice.totalAmount,
+            paidAt: new Date().toISOString()
+          },
+          priority: 8
+        });
+      }
 
       const duration = timer.end({
         invoiceId,
@@ -477,20 +482,25 @@ class BillingServiceClass extends BaseService {
           };
       }
 
-      // Schedule recurring job
-      const { queueService } = await import('../QueueService');
-      const result = await queueService.scheduleRecurringJob(
-        'billing-generation',
-        `recurring-billing-${customerId}`,
-        {
-          customerId,
-          organizationId,
-          services,
-          billingPeriod: this.calculateBillingPeriod(frequency, startDate),
-          dueDate: this.calculateDueDate(frequency, startDate)
-        },
-        cronExpression
-      );
+      // Publish recurring billing setup event (breaks QueueService cycle)
+      let result: { success: boolean; jobId?: string; errors?: string[] };
+      if (this.eventBus) {
+        await this.eventBus.publish('billing.recurring.setup', {
+          jobType: 'billing-generation',
+          jobName: `recurring-billing-${customerId}`,
+          schedule: cronExpression,
+          data: {
+            customerId,
+            organizationId,
+            services,
+            billingPeriod: this.calculateBillingPeriod(frequency, startDate),
+            dueDate: this.calculateDueDate(frequency, startDate)
+          }
+        });
+        result = { success: true, jobId: `recurring-billing-${customerId}` };
+      } else {
+        result = { success: false, errors: ['Event bus not available'] };
+      }
 
       if (result.success) {
         // Store recurring billing configuration
