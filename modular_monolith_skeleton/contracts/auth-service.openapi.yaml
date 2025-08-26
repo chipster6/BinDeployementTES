@@ -1,0 +1,16 @@
+openapi: 3.0.3
+info: { title: auth-service, version: 0.1.0 }
+paths:
+  /auth/login:
+    post:
+      summary: Login and mint access token
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties: { email: {type: string, format: email}, password: {type: string, minLength: 8} }
+              required: [email, password]
+      responses:
+        "200": { description: OK, content: { application/json: { schema: { type: object, properties: { token: {type: string} } } } } }
