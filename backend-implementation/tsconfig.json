@@ -60,16 +60,18 @@
     }
   },
   "include": [
-    "src/**/*"
+    "src/**/*.ts",
+    "src/**/*.tsx",
+    "src/**/*.d.ts",
+    "types/**/*.d.ts"
   ],
   "exclude": [
     "node_modules",
     "dist",
     "coverage",
-    "tests",
-    "**/*.test.ts",
-    "**/*.spec.ts",
-    "**/*.d.ts.map",
+    "src/**/__tests__/**",
+    "src/**/*.test.ts",
+    "src/**/*.spec.ts",
     "frontend/**/*"
   ],
   "ts-node": {
