@@ -6,40 +6,29 @@
  * the concrete manager.
  */
 
+export type WebhookProcessedMeta = {
+  serviceName: string;
+  processingResult: unknown;
+  backgroundProcessed: boolean;
+};
+
 export interface ExternalServicesHandler {
-  /**
-   * Handle job completion for external services
-   */
-  handleJobCompletion(jobId: string, jobType: string, result: unknown): Promise<void>;
-  
-  /**
-   * Handle job failure for external services
-   */
-  handleJobFailure(jobId: string, jobType: string, error: Error): Promise<void>;
-  
-  /**
-   * Handle service health updates
-   */
-  handleServiceHealthUpdate(serviceName: string, health: ServiceHealthStatus): Promise<void>;
-  
   /**
    * Handle webhook processing completion
    */
-  handleWebhookProcessed(webhookId: string, result: WebhookProcessingResult): Promise<void>;
-}
-
-export interface ServiceHealthStatus {
-  status: 'healthy' | 'degraded' | 'unhealthy';
-  lastCheck: Date;
-  responseTime?: number;
-  errorRate?: number;
-  details?: Record<string, unknown>;
-}
-
-export interface WebhookProcessingResult {
-  success: boolean;
-  processedAt: Date;
-  duration: number;
-  error?: string;
-  metadata?: Record<string, unknown>;
+  handleWebhookProcessed(eventId: string, meta: WebhookProcessedMeta): Promise<void>;
+  
+  /**
+   * Get coordination data for frontend
+   */
+  getFrontendCoordinationData(): Promise<{
+    services: Array<{ name: string; status: string }>;
+    health: "healthy" | "degraded";
+    timestamp: Date;
+  }>;
+  
+  /**
+   * Trigger cost optimization (optional)
+   */
+  triggerCostOptimization?(input: unknown): Promise<{ success: boolean; details?: unknown }>;
 }
