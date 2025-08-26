@@ -78,10 +78,10 @@
     "performance:all": "./scripts/run-performance-tests.sh",
     "performance:validate": "npm run test:performance:phase3 && echo '\n✅ Phase 3 Performance Validation: 45-65% improvement targets achieved'",
     "test:all": "npm run test:unit && npm run test:integration && npm run test:e2e && npm run test:security",
-    "db:up:dev": "docker compose -f docker-compose.dev.yml up -d --wait",
-    "db:reset:dev": "psql \"$DATABASE_URL\" -v ON_ERROR_STOP=1 -c 'DROP SCHEMA public CASCADE; CREATE SCHEMA public;' -f backend-implementation/db/schema.dev.sql",
+    "db:up:dev": "docker compose -f ../docker-compose.dev.yml up -d --wait",
+    "db:reset:dev": "psql \"$DATABASE_URL\" -v ON_ERROR_STOP=1 -c 'DROP SCHEMA public CASCADE; CREATE SCHEMA public;' -f db/schema.dev.sql",
     "seed:dev": "node scripts/seed-dev.js",
-    "test:smoke": "echo '✅ Smoke tests placeholder - add actual smoke tests here'"
+    "test:smoke": "echo '✅ Smoke tests placeholder - add actual smoke tests here'",
     "test:ci": "npm run test:all && npm run coverage:analyze",
     "coverage:analyze": "node tests/scripts/coverage-analysis.js",
     "coverage:report": "npm run test:coverage && npm run coverage:analyze",
