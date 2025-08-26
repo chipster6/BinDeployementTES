@@ -31,7 +31,7 @@ import {
   Index,
   BelongsToMany,
 } from "sequelize-typescript";
-import { UserRole } from "./User";
+import { UserRole } from "@/domain/auth/types";
 
 /**
  * Permission Actions Enum

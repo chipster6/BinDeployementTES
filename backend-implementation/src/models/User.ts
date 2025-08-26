@@ -27,28 +27,8 @@ import {
 import { database } from "@/config/database";
 import bcrypt from "bcrypt";
 import { config } from "@/config";
-import { UserSession } from "./UserSession";
-import { AuditLog } from "./AuditLog";
 import { encryptDatabaseField, decryptDatabaseField, isEncrypted } from "@/utils/encryption";
-
-// User role enumeration
-export enum UserRole {
-  SUPER_ADMIN = "super_admin",
-  ADMIN = "admin",
-  DISPATCHER = "dispatcher",
-  OFFICE_STAFF = "office_staff",
-  DRIVER = "driver",
-  CUSTOMER = "customer",
-  CUSTOMER_STAFF = "customer_staff",
-}
-
-// User status enumeration
-export enum UserStatus {
-  ACTIVE = "active",
-  INACTIVE = "inactive",
-  SUSPENDED = "suspended",
-  LOCKED = "locked",
-}
+import { UserRole, UserStatus } from "@/domain/auth/types";
 
 /**
  * User model class

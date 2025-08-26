@@ -31,8 +31,8 @@ import {
   BelongsTo,
   Index,
 } from "sequelize-typescript";
-import { UserRole } from "./User";
-import { Permission, PermissionAction } from "./Permission";
+import { UserRole } from "@/domain/auth/types";
+import { PermissionAction } from "./Permission";
 
 /**
  * Role Permission Model

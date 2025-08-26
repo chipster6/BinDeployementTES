@@ -33,7 +33,7 @@ import {
   HasMany,
   Index,
 } from "sequelize-typescript";
-import { User } from "../User";
+import { UserId } from "@/domain/auth/types";
 import bcrypt from "bcrypt";
 import speakeasy from "speakeasy";
 import { encryptDatabaseField, decryptDatabaseField } from "@/utils/encryption";
@@ -332,9 +332,9 @@ export class UserSecurity extends Model<UserSecurity> {
   @Column(DataType.DATE)
   declare deletedAt?: Date;
 
-  // Associations
-  @BelongsTo(() => User)
-  declare user: User;
+  // Associations - using string reference to prevent circular dependency
+  @BelongsTo(() => "User")
+  declare user: any;
 
   /**
    * Instance Methods

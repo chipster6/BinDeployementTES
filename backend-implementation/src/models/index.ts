@@ -13,8 +13,11 @@
 
 import { database } from "@/config/database";
 
+// Import shared domain types
+import { UserRole, UserStatus } from "@/domain/auth/types";
+
 // Import all models
-import User, { UserRole, UserStatus } from "./User";
+import User from "./User";
 import Organization, {
   OrganizationType,
   OrganizationStatus,
@@ -32,6 +35,9 @@ import OptimizedRoute, { OptimizationAlgorithm, OptimizationStatus } from "./Opt
 import Bin, { BinType, BinStatus, BinMaterial } from "./Bin";
 import Permission, { PermissionAction } from "./Permission";
 import RolePermission from "./RolePermission";
+import UserSession from "./UserSession";
+import UserSecurity from "./user/UserSecurity";
+import AuditLog from "./AuditLog";
 
 // Import additional models (will be created)
 // import ServiceEvent from './ServiceEvent';
@@ -329,6 +335,56 @@ function defineAssociations() {
     constraints: false,
   });
 
+  // User authentication and security associations
+  User.hasMany(UserSession, {
+    as: "sessions",
+    foreignKey: "userId",
+    constraints: true,
+  });
+
+  UserSession.belongsTo(User, {
+    as: "user", 
+    foreignKey: "userId",
+    constraints: true,
+  });
+
+  User.hasOne(UserSecurity, {
+    as: "security",
+    foreignKey: "userId", 
+    constraints: true,
+  });
+
+  UserSecurity.belongsTo(User, {
+    as: "user",
+    foreignKey: "userId",
+    constraints: true,
+  });
+
+  // Audit log associations
+  User.hasMany(AuditLog, {
+    as: "auditLogs",
+    foreignKey: "userId",
+    constraints: false,
+  });
+
+  AuditLog.belongsTo(User, {
+    as: "user",
+    foreignKey: "userId", 
+    constraints: false,
+  });
+
+  UserSession.hasMany(AuditLog, {
+    as: "auditLogs",
+    foreignKey: "sessionId",
+    constraints: false, 
+  });
+
+  AuditLog.belongsTo(UserSession, {
+    as: "session",
+    foreignKey: "sessionId",
+    constraints: false,
+  });
+
   // TODO: Add more associations as models are created
   // ServiceEvent, Invoice, Payment, etc.
 }
@@ -375,6 +431,9 @@ export {
   Bin,
   Permission,
   RolePermission,
+  UserSession,
+  UserSecurity,
+  AuditLog,
 
   // Analytics models - Phase 3 Predictive Foundation
   TimeSeriesMetrics,

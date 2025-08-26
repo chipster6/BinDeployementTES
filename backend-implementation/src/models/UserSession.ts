@@ -32,8 +32,8 @@ import {
   BelongsToGetAssociationMixin,
 } from "sequelize";
 import { sequelize } from "@/config/database";
-import { User } from "./User";
 import { logger } from "@/utils/logger";
+import { UserId } from "@/domain/auth/types";
 import crypto from "crypto";
 
 /**
@@ -590,15 +590,6 @@ UserSession.init(
   },
 );
 
-// Define associations
-UserSession.belongsTo(User, {
-  foreignKey: "userId",
-  as: "user",
-});
-
-User.hasMany(UserSession, {
-  foreignKey: "userId",
-  as: "sessions",
-});
+// NOTE: Associations are defined in models/index.ts to prevent circular dependencies
 
 export default UserSession;

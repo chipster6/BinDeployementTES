@@ -30,8 +30,7 @@ import {
   BelongsToGetAssociationMixin,
 } from "sequelize";
 import { sequelize } from "@/config/database";
-import { User } from "./User";
-import { UserSession } from "./UserSession";
+import { UserId, SessionId } from "@/domain/auth/types";
 import crypto from "crypto";
 
 /**
@@ -651,20 +650,6 @@ AuditLog.init(
   },
 );
 
-// Define associations
-AuditLog.belongsTo(User, {
-  foreignKey: "userId",
-  as: "user",
-});
-
-AuditLog.belongsTo(UserSession, {
-  foreignKey: "sessionId",
-  as: "session",
-});
-
-User.hasMany(AuditLog, {
-  foreignKey: "userId",
-  as: "auditLogs",
-});
+// NOTE: Associations are defined in models/index.ts to prevent circular dependencies
 
 export default AuditLog;
