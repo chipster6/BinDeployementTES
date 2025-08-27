@@ -19,6 +19,7 @@
  */
 
 import type { Response } from "express";
+import type { ApiResponse, PaginationMeta, PaginatedData } from "@/types/api";
 
 /**
  * Response options interfaces - compatible with ResponseHelper
@@ -35,28 +36,7 @@ export interface SuccessResponseOptions<T = any> {
   statusCode?: number;
 }
 
-/**
- * Standard API response interface
- */
-export interface ApiResponse<T = any> {
-  success: boolean;
-  message?: string;
-  data?: T;
-  errors?: any[];
-  pagination?: PaginationMeta;
-}
-
-/**
- * Pagination metadata interface
- */
-export interface PaginationMeta {
-  page: number;
-  limit: number;
-  total: number;
-  pages: number;
-  hasNextPage: boolean;
-  hasPrevPage: boolean;
-}
+// Types are now imported from centralized location
 
 /**
  * Response formatter class
