@@ -248,10 +248,10 @@ export interface LightGBMPredictionResponse {
  * LightGBM Gradient Boosting Prediction Service
  */
 export class LightGBMPredictionService extends BaseMlService {
-  private defaultConfig: LightGBMModelConfig;
-  private wasteManagementFeatures: FeatureConfig;
-  private modelCache: Map<string, any>;
-  private featureCache: Map<string, any>;
+  private defaultConfig: LightGBMModelConfig = {} as LightGBMModelConfig;
+  private wasteManagementFeatures: FeatureConfig = {} as FeatureConfig;
+  private modelCache: Map<string, any> = new Map();
+  private featureCache: Map<string, any> = new Map();
   
   constructor() {
     super(null as any, 'LightGBMPredictionService');
@@ -494,7 +494,7 @@ export class LightGBMPredictionService extends BaseMlService {
         prediction_metadata: {
           model_version: '1.0.0',
           prediction_timestamp: new Date().toISOString(),
-          processing_time_ms: timer.getElapsed(),
+          processing_time_ms: timer.getDuration(),
           feature_count: Object.keys(engineeredFeatures.processed_features).length,
           model_trees: model?.num_trees || 0,
           early_stopping_round: model.early_stopping_round
@@ -695,7 +695,7 @@ export class LightGBMPredictionService extends BaseMlService {
         feature_config: featureConfig,
         original_feature_count: Object.keys(request.features).length,
         engineered_feature_count: Object.keys(processedFeatures).length,
-        processing_time: timer.getElapsed()
+        processing_time: timer.getDuration()
       };
 
       timer.end({
@@ -799,7 +799,7 @@ export class LightGBMPredictionService extends BaseMlService {
         predictions,
         model_version: model.config?.version || '1.0.0',
         prediction_count: predictions.length,
-        generation_time: timer.getElapsed()
+        generation_time: timer.getDuration()
       };
 
       timer.end({
@@ -858,7 +858,7 @@ export class LightGBMPredictionService extends BaseMlService {
       case 'demand_classification':
         const demandClasses = ['low', 'medium', 'high', 'very_high'];
         const selectedClass = demandClasses[Math.floor(Math.random() * demandClasses.length)];
-        const classProbabilities = {};
+        const classProbabilities: Record<string, number> = {};
         demandClasses.forEach(cls => {
           classProbabilities[cls] = cls === selectedClass ? 
             Math.random() * 0.4 + 0.6 : Math.random() * 0.3;
@@ -1094,7 +1094,7 @@ export class LightGBMPredictionService extends BaseMlService {
     predictionType: string,
     requestId: string
   ): Promise<any> {
-    const performance = {};
+    const performance: Record<string, number> = {};
 
     switch (predictionType) {
       case 'churn_prediction':

@@ -27,12 +27,13 @@
  */
 
 import express from "express";
-import type { Request, Response, NextFunction } from "express";
+import type { Request, Response, NextFunction, RequestHandler } from "express";
 import { authenticateToken, adminOnly } from "@/middleware/auth";
 import { validateRequest } from "@/middleware/validation";
 import { rateLimiter } from "@/middleware/rateLimit";
 import { ResponseHelper } from "@/utils/ResponseHelper";
-import { logger, logAuditEvent, logSecurityEvent } from "@/utils/logger";
+import { logger, logAuditEvent, logSecurityEvent } from "../utils/logger";
+import { view as asResult } from "@/shared/ServiceResult";
 import SOC2ComplianceService from "@/services/compliance/SOC2ComplianceService";
 import HSMKeyManagementService from "@/services/security/HSMKeyManagementService";
 import Joi from "joi";
@@ -93,22 +94,22 @@ const controlTestSchema = Joi.object({
  */
 const auditComplianceAccess = (action: string) => {
   return (req: Request, res: Response, next: NextFunction) => {
-    const user = (req as any).user;
+    const user = req.user;
     
-    logAuditEvent({
-      userId: user?.id,
-      action: `soc2_${action}`,
-      resourceType: 'compliance_framework',
-      resourceId: req.params?.controlId || 'all',
-      ipAddress: req.ip,
-      userAgent: req.get('User-Agent'),
-      additionalData: {
+    logAuditEvent(
+      `soc2_${action}`,
+      'compliance_framework',
+      {
+        resourceId: req.params?.controlId || 'all',
         endpoint: req.path,
         method: req.method,
         query: req.query,
+        userAgent: req.get('User-Agent'),
         timestamp: new Date().toISOString()
-      }
-    });
+      },
+      user?.id,
+      req.ip
+    );
     
     next();
   };
@@ -119,11 +120,11 @@ const auditComplianceAccess = (action: string) => {
  */
 const auditHSMAccess = (operation: string) => {
   return (req: Request, res: Response, next: NextFunction) => {
-    const user = (req as any).user;
+    const user = req.user;
     
     logSecurityEvent(`hsm_${operation}`, {
       userId: user?.id,
-      keyId: req.params?.keyId || req.body.keyId,
+      keyId: req.params?.keyId || req.body?.keyId,
       operation,
       endpoint: req.path,
       timestamp: new Date().toISOString()
@@ -150,23 +151,30 @@ router.get('/soc2/status',
     try {
       const result = await soc2Service.generateSOC2ReadinessReport();
       
-      if (result.isSuccess) {
+      if (result.success) {
         logger.info('SOC 2 status retrieved', {
-          userId: (req as any).user?.id,
-          readiness: result.data!.overallReadiness
+          userId: req.user?.id,
+          readiness: result.data?.overallReadiness
         });
         
-        ResponseHelper.success(res, result.data!, 'SOC 2 compliance status retrieved successfully');
+        ResponseHelper.success(res, {
+          data: result.data!,
+          message: 'SOC 2 compliance status retrieved successfully'
+        });
       } else {
-        ResponseHelper.error(res, result.error!, result.statusCode);
+        ResponseHelper.error(res, {
+          message: result.message || 'Failed to retrieve compliance status',
+          statusCode: 500,
+          errors: result.errors
+        });
       }
     } catch (error: unknown) {
       logger.error('SOC 2 status retrieval failed', {
-        userId: (req as any).user?.id,
+        userId: req.user?.id,
         error: error instanceof Error ? error?.message : 'Unknown error'
       });
       
-      ResponseHelper.error(res, req, { message: 'Failed to retrieve compliance status', statusCode: 500 });
+      ResponseHelper.error(res, { message: 'Failed to retrieve compliance status', statusCode: 500 });
     }
   }
 );
@@ -184,24 +192,32 @@ router.post('/soc2/initialize',
     try {
       const result = await soc2Service.initializeComplianceFramework();
       
-      if (result.isSuccess) {
+      if (result.success) {
         logger.info('SOC 2 framework initialized', {
-          userId: (req as any).user?.id,
-          controlsCreated: result.data!.controlsCreated,
-          policiesGenerated: result.data!.policiesGenerated
+          userId: req.user?.id,
+          controlsCreated: result.data?.controlsCreated,
+          policiesGenerated: result.data?.policiesGenerated
         });
         
-        ResponseHelper.success(res, result.data!, 'SOC 2 compliance framework initialized successfully', 201);
+        ResponseHelper.success(res, {
+          data: result.data!,
+          message: 'SOC 2 compliance framework initialized successfully',
+          statusCode: 201
+        });
       } else {
-        ResponseHelper.error(res, result.error!, result.statusCode);
+        ResponseHelper.error(res, {
+          message: result.message || 'Failed to initialize compliance framework',
+          statusCode: 500,
+          errors: result.errors
+        });
       }
     } catch (error: unknown) {
       logger.error('SOC 2 framework initialization failed', {
-        userId: (req as any).user?.id,
+        userId: req.user?.id,
         error: error instanceof Error ? error?.message : 'Unknown error'
       });
       
-      ResponseHelper.error(res, req, { message: 'Failed to initialize compliance framework', statusCode: 500 });
+      ResponseHelper.error(res, { message: 'Failed to initialize compliance framework', statusCode: 500 });
     }
   }
 );
@@ -221,27 +237,34 @@ router.post('/soc2/controls/test',
       const { controlId } = req.body;
       const result = await soc2Service.executeControlTesting(controlId);
       
-      if (result.isSuccess) {
+      if (result.success) {
         logger.info('SOC 2 control testing completed', {
-          userId: (req as any).user?.id,
+          userId: req.user?.id,
           controlId,
-          testsExecuted: result.data!.testsExecuted,
-          passedTests: result.data!.passedTests,
-          failedTests: result.data!.failedTests
+          testsExecuted: result.data?.testsExecuted,
+          passedTests: result.data?.passedTests,
+          failedTests: result.data?.failedTests
         });
         
-        ResponseHelper.success(res, result.data!, 'Control testing completed successfully');
+        ResponseHelper.success(res, {
+          data: result.data!,
+          message: 'Control testing completed successfully'
+        });
       } else {
-        ResponseHelper.error(res, result.error!, result.statusCode);
+        ResponseHelper.error(res, {
+          message: result.message || 'Control testing failed',
+          statusCode: 500,
+          errors: result.errors
+        });
       }
     } catch (error: unknown) {
       logger.error('SOC 2 control testing failed', {
-        userId: (req as any).user?.id,
-        controlId: req.body.controlId,
+        userId: req.user?.id,
+        controlId: req.body?.controlId,
         error: error instanceof Error ? error?.message : 'Unknown error'
       });
       
-      ResponseHelper.error(res, req, { message: 'Control testing failed', statusCode: 500 });
+      ResponseHelper.error(res, { message: 'Control testing failed', statusCode: 500 });
     }
   }
 );
@@ -259,29 +282,36 @@ router.get('/soc2/report',
     try {
       const result = await soc2Service.generateSOC2ReadinessReport();
       
-      if (result.isSuccess) {
+      if (result.success) {
         logger.info('SOC 2 readiness report generated', {
-          userId: (req as any).user?.id,
-          overallReadiness: result.data!.overallReadiness,
-          controlsEffective: result.data!.controlsEffective,
-          controlsTotal: result.data!.controlsTotal
+          userId: req.user?.id,
+          overallReadiness: result.data?.overallReadiness,
+          controlsEffective: result.data?.controlsEffective,
+          controlsTotal: result.data?.controlsTotal
         });
         
         // Set appropriate headers for report download
         res.setHeader('Content-Type', 'application/json');
         res.setHeader('Content-Disposition', `attachment; filename="soc2-readiness-report-${new Date().toISOString().split('T')[0]}.json"`);
         
-        ResponseHelper.success(res, result.data!, 'SOC 2 readiness report generated successfully');
+        ResponseHelper.success(res, {
+          data: result.data!,
+          message: 'SOC 2 readiness report generated successfully'
+        });
       } else {
-        ResponseHelper.error(res, result.error!, result.statusCode);
+        ResponseHelper.error(res, {
+          message: result.message || 'Failed to generate compliance report',
+          statusCode: 500,
+          errors: result.errors
+        });
       }
     } catch (error: unknown) {
       logger.error('SOC 2 report generation failed', {
-        userId: (req as any).user?.id,
+        userId: req.user?.id,
         error: error instanceof Error ? error?.message : 'Unknown error'
       });
       
-      ResponseHelper.error(res, req, { message: 'Failed to generate compliance report', statusCode: 500 });
+      ResponseHelper.error(res, { message: 'Failed to generate compliance report', statusCode: 500 });
     }
   }
 );
@@ -302,17 +332,18 @@ router.get('/hsm/status',
   async (req: Request, res: Response) => {
     try {
       const result = await hsmService.getHSMHealthStatus();
+      const compatResult = asResult(result);
       
-      if (result.isSuccess) {
+      if (compatResult.success) {
         logger.info('HSM status retrieved', {
           userId: (req as any).user?.id,
-          overallHealth: result.data!.overallHealth,
-          activeKeys: result.data!.activeKeys
+          overallHealth: compatResult.data!.overallHealth,
+          activeKeys: compatResult.data!.activeKeys
         });
         
-        ResponseHelper.success(res, result.data!, 'HSM status retrieved successfully');
+        ResponseHelper.success(res, { data: compatResult.data!, message: 'HSM status retrieved successfully' });
       } else {
-        ResponseHelper.error(res, result.error!, result.statusCode);
+        ResponseHelper.error(res, { message: compatResult.error ?? 'HSM operation failed', statusCode: compatResult.statusCode ?? 500 });
       }
     } catch (error: unknown) {
       logger.error('HSM status retrieval failed', {
@@ -320,7 +351,7 @@ router.get('/hsm/status',
         error: error instanceof Error ? error?.message : 'Unknown error'
       });
       
-      ResponseHelper.error(res, req, { message: 'Failed to retrieve HSM status', statusCode: 500 });
+      ResponseHelper.error(res, { message: 'Failed to retrieve HSM status', statusCode: 500 });
     }
   }
 );
@@ -337,17 +368,18 @@ router.post('/hsm/initialize',
   async (req: Request, res: Response) => {
     try {
       const result = await hsmService.initializeHSMInfrastructure();
+      const compatResult = asResult(result);
       
-      if (result.isSuccess) {
+      if (compatResult.success) {
         logger.info('HSM infrastructure initialized', {
           userId: (req as any).user?.id,
-          clustersCreated: result.data!.clustersCreated,
-          keysGenerated: result.data!.keysGenerated
+          clustersCreated: compatResult.data!.clustersCreated,
+          keysGenerated: compatResult.data!.keysGenerated
         });
         
-        ResponseHelper.success(res, result.data!, 'HSM infrastructure initialized successfully', 201);
+        ResponseHelper.success(res, { data: compatResult.data!, message: 'HSM infrastructure initialized successfully', statusCode: 201 });
       } else {
-        ResponseHelper.error(res, result.error!, result.statusCode);
+        ResponseHelper.error(res, { message: compatResult.error ?? 'HSM initialization failed', statusCode: compatResult.statusCode ?? 500 });
       }
     } catch (error: unknown) {
       logger.error('HSM infrastructure initialization failed', {
@@ -355,7 +387,7 @@ router.post('/hsm/initialize',
         error: error instanceof Error ? error?.message : 'Unknown error'
       });
       
-      ResponseHelper.error(res, req, { message: 'Failed to initialize HSM infrastructure', statusCode: 500 });
+      ResponseHelper.error(res, { message: 'Failed to initialize HSM infrastructure', statusCode: 500 });
     }
   }
 );
@@ -407,7 +439,7 @@ router.post('/hsm/keys',
         error: error instanceof Error ? error?.message : 'Unknown error'
       });
       
-      ResponseHelper.error(res, req, { message: 'Key generation failed', statusCode: 500 });
+      ResponseHelper.error(res, { message: 'Key generation failed', statusCode: 500 });
     }
   }
 );
@@ -427,7 +459,7 @@ router.post('/hsm/keys/:keyId/rotate',
       
       // Validate keyId format
       if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(keyId)) {
-        return ResponseHelper.error(res, req, { message: 'Invalid key ID format', statusCode: 400 });
+        return ResponseHelper.error(res, { message: 'Invalid key ID format', statusCode: 400 });
       }
       
       const result = await hsmService.rotateHSMKey(keyId);
@@ -451,7 +483,7 @@ router.post('/hsm/keys/:keyId/rotate',
         error: error instanceof Error ? error?.message : 'Unknown error'
       });
       
-      ResponseHelper.error(res, req, { message: 'Key rotation failed', statusCode: 500 });
+      ResponseHelper.error(res, { message: 'Key rotation failed', statusCode: 500 });
     }
   }
 );
@@ -491,7 +523,7 @@ router.post('/hsm/encrypt',
         error: error instanceof Error ? error?.message : 'Unknown error'
       });
       
-      ResponseHelper.error(res, req, { message: 'Encryption failed', statusCode: 500 });
+      ResponseHelper.error(res, { message: 'Encryption failed', statusCode: 500 });
     }
   }
 );
@@ -530,7 +562,7 @@ router.post('/hsm/decrypt',
         error: error instanceof Error ? error?.message : 'Unknown error'
       });
       
-      ResponseHelper.error(res, req, { message: 'Decryption failed', statusCode: 500 });
+      ResponseHelper.error(res, { message: 'Decryption failed', statusCode: 500 });
     }
   }
 );
@@ -552,10 +584,10 @@ router.use((error: Error, req: Request, res: Response, next: NextFunction) => {
   });
   
   if (error.name === 'ValidationError') {
-    return ResponseHelper.error(res, req, { message: error instanceof Error ? error?.message : String(error), statusCode: 400 });
+    return ResponseHelper.error(res, { message: error instanceof Error ? error?.message : String(error), statusCode: 400 });
   }
   
-  ResponseHelper.error(res, req, { message: 'Internal server error', statusCode: 500 });
+  ResponseHelper.error(res, { message: 'Internal server error', statusCode: 500 });
 });
 
 export default router;

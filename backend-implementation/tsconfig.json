@@ -21,6 +21,7 @@
     // Build Performance Optimizations
     "skipLibCheck": true,                // Skip type checking of declaration files
     "incremental": true,                 // Enable incremental compilation
+    "isolatedModules": true,             // Required for ts-jest
     "tsBuildInfoFile": "./dist/.tsbuildinfo.dev",
     "assumeChangesOnlyAffectDirectDependencies": true,  // Faster incremental builds
     
@@ -38,6 +39,9 @@
     "experimentalDecorators": true,
     "emitDecoratorMetadata": true,
     "useDefineForClassFields": true,
+    
+    // Type Root Configuration
+    "typeRoots": ["./node_modules/@types", "./src/types"],
     
     // Path Mapping (Essential paths only for performance)
     "baseUrl": "./src",

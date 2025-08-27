@@ -37,6 +37,8 @@
     "test:unit": "jest --selectProjects unit --coverage",
     "test:integration": "jest --selectProjects integration --coverage --runInBand",
     "test:e2e": "jest --selectProjects e2e --coverage --runInBand --forceExit",
+    "test:u": "jest -c jest.local.config.js --watch",
+    "depcruise": "depcruise --config ../.dependency-cruiser.js src",
     "cypress:open": "cypress open",
     "cypress:run": "cypress run",
     "cypress:dashboard": "cypress run --spec 'cypress/e2e/dashboards/**/*.cy.ts'",
@@ -88,6 +90,9 @@
     "type-check:production": "tsc --noEmit --project tsconfig.production.json",
     "type-check:watch": "tsc --noEmit --watch --project tsconfig.dev.json",
     "type-check:performance": "tsc --noEmit --extendedDiagnostics --generateCpuProfile profile.cpuprofile",
+    "typecheck:count": "npx tsc --noEmit --pretty false 2>&1 | grep -c 'error TS' || echo 0",
+    "typecheck:top": "npx tsc --noEmit --pretty false 2>&1 | grep 'error TS' | cut -d'(' -f1 | sort | uniq -c | sort -nr | head -10",
+    "typecheck:progress": "echo \"Current TypeScript errors:\" && npm run typecheck:count && echo \"Top error files:\" && npm run typecheck:top",
     "quality:check": "npm run type-check && npm run lint && npm run format:check",
     "quality:fix": "npm run lint:fix && npm run format",
     "db:migrate": "npx sequelize-cli db:migrate",
@@ -179,8 +184,7 @@
     "weaviate-ts-client": "^1.4.0",
     "winston": "^3.17.0",
     "winston-daily-rotate-file": "^5.0.0",
-    "ws": "^8.18.3",
-    "zod": "^4.1.1"
+    "ws": "^8.18.3"
   },
   "devDependencies": {
     "@types/bcrypt": "^5.0.2",
@@ -206,6 +210,7 @@
     "@typescript-eslint/eslint-plugin": "^8.39.1",
     "@typescript-eslint/parser": "^8.39.1",
     "concurrently": "^8.2.2",
+    "dependency-cruiser": "^17.0.1",
     "eslint": "^8.45.0",
     "eslint-config-prettier": "^8.8.0",
     "eslint-plugin-prettier": "^5.0.1",
@@ -218,7 +223,8 @@
     "ts-node": "^10.9.2",
     "ts-node-dev": "^2.0.0",
     "tsconfig-paths": "^4.2.0",
-    "typescript": "^5.9.2"
+    "typescript": "^5.9.2",
+    "zod": "^4.1.1"
   },
   "engines": {
     "node": ">=18.0.0",
