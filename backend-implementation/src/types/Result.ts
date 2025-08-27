@@ -288,10 +288,18 @@ export const Result = {
       return Result.success(data);
     }
     
-    // Return the first error if no successes
-    return results.length > 0 && Result.isFailure(results[0])
-      ? results[0]
-      : Result.failure(errors[0]);
+    // Return the first error if no successes - ensure E type is preserved
+    if (results.length > 0 && Result.isFailure(results[0])) {
+      return Result.failure(results[0].error);
+    }
+    
+    // This should never happen with non-empty array, but type-safe fallback
+    if (errors.length > 0) {
+      return Result.failure(errors[0]);
+    }
+    
+    // Empty array case - return empty success
+    return Result.success(data);
   },
 
   /**
