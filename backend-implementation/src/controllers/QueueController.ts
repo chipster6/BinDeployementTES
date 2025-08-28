@@ -148,9 +148,9 @@ export class QueueController {
       const result = await queueService.initialize();
       
       if (result.success) {
-        res.json(ResponseHelper.success(result.data, result?.message));
+        res.json(ResponseHelper.success(res, { data: result.data, message: result?.message }));
       } else {
-        res.status(500).json(ResponseHelper.error(result?.message || 'Failed to initialize queues'));
+        ResponseHelper.error(res, { message: result?.message || 'Failed to initialize queues', statusCode: 500 });
       }
     } catch (error: unknown) {
       logger.error('Queue initialization failed:', error);
@@ -187,9 +187,9 @@ export class QueueController {
           userId: req.user?.id
         });
 
-        res.status(201).json(ResponseHelper.success(result.data, result?.message));
+        ResponseHelper.success(res, { data: result.data, message: result?.message, statusCode: 201 });
       } else {
-        res.status(400).json(ResponseHelper.error(result?.message || 'Failed to add job'));
+        ResponseHelper.error(res, { message: result?.message || 'Failed to add job', statusCode: 400 });
       }
     } catch (error: unknown) {
       logger.error('Add job failed:', error);
@@ -226,9 +226,9 @@ export class QueueController {
           userId: req.user?.id
         });
 
-        res.status(201).json(ResponseHelper.success(null, result?.message));
+        ResponseHelper.success(res, { data: null, message: result?.message, statusCode: 201 });
       } else {
-        res.status(400).json(ResponseHelper.error(result?.message || 'Failed to schedule recurring job'));
+        ResponseHelper.error(res, { message: result?.message || 'Failed to schedule recurring job', statusCode: 400 });
       }
     } catch (error: unknown) {
       logger.error('Schedule recurring job failed:', error);
@@ -252,9 +252,9 @@ export class QueueController {
       });
 
       if (result.success) {
-        res.status(201).json(ResponseHelper.success(result.data, 'Route optimization job created'));
+        ResponseHelper.success(res, { data: result.data, message: 'Route optimization job created', statusCode: 201 });
       } else {
-        res.status(400).json(ResponseHelper.error(result?.message));
+        ResponseHelper.error(res, { message: result?.message, statusCode: 400 });
       }
     } catch (error: unknown) {
       logger.error('Create route optimization job failed:', error);
@@ -278,9 +278,9 @@ export class QueueController {
       });
 
       if (result.success) {
-        res.status(201).json(ResponseHelper.success(result.data, 'Billing job created'));
+        ResponseHelper.success(res, { data: result.data, message: 'Billing job created', statusCode: 201 });
       } else {
-        res.status(400).json(ResponseHelper.error(result?.message));
+        ResponseHelper.error(res, { message: result?.message, statusCode: 400 });
       }
     } catch (error: unknown) {
       logger.error('Create billing job failed:', error);
@@ -305,9 +305,9 @@ export class QueueController {
       });
 
       if (result.success) {
-        res.status(201).json(ResponseHelper.success(result.data, 'Notification job created'));
+        ResponseHelper.success(res, { data: result.data, message: 'Notification job created', statusCode: 201 });
       } else {
-        res.status(400).json(ResponseHelper.error(result?.message));
+        ResponseHelper.error(res, { message: result?.message, statusCode: 400 });
       }
     } catch (error: unknown) {
       logger.error('Create notification job failed:', error);
@@ -329,9 +329,9 @@ export class QueueController {
       const result = await queueService.addJob('data-sync', 'sync-data', value);
 
       if (result.success) {
-        res.status(201).json(ResponseHelper.success(result.data, 'Data sync job created'));
+        ResponseHelper.success(res, { data: result.data, message: 'Data sync job created', statusCode: 201 });
       } else {
-        res.status(400).json(ResponseHelper.error(result?.message));
+        ResponseHelper.error(res, { message: result?.message, statusCode: 400 });
       }
     } catch (error: unknown) {
       logger.error('Create data sync job failed:', error);
@@ -355,9 +355,9 @@ export class QueueController {
       });
 
       if (result.success) {
-        res.status(201).json(ResponseHelper.success(result.data, 'Maintenance job created'));
+        ResponseHelper.success(res, { data: result.data, message: 'Maintenance job created', statusCode: 201 });
       } else {
-        res.status(400).json(ResponseHelper.error(result?.message));
+        ResponseHelper.error(res, { message: result?.message, statusCode: 400 });
       }
     } catch (error: unknown) {
       logger.error('Create maintenance job failed:', error);
@@ -376,9 +376,9 @@ export class QueueController {
       const result = await queueService.getQueueStats(queueName);
 
       if (result.success) {
-        res.json(ResponseHelper.success(result.data, 'Queue statistics retrieved'));
+        ResponseHelper.success(res, { data: result.data, message: 'Queue statistics retrieved' });
       } else {
-        res.status(404).json(ResponseHelper.error(result?.message));
+        ResponseHelper.error(res, { message: result?.message, statusCode: 404 });
       }
     } catch (error: unknown) {
       logger.error('Get queue stats failed:', error);
@@ -401,9 +401,9 @@ export class QueueController {
       const result = await queueService.getJob(queueName, jobId);
 
       if (result.success) {
-        res.json(ResponseHelper.success(result.data, 'Job details retrieved'));
+        ResponseHelper.success(res, { data: result.data, message: 'Job details retrieved' });
       } else {
-        res.status(404).json(ResponseHelper.error(result?.message));
+        ResponseHelper.error(res, { message: result?.message, statusCode: 404 });
       }
     } catch (error: unknown) {
       logger.error('Get job failed:', error);
@@ -431,9 +431,9 @@ export class QueueController {
           userRole: req.user?.role
         });
 
-        res.json(ResponseHelper.success(null, result?.message));
+        ResponseHelper.success(res, { data: null, message: result?.message });
       } else {
-        res.status(404).json(ResponseHelper.error(result?.message));
+        ResponseHelper.error(res, { message: result?.message, statusCode: 404 });
       }
     } catch (error: unknown) {
       logger.error('Pause queue failed:', error);
@@ -461,9 +461,9 @@ export class QueueController {
           userRole: req.user?.role
         });
 
-        res.json(ResponseHelper.success(null, result?.message));
+        ResponseHelper.success(res, { data: null, message: result?.message });
       } else {
-        res.status(404).json(ResponseHelper.error(result?.message));
+        ResponseHelper.error(res, { message: result?.message, statusCode: 404 });
       }
     } catch (error: unknown) {
       logger.error('Resume queue failed:', error);
@@ -493,9 +493,9 @@ export class QueueController {
           graceMs
         });
 
-        res.json(ResponseHelper.success(null, result?.message));
+        ResponseHelper.success(res, { data: null, message: result?.message });
       } else {
-        res.status(404).json(ResponseHelper.error(result?.message));
+        ResponseHelper.error(res, { message: result?.message, statusCode: 404 });
       }
     } catch (error: unknown) {
       logger.error('Clean queue failed:', error);
@@ -513,14 +513,17 @@ export class QueueController {
       const queueNames = queueService.getQueueNames();
       const queueCount = queueService.getQueueCount();
 
-      res.json(ResponseHelper.success({
-        initialized: isInitialized,
-        queueCount,
-        queueNames,
-        version: '2.0.0',
-        uptime: process.uptime(),
-        timestamp: new Date().toISOString()
-      }, 'Queue service status retrieved'));
+      ResponseHelper.success(res, {
+        data: {
+          initialized: isInitialized,
+          queueCount,
+          queueNames,
+          version: '2.0.0',
+          uptime: process.uptime(),
+          timestamp: new Date().toISOString()
+        },
+        message: 'Queue service status retrieved'
+      });
 
     } catch (error: unknown) {
       logger.error('Get queue status failed:', error);

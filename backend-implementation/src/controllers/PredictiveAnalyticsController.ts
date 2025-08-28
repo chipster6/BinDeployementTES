@@ -22,8 +22,8 @@
  */
 
 import type { Request, Response } from 'express';
-import { Timer, logger } from '@/utils/logger';
-import { ResponseHelper } from '@/utils/ResponseHelper';
+import { logger, Timer } from '@/utils/logger';
+import { ResponseHelper, type SuccessResponseOptions } from '@/utils/ResponseHelper';
 import { predictiveAnalyticsService } from '@/services/PredictiveAnalyticsService';
 import { prophetIntegrationService } from '@/services/ProphetIntegrationService';
 import { lightgbmWrapperService } from '@/services/LightGBMWrapperService';
