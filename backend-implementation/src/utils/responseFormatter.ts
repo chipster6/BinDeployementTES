@@ -34,6 +34,7 @@ export interface SuccessResponseOptions<T = any> {
   data: T;
   message?: string;
   statusCode?: number;
+  meta?: Record<string, any>;
 }
 
 // Types are now imported from centralized location
@@ -208,12 +209,14 @@ export class ResponseFormatter {
    * Send successful response (ResponseHelper compatible)
    */
   static successCompat<T = any>(res: Response, options: SuccessResponseOptions<T>): Response {
-    const { data, message = 'Success', statusCode = 200 } = options;
-    return res.status(statusCode).json({
+    const { data, message = 'Success', statusCode = 200, meta } = options;
+    const response: ApiResponse<T> = {
       success: true,
       message,
-      data
-    });
+      data,
+      meta
+    };
+    return res.status(statusCode).json(response);
   }
 
   /**
@@ -221,11 +224,12 @@ export class ResponseFormatter {
    */
   static errorCompat(res: Response, options: ErrorResponseOptions): Response {
     const { message, statusCode = 500, errors = [] } = options;
-    return res.status(statusCode).json({
+    const response: ApiResponse = {
       success: false,
       message,
       errors
-    });
+    };
+    return res.status(statusCode).json(response);
   }
 
   /**

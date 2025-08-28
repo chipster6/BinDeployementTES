@@ -11,9 +11,12 @@
  * Version: 1.0.0
  */
 
-import winston from "winston";
-import DailyRotateFile from "winston-daily-rotate-file";
-import path from "path";
+import * as winston from "winston";
+import * as path from "path";
+import * as fs from "fs";
+// DailyRotateFile is "export =" CJS
+// eslint-disable-next-line @typescript-eslint/no-var-requires
+const DailyRotateFile = require("winston-daily-rotate-file");
 import { config } from "@/config";
 
 /**
@@ -449,14 +452,18 @@ export const logDatabaseOperation = (
   }
 };
 
+
+
 /**
  * Ensure logs directory exists
  */
-import fs from "fs";
 const logsDir = path.join(process.cwd(), "logs");
 if (!fs.existsSync(logsDir)) {
   fs.mkdirSync(logsDir, { recursive: true });
 }
+
+// Export DailyRotateFile for other modules that need it
+export { DailyRotateFile };
 
 // Export default logger
 export default logger;

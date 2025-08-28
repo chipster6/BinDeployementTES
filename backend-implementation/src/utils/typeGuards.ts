@@ -1,17 +1,20 @@
 import { Request } from 'express';
 import { User } from '../models/User';
 
-export function isAuthenticatedRequest(req: Request): req is Express.AuthenticatedRequest {
+// Type guard to check if request has authenticated user
+export function isAuthenticatedRequest(req: Request): req is Request & { user: Express.UserClaims } {
   return req.user !== undefined && req.user !== null;
 }
 
-export function assertAuthenticated(req: Request): asserts req is Express.AuthenticatedRequest {
+// Assertion function for authenticated requests
+export function assertAuthenticated(req: Request): asserts req is Request & { user: Express.UserClaims } {
   if (!isAuthenticatedRequest(req)) {
     throw new Error('User not authenticated');
   }
 }
 
-export function getAuthenticatedUser(req: Request): User {
+// Helper to get authenticated user from request
+export function getAuthenticatedUser(req: Request): Express.UserClaims {
   assertAuthenticated(req);
   return req.user;
 }
