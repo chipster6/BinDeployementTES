@@ -1,0 +1,12 @@
+# Global ownership
+* @your-handle
+
+# Database schema requires review
+/backend-implementation/db/schema.dev.sql @your-handle
+
+# Contracts require architecture review
+/contracts/ @your-handle
+
+# Agent coordination requires review
+/.agent-coordination/ @your-handle
+/.kiro/steering/ @your-handle

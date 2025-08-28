@@ -1,0 +1,16 @@
+name: Contract Guard
+on: pull_request
+jobs:
+  guard:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with: 
+          fetch-depth: 0
+      - run: |
+          if git diff --name-only origin/${{ github.base_ref }}...HEAD | grep '^contracts/'; then
+            if ! git diff -U0 origin/${{ github.base_ref }}...HEAD -- contracts/ | grep -q 'x-contract-version:'; then
+              echo "❌ contracts changed without updating x-contract-version"
+              exit 1
+            fi
+          fi
