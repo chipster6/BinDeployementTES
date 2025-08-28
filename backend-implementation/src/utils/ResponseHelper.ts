@@ -1,4 +1,5 @@
 import type { Response, Request } from 'express';
+import type { ApiResponse, PaginatedData, PaginationMeta } from '@/types/api';
 
 export interface ErrorResponseOptions {
   message: string;
@@ -10,6 +11,7 @@ export interface SuccessResponseOptions<T = any> {
   data: T;
   message?: string;
   statusCode?: number;
+  meta?: Record<string, any>;
 }
 
 function isRequest(x: any): x is Request {
@@ -18,12 +20,14 @@ function isRequest(x: any): x is Request {
 
 export class ResponseHelper {
   static success<T = any>(res: Response, options: SuccessResponseOptions<T>): Response {
-    const { data, message = 'Success', statusCode = 200 } = options;
-    return res.status(statusCode).json({
+    const { data, message = 'Success', statusCode = 200, meta } = options;
+    const response: ApiResponse<T> = {
       success: true,
       message,
-      data
-    });
+      data,
+      meta
+    };
+    return res.status(statusCode).json(response);
   }
 
   // Support both (res, details) and legacy (res, req, details) call patterns
@@ -41,19 +45,23 @@ export class ResponseHelper {
       status = (typeof b === 'number' ? b : details.statusCode) ?? status;
     }
 
-    return res.status(status).json({
+    const response: ApiResponse = {
       success: false,
       message: details.message,
       errors: details.errors ?? []
-    });
+    };
+    return res.status(status).json(response);
   }
 
-  static paginated<T = any>(res: Response, data: T[], pagination: any): Response {
-    return res.status(200).json({
+  static paginated<T = any>(res: Response, data: T[], pagination: PaginationMeta): Response {
+    const response: ApiResponse<PaginatedData<T>> = {
       success: true,
-      data,
-      pagination
-    });
+      data: {
+        items: data,
+        pagination
+      }
+    };
+    return res.status(200).json(response);
   }
 
   static noContent(res: Response): Response {
@@ -61,53 +69,60 @@ export class ResponseHelper {
   }
 
   static created<T = any>(res: Response, data: T, message: string = 'Created successfully'): Response {
-    return res.status(201).json({
+    const response: ApiResponse<T> = {
       success: true,
       message,
       data
-    });
+    };
+    return res.status(201).json(response);
   }
 
   static badRequest(res: Response, message: string, errors: any[] = []): Response {
-    return res.status(400).json({
+    const response: ApiResponse = {
       success: false,
       message,
       errors
-    });
+    };
+    return res.status(400).json(response);
   }
 
   static unauthorized(res: Response, message: string = 'Unauthorized'): Response {
-    return res.status(401).json({
+    const response: ApiResponse = {
       success: false,
       message
-    });
+    };
+    return res.status(401).json(response);
   }
 
   static forbidden(res: Response, message: string = 'Forbidden'): Response {
-    return res.status(403).json({
+    const response: ApiResponse = {
       success: false,
       message
-    });
+    };
+    return res.status(403).json(response);
   }
 
   static notFound(res: Response, message: string = 'Not found'): Response {
-    return res.status(404).json({
+    const response: ApiResponse = {
       success: false,
       message
-    });
+    };
+    return res.status(404).json(response);
   }
 
   static conflict(res: Response, message: string): Response {
-    return res.status(409).json({
+    const response: ApiResponse = {
       success: false,
       message
-    });
+    };
+    return res.status(409).json(response);
   }
 
   static internalError(res: Response, message: string = 'Internal server error'): Response {
-    return res.status(500).json({
+    const response: ApiResponse = {
       success: false,
       message
-    });
+    };
+    return res.status(500).json(response);
   }
 }

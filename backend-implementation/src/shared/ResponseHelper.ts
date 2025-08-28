@@ -1,31 +1,28 @@
+import { Response } from "express";
+
 export type ErrorEnvelope = {
   error: string;
   message: string;
   meta?: Record<string, unknown>;
 };
 
-export const ok = <T>(res: any, body: T, status = 200) =>
+export function ok<T>(res: Response, body: T, etag?: string, status = 200): void {
+  if (etag) res.setHeader("ETag", etag);
   res.status(status).json(body);
+}
 
-export const err = (res: any, e: ErrorEnvelope, status = 400) =>
-  res.status(status).json(e);
+export function err(res: Response, payload: ErrorEnvelope, status = 400): void {
+  res.status(status).json(payload);
+}
 
-export const conflict = (res: any, meta: Record<string, unknown>) =>
-  err(res, { error: "CONFLICT", message: "Conflict detected", meta }, 409);
+export function conflict(
+  res: Response,
+  message = "Conflict",
+  meta?: Record<string, unknown>
+): void {
+  res.status(409).json({ error: "CONFLICT", message, meta });
+}
 
-export const unauthorized = (res: any, msg = "Unauthorized") =>
-  err(res, { error: "UNAUTHORIZED", message: msg }, 401);
-
-export const forbidden = (res: any, msg = "Forbidden") =>
-  err(res, { error: "FORBIDDEN", message: msg }, 403);
-
-export const precondition = (res: any, msg = "ETag mismatch") =>
-  err(res, { error: "PRECONDITION_FAILED", message: msg }, 412);
-
-export const tooLarge = (res: any, msg = "Payload too large") =>
-  err(res, { error: "PAYLOAD_TOO_LARGE", message: msg }, 413);
-
-export const rateLimited = (res: any, retryAfterSec = 60) =>
-  res.set("Retry-After", String(retryAfterSec))
-     .status(429)
-     .json({ error: "RATE_LIMITED", message: "Too many requests" });
+export function precondition(res: Response, message = "Precondition failed"): void {
+  res.status(412).json({ error: "PRECONDITION_FAILED", message });
+}
