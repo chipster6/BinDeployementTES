@@ -1,0 +1,16 @@
+{
+  "enabled": true,
+  "name": "TypeScript Type Check",
+  "description": "Run TypeScript compiler in no-emit mode to catch type errors, missing imports, and type mismatches without generating output files",
+  "version": "1",
+  "when": {
+    "type": "fileEdited",
+    "patterns": [
+      "backend-implementation/src/**"
+    ]
+  },
+  "then": {
+    "type": "askAgent",
+    "prompt": "TypeScript source files have been modified. Please run `npm run typecheck` to validate TypeScript compilation. This catches type errors, missing imports, and ensures refactors maintain type safety. Address any compilation errors before proceeding."
+  }
+}

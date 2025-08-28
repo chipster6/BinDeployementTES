@@ -1,0 +1,16 @@
+{
+  "enabled": true,
+  "name": "Dependency Cycle Check",
+  "description": "Use dependency-cruiser to detect and prevent circular dependencies in the TypeScript codebase, ensuring maintainable architecture",
+  "version": "1",
+  "when": {
+    "type": "fileEdited",
+    "patterns": [
+      "backend-implementation/src/**"
+    ]
+  },
+  "then": {
+    "type": "askAgent",
+    "prompt": "Source files have been modified. Please run `npm run dep:cruise` to check for circular dependencies. This prevents new dependency cycles that could complicate module splitting and refactoring. Resolve any circular dependencies before committing."
+  }
+}

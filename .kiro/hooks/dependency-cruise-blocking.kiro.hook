@@ -1,0 +1,21 @@
+{
+  "enabled": true,
+  "name": "Dependency Cruise (blocking)",
+  "description": "Runs dependency cruise validation to check for circular dependencies, architectural violations, and dependency rule compliance. Blocks merge if violations are found.",
+  "version": "1",
+  "when": {
+    "type": "fileEdited",
+    "patterns": [
+      "package.json",
+      "package-lock.json",
+      "tsconfig.json",
+      ".dependency-cruiser.js",
+      "src/**/*.ts",
+      "src/**/*.js"
+    ]
+  },
+  "then": {
+    "type": "askAgent",
+    "prompt": "Run `npm run depcruise` to validate dependency architecture and check for violations. This is a blocking check that must pass before merge. Review any circular dependencies, forbidden dependencies, or architectural rule violations. If violations exist, they must be resolved before the PR can be merged."
+  }
+}

@@ -1,0 +1,20 @@
+{
+  "enabled": true,
+  "name": "Smoke Tests (blocking)",
+  "description": "Runs smoke tests on pull request events to validate basic functionality and block merge if tests fail",
+  "version": "1",
+  "when": {
+    "type": "fileEdited",
+    "patterns": [
+      "**/*.ts",
+      "**/*.js",
+      "**/*.json",
+      "package.json",
+      "package-lock.json"
+    ]
+  },
+  "then": {
+    "type": "askAgent",
+    "prompt": "A pull request has been created or updated. Run the smoke test suite using 'npm run test:smoke' to validate basic functionality. These tests must pass before the pull request can be merged. If any tests fail, provide detailed feedback on the failures and suggest fixes."
+  }
+}

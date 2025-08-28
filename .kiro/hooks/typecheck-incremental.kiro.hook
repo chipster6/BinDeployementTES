@@ -1,0 +1,20 @@
+{
+  "enabled": true,
+  "name": "Incremental TypeScript Check",
+  "description": "Run TypeScript check only on modified files to prevent regression while allowing progress on new features",
+  "version": "1",
+  "when": {
+    "type": "fileEdited",
+    "patterns": [
+      "backend-implementation/src/controllers/OperationsController.ts",
+      "backend-implementation/src/controllers/orders/**",
+      "backend-implementation/src/controllers/ingest/**",
+      "backend-implementation/src/services/orders/**",
+      "backend-implementation/src/services/ingest/**"
+    ]
+  },
+  "then": {
+    "type": "askAgent",
+    "prompt": "New operations/orders/ingestion code has been modified. Please run `npm run type-check` and ensure any new TypeScript errors in the modified files are fixed. Focus only on errors in files you're actively working on - don't let existing legacy errors block progress."
+  }
+}

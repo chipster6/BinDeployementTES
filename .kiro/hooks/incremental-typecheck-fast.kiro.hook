@@ -1,0 +1,19 @@
+{
+  "enabled": true,
+  "name": "Incremental TypeCheck (fast)",
+  "description": "Runs npm run typecheck:modified to perform fast incremental TypeScript type checking on modified files. Triggers before push operations to catch type errors early without blocking merge operations.",
+  "version": "1",
+  "when": {
+    "type": "fileEdited",
+    "patterns": [
+      "**/*.ts",
+      "**/*.tsx",
+      "tsconfig.json",
+      "package.json"
+    ]
+  },
+  "then": {
+    "type": "askAgent",
+    "prompt": "Run incremental TypeScript type checking on the modified files using 'npm run typecheck:modified'. This should be a fast check that only validates the changed TypeScript files. Report any type errors found but do not block operations - this is for early feedback only."
+  }
+}

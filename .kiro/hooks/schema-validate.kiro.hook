@@ -1,0 +1,17 @@
+{
+  "enabled": true,
+  "name": "Validate Event Schemas",
+  "description": "Validate event JSON schemas and examples using AJV to ensure schema compliance and prevent breaking changes that could affect downstream consumers",
+  "version": "1",
+  "when": {
+    "type": "fileEdited",
+    "patterns": [
+      "contracts/events/**/*.schema.json",
+      "contracts/events/examples/*.json"
+    ]
+  },
+  "then": {
+    "type": "askAgent",
+    "prompt": "Event schema files or examples have been modified. Please run `npm run events:validate` to validate all JSON schemas and examples using AJV. This prevents bad event changes from breaking consumers and ensures schema compliance across the system."
+  }
+}

@@ -1,0 +1,18 @@
+{
+  "enabled": true,
+  "name": "E2E Smoke Tests",
+  "description": "Run end-to-end smoke tests for bins, ingest, and orders to verify that critical API surfaces remain functional after changes",
+  "version": "1",
+  "when": {
+    "type": "fileEdited",
+    "patterns": [
+      "backend-implementation/src/controllers/**",
+      "backend-implementation/src/routes/**",
+      "backend-implementation/src/test/**"
+    ]
+  },
+  "then": {
+    "type": "askAgent",
+    "prompt": "Controllers, routes, or test files have been modified. Please run `npm run test:smoke` to execute E2E smoke tests. This ensures that bins, ingest, and order endpoints still work correctly. Verify all critical API surfaces are functional before pushing."
+  }
+}

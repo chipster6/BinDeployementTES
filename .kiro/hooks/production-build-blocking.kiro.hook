@@ -1,0 +1,23 @@
+{
+  "enabled": true,
+  "name": "Production Build (blocking)",
+  "description": "Runs production build command on pull requests and blocks merge if build fails",
+  "version": "1",
+  "when": {
+    "type": "fileEdited",
+    "patterns": [
+      "package.json",
+      "src/**",
+      "backend-implementation/src/**",
+      "frontend/src/**",
+      "*.ts",
+      "*.tsx",
+      "*.js",
+      "*.jsx"
+    ]
+  },
+  "then": {
+    "type": "askAgent",
+    "prompt": "A pull request has been created or updated. Run the production build command 'npm run build:production' to validate the code changes. If the build fails, block the merge and provide detailed error information to help resolve the issues. Ensure all TypeScript compilation, bundling, and optimization steps complete successfully before allowing the pull request to be merged."
+  }
+}

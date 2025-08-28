@@ -1,0 +1,16 @@
+{
+  "enabled": true,
+  "name": "Format OpenAPI Contracts",
+  "description": "Automatically format and lint OpenAPI specification files to ensure consistent formatting and minimal diffs during reviews",
+  "version": "1",
+  "when": {
+    "type": "fileEdited",
+    "patterns": [
+      "contracts/**/*.openapi.yaml"
+    ]
+  },
+  "then": {
+    "type": "askAgent",
+    "prompt": "The OpenAPI contract files have been modified. Please run `npm run contracts:format` to format and lint the OpenAPI specifications. This ensures consistent formatting and keeps diffs minimal for easier code reviews. Focus on validating the contract structure and ensuring API consistency."
+  }
+}

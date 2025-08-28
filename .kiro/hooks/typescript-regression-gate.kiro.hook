@@ -1,0 +1,19 @@
+{
+  "enabled": true,
+  "name": "TypeScript Regression Gate (blocking)",
+  "description": "Runs npm run typecheck:enforce to validate TypeScript compilation and type safety. Blocks merge on any TypeScript errors to prevent regression in type safety and code quality.",
+  "version": "1",
+  "when": {
+    "type": "fileEdited",
+    "patterns": [
+      "**/*.ts",
+      "**/*.tsx",
+      "tsconfig.json",
+      "package.json"
+    ]
+  },
+  "then": {
+    "type": "askAgent",
+    "prompt": "TypeScript files have been modified. Run `npm run typecheck:enforce` to validate type safety and compilation. This is a blocking check - any TypeScript errors must be resolved before merge. Focus on type errors, missing imports, and configuration issues that could cause runtime failures."
+  }
+}

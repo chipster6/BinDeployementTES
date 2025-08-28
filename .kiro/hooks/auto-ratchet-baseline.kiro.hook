@@ -1,0 +1,16 @@
+{
+  "enabled": true,
+  "name": "Auto-ratchet baseline on main",
+  "description": "Automatically runs npm ci, saves TypeScript baseline, and commits/pushes changes after merges to main branch",
+  "version": "1",
+  "when": {
+    "type": "fileEdited",
+    "patterns": [
+      ".git/refs/heads/main"
+    ]
+  },
+  "then": {
+    "type": "askAgent",
+    "prompt": "Execute the following command sequence to update the TypeScript baseline after a merge to main:\n\n1. Run `npm ci` to ensure clean dependencies\n2. Run `npm run typecheck:baseline:save` to update the baseline\n3. Configure git user as \"Kiro Bot\" with email \"kiro-bot@local\"\n4. Stage the baseline file `types/ts-errors-baseline.json`\n5. Check if there are staged changes and commit with message \"chore(ts): ratchet baseline\"\n6. Push the changes to the repository\n\nCommand sequence:\n```bash\nnpm ci\nnpm run typecheck:baseline:save\ngit config user.email \"kiro-bot@local\"\ngit config user.name \"Kiro Bot\"\ngit add types/ts-errors-baseline.json\ngit diff --cached --quiet || git commit -m \"chore(ts): ratchet baseline\"\ngit push\n```"
+  }
+}
