@@ -1,0 +1,26 @@
+agents:
+  architecture:
+    scope: ["docs/arch/**","contracts/**","gateway/**","tests/contract/**","migration/plan-*.md"]
+    forbidden: ["backend-implementation/src/**"]
+    precommit: ["contracts:format","events:validate","typecheck:diff"]
+  db_architect:
+    scope: ["backend-implementation/db/migrations/**","backend-implementation/db/seed/**"]
+  external_api:
+    scope: ["backend-implementation/src/controllers/**","backend-implementation/src/routes/**","backend-implementation/src/middleware/**","backend-implementation/src/shared/**","backend-implementation/src/types/**"]
+    precommit: ["typecheck:diff","dep:cruise"]
+    prepush: ["test:smoke"]
+  ingestion:
+    scope: ["backend-implementation/src/controllers/ingest/**","backend-implementation/src/services/ingest/**"]
+    prepush: ["test:smoke"]
+  orders:
+    scope: ["backend-implementation/src/controllers/orders/**","backend-implementation/src/services/orders/**"]
+    prepush: ["test:smoke"]
+  eventing_obs:
+    scope: ["backend-implementation/src/eventing/**","backend-implementation/src/infra/**","backend-implementation/src/obs/**","backend-implementation/src/routes/health.ts"]
+    precommit: ["typecheck:diff","dep:cruise"]
+
+policies:
+  commit_max_loc: 300
+  block_on_hook_failure: true
+  one_feature_per_pr: true
+  ask_on_cross_contract_change: true
