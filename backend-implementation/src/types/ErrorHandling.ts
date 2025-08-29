@@ -23,6 +23,10 @@ import {
   ErrorCategory,
 } from "@/services/ErrorMonitoringService";
 
+// Re-export for convenience
+export { ErrorSeverity, ErrorCategory } from "@/services/ErrorMonitoringService";
+export type { ErrorEvent } from "@/services/ErrorMonitoringService";
+
 /**
  * Base error interface for all system components
  */

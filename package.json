@@ -10,7 +10,10 @@
     "validate-progress": "node scripts/recovery-progress-validator.js",
     "monitor-recovery": "node scripts/monitor-recovery.js",
     "watch-consistency": "node scripts/consistency-validator.js --watch",
-    "progress-continuous": "node scripts/recovery-progress-validator.js --continuous"
+    "progress-continuous": "node scripts/recovery-progress-validator.js --continuous",
+    "typecheck:baseline:save": "node scripts/ts-errors-baseline.js save",
+    "typecheck:enforce": "node scripts/ts-errors-baseline.js enforce",
+    "typecheck:modified": "node scripts/typecheck-modified.js"
   },
   "devDependencies": {
     "@types/js-yaml": "^4.0.9",

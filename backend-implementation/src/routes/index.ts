@@ -42,6 +42,7 @@ import externalApiRoutes from "./api/external";
 import queueRoutes from "./queue";
 import analyticsRoutes from "./api/analytics";
 import complianceRoutes from "./compliance";
+import operationsRoutes from "./operations";
 // import vehicleRoutes from './vehicles';
 // import routeRoutes from './routes';
 // import driverRoutes from './drivers';
@@ -168,6 +169,7 @@ router.use("/external", externalApiRoutes);
 router.use("/queue", queueRoutes);
 router.use("/analytics", analyticsRoutes);
 router.use("/compliance", complianceRoutes);
+router.use("/ops", operationsRoutes);
 
 // Health and monitoring routes (not under /api/v1 prefix)
 router.use("/health", healthRoutes);

@@ -2,6 +2,7 @@
   "extends": "./tsconfig.json",
   "compilerOptions": {
     "sourceMap": true,
+    "declaration": true,
     "declarationMap": true,
     "preserveWatchOutput": true,
     "pretty": true,
@@ -10,7 +11,6 @@
     "traceResolution": false,
     "diagnostics": false,
     "extendedDiagnostics": false,
-    "generateCpuProfile": false,
     "preserveSymlinks": false,
     "assumeChangesOnlyAffectDirectDependencies": true
   },
