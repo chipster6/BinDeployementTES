@@ -1,0 +1,18 @@
+{
+  "event_id": "3c7e9e3e-8c3c-4c2f-9c4f-2adc1a7f4b42",
+  "event_version": 1,
+  "occurred_at": "2025-01-01T00:00:00Z",
+  "producer": "operations-service",
+  "data": {
+    "bin_id": "B-1",
+    "serial_number": "SN-123456",
+    "type": "ROLL_OFF",
+    "capacity_m3": 10.0,
+    "customer_id": "C-1",
+    "geo": {
+      "lat": 45.5017,
+      "lon": -73.5673
+    },
+    "status": "ACTIVE"
+  }
+}

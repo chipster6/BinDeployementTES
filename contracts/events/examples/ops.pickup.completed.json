@@ -1,0 +1,14 @@
+{
+  "event_id": "6f0f2f6f-bf6f-7f5f-cf7f-5dfe4d0f7e75",
+  "event_version": 1,
+  "occurred_at": "2025-01-02T09:45:00Z",
+  "producer": "operations-service",
+  "data": {
+    "order_id": "O-1",
+    "customer_id": "C-1",
+    "bin_id": "B-1",
+    "type": "PICKUP",
+    "completed_at": "2025-01-02T09:45:00Z",
+    "status": "COMPLETED"
+  }
+}

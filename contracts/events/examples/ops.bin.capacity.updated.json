@@ -1,0 +1,13 @@
+{
+  "event_id": "4d8f0f4f-9d4d-5d3f-ad5f-3bec2b8f5c53",
+  "event_version": 1,
+  "occurred_at": "2025-01-01T10:30:00Z",
+  "producer": "operations-service",
+  "data": {
+    "bin_id": "B-1",
+    "serial_number": "SN-123456",
+    "previous_capacity_m3": 8.0,
+    "new_capacity_m3": 12.0,
+    "customer_id": "C-1"
+  }
+}

@@ -1,0 +1,12 @@
+{
+  "event_id": "7f1f3f7f-cf7f-8f6f-df8f-6eff5e1f8f86",
+  "event_version": 1,
+  "occurred_at": "2025-01-01T08:00:00Z",
+  "producer": "operations-service",
+  "data": {
+    "customer_id": "C-1",
+    "name": "Acme Corporation",
+    "type": "COMMERCIAL",
+    "status": "ACTIVE"
+  }
+}
