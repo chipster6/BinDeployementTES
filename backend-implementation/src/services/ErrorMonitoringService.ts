@@ -27,6 +27,9 @@ import { config } from "@/config";
 import { ErrorSeverity, ErrorCategory, BusinessImpact, SystemLayer } from "./ports/ErrorTypes";
 import { ErrorReporterPort } from "./ports/ErrorReporterPort";
 
+// Re-export commonly used types for other modules
+export { ErrorSeverity, ErrorCategory, BusinessImpact, SystemLayer };
+
 /**
  * Error event interface
  */

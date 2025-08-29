@@ -21,7 +21,7 @@
 import { Sequelize } from 'sequelize';
 import { WeaviateConnection } from '../database/WeaviateConnection';
 import { DatabaseConfig } from '../config/database.config';
-import { Logger } from '../utils/Logger';
+import { logger } from '@/utils/logger';
 import { BaseService } from './BaseService';
 
 /**
@@ -116,12 +116,22 @@ export class VectorSyncService extends BaseService {
   constructor(
     database: Sequelize,
     weaviateConnection: WeaviateConnection,
-    vectorConfig: DatabaseConfig['vectorSync'],
-    logger: Logger = new Logger('VectorSyncService')
+    vectorConfig: DatabaseConfig['vectorSync']
   ) {
-    super(database, logger);
+    super(database);
     this.weaviateConnection = weaviateConnection;
     this.vectorConfig = vectorConfig;
+  }
+
+  /**
+   * Generate UUID for batch operations
+   */
+  private generateUUID(): string {
+    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+      const r = Math.random() * 16 | 0;
+      const v = c === 'x' ? r : (r & 0x3 | 0x8);
+      return v.toString(16);
+    });
   }
 
   /**
@@ -298,7 +308,7 @@ export class VectorSyncService extends BaseService {
         syncCompletedAt: new Date(),
         totalDurationMs: result.duration,
         avgProcessingTimeMs: result.totalProcessed > 0 ? result.duration / result.totalProcessed : 0,
-        errorSummary: result.errors.length > 0 ? `${result.errors.length} errors occurred` : null,
+        errorSummary: result.errors.length > 0 ? `${result.errors.length} errors occurred` : undefined,
         performanceSummary: {
           successRate: result.totalProcessed > 0 ? (result.successful / result.totalProcessed) * 100 : 0,
           avgProcessingTime: result.totalProcessed > 0 ? result.duration / result.totalProcessed : 0,
@@ -506,13 +516,15 @@ export class VectorSyncService extends BaseService {
     try {
       // Batch upsert to Weaviate
       const weaviateIds = await this.weaviateConnection.batchUpsertVectors(
-        weaviateObjects[0].properties?.className || 'KnowledgeBase',
+        (weaviateObjects[0] && weaviateObjects[0].properties?.className) || 'KnowledgeBase',
         weaviateObjects
       );
 
       // Update vector metadata in PostgreSQL
       for (let i = 0; i < vectorUpdates.length; i++) {
         const update = vectorUpdates[i];
+        if (!update) continue;
+        
         const weaviateSuccess = weaviateIds.includes(update.vectorId);
 
         try {
@@ -520,22 +532,26 @@ export class VectorSyncService extends BaseService {
             ...update,
             syncStatus: weaviateSuccess ? 'synced' : 'error',
             weaviateSyncedAt: weaviateSuccess ? new Date() : undefined,
-            syncErrorMessage: weaviateSuccess ? null : 'Failed to sync to Weaviate',
-            syncRetryCount: weaviateSuccess ? 0 : update.syncRetryCount + 1,
+            syncErrorMessage: weaviateSuccess ? undefined : 'Failed to sync to Weaviate',
+            syncRetryCount: weaviateSuccess ? 0 : (update.syncRetryCount || 0) + 1,
             vectorQualityScore: weaviateSuccess ? this.calculateQualityScore(update) : undefined,
             processedAt: new Date(),
-            processingDurationMs: Date.now() - vectors[i].lastSyncAttempt?.getTime() || 0
+            processingDurationMs: vectors[i] && vectors[i].lastSyncAttempt 
+              ? Date.now() - vectors[i].lastSyncAttempt.getTime() 
+              : 0
           });
 
           if (weaviateSuccess) {
             successful++;
           } else {
             failed++;
-            errors.push({
-              entityId: vectors[i].entityId,
-              entityType: vectors[i].entityType,
-              error: 'Failed to sync to Weaviate'
-            });
+            if (vectors[i]) {
+              errors.push({
+                entityId: vectors[i].entityId,
+                entityType: vectors[i].entityType,
+                error: 'Failed to sync to Weaviate'
+              });
+            }
           }
         } catch (error: unknown) {
           this.logger.error(`Failed to update vector metadata`, {
@@ -544,11 +560,13 @@ export class VectorSyncService extends BaseService {
           });
           
           failed++;
-          errors.push({
-            entityId: vectors[i].entityId,
-            entityType: vectors[i].entityType,
-            error: `Metadata update failed: ${error instanceof Error ? error?.message : String(error)}`
-          });
+          if (vectors[i]) {
+            errors.push({
+              entityId: vectors[i].entityId,
+              entityType: vectors[i].entityType,
+              error: `Metadata update failed: ${error instanceof Error ? error?.message : String(error)}`
+            });
+          }
         }
       }
 

@@ -145,8 +145,18 @@ export class WeaviateIntelligenceService extends BaseMlService {
     super(
       {} as any, // No Sequelize model needed for vector service
       'WeaviateIntelligenceService',
-      config.aiMl
+      config.aiMl || {} as any
     );
+
+    // Initialize properties to avoid TypeScript errors
+    this.weaviateClient = {} as WeaviateClient;
+    this.performanceMetrics = {
+      totalQueries: 0,
+      averageLatency: 0,
+      cacheHitRate: 0,
+      errorRate: 0,
+      lastUpdated: new Date()
+    };
 
     this.initializeWeaviateConnections();
     this.initializePerformanceTracking();
@@ -165,7 +175,7 @@ export class WeaviateIntelligenceService extends BaseMlService {
         const client = weaviate.client({
           scheme: weaviateConfig.url.startsWith('https') ? 'https' : 'http',
           host: weaviateConfig.url.replace(/^https?:\/\//, ''),
-          apiKey: weaviateConfig.apiKey,
+          apiKey: weaviateConfig.apiKey ? weaviate.apiKey.fromKey(weaviateConfig.apiKey) : undefined,
           timeout: weaviateConfig.timeout,
           headers: {
             'X-Weaviate-Cluster': `waste-mgmt-${i}`,
@@ -177,7 +187,9 @@ export class WeaviateIntelligenceService extends BaseMlService {
       }
 
       // Set primary client
-      this.weaviateClient = this.connectionPool[0];
+      if (this.connectionPool.length > 0) {
+        this.weaviateClient = this.connectionPool[0];
+      }
 
       // Test connection and optimize HNSW parameters
       await this.optimizeHNSWParameters();
@@ -253,8 +265,14 @@ export class WeaviateIntelligenceService extends BaseMlService {
    * Get load-balanced Weaviate client
    */
   private getLoadBalancedClient(): WeaviateClient {
+    if (this.connectionPool.length === 0) {
+      throw new Error('No Weaviate connections available');
+    }
     const client = this.connectionPool[this.connectionIndex];
     this.connectionIndex = (this.connectionIndex + 1) % this.connectionPool.length;
+    if (!client) {
+      throw new Error('Invalid Weaviate client in connection pool');
+    }
     return client;
   }
 
@@ -672,7 +690,7 @@ export class WeaviateIntelligenceService extends BaseMlService {
         const client = weaviate.client({
           scheme: config.aiMl.weaviate.url.startsWith('https') ? 'https' : 'http',
           host: config.aiMl.weaviate.url.replace(/^https?:\/\//, ''),
-          apiKey: config.aiMl.weaviate.apiKey,
+          apiKey: config.aiMl.weaviate.apiKey ? weaviate.apiKey.fromKey(config.aiMl.weaviate.apiKey) : undefined,
           timeout: config.aiMl.weaviate.timeout
         });
 
